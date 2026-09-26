@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { isStoredUkPhone, isValidUkPhone, normalizeUkPhone } from "@/lib/ukPhone";
 import {
   APPOINTMENT_WINDOW_MESSAGE,
   appointmentFitsWindow,
@@ -29,7 +30,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { packageId, postcode, address, frequency, request, home, slot, optionalSlots, promoCode, durationMinutes, preferredProviderId } = await req.json();
+    const { packageId, postcode, address, frequency, request, home, slot, optionalSlots, promoCode, durationMinutes, preferredProviderId, phone } = await req.json();
     if (!packageId) {
       return NextResponse.json({ error: "Missing packageId" }, { status: 400 });
     }
@@ -144,8 +145,27 @@ export async function POST(req: NextRequest) {
     } = await ssr.auth.getUser();
 
     if (!user) return NextResponse.json({ error: "Please sign in before checkout." }, { status: 401 });
-    const { data: profile } = await ssr.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    const { data: profile } = await ssr.from("profiles").select("role, phone").eq("id", user.id).maybeSingle();
     if (profile?.role !== "customer") return NextResponse.json({ error: "A customer account is required." }, { status: 403 });
+
+    // Sign-up does not require a phone, but the assigned cleaner needs one
+    // before a paid booking can be created.
+    if (!isStoredUkPhone(profile.phone)) {
+      if (!isValidUkPhone(phone)) {
+        return NextResponse.json(
+          { error: "Add a UK phone number so your cleaner can reach you on the day.", code: "phone_required" },
+          { status: 400 },
+        );
+      }
+      const { error: phoneError } = await supabaseAdmin
+        .from("profiles")
+        .update({ phone: normalizeUkPhone(phone) })
+        .eq("id", user.id);
+      if (phoneError) {
+        console.error("Could not save the customer's phone:", phoneError);
+        return NextResponse.json({ error: "Could not save your phone number. No payment has been taken." }, { status: 500 });
+      }
+    }
 
     // Never authorise a card unless this deployment can persist the booking.
     // The readiness function is installed by the booking database migration.

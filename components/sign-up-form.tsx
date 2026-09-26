@@ -27,6 +27,9 @@ export function SignUpForm() {
   const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
   const emailValid = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email.trim());
   const phoneValid = isValidUkPhone(phone);
+  const phoneEntered = phone.trim().length > 0;
+  const phoneOk = !phoneEntered || phoneValid;
+  const phoneError = phoneTouched && phoneEntered && !phoneValid;
 
   async function handleSignUp(event: React.FormEvent) {
     event.preventDefault();
@@ -34,7 +37,7 @@ export function SignUpForm() {
     setPhoneTouched(true);
     setError(null);
 
-    if (!salutation || !firstName.trim() || !lastName.trim() || !phone.trim() || !email.trim() || !address.trim() || password.length < 6) {
+    if (!salutation || !firstName.trim() || !lastName.trim() || !email.trim() || !address.trim() || password.length < 6) {
       setError("Complete every field. Your password must have at least 6 characters.");
       return;
     }
@@ -42,7 +45,7 @@ export function SignUpForm() {
       setError("Accept the Terms & Conditions, Privacy Policy and Cancellation & Refund Policy to create your account.");
       return;
     }
-    if (!emailValid || !phoneValid) return;
+    if (!emailValid || !phoneOk) return;
 
     setIsLoading(true);
     try {
@@ -108,7 +111,7 @@ export function SignUpForm() {
           <label className="sr-only" htmlFor="client-last-name">Last name</label>
           <input id="client-last-name" value={lastName} onChange={(event) => setLastName(event.target.value)} placeholder="Last name" autoComplete="family-name" />
 
-          <div className={`phone-field ${phoneTouched && !phoneValid ? "invalid" : ""}`}>
+          <div className={`phone-field ${phoneError ? "invalid" : ""}`}>
             <svg className="uk-flag" viewBox="0 0 60 30" role="img" aria-label="United Kingdom">
               <rect width="60" height="30" fill="#012169" />
               <path d="M0 0 60 30M60 0 0 30" stroke="#fff" strokeWidth="8" />
@@ -117,11 +120,11 @@ export function SignUpForm() {
               <path d="M30 0V30M0 15H60" stroke="#C8102E" strokeWidth="6" />
             </svg>
             <span className="phone-code">+44</span>
-            <label className="sr-only" htmlFor="client-phone">Telephone number</label>
-            <input id="client-phone" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} onBlur={() => setPhoneTouched(true)} placeholder="Telephone number" autoComplete="tel" inputMode="numeric" aria-invalid={phoneTouched && !phoneValid} aria-describedby={phoneTouched && !phoneValid ? "client-phone-error" : undefined} />
+            <label className="sr-only" htmlFor="client-phone">Telephone number (optional)</label>
+            <input id="client-phone" type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} onBlur={() => setPhoneTouched(true)} placeholder="Telephone number (optional)" autoComplete="tel" inputMode="numeric" aria-invalid={phoneError} aria-describedby={phoneError ? "client-phone-error" : "client-phone-help"} />
           </div>
-          {phoneTouched && !phoneValid && <p className="field-error" id="client-phone-error">Invalid phone number</p>}
-          <p className="phone-help">Your professional will use this only for booking-related contact.</p>
+          {phoneError && <p className="field-error" id="client-phone-error">Invalid phone number</p>}
+          <p className="phone-help" id="client-phone-help">Optional for now. You will need one before your first booking, so your professional can reach you on the day. It is used only for booking-related contact.</p>
 
           <label className="sr-only" htmlFor="client-email">Email</label>
           <input id="client-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} onBlur={() => setEmailTouched(true)} placeholder="Email" autoComplete="email" className={emailTouched && !emailValid ? "invalid" : undefined} aria-invalid={emailTouched && !emailValid} aria-describedby={emailTouched && !emailValid ? "client-email-error" : undefined} />

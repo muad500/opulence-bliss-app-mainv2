@@ -11,6 +11,7 @@ import { bookingPolicyError } from "@/lib/bookingPolicy";
 import { REGULAR_VISIT_COUNT, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
 import { cleaningHomeLabel, parseCleaningHome, recommendedCleaningMinutesForHome, type PropertyType } from "@/lib/cleaningHome";
 import AppointmentTimePicker from "@/components/AppointmentTimePicker";
+import { isStoredUkPhone, isValidUkPhone } from "@/lib/ukPhone";
 
 const supabase = createClient();
 
@@ -124,6 +125,10 @@ export default function BookPage() {
 
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
+  // null means the saved profile has not been checked yet.
+  const [savedPhone, setSavedPhone] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [handoffError, setHandoffError] = useState<string | null>(null);
 
   /* ---------- load ---------- */
@@ -163,10 +168,11 @@ export default function BookPage() {
       if (user) {
         const { data: p } = await supabase
           .from("profiles")
-          .select("role, postcode, address")
+          .select("role, postcode, address, phone")
           .eq("id", user.id)
           .maybeSingle();
         setRole(p?.role ?? null);
+        setSavedPhone(p?.phone ?? "");
         const { data: cleaners } = await supabase.rpc("my_previous_cleaners");
         setPreviousCleaners(cleaners ?? []);
         if (p?.postcode) {
@@ -376,8 +382,15 @@ export default function BookPage() {
     return startCheckout();
   }
 
+  const needsPhone = signedIn === true && savedPhone !== null && !isStoredUkPhone(savedPhone);
+  const phoneValid = isValidUkPhone(phone);
+
   async function startCheckout() {
     if (!selected || !addressValid || !slot || !home) return;
+    if (needsPhone && !phoneValid) {
+      setPhoneTouched(true);
+      return;
+    }
     const policyError = bookingPolicyError(selected.name, frequency);
     if (policyError) {
       setPayError(policyError);
@@ -401,11 +414,18 @@ export default function BookPage() {
           slot,
           optionalSlots,
           promoCode: promoInfo?.ok ? promo.trim().toUpperCase() : null,
+          phone: needsPhone ? phone : undefined,
         }),
       });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
-      else throw new Error(data.error || "Could not start checkout");
+      else {
+        if (data.code === "phone_required") {
+          setSavedPhone("");
+          setPhoneTouched(true);
+        }
+        throw new Error(data.error || "Could not start checkout");
+      }
     } catch (e) {
       setPayError(e instanceof Error ? e.message : "Checkout failed");
       setPaying(false);
@@ -1039,8 +1059,32 @@ export default function BookPage() {
             {step === 2 && (
               <p className="hint">Now choose how often you would like it.</p>
             )}
+            {step === 5 && needsPhone && (
+              <div className="phone-ask">
+                <label htmlFor="booking-phone">Your phone number</label>
+                <div className={`phone-row ${phoneTouched && !phoneValid ? "invalid" : ""}`}>
+                  <span>+44</span>
+                  <input
+                    id="booking-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel-national"
+                    placeholder="7912 345678"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                    onBlur={() => setPhoneTouched(true)}
+                    aria-invalid={phoneTouched && !phoneValid}
+                    aria-describedby="booking-phone-help"
+                  />
+                </div>
+                {phoneTouched && !phoneValid && <p className="phone-error">Enter a valid UK phone number.</p>}
+                <p className="phone-help" id="booking-phone-help">
+                  Your cleaner uses this to reach you on the day, for example if they cannot get in. It is saved to your account.
+                </p>
+              </div>
+            )}
             {step === 5 && (
-              <button className="pay" onClick={checkout} disabled={paying || !slot || !addressValid || !home || !!policyError || !!regularScheduleError}>
+              <button className="pay" onClick={checkout} disabled={paying || !slot || !addressValid || !home || !!policyError || !!regularScheduleError || (needsPhone && !phoneValid)}>
                 {paying
                   ? "Taking you to checkout…"
                   : signedIn === false
@@ -1887,6 +1931,58 @@ export default function BookPage() {
         .pay:disabled {
           opacity: 0.45;
           cursor: not-allowed;
+        }
+        .phone-ask {
+          margin: 0 0 14px;
+        }
+        .phone-ask label {
+          display: block;
+          margin: 0 0 6px;
+          color: var(--ink);
+          font-size: 14px;
+          font-weight: 800;
+        }
+        .phone-row {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-height: 44px;
+          padding: 0 12px;
+          border: 2px solid var(--line);
+          border-radius: 14px;
+          background: #fff;
+        }
+        .phone-row:focus-within {
+          border-color: var(--purple);
+        }
+        .phone-row.invalid {
+          border-color: #d82f45;
+        }
+        .phone-row span {
+          color: var(--muted);
+          font-weight: 800;
+        }
+        .phone-row input {
+          flex: 1;
+          min-width: 0;
+          border: 0;
+          outline: none;
+          background: transparent;
+          color: var(--ink);
+          font: inherit;
+          font-weight: 600;
+        }
+        .phone-error {
+          margin: 6px 0 0;
+          color: #d82f45;
+          font-size: 12.5px;
+          font-weight: 700;
+        }
+        .phone-help {
+          margin: 6px 0 0;
+          color: var(--muted);
+          font-size: 12.5px;
+          line-height: 1.45;
         }
         .alt {
           margin: 18px 0 0;

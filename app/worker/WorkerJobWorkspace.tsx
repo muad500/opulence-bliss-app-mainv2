@@ -2,6 +2,7 @@
 
 import SessionCountdown from "@/components/SessionCountdown";
 import { useEffect, useState } from "react";
+import { formatUkPhone } from "@/lib/ukPhone";
 import {
   CalendarDays,
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
   MapPin,
   MessageSquare,
   Navigation,
+  Phone,
   ShieldCheck,
   Star,
   X,
@@ -400,6 +402,11 @@ export default function WorkerJobWorkspace({
                 {job.client.completedWithYou > 0 && <span>Repeat client</span>}
               </div>
               {job.client.email && <p>{job.client.email}</p>}
+              {job.client.phone && (
+                <a className="client-call" href={`tel:${job.client.phone}`}>
+                  <Phone size={15} /> Call {formatUkPhone(job.client.phone)}
+                </a>
+              )}
             </div>
           </div>
           <div className="instructions">
@@ -634,6 +641,25 @@ export default function WorkerJobWorkspace({
       )}
 
       <style jsx>{`
+        .client-call {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-height: 40px;
+          margin-top: 8px;
+          padding: 0 14px;
+          border-radius: 999px;
+          background: #f3edff;
+          color: #6d28d9;
+          font-size: 13.5px;
+          font-weight: 800;
+          text-decoration: none;
+        }
+        .client-call:focus-visible {
+          outline: 3px solid rgba(109, 40, 217, 0.35);
+          outline-offset: 2px;
+        }
+
         .worker-workspace {
           width: 100%;
           color: var(--ob-text);
