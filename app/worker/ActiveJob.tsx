@@ -14,8 +14,10 @@ import {
   MapPin,
   MessageSquare,
   Navigation,
+  Phone,
   RotateCcw,
 } from "lucide-react";
+import { formatUkPhone } from "@/lib/ukPhone";
 import BookingProgress from "@/components/BookingProgress";
 import { appointmentTimeLabel as clock } from "@/lib/appointmentWindow";
 import JobActions, { CheckInControl } from "./JobActions";
@@ -34,6 +36,8 @@ export type ActiveJobData = {
   clientEmail?: string | null;
   clientRating?: number | null;
   clientRatingCount?: number | null;
+  /** Only present while the job is scheduled or in progress. */
+  clientPhone?: string | null;
   clientCompletedBookings?: number;
   service: string;
   durationMinutes: number | null;
@@ -243,6 +247,11 @@ export default function ActiveJob({
                   <span>Repeat client</span>
                 )}
               </div>
+              {job.clientPhone && (
+                <a className="client-call" href={`tel:${job.clientPhone}`}>
+                  <Phone size={14} /> Call {formatUkPhone(job.clientPhone)}
+                </a>
+              )}
               <small className="history">
                 <RotateCcw size={13} />
                 {(job.clientCompletedBookings ?? 0) > 0
@@ -382,6 +391,25 @@ export default function ActiveJob({
       </footer>
 
       <style jsx>{`
+        .client-call {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-height: 40px;
+          margin-top: 8px;
+          padding: 0 14px;
+          border-radius: 999px;
+          background: #f3edff;
+          color: #6d28d9;
+          font-size: 13.5px;
+          font-weight: 800;
+          text-decoration: none;
+        }
+        .client-call:focus-visible {
+          outline: 3px solid rgba(109, 40, 217, 0.35);
+          outline-offset: 2px;
+        }
+
         .dashboard-job {
           container-type: inline-size;
           box-sizing: border-box;

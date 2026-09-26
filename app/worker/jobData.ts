@@ -23,6 +23,8 @@ export type WorkerJobWorkspaceData = {
   client: {
     name: string;
     email: string | null;
+    /** Only returned while the job is scheduled or in progress. */
+    phone: string | null;
     rating: number | null;
     ratingCount: number;
     completedWithYou: number;
@@ -169,6 +171,7 @@ export async function loadWorkerJob(
     full_name: string | null;
     client_rating_avg: number | null;
     client_rating_count: number | null;
+    phone?: string | null;
   } | null;
   const payments = paymentResult.data ?? [];
   const jobPayment = payments.find((payment) => payment.kind !== "tip");
@@ -235,6 +238,7 @@ export async function loadWorkerJob(
     client: {
       name: customer?.full_name ?? row.customer_email ?? "Client",
       email: row.customer_email,
+      phone: customer?.phone ?? null,
       rating:
         customer?.client_rating_avg === null ||
         customer?.client_rating_avg === undefined

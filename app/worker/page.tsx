@@ -220,6 +220,7 @@ export default async function WorkerPage() {
       full_name: string | null;
       client_rating_avg: number | null;
       client_rating_count: number | null;
+      phone: string | null;
       completedWithProvider: number;
     }
   >();
@@ -242,10 +243,12 @@ export default async function WorkerPage() {
         full_name: string | null;
         client_rating_avg: number | null;
         client_rating_count: number | null;
+        phone?: string | null;
       } | null;
       if (summary) {
         customerSummaryMap.set(booking.id, {
           ...summary,
+          phone: summary.phone ?? null,
           completedWithProvider: completedResult.count ?? 0,
         });
       }
@@ -282,6 +285,7 @@ export default async function WorkerPage() {
           ? null
           : Number(customer.client_rating_avg),
       clientRatingCount: customer?.client_rating_count ?? 0,
+      clientPhone: customer?.phone ?? null,
       clientCompletedBookings: customer?.completedWithProvider ?? 0,
       service: pkg?.name ?? "Service",
       durationMinutes: booking.duration_minutes ?? pkg?.duration_minutes ?? null,

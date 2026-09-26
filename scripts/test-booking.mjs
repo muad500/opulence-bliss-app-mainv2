@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 // Compile the pure modules into an isolated CommonJS directory using the
 // project's locked TypeScript compiler; no extra runtime dependency is needed.
 const directory = await mkdtemp(join(tmpdir(), "opulence-tests-"));
-const modules = ["appointmentWindow", "bookingPolicy", "bookingTimeChoices", "cancellationPolicy", "cleaningBooking", "cleaningHome", "messageAttachments", "providerDbs", "providerOnboarding", "providerOperations", "regularBooking", "reviewVisibility", "visitStatus"];
+const modules = ["appointmentWindow", "bookingPolicy", "bookingTimeChoices", "cancellationPolicy", "cleaningBooking", "cleaningHome", "messageAttachments", "providerDbs", "providerOnboarding", "providerOperations", "regularBooking", "reviewVisibility", "ukPhone", "visitStatus"];
 try {
   for (const moduleName of modules) {
     for (const suffix of ["", ".test"]) {
@@ -17,7 +17,10 @@ try {
       await writeFile(join(directory, name + ".js"), compiled.outputText);
     }
   }
-  execFileSync(process.execPath, ["--test", ...modules.map((moduleName) => join(directory, moduleName + ".test.js"))], { stdio: "inherit" });
+  execFileSync(process.execPath, ["--test", ...modules.map((moduleName) => join(directory, moduleName + ".test.js"))], {
+    stdio: "inherit",
+    env: { ...process.env, NODE_PATH: join(process.cwd(), "node_modules") },
+  });
 } finally {
   await rm(directory, { recursive: true, force: true });
 }
