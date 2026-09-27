@@ -400,6 +400,11 @@ export function BookingTools({
                       );
                     }}
                   >
+                    {!currentService && (
+                      <option value={packageId}>
+                        {service} — existing booking only
+                      </option>
+                    )}
                     {serviceOptions.map((item) => {
                       const compatible =
                         item.id === packageId ||

@@ -78,9 +78,6 @@ export const blogPosts: BlogPost[] = [
           "Signature Deep Clean — £24.90 per hour. A thorough, top-to-bottom clean that reaches the spots regular cleaning misses, ideal for a seasonal reset or before hosting.",
           "End of Tenancy / Move-In Clean — £25 per hour. A detailed deep clean that leaves a property spotless for moving out or moving in.",
           "Guest Ready — £22.90 per hour. Fast-turnaround cleaning between guests, tailored for Airbnb and holiday-rental hosts.",
-          "Linen Care — £16.90 per hour. Ironing and laundry service to keep linens and clothing fresh, crisp and ready to use.",
-          "Window Cleaning — £16.90 per hour. Interior and exterior window cleaning for a streak-free shine, available alone or added to a clean.",
-          "Essential Clean and Linen Care — £23.90 per hour. Regular dusting, floors, kitchen and bathroom cleaning combined with ironing and laundry care.",
         ],
       },
       {
