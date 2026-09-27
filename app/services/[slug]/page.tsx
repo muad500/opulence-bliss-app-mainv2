@@ -275,7 +275,7 @@ export default function ServicePage() {
               <p className="stars">
                 <span>{"★".repeat(Math.round(avg))}</span> {avg.toFixed(1)}/5 ·{" "}
                 <a href="#reviews">
-                  {scoreCount} review{scoreCount === 1 ? "" : "s"}
+                  {scoreCount} rating{scoreCount === 1 ? "" : "s"}
                 </a>
               </p>
             ) : (
