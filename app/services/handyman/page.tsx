@@ -25,21 +25,16 @@ type CustomerProfile = {
 type QuoteAccess = "loading" | "signed_out" | "customer" | "wrong_role";
 
 const TASKS = [
-  { name: "Mounting and hanging", price: 35, note: "Pictures, mirrors, shelves and TVs", icon: Drill },
-  { name: "Furniture assembly", price: 29, note: "Flat-pack furniture and installations", icon: Armchair },
-  { name: "Minor repairs", price: 40, note: "Everyday fixes and small maintenance jobs", icon: Hammer },
-  { name: "Curtains and blinds", price: 35, note: "Rails, blinds and curtain installation", icon: Wrench },
-  { name: "Furniture moving", price: 40, note: "Help repositioning furniture at home", icon: Move },
-  { name: "Painting", price: 32, note: "Small painting and touch-up projects", icon: PaintRoller },
+  { name: "Mounting and hanging", note: "Pictures, mirrors, shelves and TVs", icon: Drill },
+  { name: "Furniture assembly", note: "Flat-pack furniture and installations", icon: Armchair },
+  { name: "Minor repairs", note: "Everyday fixes and small maintenance jobs", icon: Hammer },
+  { name: "Curtains and blinds", note: "Rails, blinds and curtain installation", icon: Wrench },
+  { name: "Furniture moving", note: "Help repositioning furniture at home", icon: Move },
+  { name: "Minor decorating", note: "Small touch-ups and minor decorating", icon: PaintRoller },
 ] as const;
 
 const TASK_OPTIONS = [
-  ...TASKS.map((task) => ({
-    value: task.name,
-    label: `${task.name} — From £${task.price}/hr`,
-  })),
-  { value: "Plumbing", label: "Plumbing" },
-  { value: "Kitchen or bathroom renovation", label: "Kitchen or bathroom renovation" },
+  ...TASKS.map((task) => ({ value: task.name, label: task.name })),
   { value: "Other", label: "Other" },
 ];
 
@@ -141,7 +136,7 @@ export default function HandymanPage() {
             <p className="eyebrow">Handyman services across London</p>
             <h1>Tell us what needs doing. We&apos;ll arrange the right quote.</h1>
             <p className="lede">
-              Repairs, assembly, mounting, painting and practical help around
+              Repairs, assembly, mounting, minor decorating and practical help around
               your home from trusted professionals.
             </p>
             <a className="primary" href="#quote">Request a quote</a>
@@ -161,7 +156,7 @@ export default function HandymanPage() {
         <p className="eyebrow">What we can help with</p>
         <h2 id="handyman-services">Handyman services</h2>
         <div className="taskGrid">
-          {TASKS.map(({ name, price, note, icon: Icon }) => (
+          {TASKS.map(({ name, note, icon: Icon }) => (
             <button
               type="button"
               key={name}
@@ -174,7 +169,6 @@ export default function HandymanPage() {
               <Icon size={23} strokeWidth={1.8} />
               <span>
                 <strong>{name}</strong>
-                <b className="taskPrice">From £{price}/hr</b>
                 <small>{note}</small>
               </span>
             </button>
@@ -349,7 +343,6 @@ export default function HandymanPage() {
         .task svg { flex:0 0 auto; color:#6d28d9; }
         .task span { display:grid; gap:5px; }
         .task strong { font-size:16px; font-weight:900; }
-        .taskPrice { color:#6d28d9; font-size:14px; font-weight:900; }
         .task small { color:#68717d; font-size:13px; line-height:1.4; }
         .faqBand { padding:72px 0; border-top:1px solid #eee9f3; background:linear-gradient(145deg,#fffdf8,#fff8fb 52%,#f6f0ff); }
         .faqGrid { display:grid; grid-template-columns:minmax(230px,.62fr) minmax(0,1.38fr); gap:52px; align-items:start; }
