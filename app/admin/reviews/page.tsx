@@ -53,9 +53,10 @@ export default async function AdminReviewsPage() {
               <h2 id="cleaning-testimonials">Cleaning testimonials</h2>
             </div>
             <p>
-              Add approved testimonials or clearly labelled prototype samples.
-              Demo entries never appear as verified customer reviews. Ratings
-              below 4 stay private even if Published is selected.
+              Use Published to choose which genuine customer testimonials appear
+              in the featured selection. Prototype samples cannot be published.
+              This does not hide booking reviews or change the overall rating:
+              public 1–5 star reviews remain available in the full review feed.
             </p>
           </div>
 
@@ -68,7 +69,7 @@ export default async function AdminReviewsPage() {
             <label>Order<input name="sortOrder" type="number" defaultValue="0" /></label>
             <label className="wide">Review<textarea name="comment" rows={3} placeholder="Cleaning-related feedback" required /></label>
             <div className="toggles">
-              <label><input type="checkbox" name="published" defaultChecked /> Published</label>
+              <label><input type="checkbox" name="published" defaultChecked /> Feature on cleaning page</label>
               <label><input type="checkbox" name="isDemo" defaultChecked /> Prototype sample</label>
             </div>
             <button type="submit">Add testimonial</button>
@@ -90,7 +91,7 @@ export default async function AdminReviewsPage() {
                   <label>Order<input name="sortOrder" type="number" defaultValue={review.sort_order} /></label>
                   <label className="wide">Review<textarea name="comment" rows={3} defaultValue={review.comment} required /></label>
                   <div className="toggles">
-                    <label><input type="checkbox" name="published" defaultChecked={review.published} /> Published</label>
+                    <label><input type="checkbox" name="published" defaultChecked={review.published} /> Feature on cleaning page</label>
                     <label><input type="checkbox" name="isDemo" defaultChecked={review.is_demo} /> Prototype sample</label>
                   </div>
                   <div className="form-actions">

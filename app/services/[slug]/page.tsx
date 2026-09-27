@@ -199,7 +199,9 @@ export default function ServicePage() {
         is_demo: review.is_demo,
         verified: false,
       }));
-      setReviews([...managed, ...verified].slice(0, 12));
+      // Keep a small curated testimonial selection alongside, rather than in
+      // place of, the public booking reviews. The complete feed stays linked.
+      setReviews([...managed.slice(0, 3), ...verified]);
       const row = Array.isArray(summaryRows) ? summaryRows[0] : summaryRows;
       const count = Number(row?.rating_count ?? 0);
       setSummary(count > 0 ? { avg: Number(row.rating_avg), count } : { avg: 0, count: 0 });
@@ -209,17 +211,10 @@ export default function ServicePage() {
     })();
   }, [copy.match]);
 
-  // The headline score counts every customer rating for this service, so it
-  // cannot leave out negative ones. Only when there are no booking reviews yet
-  // does it fall back to published testimonials, never prototype samples.
-  const testimonials = reviews.filter((review) => !review.verified && !review.is_demo);
-  const useSummary = summary !== null && summary.count > 0;
-  const scoreCount = useSummary ? summary.count : testimonials.length;
-  const avg = useSummary
-    ? summary.avg
-    : testimonials.length > 0
-      ? testimonials.reduce((s, r) => s + r.rating, 0) / testimonials.length
-      : null;
+  // The headline score comes only from booking ratings, including private
+  // ratings; manually selected testimonials must never determine that score.
+  const scoreCount = summary?.count ?? 0;
+  const avg = scoreCount > 0 ? summary?.avg ?? null : null;
 
   const bookLink = `/book?type=${copy.match}${
     postcode ? `&pc=${encodeURIComponent(postcode)}` : ""
@@ -516,6 +511,7 @@ export default function ServicePage() {
               <div className="review-feed">
                 {reviews.map((review) => (
                   <article className="review-row" key={review.id}>
+                    <small>{review.verified ? "Public booking review" : "Featured customer testimonial"}</small>
                     <div className="review-meta">
                       <span className="rstars" aria-label={`${review.rating} out of 5 stars`}>
                         {"★".repeat(review.rating)}
@@ -539,6 +535,7 @@ export default function ServicePage() {
                   </article>
                 ))}
               </div>
+              <a href="/reviews">Read all public booking reviews</a>
             </div>
           )}
         </div>
