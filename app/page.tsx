@@ -78,9 +78,6 @@ export default function Home() {
               Book my cleaning
             </a>
           </div>
-          <p className="micro">
-            Central, North &amp; West London · cleaning bookings and handyman quotations
-          </p>
           <a className="hero-quote" href="/services/handyman">
             Need something repaired or installed? Request a handyman quote →
           </a>
@@ -111,10 +108,10 @@ export default function Home() {
       {/* ---------- TRUST ---------- */}
       <section className="strip">
         {[
-          ["DBS-verified professionals", "Verification required before new bookings"],
+          ["Vetted cleaners", "Every approved cleaner is vetted before taking bookings"],
           ["Clear before you commit", "See the cleaning price or approve a handyman quote"],
           ["Your regular pro", "Ask for them again next time"],
-          ["Made for your schedule", "Choose a cleaning slot or request a preferred time"],
+          ["Flexible appointment times", "Choose a time that suits you; we'll find your cleaner"],
         ].map(([t, s]) => (
           <div key={t}>
             <strong>{t}</strong>
@@ -131,8 +128,8 @@ export default function Home() {
           <ol className="steps">
             {[
               ["Choose a service", "Book cleaning or request handyman help."],
-              ["Tell us what you need", "Add your address, job details and preferred timing."],
-              ["Book or approve", "Confirm a cleaning price or approve your handyman quote."],
+              ["Tell us what you need", "Add your address and job details."],
+              ["Pick a suitable time", "Choose a cleaning time, then confirm your booking or approve a handyman quote."],
               ["Your pro arrives", "They check in and take care of the work."],
             ].map(([t, s], i) => (
               <li key={t}>
@@ -154,7 +151,7 @@ export default function Home() {
         <section className="quotes-wrap">
           <div className="inner">
             <p className="eyebrow center">From our customers</p>
-            <h2 className="center big">Featured customer reviews</h2>
+            <h2 className="center big">Happy Customer Moments</h2>
             <div className="quotes">
               {quotes.map((quote) => (
                 <blockquote key={quote.id}>
@@ -177,7 +174,7 @@ export default function Home() {
       {/* ---------- CTA ---------- */}
       <section className="cta-band">
         <h2>Ready to hand it over?</h2>
-        <p>Enter your postcode and see what&apos;s free this week.</p>
+        <p>Choose a cleaning time that suits you; we&apos;ll find your cleaner.</p>
         <a className="btn light" href="/book">
           Book a service
         </a>

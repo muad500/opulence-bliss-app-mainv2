@@ -17,7 +17,7 @@ export function normalizeMessageAttachments(
 }
 
 export function attachmentMimeType(file: Pick<File, "name" | "type">) {
-  if (["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(file.type)) {
+  if (["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
     return file.type;
   }
 
@@ -27,6 +27,5 @@ export function attachmentMimeType(file: Pick<File, "name" | "type">) {
     jpeg: "image/jpeg",
     png: "image/png",
     webp: "image/webp",
-    pdf: "application/pdf",
   } as Record<string, string>)[extension ?? ""] ?? null;
 }
