@@ -697,13 +697,10 @@ export async function GET(req: NextRequest) {
      * ------------------------------------------------------------------
      * Two funding models coexist, and they leave different traces:
      *
-     *   Per-visit  — a destination charge. Stripe creates the transfer when
-     *                the payment captures and sets source_transaction to the
-     *                charge. No local payout row exists by design, so these
-     *                reconcile against payments.
-     *
-     *   Membership — the platform collects, then explicitly creates a
-     *                transfer. These must match a local payout row.
+     *   Legacy one-off destination charges have source_transaction but no
+     *   operation_key; reconcile those against payments. Current one-off,
+     *   regular, membership, and tip transfers have an operation_key and
+     *   must all match a local payout row, even when source_transaction is set.
      * ================================================================== */
     const transfers: Stripe.Transfer[] = [];
     let startingAfter: string | undefined;
@@ -747,7 +744,7 @@ export async function GET(req: NextRequest) {
           ? tr.source_transaction
           : (tr.source_transaction?.id ?? null);
 
-      if (sourceTransaction && tr.metadata?.kind !== "regular_visit") {
+      if (sourceTransaction && !tr.metadata?.operation_key) {
         destinationChargeTransfers++;
 
         let paymentIntentId: string | null = null;
@@ -907,19 +904,23 @@ export async function GET(req: NextRequest) {
         op.booking_id &&
         ["capture", "transfer"].includes(op.operation_type)
       ) {
-        const k = `${op.operation_type}:${op.booking_id}`;
+        // One visit transfer and one tip transfer on the same booking are
+        // legitimate; only duplicate operations of the same purpose are not.
+        const k = op.operation_type === "transfer"
+          ? op.operation_key.replace(/:provider:[^:]+$/, "")
+          : `${op.operation_type}:${op.booking_id}`;
         succeeded.set(k, [...(succeeded.get(k) ?? []), op.id]);
       }
     }
 
     for (const [k, ids] of succeeded) {
       if (ids.length < 2) continue;
-      const [type, bookingId] = k.split(":");
+      const [type, , bookingId] = k.split(":");
       findings.push({
         finding_type:
           type === "capture" ? "duplicate_capture" : "duplicate_transfer",
         severity: "critical",
-        booking_id: bookingId,
+        booking_id: validUuid(bookingId),
         operation_id: ids[0],
         expected: { succeeded_operations: 1 },
         actual: { succeeded_operations: ids.length, ids },

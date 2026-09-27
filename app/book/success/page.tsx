@@ -23,7 +23,7 @@ export default async function Success({
       const pi = session.payment_intent as Stripe.PaymentIntent;
       ok = pi.status === "requires_capture" || pi.status === "succeeded";
       total = pi.amount;
-      platform = pi.application_fee_amount ?? 0;
+      platform = pi.application_fee_amount ?? Number(pi.metadata?.platform_margin ?? 0);
       provider = total - platform;
       name = pi.metadata?.package ?? "";
       upfrontRegular = pi.metadata?.upfront_regular === "1";

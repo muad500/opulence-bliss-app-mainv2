@@ -270,11 +270,12 @@ export async function cancelCustomerBooking(
                   Math.round(originalPlatformFee * retainedRatio * 100),
                 ),
               );
+              const cancellationIntent = await stripe.paymentIntents.retrieve(payment.stripe_payment_ref);
               stripeObject = await stripe.paymentIntents.capture(
                 payment.stripe_payment_ref,
                 {
                   amount_to_capture: policy.cancellationChargePence,
-                  application_fee_amount: platformFeePence,
+                  ...(cancellationIntent.transfer_data ? { application_fee_amount: platformFeePence } : {}),
                   metadata: {
                     operation_key: operationKey,
                     booking_id: id,

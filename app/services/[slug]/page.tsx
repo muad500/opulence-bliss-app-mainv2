@@ -28,8 +28,6 @@ type Review = {
   service_label: string;
   customer_name: string;
   location: string | null;
-  is_demo: boolean;
-  verified: boolean;
 };
 
 type ServiceFaq = { q: string; a: string };
@@ -149,24 +147,8 @@ export default function ServicePage() {
       );
       setItems(matching.sort(compareCleaningSessions));
 
-      const [{ data: revs }, { data: curated }, { data: faqRows }, { data: summaryRows }] = await Promise.all([
-        supabase
-          .from("reviews")
-          .select("id, rating, comment, created_at")
-          .eq("reviewer", "client")
-          .eq("visibility", "public")
-          .order("created_at", { ascending: false })
-          .limit(6),
-        supabase
-          .from("marketing_reviews")
-          .select(
-            "id, rating, comment, service_label, customer_name, location, reviewed_at, is_demo",
-          )
-          .eq("service_type", "cleaning")
-          .eq("published", true)
-          .order("sort_order", { ascending: true })
-          .order("reviewed_at", { ascending: false })
-          .limit(12),
+      const [{ data: revs }, { data: faqRows }, { data: summaryRows }] = await Promise.all([
+        supabase.rpc("cleaning_reviews_feed", { p_limit: 6 }),
         supabase
           .from("faqs")
           .select("question, answer")
@@ -185,23 +167,8 @@ export default function ServicePage() {
         service_label: "Home cleaning",
         customer_name: "",
         location: null,
-        is_demo: false,
-        verified: true,
       }));
-      const managed = (curated ?? []).map((review) => ({
-        id: `managed-${review.id}`,
-        rating: review.rating,
-        comment: review.comment,
-        created_at: review.reviewed_at,
-        service_label: review.service_label,
-        customer_name: review.customer_name,
-        location: review.location,
-        is_demo: review.is_demo,
-        verified: false,
-      }));
-      // Keep a small curated testimonial selection alongside, rather than in
-      // place of, the public booking reviews. The complete feed stays linked.
-      setReviews([...managed.slice(0, 3), ...verified]);
+      setReviews(verified);
       const row = Array.isArray(summaryRows) ? summaryRows[0] : summaryRows;
       const count = Number(row?.rating_count ?? 0);
       setSummary(count > 0 ? { avg: Number(row.rating_avg), count } : { avg: 0, count: 0 });
@@ -490,8 +457,8 @@ export default function ServicePage() {
 
           {reviews.length === 0 ? (
             <div className="empty">
-              No reviews yet. Every customer rates their visit, and they&apos;ll
-              appear here as they come in.
+              No public cleaning reviews yet. Customer reviews appear here
+              when they choose to share them publicly.
             </div>
           ) : (
             <div className="reviews-layout">
@@ -511,7 +478,7 @@ export default function ServicePage() {
               <div className="review-feed">
                 {reviews.map((review) => (
                   <article className="review-row" key={review.id}>
-                    <small>{review.verified ? "Public booking review" : "Featured customer testimonial"}</small>
+                    <small>Public booking review</small>
                     <div className="review-meta">
                       <span className="rstars" aria-label={`${review.rating} out of 5 stars`}>
                         {"★".repeat(review.rating)}
@@ -520,7 +487,6 @@ export default function ServicePage() {
                       <strong>{review.rating}/5</strong>
                       <span aria-hidden="true">·</span>
                       <span>{ago(review.created_at)}</span>
-                      {review.is_demo && <em className="sample">Prototype sample</em>}
                     </div>
                     <h3>Cleaning: {review.service_label}</h3>
                     <p className="rtext">
