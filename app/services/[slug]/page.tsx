@@ -502,7 +502,7 @@ export default function ServicePage() {
                 </div>
                 <p>
                   {scoreCount > 0
-                    ? `${scoreCount} cleaning review${scoreCount === 1 ? "" : "s"}`
+                    ? `${scoreCount} customer rating${scoreCount === 1 ? "" : "s"} from cleaning visits`
                     : "Customer feedback from cleaning visits"}
                 </p>
                 <a href="#cleaning-services">Book your cleaning</a>
