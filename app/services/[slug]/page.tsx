@@ -84,7 +84,7 @@ const COPY: Record<
       },
       {
         q: "When am I charged?",
-        a: "For a one-time visit, your card is held when you book and charged after the visit. For a six-visit Essential Clean booking, you pay for all six upfront. If a prepaid visit cannot be filled, that visit's amount is refunded.",
+        a: "For a one-time visit, your card is held when you book and charged after the visit. For a regular Essential Clean booking, you pay for all 6 to 10 selected visits upfront. If a prepaid visit cannot be filled, that visit's amount is refunded.",
       },
       {
         q: "Can I have the same cleaner each time?",
@@ -471,7 +471,7 @@ export default function ServicePage() {
               ],
               [
                 "We're fair",
-                "One-time visits are charged after completion; six-visit plans are paid upfront. Providers are paid after their visits.",
+                "One-time visits are charged after completion; regular plans are paid upfront. Providers are paid after their visits.",
               ],
             ].map(([t, s]) => (
               <div key={t} className="lovecard">

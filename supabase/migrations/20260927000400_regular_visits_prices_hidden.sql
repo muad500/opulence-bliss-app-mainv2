@@ -186,7 +186,7 @@ begin
   insert into public.notifications(user_id, title, body, href)
   values(
     p_customer_id,
-    'Six visits booked',
+    'Regular visits booked',
     'Your Essential Clean visits have been paid upfront. See each visit and its professional in My Bookings.',
     '/account'
   );

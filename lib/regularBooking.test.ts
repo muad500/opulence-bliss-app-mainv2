@@ -31,16 +31,16 @@ test("upfront payment is allocated to six visits exactly", () => {
   assert.ok(visits.every((visit) => visit.providerPence > 0));
 });
 
-test("two hours at the £18.90 regular rate charges six sessions upfront", () => {
+test("two hours at the £18.99 regular rate charges six sessions upfront", () => {
   const perVisit = bookingPricePence({
-    price: 37.80,
+    price: 37.98,
     duration_minutes: 120,
     service_type: "cleaning",
   }, 120);
-  assert.equal(perVisit, 3780);
+  assert.equal(perVisit, 3798);
   const visits = allocateRegularPayment(perVisit * 6, Math.round(perVisit * 6 * 0.2));
-  assert.equal(visits.reduce((sum, visit) => sum + visit.grossPence, 0), 22680);
-  assert.ok(visits.every((visit) => visit.grossPence === 3780));
+  assert.equal(visits.reduce((sum, visit) => sum + visit.grossPence, 0), 22788);
+  assert.ok(visits.every((visit) => visit.grossPence === 3798));
 });
 
 test("every two weeks keeps the London time across the October clock change", () => {

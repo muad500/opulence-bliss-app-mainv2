@@ -208,7 +208,7 @@ export async function POST(req: NextRequest) {
       if (regularReadyError || regularReady !== true) {
         console.error("Regular checkout is not ready:", regularReadyError);
         return NextResponse.json(
-          { error: "Six-visit booking is temporarily unavailable while an update finishes. No payment has been taken." },
+          { error: "Regular booking is temporarily unavailable while an update finishes. No payment has been taken." },
           { status: 503 },
         );
       }
@@ -296,7 +296,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       payment_intent_data: {
-        // A six-visit series is charged upfront to the platform. Each cleaner
+        // A regular series is charged upfront to the platform. Each cleaner
         // receives a separate transfer only after their own visit is complete.
         capture_method: regular ? "automatic" : "manual",
         ...(regular
