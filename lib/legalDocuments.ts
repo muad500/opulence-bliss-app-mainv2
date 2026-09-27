@@ -4,6 +4,7 @@ import {
   CANCELLATION_REFUND_POLICY_HTML,
   HANDYMAN_TERMS_HTML,
   PRIVACY_POLICY_HTML,
+  REVIEW_POLICY_HTML,
 } from "@/lib/policyContent";
 
 export const LEGAL_DOCUMENT_SLUGS = [
@@ -11,6 +12,7 @@ export const LEGAL_DOCUMENT_SLUGS = [
   "privacy",
   "cancellation-refund",
   "handyman-terms",
+  "review-policy",
   "professional-partner-agreement",
 ] as const;
 
@@ -37,8 +39,8 @@ const DEFAULTS: Record<LegalDocumentSlug, Omit<LegalDocument, "slug">> = {
   privacy: {
     title: "Privacy Policy",
     audience: "everyone",
-    version: "1.0",
-    updatedAt: null,
+    version: "1.1",
+    updatedAt: "2026-09-28T00:00:00.000Z",
     contentHtml: PRIVACY_POLICY_HTML,
   },
   "handyman-terms": {
@@ -51,9 +53,16 @@ const DEFAULTS: Record<LegalDocumentSlug, Omit<LegalDocument, "slug">> = {
   "cancellation-refund": {
     title: "Cancellation & Refund Policy",
     audience: "customers",
-    version: "1.0",
-    updatedAt: null,
+    version: "1.1",
+    updatedAt: "2026-09-28T00:00:00.000Z",
     contentHtml: CANCELLATION_REFUND_POLICY_HTML,
+  },
+  "review-policy": {
+    title: "Review Policy",
+    audience: "everyone",
+    version: "1.0",
+    updatedAt: "2026-09-28T00:00:00.000Z",
+    contentHtml: REVIEW_POLICY_HTML,
   },
   "professional-partner-agreement": {
     title: "Service Professional Partner Agreement",
