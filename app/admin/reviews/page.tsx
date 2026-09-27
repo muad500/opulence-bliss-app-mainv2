@@ -45,8 +45,7 @@ export default async function AdminReviewsPage() {
   const eligibleReviews = reviews.filter((review) =>
     review.reviewer === "client" &&
     review.visibility === "public" &&
-    review.rating >= 4 &&
-    Boolean(review.comment?.trim()),
+    review.rating >= 4,
   );
 
   return (
@@ -92,7 +91,9 @@ export default async function AdminReviewsPage() {
                 <form className="highlight-row" action={featuredIds.has(review.id) ? unfeatureHomepageReview : featureHomepageReview} key={review.id}>
                   <span>
                     <strong>{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</strong>
-                    {" “"}{review.comment}{"”"}
+                    {review.comment?.trim()
+                      ? ` “${review.comment.trim()}”`
+                      : " Rating shared without a written comment."}
                     <small>Booking #{review.bookingReference} · {review.reviewerName}</small>
                   </span>
                   <input type="hidden" name="reviewId" value={review.id} />

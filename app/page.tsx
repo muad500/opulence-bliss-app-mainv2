@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SiteFooter from "@/components/SiteFooter";
 
-type HomeQuote = { id: string; rating: number; comment: string; professional: string };
+type HomeQuote = { id: string; rating: number; comment: string | null; professional: string };
 
 export default function Home() {
   const [quotes, setQuotes] = useState<HomeQuote[] | null>(null);
@@ -38,14 +38,13 @@ export default function Home() {
         rows
           .filter((row) =>
             row.recipient_type === "professional" &&
-            row.rating >= 4 &&
-            row.comment?.trim(),
+            row.rating >= 4,
           )
           .slice(0, 3)
           .map((row) => ({
             id: row.id,
             rating: row.rating,
-            comment: row.comment!.trim(),
+            comment: row.comment?.trim() || null,
             professional: row.recipient_name,
           })),
       );
@@ -166,7 +165,7 @@ export default function Home() {
                     {"\u2605".repeat(quote.rating)}
                     {"\u2606".repeat(5 - quote.rating)}
                   </span>
-                  <p>{quote.comment}</p>
+                  <p>{quote.comment || "Rating shared without a written comment."}</p>
                   <footer>Verified customer · about {quote.professional}</footer>
                 </blockquote>
               ))}

@@ -21,17 +21,16 @@ export async function featureHomepageReview(formData: FormData) {
   const { supabase, user } = await requireAdminPage();
   const { data: review, error: reviewError } = await supabase
     .from("reviews")
-    .select("reviewer, rating, comment, visibility")
+    .select("reviewer, rating, visibility")
     .eq("id", id)
     .maybeSingle();
   if (reviewError) throw new Error(reviewError.message);
   if (
     review?.reviewer !== "client" ||
     review.rating < 4 ||
-    review.visibility !== "public" ||
-    !review.comment?.trim()
+    review.visibility !== "public"
   ) {
-    throw new Error("Only positive, public customer booking reviews with a comment can be featured.");
+    throw new Error("Only positive, public customer booking reviews can be featured.");
   }
 
   const { data: selected, error: selectedError } = await supabase
