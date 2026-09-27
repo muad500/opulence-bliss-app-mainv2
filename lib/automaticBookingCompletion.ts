@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email";
 import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
+import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
 import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
 import {
   claimMoneyOperation,
@@ -165,13 +166,13 @@ export async function automaticallyCompleteBooking(bookingId: string) {
       });
       if (operation.should_run) {
         try {
-          const intent = await stripe.paymentIntents.capture(payment.stripe_payment_ref, {}, { idempotencyKey: operationKey });
+          const intent = await captureBookingPayment(stripe, payment.stripe_payment_ref, {}, { idempotencyKey: operationKey });
           await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", { stripeObjectId: intent.id });
           await systemTransitionPayment(admin, payment.id, "succeeded");
           paymentSettled = true;
         } catch (error) {
           const reason = error instanceof Error ? error.message : "Capture failed";
-          const definite = error instanceof Stripe.errors.StripeCardError || error instanceof Stripe.errors.StripeInvalidRequestError;
+          const definite = error instanceof LegacyDestinationCaptureError || error instanceof Stripe.errors.StripeCardError || error instanceof Stripe.errors.StripeInvalidRequestError;
           await systemFinaliseMoneyOperation(admin, operation.id, definite ? "failed" : "ambiguous", { error: reason });
           if (definite) await systemTransitionPayment(admin, payment.id, "capture_failed", { reason });
           await systemTransitionBooking(admin, bookingId, "needs_review", "Payment capture failed after automatic checkout", {

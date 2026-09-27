@@ -14,6 +14,7 @@ import {
 import { sendEmail } from "@/lib/email";
 import { rotateBookingOffer } from "@/lib/offerRotation";
 import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
+import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
 import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
 import {
   claimMoneyOperation,
@@ -651,7 +652,8 @@ export async function checkOutJob(id: string) {
       if (op.should_run) {
         let intent: Stripe.PaymentIntent | null = null;
         try {
-          intent = await stripe.paymentIntents.capture(
+          intent = await captureBookingPayment(
+            stripe,
             pay.stripe_payment_ref,
             {},
             { idempotencyKey: operationKey },
@@ -659,6 +661,7 @@ export async function checkOutJob(id: string) {
         } catch (e) {
           const reason = e instanceof Error ? e.message : "Capture failed";
           const definite =
+            e instanceof LegacyDestinationCaptureError ||
             e instanceof Stripe.errors.StripeCardError ||
             e instanceof Stripe.errors.StripeInvalidRequestError;
           await systemFinaliseMoneyOperation(
