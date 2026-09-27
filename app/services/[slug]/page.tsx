@@ -456,6 +456,23 @@ export default function ServicePage() {
       </section>
 
       {/* ---------- REASSURANCE ---------- */}
+      <section className="business" id="business-cleaning">
+        <div className="inner">
+          <h2>Office cleaning and cleaning contracts</h2>
+          <p>
+            We also clean offices and take on regular cleaning contracts for
+            businesses and property managers. These are priced individually,
+            so they are quoted rather than booked online.
+          </p>
+          <p className="business-note">
+            <strong>Email or call us for a quote:</strong>{" "}
+            <a href="mailto:opulencebliss@gmail.com">opulencebliss@gmail.com</a>
+            {" · "}
+            <a href="tel:+447484717935">+44 7484 717935</a>
+          </p>
+        </div>
+      </section>
+
       <section className="love">
         <div className="inner">
           <h2 className="center">You&apos;re going to love us</h2>
@@ -835,6 +852,33 @@ export default function ServicePage() {
           opacity: 0.55;
         }
 
+        .business {
+          padding: 56px 0 8px;
+        }
+        .business h2 {
+          margin: 0 0 10px;
+          font-size: clamp(24px, 3.2vw, 30px);
+          font-weight: 900;
+          line-height: 1.15;
+        }
+        .business p {
+          max-width: 64ch;
+          margin: 0;
+          color: #4a5260;
+          line-height: 1.6;
+        }
+        .business .business-note {
+          margin-top: 16px;
+          padding: 14px 18px;
+          border-radius: 14px;
+          background: #f5f0ff;
+          color: #16202a;
+        }
+        .business-note a {
+          color: #6d28d9;
+          font-weight: 800;
+          text-decoration: none;
+        }
         /* love */
         .love {
           padding: 62px 0 10px;

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import FooterReviews from "./FooterReviews";
 import {
   CANCELLATION_REFUND_URL,
   COMPANY,
@@ -13,10 +14,27 @@ const columns: Array<{
   links: Array<[label: string, href: string]>;
 }> = [
   {
-    title: "Services",
+    title: "Cleaning services",
     links: [
-      ["Home cleaning", "/services/cleaning"],
-      ["Book a service", "/book"],
+      ["Essential Clean", "/services/cleaning#cleaning-services"],
+      ["One-Time Essential Clean", "/services/cleaning#cleaning-services"],
+      ["Express Clean", "/services/cleaning#cleaning-services"],
+      ["Signature Deep Clean", "/services/cleaning#cleaning-services"],
+      ["End of Tenancy / Move-In Clean", "/services/cleaning#cleaning-services"],
+      ["Guest Ready", "/services/cleaning#cleaning-services"],
+      ["Office cleaning", "/services/cleaning#business-cleaning"],
+      ["Cleaning contracts", "/services/cleaning#business-cleaning"],
+    ],
+  },
+  {
+    title: "Handyman services",
+    links: [
+      ["Mounting and hanging", "/services/handyman"],
+      ["Furniture assembly", "/services/handyman"],
+      ["Minor repairs", "/services/handyman"],
+      ["Curtains and blinds", "/services/handyman"],
+      ["Furniture moving", "/services/handyman"],
+      ["Minor decorating", "/services/handyman"],
     ],
   },
   {
@@ -54,6 +72,7 @@ export default function SiteFooter() {
           <Link href="/book" className={styles.bookButton}>
             Book your visit <span aria-hidden="true">→</span>
           </Link>
+          <FooterReviews />
           <p className={styles.coverage}>
             Central, North &amp; West London
           </p>
@@ -64,7 +83,7 @@ export default function SiteFooter() {
             <div className={styles.column} key={column.title}>
               <h2>{column.title}</h2>
               {column.links.map(([label, href]) => (
-                <Link href={href} key={href}>
+                <Link href={href} key={label}>
                   {label}
                 </Link>
               ))}
