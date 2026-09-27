@@ -44,8 +44,7 @@ export default async function AdminReviewsPage() {
   const featuredIds = new Set((featuredData ?? []).map((row) => row.review_id));
   const eligibleReviews = reviews.filter((review) =>
     review.reviewer === "client" &&
-    review.visibility === "public" &&
-    review.rating >= 4,
+    review.visibility === "public",
   );
 
   return (
@@ -67,10 +66,11 @@ export default async function AdminReviewsPage() {
               <h2 id="homepage-highlights">Featured customer reviews</h2>
             </div>
             <p>
-              Choose up to three positive, public reviews from actual bookings
-              for the homepage highlights. This does not hide negative reviews
-              from the full public feed or change the overall rating. If none
-              are selected, the homepage shows the latest eligible reviews.
+              Choose up to three public reviews from actual bookings for the
+              homepage. Pick a fair selection across ratings: selectively
+              promoting positive reviews can mislead customers. If none are
+              selected, the homepage shows the latest public reviews, whatever
+              their rating.
             </p>
           </div>
           {featuredError ? (

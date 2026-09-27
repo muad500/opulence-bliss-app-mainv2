@@ -36,10 +36,7 @@ export default function Home() {
       }[];
       setQuotes(
         rows
-          .filter((row) =>
-            row.recipient_type === "professional" &&
-            row.rating >= 4,
-          )
+          .filter((row) => row.recipient_type === "professional")
           .slice(0, 3)
           .map((row) => ({
             id: row.id,
@@ -151,8 +148,8 @@ export default function Home() {
       </section>
 
       {/* ---------- REVIEWS ---------- */}
-      {/* This is a selection of positive public booking reviews only. The
-          complete public feed and unbiased rating are elsewhere. */}
+      {/* Featured reviews are public customer booking reviews of any rating.
+          The complete public feed and overall rating are available elsewhere. */}
       {quotes && quotes.length > 0 && (
         <section className="quotes-wrap">
           <div className="inner">
