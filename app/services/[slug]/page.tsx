@@ -76,7 +76,7 @@ const COPY: Record<
       },
       {
         q: "What specialist cleaning services can I book?",
-        a: "End of Tenancy / Move-In Clean is a detailed deep clean for moving out or moving in. Guest Ready covers fast holiday-rental turnarounds. Linen Care and Window Cleaning are available on their own. Essential Clean and Linen Care combines regular cleaning, ironing and laundry. Your price is confirmed when you book.",
+        a: "End of Tenancy / Move-In Clean is a detailed deep clean for moving out or moving in. Guest Ready covers fast holiday-rental turnarounds. Your price is confirmed when you book.",
       },
       {
         q: "How long can I book a clean for?",
