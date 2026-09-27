@@ -42,3 +42,30 @@ test("two hours at the £18.90 regular rate charges six sessions upfront", () =>
   assert.equal(visits.reduce((sum, visit) => sum + visit.grossPence, 0), 22680);
   assert.ok(visits.every((visit) => visit.grossPence === 3780));
 });
+
+test("every two weeks keeps the London time across the October clock change", () => {
+  // 10:00 London on Monday 12 October 2026 (BST); the clocks go back on 25 October.
+  const first = "2026-10-12T09:00:00.000Z";
+  const slots = regularVisitSlots(first, "fortnightly", 120, new Date("2026-10-01"), 6);
+  assert.equal(slots.length, 6);
+  assert.deepEqual(slots.slice(0, 3), [
+    "2026-10-12T09:00:00.000Z",
+    "2026-10-26T10:00:00.000Z",
+    "2026-11-09T10:00:00.000Z",
+  ]);
+});
+
+test("a regular booking can be six to ten visits", () => {
+  const first = "2026-10-12T09:00:00.000Z";
+  assert.equal(regularVisitSlots(first, "weekly", 120, new Date("2026-10-01"), 10).length, 10);
+  assert.throws(() => regularVisitSlots(first, "weekly", 120, new Date("2026-10-01"), 5), /between 6 and 10/);
+  assert.throws(() => regularVisitSlots(first, "weekly", 120, new Date("2026-10-01"), 11), /between 6 and 10/);
+});
+
+test("the upfront charge splits across ten visits without losing a penny", () => {
+  const visits = allocateRegularPayment(37980, 7596, 10);
+  assert.equal(visits.length, 10);
+  assert.equal(visits.reduce((sum, visit) => sum + visit.grossPence, 0), 37980);
+  assert.equal(visits.reduce((sum, visit) => sum + visit.platformPence, 0), 7596);
+  assert.ok(visits.every((visit) => visit.providerPence > 0));
+});

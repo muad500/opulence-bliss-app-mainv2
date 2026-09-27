@@ -5,7 +5,7 @@ import { isCleaning, validCleaningDuration } from "@/lib/cleaningBooking";
 import { appointmentFitsWindow, APPOINTMENT_WINDOW_MESSAGE } from "@/lib/appointmentWindow";
 import { rotateBookingOffer } from "@/lib/offerRotation";
 import { normaliseOptionalBookingTimes } from "@/lib/bookingTimeChoices";
-import { allocateRegularPayment, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
+import { allocateRegularPayment, isRegularVisitCount, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
 import { bookingPolicyError } from "@/lib/bookingPolicy";
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
@@ -74,22 +74,24 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   let regularAmounts: ReturnType<typeof allocateRegularPayment> = [];
   if (regular) {
     if (pi.status !== "succeeded" || pi.amount_received !== pi.amount || pi.capture_method !== "automatic") {
-      throw new Error("Six upfront visits require a completed payment.");
+      throw new Error("Regular upfront visits require a completed payment.");
     }
-    regularSlots = regularVisitSlots(slot, frequency as RegularFrequency, minutes, session.created * 1000);
+    const visitCount = Number(m.regular_visit_count);
+    if (!isRegularVisitCount(visitCount)) throw new Error("Invalid number of regular visits.");
+    regularSlots = regularVisitSlots(slot, frequency as RegularFrequency, minutes, session.created * 1000, visitCount);
     const staged = stagedChoices?.regular_scheduled_at ?? [];
     if (staged.length !== regularSlots.length ||
         staged.some((value: string, index: number) => new Date(value).getTime() !== new Date(regularSlots[index]).getTime())) {
-      throw new Error("Six-visit dates were not saved with this checkout.");
+      throw new Error("Regular visit dates were not saved with this checkout.");
     }
     const perVisitGross = Number(m.per_visit_gross);
     const discount = Number(m.discount);
     const platform = Number(m.platform_margin);
     if (!Number.isInteger(perVisitGross) || !Number.isInteger(discount) ||
         discount < 0 || pi.amount !== perVisitGross * regularSlots.length - discount) {
-      throw new Error("Six-visit checkout amount does not match its schedule.");
+      throw new Error("Regular checkout amount does not match its schedule.");
     }
-    regularAmounts = allocateRegularPayment(pi.amount, platform);
+    regularAmounts = allocateRegularPayment(pi.amount, platform, regularSlots.length);
   }
   const compact = (postcode ?? "").toUpperCase().replace(/\s+/g, "");
   const district = compact.length > 4 ? compact.slice(0, compact.length - 3) : compact;

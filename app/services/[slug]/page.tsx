@@ -72,7 +72,7 @@ const COPY: Record<
       },
       {
         q: "Which cleaning session should I choose?",
-        a: "Essential Clean is £18.90 per hour for a booking of six weekly or monthly visits paid upfront. If you want to arrange each clean separately, choose One-Time Essential Clean. Express Clean is our same-day standard clean, subject to availability. Signature Deep Clean is a thorough top-to-bottom reset. Your full price is confirmed before checkout.",
+        a: "Essential Clean is our regular rate for six to ten weekly, fortnightly or monthly visits booked and paid together. If you want to arrange each clean separately, choose One-Time Essential Clean. Express Clean is our same-day standard clean, subject to availability. Signature Deep Clean is a thorough top-to-bottom reset. Your full price is confirmed before checkout.",
       },
       {
         q: "What specialist cleaning services can I book?",
