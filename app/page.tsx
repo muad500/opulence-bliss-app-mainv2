@@ -16,7 +16,17 @@ export default function Home() {
   const [quotes, setQuotes] = useState<HomeQuote[] | null>(null);
   useEffect(() => {
     (async () => {
-      const { data } = await createClient().rpc("public_reviews_feed", { p_limit: 24 });
+      const supabase = createClient();
+      const { data: featured } = await supabase.rpc("homepage_review_highlights_feed");
+      const selected = (featured ?? []) as {
+        id: string;
+        rating: number;
+        comment: string | null;
+        recipient_name: string;
+      }[];
+      const { data } = selected.length === 0
+        ? await supabase.rpc("public_reviews_feed", { p_limit: 100 })
+        : { data: selected.map((row) => ({ ...row, recipient_type: "professional" })) };
       const rows = (data ?? []) as {
         id: string;
         rating: number;
@@ -26,7 +36,11 @@ export default function Home() {
       }[];
       setQuotes(
         rows
-          .filter((row) => row.recipient_type === "professional" && row.comment?.trim())
+          .filter((row) =>
+            row.recipient_type === "professional" &&
+            row.rating >= 4 &&
+            row.comment?.trim(),
+          )
           .slice(0, 3)
           .map((row) => ({
             id: row.id,
@@ -138,14 +152,13 @@ export default function Home() {
       </section>
 
       {/* ---------- REVIEWS ---------- */}
-      {/* Real customer reviews only, newest first, whatever the rating. The
-          section stays hidden until there are some, rather than being filled
-          with invented quotes, which would be fake reviews. */}
+      {/* This is a selection of positive public booking reviews only. The
+          complete public feed and unbiased rating are elsewhere. */}
       {quotes && quotes.length > 0 && (
         <section className="quotes-wrap">
           <div className="inner">
             <p className="eyebrow center">From our customers</p>
-            <h2 className="center big">Our reviews</h2>
+            <h2 className="center big">Featured customer reviews</h2>
             <div className="quotes">
               {quotes.map((quote) => (
                 <blockquote key={quote.id}>

@@ -7,6 +7,10 @@ import {
   deleteMarketingReview,
   updateMarketingReview,
 } from "./marketing-actions";
+import {
+  featureHomepageReview,
+  unfeatureHomepageReview,
+} from "./homepage-actions";
 
 type MarketingReview = {
   id: string;
@@ -33,6 +37,17 @@ export default async function AdminReviewsPage() {
     .order("sort_order", { ascending: true })
     .order("reviewed_at", { ascending: false });
   const marketingReviews = (marketingData ?? []) as MarketingReview[];
+  const { data: featuredData, error: featuredError } = await supabase
+    .from("homepage_review_highlights")
+    .select("review_id, selected_at")
+    .order("selected_at", { ascending: true });
+  const featuredIds = new Set((featuredData ?? []).map((row) => row.review_id));
+  const eligibleReviews = reviews.filter((review) =>
+    review.reviewer === "client" &&
+    review.visibility === "public" &&
+    review.rating >= 4 &&
+    Boolean(review.comment?.trim()),
+  );
 
   return (
     <main style={page}>
@@ -46,6 +61,50 @@ export default async function AdminReviewsPage() {
           recipient.
         </p>
 
+        <section className="marketing-card" aria-labelledby="homepage-highlights">
+          <div className="marketing-heading">
+            <div>
+              <p style={eyebrow}>Homepage only</p>
+              <h2 id="homepage-highlights">Featured customer reviews</h2>
+            </div>
+            <p>
+              Choose up to three positive, public reviews from actual bookings
+              for the homepage highlights. This does not hide negative reviews
+              from the full public feed or change the overall rating. If none
+              are selected, the homepage shows the latest eligible reviews.
+            </p>
+          </div>
+          {featuredError ? (
+            <p style={errorBox}>{featuredError.message}</p>
+          ) : (
+            <>
+              <p className="highlight-count">{featuredIds.size} of 3 selected</p>
+              {(featuredData ?? []).filter((row) => !eligibleReviews.some((review) => review.id === row.review_id)).map((row) => (
+                <form className="highlight-row" action={unfeatureHomepageReview} key={row.review_id}>
+                  <span>Previously selected review {row.review_id.slice(0, 8)}</span>
+                  <input type="hidden" name="reviewId" value={row.review_id} />
+                  <button type="submit">Remove from homepage</button>
+                </form>
+              ))}
+              {eligibleReviews.length === 0 && !error ? (
+                <p className="marketing-empty">No eligible public booking reviews yet.</p>
+              ) : eligibleReviews.map((review) => (
+                <form className="highlight-row" action={featuredIds.has(review.id) ? unfeatureHomepageReview : featureHomepageReview} key={review.id}>
+                  <span>
+                    <strong>{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</strong>
+                    {" “"}{review.comment}{"”"}
+                    <small>Booking #{review.bookingReference} · {review.reviewerName}</small>
+                  </span>
+                  <input type="hidden" name="reviewId" value={review.id} />
+                  <button type="submit" disabled={!featuredIds.has(review.id) && featuredIds.size >= 3}>
+                    {featuredIds.has(review.id) ? "Remove from homepage" : "Feature on homepage"}
+                  </button>
+                </form>
+              ))}
+            </>
+          )}
+        </section>
+
         <section className="marketing-card" aria-labelledby="cleaning-testimonials">
           <div className="marketing-heading">
             <div>
@@ -53,7 +112,7 @@ export default async function AdminReviewsPage() {
               <h2 id="cleaning-testimonials">Cleaning testimonials</h2>
             </div>
             <p>
-              Use Published to choose which genuine customer testimonials appear
+              Use Feature on cleaning page to choose which genuine customer testimonials appear
               in the featured selection. Prototype samples cannot be published.
               This does not hide booking reviews or change the overall rating:
               public 1–5 star reviews remain available in the full review feed.
@@ -116,8 +175,15 @@ export default async function AdminReviewsPage() {
         .marketing-card{margin:0 0 24px;padding:22px;border:1px solid #e4daf5;border-radius:18px;background:linear-gradient(145deg,#fffdf7,#fff8fb 52%,#f5efff);box-shadow:0 10px 28px rgba(61,34,97,.05)}
         .marketing-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:18px}.marketing-heading h2{margin:0;font-size:24px;font-weight:950}.marketing-heading>p{max-width:470px;margin:0;color:#68717d;font-size:13px;line-height:1.5}
         .review-form{display:grid;grid-template-columns:1.3fr 1fr 1fr 100px 150px 80px;gap:10px;align-items:end;padding:16px;border:1px solid #e5e7eb;border-radius:14px;background:#fff}.review-form label{display:grid;gap:5px;color:#59626d;font-size:11px;font-weight:900}.review-form input,.review-form select,.review-form textarea{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #dfe2e7;border-radius:9px;background:#fff;color:#16202a;font:inherit}.review-form .wide{grid-column:1/-1}.toggles{display:flex;flex-wrap:wrap;gap:15px;grid-column:1/-2}.toggles label{display:flex;grid-auto-flow:column;justify-content:start;align-items:center;gap:7px}.toggles input{width:16px;height:16px}.review-form button{min-height:40px;padding:8px 15px;border:0;border-radius:999px;background:#6d28d9;color:#fff;font:inherit;font-weight:900;cursor:pointer}.managed-list{display:grid;gap:12px;margin-top:14px}.review-form.managed{background:rgba(255,255,255,.78)}.form-actions{display:flex;justify-content:flex-end;gap:7px}.review-form button.delete{background:#fff;border:1px solid #d4455c;color:#b82d46}.marketing-empty{margin:14px 0 0;padding:18px;border:1px dashed #d9cdea;border-radius:12px;color:#68717d;text-align:center}
+        .highlight-count{margin:0 0 12px;color:#6d28d9;font-size:13px;font-weight:900}
+        .highlight-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-top:1px solid #e5e7eb}
+        .highlight-row>span{min-width:0;overflow-wrap:anywhere;color:#26302a;font-size:13px;line-height:1.45}
+        .highlight-row strong{color:#6d28d9;white-space:nowrap;margin-right:8px}
+        .highlight-row small{display:block;margin-top:4px;color:#68717d}
+        .highlight-row button{flex:0 0 auto;min-height:38px;padding:7px 13px;border:1px solid #6d28d9;border-radius:999px;background:#fff;color:#6d28d9;font:inherit;font-size:12px;font-weight:900;cursor:pointer}
+        .highlight-row button:disabled{opacity:.45;cursor:not-allowed}
         @media(max-width:900px){.review-form{grid-template-columns:repeat(2,minmax(0,1fr))}.review-form .wide,.toggles{grid-column:1/-1}.form-actions{grid-column:1/-1}.marketing-heading{display:block}.marketing-heading>p{margin-top:8px}}
-        @media(max-width:560px){.review-form{grid-template-columns:1fr}.review-form .wide,.toggles,.form-actions{grid-column:1}.marketing-card{padding:15px}}
+        @media(max-width:560px){.review-form{grid-template-columns:1fr}.review-form .wide,.toggles,.form-actions{grid-column:1}.marketing-card{padding:15px}.highlight-row{align-items:flex-start;flex-direction:column}}
       `}</style>
     </main>
   );
