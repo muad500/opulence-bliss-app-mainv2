@@ -6,7 +6,7 @@ import { appointmentFitsWindow, APPOINTMENT_WINDOW_MESSAGE } from "@/lib/appoint
 import { rotateBookingOffer } from "@/lib/offerRotation";
 import { normaliseOptionalBookingTimes } from "@/lib/bookingTimeChoices";
 import { allocateRegularPayment, isRegularVisitCount, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
-import { bookingPolicyError } from "@/lib/bookingPolicy";
+import { bookingPolicyError, isBookingFrequency } from "@/lib/bookingPolicy";
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -49,7 +49,7 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   if (isCleaning(serviceType) && !validCleaningDuration(minutes)) {
     throw new Error("Invalid cleaning duration.");
   }
-  if (!serviceAddress || !["one_time", "weekly", "monthly"].includes(frequency)) {
+  if (!serviceAddress || !isBookingFrequency(frequency)) {
     throw new Error("Invalid booking address or frequency.");
   }
   if (!pkgRow || bookingPolicyError(m.package ?? pkgRow.name, frequency) || regular !== (frequency !== "one_time")) {

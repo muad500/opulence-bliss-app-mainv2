@@ -1,8 +1,12 @@
 export type BookingFrequency = "one_time" | "weekly" | "fortnightly" | "monthly";
 
+export function isBookingFrequency(value: string): value is BookingFrequency {
+  return ["one_time", "weekly", "fortnightly", "monthly"].includes(value);
+}
+
 /** A regular price must never be used for a single-visit checkout. */
 export function bookingPolicyError(packageName: string, frequency: string): string | null {
-  if (!["one_time", "weekly", "fortnightly", "monthly"].includes(frequency)) {
+  if (!isBookingFrequency(frequency)) {
     return "Choose a valid cleaning frequency.";
   }
 

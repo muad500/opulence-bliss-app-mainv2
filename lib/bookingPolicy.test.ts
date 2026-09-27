@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { bookingPolicyError } from "./bookingPolicy";
+import { bookingPolicyError, isBookingFrequency } from "./bookingPolicy";
+
+test("checkout finalisation accepts each booking frequency", () => {
+  for (const frequency of ["one_time", "weekly", "fortnightly", "monthly"]) {
+    assert.equal(isBookingFrequency(frequency), true);
+  }
+  assert.equal(isBookingFrequency("daily"), false);
+});
 
 test("regular rate cannot be checked out for a single visit", () => {
   assert.match(bookingPolicyError("Essential Clean", "one_time") ?? "", /six to ten visits/);
