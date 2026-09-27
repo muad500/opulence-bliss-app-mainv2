@@ -103,11 +103,16 @@ export async function setProviderDbsStatus(
     .eq("provider_id", id)
     .maybeSingle();
   if (checkError) throw new Error(checkError.message);
-  if (!check?.certificate_storage_path || !check.uploaded_at) {
+  if (!check?.uploaded_at) {
     throw new Error("The DBS certificate has not been uploaded yet.");
   }
 
   if (status === "verified") {
+    // The copy is deleted once verified, so it can only be verified again
+    // from a fresh upload.
+    if (!check.certificate_storage_path) {
+      throw new Error("The certificate copy was deleted after an earlier review. Ask the professional to upload it again.");
+    }
     const parts = check.certificate_storage_path.split("/");
     const fileName = parts.pop();
     const folder = parts.join("/");
@@ -136,6 +141,25 @@ export async function setProviderDbsStatus(
     })
     .eq("provider_id", id);
   if (error) throw new Error(error.message);
+
+  // Keep only the outcome, number and issue date. Criminal record information
+  // gets extra protection under UK GDPR, and the client agreed the uploaded copy
+  // is deleted once verified. A failed deletion must not undo the verification,
+  // so it is logged and the copy is left for a later retry.
+  if (status === "verified" && check.certificate_storage_path) {
+    const { error: removeError } = await admin.storage
+      .from("provider-dbs")
+      .remove([check.certificate_storage_path]);
+    if (removeError) {
+      console.error(`Could not delete the DBS certificate copy for ${id}:`, removeError);
+    } else {
+      const { error: clearError } = await admin
+        .from("provider_dbs_checks")
+        .update({ certificate_storage_path: null, certificate_deleted_at: new Date().toISOString() })
+        .eq("provider_id", id);
+      if (clearError) console.error(`Deleted the DBS copy for ${id} but could not record it:`, clearError);
+    }
+  }
 
   const { data: provider } = await admin
     .from("providers")

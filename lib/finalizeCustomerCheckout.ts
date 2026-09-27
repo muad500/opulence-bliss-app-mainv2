@@ -170,6 +170,19 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
     throw bookingError ?? new Error("Booking insert failed");
   }
 
+  // Record the customer's express request to start within the cancellation
+  // period on each booking. Checkout required it and stored it on the payment;
+  // failing to copy it here must not lose a paid booking, so it only logs.
+  if (m.early_start_requested_at) {
+    const { error: earlyStartError } = await admin
+      .from("bookings")
+      .update({ early_start_requested_at: m.early_start_requested_at })
+      .in("id", bookingIds);
+    if (earlyStartError) {
+      console.error(`Could not record the early-start request on ${bookingIds.join(", ")}:`, earlyStartError);
+    }
+  }
+
   if (!regular) {
     await admin.from("booking_checkout_time_choices").delete().eq("checkout_session_id", session.id);
   }

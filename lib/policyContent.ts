@@ -18,7 +18,7 @@ export const PRIVACY_POLICY_HTML = `
   <h2>2. Who We Are</h2>
   <p>Opulence Bliss Ltd</p>
   <p><strong>Company Registration Number:</strong> 15894675</p>
-  <p><strong>Call / SMS / WhatsApp:</strong> +44 07484 717935</p>
+  <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
   <p><strong>Email:</strong> opulencebliss@gmail.com</p>
   <p><strong>Registered in:</strong> England and Wales</p>
   <p>If you have questions about this Privacy Policy or how we handle your personal information, please contact us using the details above.</p>
@@ -300,7 +300,7 @@ export const PRIVACY_POLICY_HTML = `
   <p>To exercise a data protection right, contact:</p>
   <p>Opulence Bliss Ltd</p>
   <p><strong>Email:</strong> opulencebliss@gmail.com</p>
-  <p><strong>Call / SMS / WhatsApp:</strong> +44 07484 717935</p>
+  <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
   <p>We may need to verify your identity before responding to certain requests.</p>
   <p>We will respond within the timescales required by applicable law.</p>
   <h2>26. Complaints</h2>
@@ -322,7 +322,7 @@ export const PRIVACY_POLICY_HTML = `
   <h2>28. Contact Details</h2>
   <p>Opulence Bliss Ltd</p>
   <p><strong>Company Registration Number:</strong> 15894675</p>
-  <p><strong>Call / SMS / WhatsApp:</strong> +44 07484 717935</p>
+  <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
   <p><strong>Email:</strong> opulencebliss@gmail.com</p>
   <p><strong>Registered in:</strong> England and Wales</p>
   <p><strong>Happy Cleaners. Happier Homes.</strong></p>
@@ -489,7 +489,7 @@ export const CANCELLATION_REFUND_POLICY_HTML = `
   <h2>17. Contact Us</h2>
   <p>Opulence Bliss Ltd</p>
   <p><strong>Company Registration Number:</strong> 15894675</p>
-  <p><strong>Call / SMS / WhatsApp:</strong> +44 07484 717935</p>
+  <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
   <p><strong>Email:</strong> opulencebliss@gmail.com</p>
   <p><strong>Happy Cleaners. Happier Homes.</strong></p>
 `;

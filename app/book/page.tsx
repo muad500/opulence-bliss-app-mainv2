@@ -12,6 +12,8 @@ import { REGULAR_VISIT_COUNT, regularVisitSlots, type RegularFrequency } from "@
 import { cleaningHomeLabel, parseCleaningHome, recommendedCleaningMinutesForHome, type PropertyType } from "@/lib/cleaningHome";
 import AppointmentTimePicker from "@/components/AppointmentTimePicker";
 import { isStoredUkPhone, isValidUkPhone } from "@/lib/ukPhone";
+import { EARLY_START_REQUEST_TEXT, startsWithinCancellationPeriod } from "@/lib/cancellationPeriod";
+import { CANCELLATION_REFUND_URL } from "@/lib/legal";
 
 const supabase = createClient();
 
@@ -129,6 +131,9 @@ export default function BookPage() {
   const [savedPhone, setSavedPhone] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [earlyStartAgreed, setEarlyStartAgreed] = useState(false);
+  // Set when the server says a request is needed, in case time moved on.
+  const [earlyStartForced, setEarlyStartForced] = useState(false);
   const [handoffError, setHandoffError] = useState<string | null>(null);
 
   /* ---------- load ---------- */
@@ -384,6 +389,14 @@ export default function BookPage() {
 
   const needsPhone = signedIn === true && savedPhone !== null && !isStoredUkPhone(savedPhone);
   const phoneValid = isValidUkPhone(phone);
+  // Any chosen time could become the visit, so the earliest one decides.
+  const earliestChosenStart = [slot, ...optionalSlots]
+    .filter((time): time is string => Boolean(time))
+    .map((time) => new Date(time).getTime())
+    .reduce((earliest, time) => Math.min(earliest, time), Number.POSITIVE_INFINITY);
+  const needsEarlyStart =
+    earlyStartForced ||
+    (Number.isFinite(earliestChosenStart) && startsWithinCancellationPeriod(earliestChosenStart));
 
   async function startCheckout() {
     if (!selected || !addressValid || !slot || !home) return;
@@ -391,6 +404,7 @@ export default function BookPage() {
       setPhoneTouched(true);
       return;
     }
+    if (needsEarlyStart && !earlyStartAgreed) return;
     const policyError = bookingPolicyError(selected.name, frequency);
     if (policyError) {
       setPayError(policyError);
@@ -415,6 +429,7 @@ export default function BookPage() {
           optionalSlots,
           promoCode: promoInfo?.ok ? promo.trim().toUpperCase() : null,
           phone: needsPhone ? phone : undefined,
+          earlyStartRequested: needsEarlyStart && earlyStartAgreed,
         }),
       });
       const data = await res.json();
@@ -424,6 +439,7 @@ export default function BookPage() {
           setSavedPhone("");
           setPhoneTouched(true);
         }
+        if (data.code === "early_start_required") setEarlyStartForced(true);
         throw new Error(data.error || "Could not start checkout");
       }
     } catch (e) {
@@ -1083,8 +1099,24 @@ export default function BookPage() {
                 </p>
               </div>
             )}
+            {step === 5 && needsEarlyStart && (
+              <label className="early-start" htmlFor="early-start">
+                <input
+                  id="early-start"
+                  type="checkbox"
+                  checked={earlyStartAgreed}
+                  onChange={(event) => setEarlyStartAgreed(event.target.checked)}
+                />
+                <span>
+                  {EARLY_START_REQUEST_TEXT}{" "}
+                  <a href={CANCELLATION_REFUND_URL} target="_blank" rel="noopener noreferrer">
+                    Your cancellation rights
+                  </a>
+                </span>
+              </label>
+            )}
             {step === 5 && (
-              <button className="pay" onClick={checkout} disabled={paying || !slot || !addressValid || !home || !!policyError || !!regularScheduleError || (needsPhone && !phoneValid)}>
+              <button className="pay" onClick={checkout} disabled={paying || !slot || !addressValid || !home || !!policyError || !!regularScheduleError || (needsPhone && !phoneValid) || (needsEarlyStart && !earlyStartAgreed)}>
                 {paying
                   ? "Taking you to checkout…"
                   : signedIn === false
@@ -1977,6 +2009,31 @@ export default function BookPage() {
           color: #d82f45;
           font-size: 12.5px;
           font-weight: 700;
+        }
+        .early-start {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          margin: 0 0 14px;
+          padding: 12px 14px;
+          border: 2px solid var(--line);
+          border-radius: 14px;
+          background: #fff;
+          color: var(--ink);
+          font-size: 13px;
+          line-height: 1.5;
+          cursor: pointer;
+        }
+        .early-start input {
+          flex: 0 0 auto;
+          width: 18px;
+          height: 18px;
+          margin-top: 2px;
+          accent-color: var(--purple);
+        }
+        .early-start a {
+          color: var(--purple);
+          font-weight: 800;
         }
         .phone-help {
           margin: 6px 0 0;

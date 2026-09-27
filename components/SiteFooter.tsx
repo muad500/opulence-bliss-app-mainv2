@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   CANCELLATION_REFUND_URL,
+  COMPANY,
   PRIVACY_URL,
   PROFESSIONAL_PARTNER_AGREEMENT_URL,
   TERMS_URL,
@@ -73,7 +74,13 @@ export default function SiteFooter() {
       </div>
 
       <div className={styles.bottom}>
-        <p>© {new Date().getFullYear()} Opulence Bliss. London, United Kingdom.</p>
+        <div className={styles.company}>
+          <p>© {new Date().getFullYear()} {COMPANY.name}. London, United Kingdom.</p>
+          <p>
+            Registered in {COMPANY.registeredIn}, company number {COMPANY.number}.
+            {COMPANY.registeredOffice ? ` Registered office: ${COMPANY.registeredOffice}.` : ""}
+          </p>
+        </div>
         <div className={styles.legal}>
           {TERMS_URL && (
             <a href={TERMS_URL} target="_blank" rel="noopener noreferrer">

@@ -6,10 +6,37 @@
 //
 // Landing page — two-level nav, hero, coloured service bands.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import SiteFooter from "@/components/SiteFooter";
 
+type HomeQuote = { id: string; rating: number; comment: string; professional: string };
+
 export default function Home() {
+  const [quotes, setQuotes] = useState<HomeQuote[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      const { data } = await createClient().rpc("public_reviews_feed", { p_limit: 24 });
+      const rows = (data ?? []) as {
+        id: string;
+        rating: number;
+        comment: string | null;
+        recipient_name: string;
+        recipient_type: string;
+      }[];
+      setQuotes(
+        rows
+          .filter((row) => row.recipient_type === "professional" && row.comment?.trim())
+          .slice(0, 3)
+          .map((row) => ({
+            id: row.id,
+            rating: row.rating,
+            comment: row.comment!.trim(),
+            professional: row.recipient_name,
+          })),
+      );
+    })();
+  }, []);
   const [postcode, setPostcode] = useState("");
 
   const bookLink = postcode
@@ -110,34 +137,33 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ---------- TESTIMONIALS ---------- */}
-      <section className="quotes-wrap">
-        <div className="inner">
-          <p className="eyebrow center">From our customers</p>
-          <h2 className="center big">Our reviews</h2>
-          <div className="quotes">
-            {[
-              [
-                "The same cleaner every fortnight has changed how our home feels. I no longer think about it.",
-                "Eleanor R. · Kensington",
-              ],
-              [
-                "The team is dependable, thoughtful and always leaves the flat feeling fresh.",
-                "James T. · Hampstead",
-              ],
-              [
-                "Booking took two minutes and the standard has never slipped. That's all I wanted.",
-                "Priya M. · Chiswick",
-              ],
-            ].map(([q, who]) => (
-              <blockquote key={who}>
-                <p>{q}</p>
-                <footer>{who}</footer>
-              </blockquote>
-            ))}
+      {/* ---------- REVIEWS ---------- */}
+      {/* Real customer reviews only, newest first, whatever the rating. The
+          section stays hidden until there are some, rather than being filled
+          with invented quotes, which would be fake reviews. */}
+      {quotes && quotes.length > 0 && (
+        <section className="quotes-wrap">
+          <div className="inner">
+            <p className="eyebrow center">From our customers</p>
+            <h2 className="center big">Our reviews</h2>
+            <div className="quotes">
+              {quotes.map((quote) => (
+                <blockquote key={quote.id}>
+                  <span className="quote-stars" aria-label={`${quote.rating} out of 5`}>
+                    {"\u2605".repeat(quote.rating)}
+                    {"\u2606".repeat(5 - quote.rating)}
+                  </span>
+                  <p>{quote.comment}</p>
+                  <footer>Verified customer · about {quote.professional}</footer>
+                </blockquote>
+              ))}
+            </div>
+            <p className="center all-reviews">
+              <a href="/reviews">Read all reviews</a>
+            </p>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ---------- CTA ---------- */}
       <section className="cta-band">
@@ -513,6 +539,19 @@ export default function Home() {
           line-height: 1.5;
           color: var(--ink);
           margin: 0 0 16px;
+        }
+        .quote-stars {
+          display: block;
+          margin-bottom: 8px;
+          color: #f5c542;
+          letter-spacing: 2px;
+        }
+        .all-reviews {
+          margin-top: 22px;
+        }
+        .all-reviews a {
+          color: #6d28d9;
+          font-weight: 800;
         }
         blockquote footer {
           font-size: 13.5px;

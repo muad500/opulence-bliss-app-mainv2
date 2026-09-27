@@ -62,7 +62,7 @@ export default async function ProfessionalRecordPage({ params }: { params: Promi
       .limit(20),
     supabase
       .from("provider_dbs_checks")
-      .select("provider_id, certificate_number, issue_date, certificate_storage_path, certificate_original_name, certificate_mime_type, status, review_note, submitted_at, uploaded_at, reviewed_at")
+      .select("provider_id, certificate_number, issue_date, certificate_storage_path, certificate_original_name, certificate_mime_type, status, review_note, submitted_at, uploaded_at, reviewed_at, certificate_deleted_at")
       .eq("provider_id", id)
       .maybeSingle(),
   ]);
@@ -208,7 +208,11 @@ export default async function ProfessionalRecordPage({ params }: { params: Promi
                 />
                 <ApplicationField
                   label="File"
-                  value={dbs.certificate_original_name}
+                  value={
+                    dbs.certificate_deleted_at
+                      ? "Deleted after verification"
+                      : dbs.certificate_original_name
+                  }
                 />
                 <ApplicationField
                   label="Uploaded"
@@ -232,6 +236,12 @@ export default async function ProfessionalRecordPage({ params }: { params: Promi
                   >
                     Open DBS certificate ↗
                   </a>
+                ) : dbs.certificate_deleted_at ? (
+                  <span style={uploadMissing}>
+                    Certificate copy deleted after verification on{" "}
+                    {when(dbs.certificate_deleted_at)}. The number, issue date
+                    and outcome are kept.
+                  </span>
                 ) : (
                   <span style={uploadMissing}>
                     Certificate upload has not been completed.

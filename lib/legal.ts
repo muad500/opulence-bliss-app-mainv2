@@ -13,3 +13,16 @@ export const LEGAL_VERSIONS: Record<string, string> = {
   "cancellation-refund": "1.0",
   "professional-partner-agreement": "2026-09-20",
 };
+
+/**
+ * Details a limited company must show on its website (Companies (Trading
+ * Disclosures) Regulations 2008 and the Electronic Commerce Regulations 2002).
+ * The registered office address is not known yet: set
+ * NEXT_PUBLIC_REGISTERED_OFFICE once the client confirms it.
+ */
+export const COMPANY = {
+  name: "Opulence Bliss Ltd",
+  number: "15894675",
+  registeredIn: "England and Wales",
+  registeredOffice: process.env.NEXT_PUBLIC_REGISTERED_OFFICE?.trim() || "",
+};

@@ -133,6 +133,12 @@
   margin: 0;
 }
 
+.company {
+  display: grid;
+  gap: 4px;
+  line-height: 1.45;
+}
+
 .legal {
   display: flex;
   flex-wrap: wrap;

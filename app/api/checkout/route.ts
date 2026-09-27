@@ -9,6 +9,7 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { isStoredUkPhone, isValidUkPhone, normalizeUkPhone } from "@/lib/ukPhone";
+import { startsWithinCancellationPeriod } from "@/lib/cancellationPeriod";
 import {
   APPOINTMENT_WINDOW_MESSAGE,
   appointmentFitsWindow,
@@ -30,7 +31,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { packageId, postcode, address, frequency, request, home, slot, optionalSlots, promoCode, durationMinutes, preferredProviderId, phone } = await req.json();
+    const { packageId, postcode, address, frequency, request, home, slot, optionalSlots, promoCode, durationMinutes, preferredProviderId, phone, earlyStartRequested } = await req.json();
     if (!packageId) {
       return NextResponse.json({ error: "Missing packageId" }, { status: 400 });
     }
@@ -137,6 +138,27 @@ export async function POST(req: NextRequest) {
 
     const perVisitGross = bookingPricePence(pkg, minutes);
     const gross = perVisitGross * (regular ? REGULAR_VISIT_COUNT : 1); // amount in pence
+
+    // A service may only start inside the customer's 14-day cancellation period
+    // at their express request, with their acknowledgement that the right to
+    // cancel ends once it is fully performed (Consumer Contracts Regulations
+    // 2013, reg. 36). Any of the chosen times could become the visit, so the
+    // earliest one decides.
+    const earliestStart = Math.min(
+      new Date(slot).getTime(),
+      ...alternativeTimes.map((time) => new Date(time).getTime()),
+    );
+    const startsInCancellationPeriod = startsWithinCancellationPeriod(earliestStart);
+    if (startsInCancellationPeriod && earlyStartRequested !== true) {
+      return NextResponse.json(
+        {
+          error: "Confirm that you want your service to start within your 14-day cancellation period.",
+          code: "early_start_required",
+        },
+        { status: 400 },
+      );
+    }
+    const earlyStartRequestedAt = startsInCancellationPeriod ? new Date().toISOString() : "";
 
     // Who's booking? Used to prefill their email on Stripe's checkout.
     const ssr = await createServerClient();
@@ -295,6 +317,8 @@ export async function POST(req: NextRequest) {
           per_visit_gross: String(perVisitGross),
           promo_code: appliedCode ?? "",
           discount: String(discount),
+          // Evidence of the customer's express request, kept with the payment.
+          early_start_requested_at: earlyStartRequestedAt,
         },
       },
       success_url: `${req.nextUrl.origin}/api/book/finalize?session_id={CHECKOUT_SESSION_ID}`,
