@@ -193,7 +193,8 @@ export default function ProviderProfilePage() {
               <p className="feedback-copy">
                 You can see every review you received here. Public feedback can
                 be seen by everyone. Private feedback is visible here only to
-                you. Customer ratings of 1–3 stars always stay private.
+                you. Customers choose whether their review is public, whatever
+                the rating, and every rating counts towards your public score.
               </p>
 
               {reviewsError ? (
@@ -211,12 +212,12 @@ export default function ProviderProfilePage() {
                         </span>
                         <span
                           className={
-                            review.visibility === "public" && review.rating >= 4
+                            review.visibility === "public"
                               ? "visibility public"
                               : "visibility private"
                           }
                         >
-                          {review.visibility === "public" && review.rating >= 4
+                          {review.visibility === "public"
                             ? "Public"
                             : "Private"}
                         </span>

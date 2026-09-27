@@ -786,7 +786,7 @@ export async function rateClient(
     reviewer: "provider",
     rating: clean,
     comment: comment?.trim() ? comment.trim() : null,
-    visibility: effectiveReviewVisibility(clean, visibility, "provider"),
+    visibility: effectiveReviewVisibility(visibility),
   });
 
   if (!error) {

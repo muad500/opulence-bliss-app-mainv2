@@ -46,9 +46,11 @@ function reviewValues(formData: FormData) {
     customer_name: customerName.slice(0, 100),
     location: location ? location.slice(0, 100) : null,
     reviewed_at: reviewedAt,
-    // The public site only displays positive cleaning feedback. Lower ratings
-    // stay available in admin, where the team can follow them up privately.
-    published: requestedPublished && rating >= 4,
+    // Any rating may be published, as hiding negative reviews is a banned
+    // practice. A prototype sample is never published, since publishing
+    // reviews that are not from real customers is also banned; the database
+    // enforces this as well.
+    published: requestedPublished && formData.get("isDemo") !== "on",
     is_demo: formData.get("isDemo") === "on",
     sort_order: Number.isFinite(sortOrder) ? Math.trunc(sortOrder) : 0,
     updated_at: new Date().toISOString(),

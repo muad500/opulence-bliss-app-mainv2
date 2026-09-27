@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  isPositiveCleanerReview,
   type ReviewVisibility,
   type ReviewAuthor,
 } from "@/lib/reviewVisibility";
@@ -19,19 +18,8 @@ export default function ReviewVisibilityChoice({
   idPrefix: string;
   reviewer?: ReviewAuthor;
 }) {
+  // Every reviewer chooses, whatever the rating.
   if (rating === 0) return null;
-
-  if (reviewer === "client" && !isPositiveCleanerReview(rating)) {
-    return (
-      <div style={privateNote} role="status">
-        <strong style={{ display: "block", marginBottom: 3 }}>
-          This feedback will stay private
-        </strong>
-        Ratings of 1–3 stars are shown only to your professional. They never
-        appear publicly.
-      </div>
-    );
-  }
 
   return (
     <fieldset style={fieldset}>
@@ -105,14 +93,3 @@ const choice: React.CSSProperties = {
   lineHeight: 1.35,
 };
 
-const privateNote: React.CSSProperties = {
-  background: "#F7F1FF",
-  border: "1px solid #DCCCF8",
-  borderRadius: 11,
-  color: "#5E4779",
-  fontSize: 13,
-  lineHeight: 1.45,
-  padding: "11px 12px",
-  margin: "0 0 14px",
-  textAlign: "left",
-};

@@ -104,7 +104,7 @@ export async function rateBooking(
     reviewer: "client",
     rating: clean,
     comment: comment?.trim() ? comment.trim() : null,
-    visibility: effectiveReviewVisibility(clean, visibility),
+    visibility: effectiveReviewVisibility(visibility),
   });
 
   if (error) return { error: error.message };

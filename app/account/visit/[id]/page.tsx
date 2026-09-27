@@ -207,7 +207,6 @@ export default async function VisitPage({
       .select("rating, comment, bookings!inner(provider_id)")
       .eq("reviewer", "client")
       .eq("visibility", "public")
-      .gte("rating", 4)
       .eq("bookings.provider_id", row.provider_id)
       .not("comment", "is", null)
       .order("created_at", { ascending: false })

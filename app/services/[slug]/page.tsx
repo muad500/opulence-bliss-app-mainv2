@@ -112,6 +112,9 @@ export default function ServicePage() {
 
   const [items, setItems] = useState<Pkg[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
+  // Average and count of every customer rating for the service, including
+  // private reviews, whose text stays hidden. Null until loaded.
+  const [summary, setSummary] = useState<{ avg: number; count: number } | null>(null);
   const [faqs, setFaqs] = useState<ServiceFaq[]>([]);
   const [postcode, setPostcode] = useState("");
   const [open, setOpen] = useState<number | null>(0);
@@ -146,13 +149,12 @@ export default function ServicePage() {
       );
       setItems(matching.sort(compareCleaningSessions));
 
-      const [{ data: revs }, { data: curated }, { data: faqRows }] = await Promise.all([
+      const [{ data: revs }, { data: curated }, { data: faqRows }, { data: summaryRows }] = await Promise.all([
         supabase
           .from("reviews")
           .select("id, rating, comment, created_at")
           .eq("reviewer", "client")
           .eq("visibility", "public")
-          .gte("rating", 4)
           .order("created_at", { ascending: false })
           .limit(6),
         supabase
@@ -172,6 +174,7 @@ export default function ServicePage() {
           .eq("published", true)
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: true }),
+        supabase.rpc("public_review_summary", { p_service_type: "cleaning" }),
       ]);
 
       const verified = (revs ?? []).map((review) => ({
@@ -197,18 +200,25 @@ export default function ServicePage() {
         verified: false,
       }));
       setReviews([...managed, ...verified].slice(0, 12));
+      const row = Array.isArray(summaryRows) ? summaryRows[0] : summaryRows;
+      const count = Number(row?.rating_count ?? 0);
+      setSummary(count > 0 ? { avg: Number(row.rating_avg), count } : { avg: 0, count: 0 });
       setFaqs(
         (faqRows ?? []).map((faq) => ({ q: faq.question, a: faq.answer })),
       );
     })();
   }, [copy.match]);
 
-  const verifiedReviews = reviews.filter((review) => review.verified);
-  const publicReviews = reviews.filter((review) => !review.is_demo);
-  const scoreReviews = verifiedReviews.length > 0 ? verifiedReviews : publicReviews;
-  const avg =
-    scoreReviews.length > 0
-      ? scoreReviews.reduce((s, r) => s + r.rating, 0) / scoreReviews.length
+  // The headline score counts every customer rating for this service, so it
+  // cannot leave out negative ones. Only when there are no booking reviews yet
+  // does it fall back to published testimonials, never prototype samples.
+  const testimonials = reviews.filter((review) => !review.verified && !review.is_demo);
+  const useSummary = summary !== null && summary.count > 0;
+  const scoreCount = useSummary ? summary.count : testimonials.length;
+  const avg = useSummary
+    ? summary.avg
+    : testimonials.length > 0
+      ? testimonials.reduce((s, r) => s + r.rating, 0) / testimonials.length
       : null;
 
   const bookLink = `/book?type=${copy.match}${
@@ -270,7 +280,7 @@ export default function ServicePage() {
               <p className="stars">
                 <span>{"★".repeat(Math.round(avg))}</span> {avg.toFixed(1)}/5 ·{" "}
                 <a href="#reviews">
-                  {reviews.length} review{reviews.length === 1 ? "" : "s"}
+                  {scoreCount} review{scoreCount === 1 ? "" : "s"}
                 </a>
               </p>
             ) : (
@@ -496,8 +506,8 @@ export default function ServicePage() {
                   <span>/5</span>
                 </div>
                 <p>
-                  {scoreReviews.length > 0
-                    ? `${scoreReviews.length} cleaning review${scoreReviews.length === 1 ? "" : "s"}`
+                  {scoreCount > 0
+                    ? `${scoreCount} cleaning review${scoreCount === 1 ? "" : "s"}`
                     : "Customer feedback from cleaning visits"}
                 </p>
                 <a href="#cleaning-services">Book your cleaning</a>
