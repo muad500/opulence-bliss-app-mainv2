@@ -16,6 +16,9 @@ import { revalidatePath } from "next/cache";
 import Stripe from "stripe";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as ssr } from "@/lib/supabase/server";
+import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
+import { settleTipPayout } from "@/lib/tipPayout";
+import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
 import {
   claimMoneyOperation,
   maybeReleasePayout,
@@ -310,7 +313,7 @@ export async function retryTransfer(
 
   const { data: po, error: payoutError } = await s
     .from("payouts")
-    .select("id, booking_id, provider_id, amount, status")
+    .select("id, booking_id, provider_id, payment_id, amount, status")
     .eq("id", payoutId)
     .maybeSingle();
 
@@ -321,6 +324,36 @@ export async function retryTransfer(
   if (!["pending", "failed"].includes(po.status))
     return { ok: false, message: `Cannot send from status ${po.status}.` };
 
+  if (po.payment_id) {
+    try {
+      const result = await settleTipPayout(po.payment_id, userId);
+      refreshAdmin();
+      return result.payoutSettled
+        ? { ok: true, message: `Sent £${Number(po.amount).toFixed(2)} tip to the assigned cleaner.` }
+        : { ok: false, message: "No tip transfer was sent. Check the payout hold and review case." };
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : "Tip transfer needs review." };
+    }
+  }
+
+  const { data: booking, error: bookingError } = await admin
+    .from("bookings")
+    .select("subscription_id")
+    .eq("id", po.booking_id)
+    .maybeSingle();
+  if (bookingError || !booking) return { ok: false, message: bookingError?.message ?? "Booking not found." };
+  if (!booking.subscription_id) {
+    try {
+      const result = await settleCompletedVisitPayout(po.booking_id, userId);
+      refreshAdmin();
+      return result.payoutSettled
+        ? { ok: true, message: `Sent £${result.earned.toFixed(2)} to the assigned cleaner.` }
+        : { ok: false, message: "No transfer was sent. Check the payout hold and review case." };
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : "Transfer needs review." };
+    }
+  }
+
   const { data: prov, error: providerError } = await admin
     .from("providers")
     .select("stripe_account_id")
@@ -329,9 +362,12 @@ export async function retryTransfer(
 
   if (providerError) return { ok: false, message: providerError.message };
 
-  const destination = prov?.stripe_account_id ?? process.env.PROVIDER_TEST_ACCOUNT;
+  const destination = payoutDestination(prov?.stripe_account_id, {
+    livemode: !isTestStripeKey(process.env.STRIPE_SECRET_KEY),
+    testAccount: process.env.PROVIDER_TEST_ACCOUNT,
+  });
   if (!destination)
-    return { ok: false, message: "Provider has no Stripe account on file." };
+    return { ok: false, message: "Provider payout account is not configured." };
 
   const key = `transfer:booking:${po.booking_id}:provider:${po.provider_id}`;
   let claim;

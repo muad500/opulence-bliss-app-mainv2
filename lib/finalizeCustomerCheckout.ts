@@ -93,6 +93,12 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
     }
     regularAmounts = allocateRegularPayment(pi.amount, platform, regularSlots.length);
   }
+  const platformMarginPence = pi.application_fee_amount ?? Number(m.platform_margin);
+  if (!Number.isInteger(platformMarginPence) || platformMarginPence < 0 ||
+      platformMarginPence >= pi.amount ||
+      (!regular && Number(m.provider_amount) !== pi.amount - platformMarginPence)) {
+    throw new Error("Booking payment allocation is invalid.");
+  }
   const compact = (postcode ?? "").toUpperCase().replace(/\s+/g, "");
   const district = compact.length > 4 ? compact.slice(0, compact.length - 3) : compact;
 
@@ -163,7 +169,7 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
         p_frequency: frequency,
         p_preferred_provider_id: m.preferred_provider_id || null,
         p_amount: pi.amount / 100,
-        p_platform: (pi.application_fee_amount ?? 0) / 100,
+        p_platform: platformMarginPence / 100,
         p_email: customer?.email ?? null,
         p_payment_status: pi.status === "succeeded" ? "succeeded" : "authorised",
       });
