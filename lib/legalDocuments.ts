@@ -2,6 +2,7 @@ import sanitizeHtml from "sanitize-html";
 import { CUSTOMER_TERMS_HTML } from "@/lib/customerTerms";
 import {
   CANCELLATION_REFUND_POLICY_HTML,
+  HANDYMAN_TERMS_HTML,
   PRIVACY_POLICY_HTML,
 } from "@/lib/policyContent";
 
@@ -9,6 +10,7 @@ export const LEGAL_DOCUMENT_SLUGS = [
   "terms",
   "privacy",
   "cancellation-refund",
+  "handyman-terms",
   "professional-partner-agreement",
 ] as const;
 
@@ -38,6 +40,13 @@ const DEFAULTS: Record<LegalDocumentSlug, Omit<LegalDocument, "slug">> = {
     version: "1.0",
     updatedAt: null,
     contentHtml: PRIVACY_POLICY_HTML,
+  },
+  "handyman-terms": {
+    title: "Handyman Services Terms",
+    audience: "customers",
+    version: "1.0",
+    updatedAt: "2026-09-27T00:00:00.000Z",
+    contentHtml: HANDYMAN_TERMS_HTML,
   },
   "cancellation-refund": {
     title: "Cancellation & Refund Policy",

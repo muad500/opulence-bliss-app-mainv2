@@ -3,6 +3,7 @@ import FooterReviews from "./FooterReviews";
 import {
   CANCELLATION_REFUND_URL,
   COMPANY,
+  HANDYMAN_TERMS_URL,
   PRIVACY_URL,
   PROFESSIONAL_PARTNER_AGREEMENT_URL,
   TERMS_URL,
@@ -117,6 +118,9 @@ export default function SiteFooter() {
             rel="noopener noreferrer"
           >
             Cancellation &amp; Refund Policy
+          </a>
+          <a href={HANDYMAN_TERMS_URL} target="_blank" rel="noopener noreferrer">
+            Handyman Terms
           </a>
           <a
             href={PROFESSIONAL_PARTNER_AGREEMENT_URL}
