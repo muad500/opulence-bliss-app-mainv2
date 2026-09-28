@@ -139,8 +139,10 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
               Add feedback actually given by a customer. By saving it, you
               confirm you have permission to use the customer&apos;s name and
               location. New reviews appear on the homepage automatically;
-              you can also show them on the cleaning page. Copied booking
-              reviews remain unchanged in the original record.
+              they also appear under Read all reviews and contribute to the
+              customer rating. You can choose whether to show the full review
+              on the cleaning page. Copied booking reviews are counted only
+              once and remain unchanged in the original record.
             </p>
           </div>
 

@@ -187,16 +187,15 @@ export default function Home() {
                   {quote.source === "testimonial" && quote.isDemo && (
                     <span className="demo-badge">Illustrative example — not a customer review</span>
                   )}
+                  <strong className="quote-name">
+                    {quote.source === "testimonial" ? quote.customerName : "Customer"}
+                  </strong>
                   <span className="quote-stars" aria-label={`${quote.rating} out of 5`}>
                     {"\u2605".repeat(quote.rating)}
                     {"\u2606".repeat(5 - quote.rating)}
                   </span>
                   <p>{quote.comment || "Rating shared without a written comment."}</p>
-                  <footer>
-                    {quote.source === "testimonial"
-                      ? `${quote.isDemo ? "Fictional example" : "Customer review"} · ${quote.customerName}${quote.location ? ` · ${quote.location}` : ""}`
-                      : `Verified customer · about ${quote.professional}`}
-                  </footer>
+                  {quote.source === "testimonial" && quote.location && <footer>{quote.location}</footer>}
                 </blockquote>
               ))}
             </div>
@@ -320,31 +319,8 @@ export default function Home() {
           position: relative;
           isolation: isolate;
           overflow: hidden;
-          background: linear-gradient(112deg, #d8a72d, #bd66ba 53%, #6d28d9);
+          background: linear-gradient(90deg, rgba(19, 16, 22, 0.86) 0%, rgba(26, 19, 27, 0.72) 37%, rgba(24, 16, 22, 0.16) 78%), url("/hero-home.webp") center / cover no-repeat;
           padding: 88px 28px 96px;
-        }
-        .hero::before,
-        .hero::after {
-          content: "";
-          position: absolute;
-          z-index: -1;
-          border-radius: 999px;
-          pointer-events: none;
-        }
-        .hero::before {
-          width: 420px;
-          height: 420px;
-          top: -270px;
-          right: 8%;
-          background: rgba(255, 255, 255, 0.2);
-          filter: blur(3px);
-        }
-        .hero::after {
-          width: 300px;
-          height: 300px;
-          left: -120px;
-          bottom: -220px;
-          background: rgba(71, 22, 143, 0.24);
         }
         .hero-inner {
           max-width: 1080px;
@@ -600,6 +576,12 @@ export default function Home() {
           color: var(--ink);
           margin: 0 0 16px;
         }
+        .quote-name {
+          display: block;
+          margin-bottom: 8px;
+          color: var(--ink);
+          font-size: 18px;
+        }
         .quote-stars {
           display: block;
           margin-bottom: 8px;
@@ -661,6 +643,7 @@ export default function Home() {
           }
           .hero {
             padding: 54px 16px 62px;
+            background-position: 62% center;
           }
           .bands {
             padding: 30px 16px 4px;

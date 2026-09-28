@@ -212,8 +212,8 @@ export default function ServicePage() {
     })();
   }, [copy.match]);
 
-  // The headline score comes only from booking ratings, including private
-  // ratings; manually selected testimonials must never determine that score.
+  // The headline score includes booking ratings and genuine admin-added
+  // customer reviews; booking-backed copies are counted only once.
   const scoreCount = summary?.count ?? 0;
   const avg = scoreCount > 0 ? summary?.avg ?? null : null;
 

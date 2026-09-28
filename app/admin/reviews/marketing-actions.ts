@@ -62,6 +62,7 @@ function reviewValues(formData: FormData) {
 function refreshReviews() {
   revalidatePath("/admin/reviews");
   revalidatePath("/services/cleaning");
+  revalidatePath("/reviews");
   revalidatePath("/");
 }
 
