@@ -25,8 +25,7 @@ export default function Home() {
         .eq("service_type", "cleaning")
         .eq("homepage_featured", true)
         .order("sort_order", { ascending: true })
-        .order("reviewed_at", { ascending: false })
-        .limit(3);
+        .order("reviewed_at", { ascending: false });
       if (managed?.length) {
         setQuotes(managed.map((review) => ({
           id: review.id,
@@ -195,7 +194,7 @@ export default function Home() {
                   <p>{quote.comment || "Rating shared without a written comment."}</p>
                   <footer>
                     {quote.source === "testimonial"
-                      ? `${quote.isDemo ? "Fictional example" : "Customer testimonial"} · ${quote.customerName}${quote.location ? ` · ${quote.location}` : ""}`
+                      ? `${quote.isDemo ? "Fictional example" : "Customer review"} · ${quote.customerName}${quote.location ? ` · ${quote.location}` : ""}`
                       : `Verified customer · about ${quote.professional}`}
                   </footer>
                 </blockquote>
