@@ -235,10 +235,10 @@ export default function MessageThread({
     let uploadedPath: string | null = null;
     try {
       if (attachment) {
-        const extensions: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
+        const extensions: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
         const mimeType = attachmentMimeType(attachment);
         const extension = mimeType ? extensions[mimeType] : null;
-        if (!mimeType || !extension || attachment.size <= 0 || attachment.size > 10 * 1024 * 1024) throw new Error("Choose a JPG, PNG, WebP or PDF up to 10 MB.");
+        if (!mimeType || !extension || attachment.size <= 0 || attachment.size > 10 * 1024 * 1024) throw new Error("Choose a JPG, PNG or WebP photo up to 10 MB.");
         uploadedPath = `${bookingId}/${me}/${crypto.randomUUID()}.${extension}`;
         const { error: uploadError } = await withTimeout(
           supabase.storage.from("booking-attachments").upload(uploadedPath, attachment, { contentType: mimeType, upsert: false }),
@@ -433,12 +433,12 @@ export default function MessageThread({
               </div>
 
               <label style={{ display: "block", margin: "10px 0", fontSize: 13 }}>
-                Add a photo or file (JPG, PNG, WebP or PDF, up to 10 MB)
-                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,application/pdf" disabled={busy || !loaded || !me}
+                Add a photo (JPG, PNG or WebP, up to 10 MB). Please only share photos related to your booking or the cleaning.
+                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || !loaded || !me}
                   onChange={(event) => {
                     const file = event.target.files?.[0] ?? null;
                     if (file && (!attachmentMimeType(file) || file.size <= 0 || file.size > 10 * 1024 * 1024)) {
-                      setError("Choose a JPG, PNG, WebP or PDF up to 10 MB."); event.target.value = ""; setAttachment(null); return;
+                      setError("Choose a JPG, PNG or WebP photo up to 10 MB."); event.target.value = ""; setAttachment(null); return;
                     }
                     setError(null); setAttachment(file);
                   }} />

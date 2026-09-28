@@ -305,7 +305,8 @@ export default function HandymanPage() {
               <label className="consent">
                 <input name="consentAccepted" type="checkbox" required />
                 <span>
-                  I have read and accept the <Link href="/legal/terms">Terms &amp; Conditions</Link>,{" "}
+                  I have read and accept the <Link href="/legal/handyman-terms">Handyman Services Terms</Link>,{" "}
+                  <Link href="/legal/terms">Terms &amp; Conditions</Link>,{" "}
                   <Link href="/legal/privacy">Privacy Policy</Link> and{" "}
                   <Link href="/legal/cancellation-refund">Cancellation &amp; Refund Policy</Link>.
                 </span>

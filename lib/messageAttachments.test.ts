@@ -12,6 +12,11 @@ test("normalizes PostgREST one-to-one attachment objects", () => {
 
 test("recognizes supported uploads when a browser omits the MIME type", () => {
   assert.equal(attachmentMimeType({ name: "visit.JPEG", type: "" }), "image/jpeg");
-  assert.equal(attachmentMimeType({ name: "notes.pdf", type: "application/pdf" }), "application/pdf");
+  assert.equal(attachmentMimeType({ name: "notes.pdf", type: "application/pdf" }), null);
   assert.equal(attachmentMimeType({ name: "video.mp4", type: "video/mp4" }), null);
+});
+
+test("PDFs are no longer accepted in the booking chat", () => {
+  assert.equal(attachmentMimeType({ name: "invoice.pdf", type: "application/pdf" }), null);
+  assert.equal(attachmentMimeType({ name: "invoice.pdf", type: "" }), null);
 });

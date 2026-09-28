@@ -76,16 +76,17 @@ export default function CleaningMenu() {
   }
 
   const active = pathname.startsWith("/services/cleaning");
-  const serviceLinks = CLEANING_SESSION_ORDER.map((name) => {
-    const pkg = packages.find((candidate) => candidate.name === name);
-    return {
-      key: name,
-      label: name,
-      href: pkg
-        ? `/book?type=clean&service=${encodeURIComponent(pkg.id)}`
-        : "/services/cleaning#services",
-    };
-  });
+  // Only live bookable packages; office work is quoted instead.
+  const serviceLinks = [
+    ...CLEANING_SESSION_ORDER.flatMap((name) => {
+      const pkg = packages.find((candidate) => candidate.name === name);
+      return pkg
+        ? [{ key: name, label: name, href: `/book?type=clean&service=${encodeURIComponent(pkg.id)}` }]
+        : [];
+    }),
+    { key: "office-cleaning", label: "Office cleaning", href: "/services/cleaning#business-cleaning" },
+    { key: "cleaning-contracts", label: "Cleaning contracts", href: "/services/cleaning#business-cleaning" },
+  ];
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
