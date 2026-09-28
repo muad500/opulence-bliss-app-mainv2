@@ -5,6 +5,7 @@
 // Public cleaning service category page.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { compareCleaningSessions } from "@/lib/cleaningBooking";
 
@@ -336,8 +337,15 @@ export default function ServicePage() {
             </div>
           </div>
 
-          <div className="hero-art" aria-hidden="true">
-            <span>✿</span>
+          <div className="hero-art">
+            <Image
+              src="/cleaning-hero.webp"
+              alt="Cleaner wiping a glass door in a bright home"
+              fill
+              priority
+              sizes="(max-width: 900px) 100vw, 420px"
+              style={{ objectFit: "cover", objectPosition: "center 40%" }}
+            />
           </div>
         </div>
       </header>
@@ -839,17 +847,11 @@ export default function ServicePage() {
           }
         }
         .hero-art {
-          display: grid;
-          place-items: center;
-          aspect-ratio: 4 / 3;
+          position: relative;
+          overflow: hidden;
+          aspect-ratio: 4 / 5;
           border-radius: 20px;
-          background: rgba(255, 255, 255, 0.6);
-          border: 1px solid rgba(255, 255, 255, 0.9);
-        }
-        .hero-art span {
-          font-size: 74px;
-          color: var(--apricot-deep);
-          opacity: 0.55;
+          box-shadow: 0 18px 48px rgba(76, 29, 149, 0.14);
         }
 
         .business {
@@ -1293,7 +1295,8 @@ export default function ServicePage() {
             grid-template-columns: 1fr;
           }
           .hero-art {
-            display: none;
+            width: min(100%, 480px);
+            margin: 0 auto;
           }
           .cards3 {
             grid-template-columns: 1fr;

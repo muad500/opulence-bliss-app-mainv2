@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import {
   Armchair,
   Drill,
@@ -141,13 +142,25 @@ export default function HandymanPage() {
             </p>
             <a className="primary" href="#quote">Request a quote</a>
           </div>
-          <div className="heroCard">
-            <Hammer size={42} strokeWidth={1.7} />
-            <strong>No automatic price or payment</strong>
-            <span>
-              We review the work first and send a tailored quotation before
-              anything is agreed or charged.
-            </span>
+          <div className="heroVisual">
+            <div className="heroPhoto">
+              <Image
+                src="/handyman-hero.webp"
+                alt="Handyman preparing tools for work in a home"
+                fill
+                priority
+                sizes="(max-width: 800px) 100vw, 400px"
+                style={{ objectFit: "cover", objectPosition: "center 45%" }}
+              />
+            </div>
+            <div className="heroCard">
+              <Hammer size={32} strokeWidth={1.7} />
+              <strong>No automatic price or payment</strong>
+              <span>
+                We review the work first and send a tailored quotation before
+                anything is agreed or charged.
+              </span>
+            </div>
           </div>
         </div>
       </header>
@@ -331,7 +344,9 @@ export default function HandymanPage() {
         h2 { margin:0 0 16px; font-size:clamp(28px,4vw,40px); font-weight:900; line-height:1.1; }
         .lede { max-width:650px; margin:0 0 26px; color:#58616d; font-size:18px; line-height:1.6; }
         .primary,.submit { display:inline-flex; justify-content:center; padding:14px 24px; border:0; border-radius:999px; background:linear-gradient(100deg,#f5c542,#c86fc9 55%,#7b2ff7); color:#fff; box-shadow:0 9px 24px rgba(109,40,217,.2); font:inherit; font-weight:900; text-decoration:none; cursor:pointer; }
-        .heroCard { display:grid; gap:10px; padding:28px; border:1px solid rgba(109,40,217,.17); border-radius:24px; background:rgba(255,255,255,.78); box-shadow:0 18px 48px rgba(76,29,149,.12); }
+        .heroVisual { display:grid; gap:14px; }
+        .heroPhoto { position:relative; overflow:hidden; aspect-ratio:4/3; border-radius:24px; box-shadow:0 18px 48px rgba(76,29,149,.14); }
+        .heroCard { display:grid; gap:7px; padding:20px 22px; border:1px solid rgba(109,40,217,.17); border-radius:20px; background:rgba(255,255,255,.78); box-shadow:0 18px 48px rgba(76,29,149,.12); }
         .heroCard svg { color:#6d28d9; }
         .heroCard strong { font-size:19px; }
         .heroCard span { color:#68717d; line-height:1.55; }
