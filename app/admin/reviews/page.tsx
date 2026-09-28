@@ -44,7 +44,8 @@ export default async function AdminReviewsPage() {
   const featuredIds = new Set((featuredData ?? []).map((row) => row.review_id));
   const eligibleReviews = reviews.filter((review) =>
     review.reviewer === "client" &&
-    review.visibility === "public",
+    review.visibility === "public" &&
+    review.rating >= 4,
   );
 
   return (
@@ -66,18 +67,16 @@ export default async function AdminReviewsPage() {
               <h2 id="homepage-highlights">Featured customer reviews</h2>
             </div>
             <p>
-              Choose up to three public reviews from actual bookings for the
-              homepage. Pick a fair selection across ratings: selectively
-              promoting positive reviews can mislead customers. If none are
-              selected, the homepage shows the latest public reviews, whatever
-              their rating.
+              Choose up to six genuine 4- or 5-star customer reviews from completed bookings.
+              These are featured highlights, not the overall score. Customers can still
+              read every public review, including negative feedback, on the reviews page.
             </p>
           </div>
           {featuredError ? (
             <p style={errorBox}>{featuredError.message}</p>
           ) : (
             <>
-              <p className="highlight-count">{featuredIds.size} of 3 selected</p>
+              <p className="highlight-count">{featuredIds.size} of 6 selected</p>
               {(featuredData ?? []).filter((row) => !eligibleReviews.some((review) => review.id === row.review_id)).map((row) => (
                 <form className="highlight-row" action={unfeatureHomepageReview} key={row.review_id}>
                   <span>Previously selected review {row.review_id.slice(0, 8)}</span>
@@ -97,7 +96,7 @@ export default async function AdminReviewsPage() {
                     <small>Booking #{review.bookingReference} · {review.reviewerName}</small>
                   </span>
                   <input type="hidden" name="reviewId" value={review.id} />
-                  <button type="submit" disabled={!featuredIds.has(review.id) && featuredIds.size >= 3}>
+                  <button type="submit" disabled={!featuredIds.has(review.id) && featuredIds.size >= 6}>
                     {featuredIds.has(review.id) ? "Remove from homepage" : "Feature on homepage"}
                   </button>
                 </form>
