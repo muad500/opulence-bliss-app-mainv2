@@ -25,8 +25,8 @@ export async function featureHomepageReview(formData: FormData) {
     .eq("id", id)
     .maybeSingle();
   if (reviewError) throw new Error(reviewError.message);
-  if (review?.reviewer !== "client" || review.visibility !== "public") {
-    throw new Error("Only public customer booking reviews can be featured.");
+  if (review?.reviewer !== "client" || review.visibility !== "public" || review.rating < 4) {
+    throw new Error("Only public customer booking reviews rated 4 or 5 stars can be featured.");
   }
 
   const { data: selected, error: selectedError } = await supabase
@@ -34,8 +34,8 @@ export async function featureHomepageReview(formData: FormData) {
     .select("review_id");
   if (selectedError) throw new Error(selectedError.message);
   if (selected?.some((row) => row.review_id === id)) return;
-  if ((selected?.length ?? 0) >= 3) {
-    throw new Error("Remove a homepage highlight before adding another. The limit is three.");
+  if ((selected?.length ?? 0) >= 6) {
+    throw new Error("Remove a homepage highlight before adding another. The limit is six.");
   }
 
   const { error } = await supabase.from("homepage_review_highlights").insert({

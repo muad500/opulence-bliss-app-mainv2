@@ -36,8 +36,8 @@ export default function Home() {
       }[];
       setQuotes(
         rows
-          .filter((row) => row.recipient_type === "professional")
-          .slice(0, 3)
+          .filter((row) => row.recipient_type === "professional" && row.rating >= 4)
+          .slice(0, 6)
           .map((row) => ({
             id: row.id,
             rating: row.rating,
@@ -111,7 +111,7 @@ export default function Home() {
           ["Vetted cleaners", "Every approved cleaner is vetted before taking bookings"],
           ["Clear before you commit", "See the cleaning price or approve a handyman quote"],
           ["Your regular pro", "Ask for them again next time"],
-          ["Flexible appointment times", "Choose a time that suits you; we'll find your cleaner"],
+          ["Same-day booking requests", "Choose a suitable time today; we'll look for your cleaner"],
         ].map(([t, s]) => (
           <div key={t}>
             <strong>{t}</strong>
@@ -145,8 +145,8 @@ export default function Home() {
       </section>
 
       {/* ---------- REVIEWS ---------- */}
-      {/* Featured reviews are public customer booking reviews of any rating.
-          The complete public feed and overall rating are available elsewhere. */}
+      {/* Only genuine, positive public booking reviews are highlighted here.
+          The footer links to the complete public feed and includes all ratings in its overall score. */}
       {quotes && quotes.length > 0 && (
         <section className="quotes-wrap">
           <div className="inner">

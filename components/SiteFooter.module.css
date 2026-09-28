@@ -227,3 +227,45 @@
   color: #fff;
   font-weight: 800;
 }
+
+.reviewSection {
+  margin-top: 14px;
+}
+
+.reviewSection .reviews {
+  margin-top: 0;
+}
+
+.reviewPreviews {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.reviewPreview {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4f1f8;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.reviewPreview > span {
+  color: #f5c542;
+  letter-spacing: 1px;
+}
+
+.reviewPreview p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  margin: 3px 0;
+}
+
+.reviewPreview footer {
+  color: #c8c4cf;
+}
