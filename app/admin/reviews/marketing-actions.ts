@@ -39,9 +39,6 @@ function reviewValues(formData: FormData) {
   const requestedPublished = formData.get("published") === "on";
   const homepageFeatured = formData.get("homepageFeatured") === "on";
   const isDemo = formData.get("isDemo") === "on";
-  if (homepageFeatured && isDemo) {
-    throw new Error("Prototype samples cannot be shown on the homepage.");
-  }
 
   return {
     service_type: "cleaning",
@@ -51,10 +48,8 @@ function reviewValues(formData: FormData) {
     customer_name: customerName.slice(0, 100),
     location: location ? location.slice(0, 100) : null,
     reviewed_at: reviewedAt,
-    // Any rating may be published, as hiding negative reviews is a banned
-    // practice. A prototype sample is never published, since publishing
-    // reviews that are not from real customers is also banned; the database
-    // enforces this as well.
+    // Demo examples may appear on the homepage with explicit labels, but must
+    // never enter the genuine cleaning testimonials or aggregate rating.
     published: requestedPublished && !isDemo,
     homepage_featured: homepageFeatured,
     is_demo: isDemo,
@@ -89,9 +84,12 @@ function refreshReviews() {
 export async function createMarketingReview(formData: FormData) {
   const { supabase, user } = await requireAdmin();
   const values = reviewValues(formData);
+  if (values.homepage_featured && !values.is_demo) {
+    throw new Error("Only demo examples can be created directly for the homepage. Copy a public booking review for genuine testimonials.");
+  }
+  await checkHomepageLimit(supabase, values.homepage_featured);
   const { error } = await supabase.from("marketing_reviews").insert({
     ...values,
-    homepage_featured: false,
     created_by: user.id,
   });
   if (error) throw new Error(error.message);
@@ -101,7 +99,7 @@ export async function createMarketingReview(formData: FormData) {
 export async function updateMarketingReview(id: string, formData: FormData) {
   const { supabase } = await requireAdmin();
   const values = reviewValues(formData);
-  if (values.homepage_featured) {
+  if (values.homepage_featured && !values.is_demo) {
     const { data: existing, error: existingError } = await supabase
       .from("marketing_reviews")
       .select("source_review_id")
