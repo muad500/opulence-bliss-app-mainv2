@@ -520,8 +520,8 @@ export default function ServicePage() {
                 </div>
                 <p>
                   {scoreCount > 0
-                    ? `${scoreCount} customer rating${scoreCount === 1 ? "" : "s"} from cleaning visits`
-                    : "Customer feedback from cleaning visits"}
+                    ? `${scoreCount} customer rating${scoreCount === 1 ? "" : "s"} for cleaning`
+                    : "Customer feedback on cleaning"}
                 </p>
                 <a href="#cleaning-services">Book your cleaning</a>
               </aside>
@@ -532,7 +532,7 @@ export default function ServicePage() {
                     <div className="review-meta">
                       <span className="rstars" aria-label={`${review.rating} out of 5 stars`}>
                         {"★".repeat(review.rating)}
-                        <i>{"★".repeat(5 - review.rating)}</i>
+                        <i>{"☆".repeat(5 - review.rating)}</i>
                       </span>
                       <strong>{review.rating}/5</strong>
                       <span aria-hidden="true">·</span>
