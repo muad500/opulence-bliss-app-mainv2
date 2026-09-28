@@ -141,8 +141,8 @@ export async function copyBookingReviewToTestimonial(formData: FormData) {
     .eq("id", reviewId)
     .maybeSingle();
   if (reviewError) throw new Error(reviewError.message);
-  if (review?.reviewer !== "client" || review.visibility !== "public" || !review.comment?.trim()) {
-    throw new Error("Only written public customer booking reviews can be copied.");
+  if (review?.reviewer !== "client" || review.visibility !== "public") {
+    throw new Error("Only public customer booking reviews can be copied.");
   }
 
   const { data: booking, error: bookingError } = await supabase
@@ -175,7 +175,7 @@ export async function copyBookingReviewToTestimonial(formData: FormData) {
     service_type: "cleaning",
     service_label: service.name,
     rating: review.rating,
-    comment: review.comment.trim(),
+    comment: review.comment?.trim() || "Rating shared without a written comment.",
     customer_name: "Customer",
     location: null,
     reviewed_at: review.created_at.slice(0, 10),

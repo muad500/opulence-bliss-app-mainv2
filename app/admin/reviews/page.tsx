@@ -72,7 +72,7 @@ export default async function AdminReviewsPage() {
               <h2 id="homepage-highlights">Homepage reviews</h2>
             </div>
             <p>
-              Choose up to six genuine booking reviews below, or copy a written
+              Choose up to six genuine booking reviews below, or copy a public
               review to create an editable customer testimonial. When
               any editable testimonials are selected, those appear on the
               homepage instead of the booking-review selection. Original booking
@@ -114,7 +114,7 @@ export default async function AdminReviewsPage() {
                     <button
                       type="submit"
                       formAction={copyBookingReviewToTestimonial}
-                      disabled={!review.comment?.trim() || copiedReviewIds.has(review.id)}
+                      disabled={copiedReviewIds.has(review.id)}
                     >
                       {copiedReviewIds.has(review.id) ? "Copied for editing" : "Copy to editable testimonial"}
                     </button>
@@ -133,9 +133,11 @@ export default async function AdminReviewsPage() {
             </div>
             <p>
               Add genuine customer feedback for the cleaning page, or copy a
-              written booking review above to edit its displayed name, rating,
+              public booking review above to edit its displayed name, rating,
               review and location for the homepage.
               Only show a customer&apos;s name or location with their permission.
+              If the original has no written comment, add wording only if the
+              customer has actually supplied it.
               Show on homepage is separate from Feature on cleaning page.
               Prototype samples cannot be shown publicly, and the original
               booking review stays unchanged.
