@@ -10,13 +10,35 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SiteFooter from "@/components/SiteFooter";
 
-type HomeQuote = { id: string; rating: number; comment: string | null; professional: string };
+type HomeQuote =
+  | { id: string; rating: number; comment: string | null; source: "booking"; professional: string }
+  | { id: string; rating: number; comment: string; source: "testimonial"; customerName: string; location: string | null };
 
 export default function Home() {
   const [quotes, setQuotes] = useState<HomeQuote[] | null>(null);
   useEffect(() => {
     (async () => {
       const supabase = createClient();
+      const { data: managed } = await supabase
+        .from("marketing_reviews")
+        .select("id, rating, comment, customer_name, location")
+        .eq("service_type", "cleaning")
+        .eq("homepage_featured", true)
+        .eq("is_demo", false)
+        .order("sort_order", { ascending: true })
+        .order("reviewed_at", { ascending: false })
+        .limit(3);
+      if (managed?.length) {
+        setQuotes(managed.map((review) => ({
+          id: review.id,
+          rating: review.rating,
+          comment: review.comment,
+          source: "testimonial" as const,
+          customerName: review.customer_name,
+          location: review.location,
+        })));
+        return;
+      }
       const { data: featured } = await supabase.rpc("homepage_review_highlights_feed");
       const selected = (featured ?? []) as {
         id: string;
@@ -42,6 +64,7 @@ export default function Home() {
             id: row.id,
             rating: row.rating,
             comment: row.comment?.trim() || null,
+            source: "booking" as const,
             professional: row.recipient_name,
           })),
       );
@@ -146,8 +169,8 @@ export default function Home() {
       </section>
 
       {/* ---------- REVIEWS ---------- */}
-      {/* Only genuine, positive public booking reviews are highlighted here.
-          The footer links to the complete public feed and includes all ratings in its overall score. */}
+      {/* Admin-managed customer testimonials take priority when selected. The
+          original booking reviews and aggregate rating remain unchanged. */}
       {quotes && quotes.length > 0 && (
         <section className="quotes-wrap">
           <div className="inner">
@@ -161,7 +184,11 @@ export default function Home() {
                     {"\u2606".repeat(5 - quote.rating)}
                   </span>
                   <p>{quote.comment || "Rating shared without a written comment."}</p>
-                  <footer>Verified customer · about {quote.professional}</footer>
+                  <footer>
+                    {quote.source === "testimonial"
+                      ? `Customer testimonial · ${quote.customerName}${quote.location ? ` · ${quote.location}` : ""}`
+                      : `Verified customer · about ${quote.professional}`}
+                  </footer>
                 </blockquote>
               ))}
             </div>
