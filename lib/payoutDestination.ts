@@ -7,6 +7,11 @@ export function payoutDestination(
     (options.livemode ? null : options.testAccount?.trim() || null);
 }
 
+/** New visit and tip payouts always belong to the assigned cleaner, even in test mode. */
+export function assignedProviderDestination(providerAccount: string | null | undefined): string | null {
+  return providerAccount?.trim() || null;
+}
+
 export function isTestStripeKey(secret: string | undefined): boolean {
   return Boolean(secret && /^(sk|rk)_test_/.test(secret));
 }

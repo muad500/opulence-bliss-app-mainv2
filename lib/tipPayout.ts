@@ -7,7 +7,7 @@ import {
   systemFinaliseMoneyOperation,
   systemTransitionPayout,
 } from "@/lib/bookingState";
-import { payoutDestination } from "@/lib/payoutDestination";
+import { assignedProviderDestination } from "@/lib/payoutDestination";
 
 const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -105,9 +105,7 @@ export async function settleTipPayout(paymentId: string, requestedBy?: string) {
     intent.metadata.booking_id !== booking.id || !intent.latest_charge || Boolean(intent.transfer_data);
   const { data: provider } = await admin.from("providers")
     .select("stripe_account_id").eq("id", booking.provider_id).maybeSingle();
-  const destination = payoutDestination(provider?.stripe_account_id, {
-    livemode: intent.livemode, testAccount: process.env.PROVIDER_TEST_ACCOUNT,
-  });
+  const destination = assignedProviderDestination(provider?.stripe_account_id);
   if (invalidCharge || !destination) {
     const reason = intent.transfer_data
       ? "Legacy destination tip needs admin reconciliation; do not transfer again."

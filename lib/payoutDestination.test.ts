@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isTestStripeKey, payoutDestination } from "./payoutDestination";
+import { assignedProviderDestination, isTestStripeKey, payoutDestination } from "./payoutDestination";
 
 test("a live transfer never falls back to the test account", () => {
   assert.equal(payoutDestination(null, { livemode: true, testAccount: "acct_test" }), null);
@@ -10,6 +10,12 @@ test("a live transfer never falls back to the test account", () => {
 test("sandbox transfers can use a test account", () => {
   assert.equal(payoutDestination(null, { livemode: false, testAccount: "acct_test" }), "acct_test");
   assert.equal(payoutDestination(null, { livemode: false }), null);
+});
+
+test("new visit and tip payouts require the assigned cleaner's account", () => {
+  assert.equal(assignedProviderDestination(null), null);
+  assert.equal(assignedProviderDestination("  "), null);
+  assert.equal(assignedProviderDestination(" acct_cleaner "), "acct_cleaner");
 });
 
 test("unknown and live keys are never treated as test keys", () => {

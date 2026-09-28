@@ -7,7 +7,7 @@ import {
   systemFinaliseMoneyOperation,
   systemTransitionPayout,
 } from "@/lib/bookingState";
-import { payoutDestination } from "@/lib/payoutDestination";
+import { assignedProviderDestination } from "@/lib/payoutDestination";
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -148,9 +148,7 @@ export async function settleCompletedVisitPayout(bookingId: string, requestedBy?
   }
   const { data: provider } = await admin.from("providers")
     .select("stripe_account_id").eq("id", booking.provider_id).maybeSingle();
-  const destination = payoutDestination(provider?.stripe_account_id, {
-    livemode: intent.livemode, testAccount: process.env.PROVIDER_TEST_ACCOUNT,
-  });
+  const destination = assignedProviderDestination(provider?.stripe_account_id);
   if (!destination) {
     await systemFinaliseMoneyOperation(admin, operation.id, "failed", { error: "Provider Stripe account is missing." });
     if (payout.status === "failed") await systemTransitionPayout(admin, payout.id, "processing");
