@@ -8,10 +8,12 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { CLEANING_DURATIONS, isCleaning, bookingPricePence, cleaningHourlyRatePence, compareCleaningSessions } from "@/lib/cleaningBooking";
 import { bookingPolicyError } from "@/lib/bookingPolicy";
-import { REGULAR_VISIT_COUNT, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
+import { REGULAR_MAX_VISITS, REGULAR_MIN_VISITS, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
 import { cleaningHomeLabel, parseCleaningHome, recommendedCleaningMinutesForHome, type PropertyType } from "@/lib/cleaningHome";
 import AppointmentTimePicker from "@/components/AppointmentTimePicker";
 import { isStoredUkPhone, isValidUkPhone } from "@/lib/ukPhone";
+import { EARLY_START_REQUEST_TEXT, startsWithinCancellationPeriod } from "@/lib/cancellationPeriod";
+import { CANCELLATION_REFUND_URL } from "@/lib/legal";
 
 const supabase = createClient();
 
@@ -30,7 +32,7 @@ type Area = { name: string; postcode_prefixes: string[] };
 
 const STEPS = ["Address", "Session", "Frequency", "Hours", "Time", "Confirm"];
 
-type BookingFrequency = "one_time" | "weekly" | "monthly";
+type BookingFrequency = "one_time" | "weekly" | "fortnightly" | "monthly";
 
 const FREQUENCIES: Array<{
   value: BookingFrequency;
@@ -38,8 +40,9 @@ const FREQUENCIES: Array<{
   note: string;
 }> = [
   { value: "one_time", title: "One time", note: "Just this visit" },
-  { value: "weekly", title: "Every week", note: "Six weekly visits, paid upfront" },
-  { value: "monthly", title: "Every month", note: "Six monthly visits, paid upfront" },
+  { value: "weekly", title: "Every week", note: "6 to 10 weekly visits, paid upfront" },
+  { value: "fortnightly", title: "Every two weeks", note: "6 to 10 visits, two weeks apart, paid upfront" },
+  { value: "monthly", title: "Every month", note: "6 to 10 monthly visits, paid upfront" },
 ];
 
 function frequencyLabel(value: BookingFrequency) {
@@ -103,6 +106,7 @@ export default function BookPage() {
   const [bedrooms, setBedrooms] = useState<number | "">("");
   const [bathrooms, setBathrooms] = useState<number | "">("");
   const [frequency, setFrequency] = useState<BookingFrequency>("weekly");
+  const [regularVisits, setRegularVisits] = useState<number>(REGULAR_MIN_VISITS);
   const [previousCleaners, setPreviousCleaners] = useState<{ provider_id: string; display_name: string }[]>([]);
   const [preferredCleaner, setPreferredCleaner] = useState("");
   const cleaning = isCleaning(selected?.service_type);
@@ -129,6 +133,9 @@ export default function BookPage() {
   const [savedPhone, setSavedPhone] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [earlyStartAgreed, setEarlyStartAgreed] = useState(false);
+  // Set when the server says a request is needed, in case time moved on.
+  const [earlyStartForced, setEarlyStartForced] = useState(false);
   const [handoffError, setHandoffError] = useState<string | null>(null);
 
   /* ---------- load ---------- */
@@ -348,7 +355,7 @@ export default function BookPage() {
       const res = await fetch("/api/promo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: promo, packageId: selected.id, durationMinutes: minutes, frequency }),
+        body: JSON.stringify({ code: promo, packageId: selected.id, durationMinutes: minutes, frequency, regularVisits }),
       });
       const d = await res.json();
       setPromoInfo(
@@ -384,6 +391,14 @@ export default function BookPage() {
 
   const needsPhone = signedIn === true && savedPhone !== null && !isStoredUkPhone(savedPhone);
   const phoneValid = isValidUkPhone(phone);
+  // Any chosen time could become the visit, so the earliest one decides.
+  const earliestChosenStart = [slot, ...optionalSlots]
+    .filter((time): time is string => Boolean(time))
+    .map((time) => new Date(time).getTime())
+    .reduce((earliest, time) => Math.min(earliest, time), Number.POSITIVE_INFINITY);
+  const needsEarlyStart =
+    earlyStartForced ||
+    (Number.isFinite(earliestChosenStart) && startsWithinCancellationPeriod(earliestChosenStart));
 
   async function startCheckout() {
     if (!selected || !addressValid || !slot || !home) return;
@@ -391,6 +406,7 @@ export default function BookPage() {
       setPhoneTouched(true);
       return;
     }
+    if (needsEarlyStart && !earlyStartAgreed) return;
     const policyError = bookingPolicyError(selected.name, frequency);
     if (policyError) {
       setPayError(policyError);
@@ -405,6 +421,7 @@ export default function BookPage() {
         body: JSON.stringify({
           packageId: selected.id,
           durationMinutes: minutes,
+          regularVisits: frequency === "one_time" ? undefined : regularVisits,
           address,
           frequency,
           preferredProviderId: cleaning ? preferredCleaner || null : null,
@@ -415,6 +432,7 @@ export default function BookPage() {
           optionalSlots,
           promoCode: promoInfo?.ok ? promo.trim().toUpperCase() : null,
           phone: needsPhone ? phone : undefined,
+          earlyStartRequested: needsEarlyStart && earlyStartAgreed,
         }),
       });
       const data = await res.json();
@@ -424,6 +442,7 @@ export default function BookPage() {
           setSavedPhone("");
           setPhoneTouched(true);
         }
+        if (data.code === "early_start_required") setEarlyStartForced(true);
         throw new Error(data.error || "Could not start checkout");
       }
     } catch (e) {
@@ -493,7 +512,7 @@ export default function BookPage() {
   const total = selected
     ? promoInfo?.ok && promoInfo.total !== undefined
       ? promoInfo.total
-      : bookingPricePence(selected, minutes) * (frequency === "one_time" ? 1 : REGULAR_VISIT_COUNT) / 100
+      : bookingPricePence(selected, minutes) * (frequency === "one_time" ? 1 : regularVisits) / 100
     : 0;
   const policyError = selected ? bookingPolicyError(selected.name, frequency) : null;
   const oneTimeEssential = packages.find((item) => item.name === "One-Time Essential Clean");
@@ -502,7 +521,7 @@ export default function BookPage() {
   let regularScheduleError: string | null = null;
   if (regular && slot) {
     try {
-      regularSlots = regularVisitSlots(slot, frequency as RegularFrequency, minutes);
+      regularSlots = regularVisitSlots(slot, frequency as RegularFrequency, minutes, Date.now(), regularVisits);
     } catch (cause) {
       regularScheduleError = cause instanceof Error ? cause.message : "Choose an earlier first date.";
     }
@@ -589,7 +608,7 @@ export default function BookPage() {
                   <em>✓</em> Approved, DBS-verified professionals
                 </li>
                 <li>
-                  <em>✓</em> One-time card holds; six-visit plans paid upfront
+                  <em>✓</em> One-time card holds; regular plans of 6 to 10 visits paid upfront
                 </li>
                 <li>
                   <em>✓</em> No cancellation charge with more than 48 hours&apos; notice
@@ -628,7 +647,7 @@ export default function BookPage() {
                           </b>
                         </span>
                         <span className="optMeta">
-                          2–8 hours · 30-minute steps · {p.name === "Essential Clean" ? "Six-visit minimum" : "One-time cleaning"}
+                          2–8 hours · 30-minute steps · {p.name === "Essential Clean" ? "6 to 10 visits" : "One-time cleaning"}
                         </span>
                       </span>
                     </button>
@@ -692,9 +711,31 @@ export default function BookPage() {
                 ))}
               </div>
 
+              {frequency !== "one_time" && (
+                <div className="visitCount" role="group" aria-label="Number of visits">
+                  <span>Number of visits</span>
+                  <div>
+                    {Array.from({ length: REGULAR_MAX_VISITS - REGULAR_MIN_VISITS + 1 }, (_, index) => REGULAR_MIN_VISITS + index).map((count) => (
+                      <button
+                        key={count}
+                        type="button"
+                        className={regularVisits === count ? "on" : ""}
+                        aria-pressed={regularVisits === count}
+                        onClick={() => {
+                          setRegularVisits(count);
+                          setPromoInfo(null);
+                        }}
+                      >
+                        {count}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <p className="frequencyNote">
-                A regular booking means at least six visits booked together.
-                You pay for all six at checkout. If you prefer to book each visit
+                A regular booking means 6 to 10 visits booked together, and you
+                pay for all of them at checkout. If you prefer to book each visit
                 separately, choose a one-time session.
               </p>
 
@@ -848,9 +889,9 @@ export default function BookPage() {
               )}
 
               {regularScheduleError && <p className="flash no" role="alert">{regularScheduleError}</p>}
-              {regular && regularSlots.length === REGULAR_VISIT_COUNT && (
+              {regular && regularSlots.length === regularVisits && (
                 <div className="timeChoicesReview">
-                  <strong>Your six visits · paid upfront</strong>
+                  <strong>Your {regularVisits} visits · paid upfront</strong>
                   <ol>{regularSlots.map((visit, index) => <li key={visit}>Visit {index + 1}: {fullLabel(visit)}</li>)}</ol>
                 </div>
               )}
@@ -877,7 +918,7 @@ export default function BookPage() {
               <h1>Review and pay</h1>
               <p className="lede">
                 {regular
-                  ? "Check all six visit dates and your full upfront payment before continuing to secure checkout."
+                  ? `Check all ${regularVisits} visit dates and your full upfront payment before continuing to secure checkout.`
                   : "Check your visit and payment before continuing to secure checkout."}
               </p>
 
@@ -898,7 +939,7 @@ export default function BookPage() {
                   <small>{address}, {postcode.toUpperCase()}</small>
                 </div>
                 <div>
-                  <span>{regular ? "Six-visit total" : "Amount"}</span>
+                  <span>{regular ? `${regularVisits}-visit total` : "Amount"}</span>
                   <strong>{money(total)}</strong>
                   <small>{regular ? "Charged in full now" : "Held now, charged after completion"}</small>
                 </div>
@@ -906,7 +947,7 @@ export default function BookPage() {
 
               {regular ? (
                 <div className="timeChoicesReview">
-                  <strong>All six booked visits</strong>
+                  <strong>All {regularVisits} booked visits</strong>
                   <ol>{regularSlots.map((visit, index) => <li key={visit}>Visit {index + 1}: {fullLabel(visit)}</li>)}</ol>
                   {regularScheduleError && <p className="flash no" role="alert">{regularScheduleError}</p>}
                   <small>We&apos;ll match a professional to each visit. They may be different professionals.</small>
@@ -964,9 +1005,9 @@ export default function BookPage() {
               )}
 
               <div className="held">
-                <strong>{regular ? "Pay for all six visits now" : "Your card is held, not charged"}</strong>
+                <strong>{regular ? `Pay for all ${regularVisits} visits now` : "Your card is held, not charged"}</strong>
                 <span>{regular
-                  ? "This payment covers the six dates above. Cleaners are paid after their individual visits. Refunds for cancelled visits follow the cancellation policy."
+                  ? `This payment covers the ${regularVisits} dates above. Cleaners are paid after their individual visits. Refunds for cancelled visits follow the cancellation policy.`
                   : "You pay once the visit is complete. If no pro accepts, the hold is released and you pay nothing."}</span>
               </div>
 
@@ -1083,8 +1124,24 @@ export default function BookPage() {
                 </p>
               </div>
             )}
+            {step === 5 && needsEarlyStart && (
+              <label className="early-start" htmlFor="early-start">
+                <input
+                  id="early-start"
+                  type="checkbox"
+                  checked={earlyStartAgreed}
+                  onChange={(event) => setEarlyStartAgreed(event.target.checked)}
+                />
+                <span>
+                  {EARLY_START_REQUEST_TEXT}{" "}
+                  <a href={CANCELLATION_REFUND_URL} target="_blank" rel="noopener noreferrer">
+                    Your cancellation rights
+                  </a>
+                </span>
+              </label>
+            )}
             {step === 5 && (
-              <button className="pay" onClick={checkout} disabled={paying || !slot || !addressValid || !home || !!policyError || !!regularScheduleError || (needsPhone && !phoneValid)}>
+              <button className="pay" onClick={checkout} disabled={paying || !slot || !addressValid || !home || !!policyError || !!regularScheduleError || (needsPhone && !phoneValid) || (needsEarlyStart && !earlyStartAgreed)}>
                 {paying
                   ? "Taking you to checkout…"
                   : signedIn === false
@@ -1581,6 +1638,38 @@ export default function BookPage() {
           font-weight: 700;
           line-height: 1.35;
         }
+        .visitCount {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 10px 14px;
+          margin: 18px 0 0;
+        }
+        .visitCount > span {
+          color: var(--ink);
+          font-size: 14px;
+          font-weight: 800;
+        }
+        .visitCount > div {
+          display: flex;
+          gap: 8px;
+        }
+        .visitCount button {
+          width: 44px;
+          height: 44px;
+          border: 2px solid var(--line);
+          border-radius: 12px;
+          background: #fff;
+          color: var(--ink);
+          font: inherit;
+          font-weight: 800;
+          cursor: pointer;
+        }
+        .visitCount button.on {
+          border-color: var(--purple);
+          background: var(--purple);
+          color: #fff;
+        }
         .frequencyNote {
           margin: 14px 0 0;
           padding: 12px 14px;
@@ -1977,6 +2066,31 @@ export default function BookPage() {
           color: #d82f45;
           font-size: 12.5px;
           font-weight: 700;
+        }
+        .early-start {
+          display: flex;
+          gap: 10px;
+          align-items: flex-start;
+          margin: 0 0 14px;
+          padding: 12px 14px;
+          border: 2px solid var(--line);
+          border-radius: 14px;
+          background: #fff;
+          color: var(--ink);
+          font-size: 13px;
+          line-height: 1.5;
+          cursor: pointer;
+        }
+        .early-start input {
+          flex: 0 0 auto;
+          width: 18px;
+          height: 18px;
+          margin-top: 2px;
+          accent-color: var(--purple);
+        }
+        .early-start a {
+          color: var(--purple);
+          font-weight: 800;
         }
         .phone-help {
           margin: 6px 0 0;

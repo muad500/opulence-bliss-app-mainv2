@@ -1,20 +1,14 @@
-export const PUBLIC_REVIEW_MIN_RATING = 4;
-
 export type ReviewVisibility = "public" | "private";
 export type ReviewAuthor = "client" | "provider";
 
-export function isPositiveCleanerReview(rating: number) {
-  return Math.round(rating) >= PUBLIC_REVIEW_MIN_RATING;
-}
-
+/**
+ * The reviewer decides whether their review is public. The rating never
+ * decides it: hiding negative reviews from public pages is a banned practice
+ * under the Digital Markets, Competition and Consumers Act 2024. Anything other
+ * than an explicit "public" request stays private.
+ */
 export function effectiveReviewVisibility(
-  rating: number,
   requested: string | null | undefined,
-  reviewer: ReviewAuthor = "client",
 ): ReviewVisibility {
-  if (requested !== "public") return "private";
-  if (reviewer === "client" && !isPositiveCleanerReview(rating)) {
-    return "private";
-  }
-  return "public";
+  return requested === "public" ? "public" : "private";
 }

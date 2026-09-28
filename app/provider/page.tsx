@@ -48,7 +48,7 @@ const TRADES: Trade[] = [
   {
     key: "maintenance",
     role: "Handyman",
-    blurb: "Repairs, assembly, mounting and small renovation jobs.",
+    blurb: "Repairs, assembly, mounting and minor decorating.",
     icon: Hammer,
     tint: "linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%)",
     href: "/services/handyman",

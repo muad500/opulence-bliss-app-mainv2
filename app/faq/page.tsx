@@ -69,7 +69,7 @@ export default async function FaqPage() {
         <section className={styles.cta}>
           <div>
             <h2>Need help with your home?</h2>
-            <p>Book cleaning or request a tailored Handyman quotation.</p>
+            <p>Contact us today for a cleaning or handyman quote. Send your postcode, the service you need, your preferred date and any useful photos or details. We&apos;ll get back to you with availability and pricing.</p>
           </div>
           <div className={styles.ctaActions}>
             <Link className={styles.primaryButton} href="/book">Book cleaning</Link>

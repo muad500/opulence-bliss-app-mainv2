@@ -15,6 +15,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { isRegularVisitCount } from "@/lib/regularBooking";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -297,17 +298,19 @@ export async function GET(req: NextRequest) {
           .select("id, booking_id, gross_amount, status")
           .eq("stripe_payment_ref", pi.id)
           .or("kind.is.null,kind.neq.tip");
-        throwOnQueryError(`Reading six-visit allocations for ${pi.id}`, allocationsError);
+        throwOnQueryError(`Reading regular-visit allocations for ${pi.id}`, allocationsError);
         const rows = allocations ?? [];
+        const expectedVisitCount = Number(pi.metadata.regular_visit_count);
         const allocatedPence = rows.reduce((sum, row) => sum + Math.round(Number(row.gross_amount) * 100), 0);
-        if (rows.length !== 6 || pi.status !== "succeeded" || received !== pi.amount || allocatedPence !== pi.amount) {
+        if (!isRegularVisitCount(expectedVisitCount) || rows.length !== expectedVisitCount ||
+            pi.status !== "succeeded" || received !== pi.amount || allocatedPence !== pi.amount) {
           findings.push({
             finding_type: "operation_ambiguous",
             severity: "critical",
             booking_id: p.booking_id,
             payment_id: p.id,
             stripe_object_id: pi.id,
-            expected: { six_allocations_pence: pi.amount, status: "succeeded" },
+            expected: { visit_count: expectedVisitCount, allocations_pence: pi.amount, status: "succeeded" },
             actual: { allocation_count: rows.length, allocated_pence: allocatedPence, stripe_status: pi.status, amount_received: received },
           });
         }
@@ -779,6 +782,7 @@ export async function GET(req: NextRequest) {
           .from("payments")
           .select("id, booking_id, status")
           .eq("stripe_payment_ref", paymentIntentId)
+          .limit(1)
           .maybeSingle();
         throwOnQueryError(
           `Looking up payment for destination-charge transfer ${tr.id}`,

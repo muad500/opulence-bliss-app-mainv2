@@ -1165,7 +1165,7 @@ export default function ProviderJoinPage() {
               <span>2</span> Complete approval and set your hours
             </li>
             <li>
-              <span>3</span> Accept jobs and get paid per visit
+              <span>3</span> Accept jobs and choose weekly, fortnightly or monthly payouts
             </li>
           </ol>
 

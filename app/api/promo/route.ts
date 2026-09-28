@@ -3,7 +3,7 @@
 
 import { bookingPricePence } from "@/lib/cleaningBooking";
 import { bookingPolicyError } from "@/lib/bookingPolicy";
-import { REGULAR_VISIT_COUNT } from "@/lib/regularBooking";
+import { REGULAR_MIN_VISITS, isRegularVisitCount } from "@/lib/regularBooking";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
@@ -29,7 +29,7 @@ export function discountFor(
 
 export async function POST(req: NextRequest) {
   try {
-    const { code, packageId, durationMinutes, frequency } = await req.json();
+    const { code, packageId, durationMinutes, frequency, regularVisits } = await req.json();
     const clean = String(code ?? "").trim().toUpperCase();
     if (!clean) {
       return NextResponse.json({ valid: false, error: "Enter a code." });
@@ -69,8 +69,11 @@ export async function POST(req: NextRequest) {
     const policyError = bookingPolicyError(pkg.name, bookingFrequency);
     if (policyError) return NextResponse.json({ valid: false, error: policyError });
 
-    const gross = bookingPricePence(pkg, Number(durationMinutes ?? pkg.duration_minutes ?? 120))
-      * (bookingFrequency === "one_time" ? 1 : REGULAR_VISIT_COUNT);
+    const visits = bookingFrequency === "one_time" ? 1 : Number(regularVisits ?? REGULAR_MIN_VISITS);
+    if (bookingFrequency !== "one_time" && !isRegularVisitCount(visits)) {
+      return NextResponse.json({ valid: false, error: "Choose between six and ten visits." });
+    }
+    const gross = bookingPricePence(pkg, Number(durationMinutes ?? pkg.duration_minutes ?? 120)) * visits;
     const discount = discountFor(gross, promo);
 
     if (discount <= 0) {

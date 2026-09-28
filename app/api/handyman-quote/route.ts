@@ -14,9 +14,7 @@ const TASK_TYPES = new Set([
   "Minor repairs",
   "Curtains and blinds",
   "Furniture moving",
-  "Plumbing",
-  "Painting",
-  "Kitchen or bathroom renovation",
+  "Minor decorating",
   "Other",
 ]);
 

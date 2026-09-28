@@ -724,7 +724,7 @@ export async function checkOutJob(id: string) {
     bk?.subscription_id
       ? `${service} — all done. This visit is covered by your membership.`
       : bk?.regular_series_id
-        ? `${service} — all done. This visit was paid for with your six-visit booking.`
+        ? `${service} — all done. This visit was paid for with your regular booking.`
       : paymentSettled
         ? `${service} — all done. Your card has now been charged.`
         : `${service} — all done. We are checking the payment and you do not need to retry anything.`,
@@ -740,7 +740,7 @@ export async function checkOutJob(id: string) {
       ? `<p>Your <strong>${service}</strong> is complete and covered by your membership.</p>
          <p>If you have a moment, we'd love a quick rating for your provider.</p>`
       : bk?.regular_series_id
-        ? `<p>Your <strong>${service}</strong> is complete and was already paid for as part of your six-visit booking.</p>
+        ? `<p>Your <strong>${service}</strong> is complete and was already paid for as part of your regular booking.</p>
            <p>If you have a moment, we'd love a quick rating for your provider.</p>`
       : paymentSettled
         ? `<p>Your <strong>${service}</strong> is complete and your card has now been charged.</p>
@@ -786,7 +786,7 @@ export async function rateClient(
     reviewer: "provider",
     rating: clean,
     comment: comment?.trim() ? comment.trim() : null,
-    visibility: effectiveReviewVisibility(clean, visibility, "provider"),
+    visibility: effectiveReviewVisibility(visibility),
   });
 
   if (!error) {

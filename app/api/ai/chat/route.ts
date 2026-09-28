@@ -913,7 +913,7 @@ async function runTool(
           rating: prov?.rating_avg ? Number(prov.rating_avg) : null,
           rating_count: prov?.rating_count ?? 0,
           detail_at: "/worker/earnings",
-          note: "Paid automatically after checking out of each visit.",
+          note: "Earnings are recorded per completed visit. You can choose weekly, every-two-weeks or monthly payouts from your Stripe balance.",
         };
       }
 

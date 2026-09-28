@@ -9,6 +9,7 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
 import { isStoredUkPhone, isValidUkPhone, normalizeUkPhone } from "@/lib/ukPhone";
+import { startsWithinCancellationPeriod } from "@/lib/cancellationPeriod";
 import {
   APPOINTMENT_WINDOW_MESSAGE,
   appointmentFitsWindow,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/appointmentWindow";
 import { normaliseOptionalBookingTimes } from "@/lib/bookingTimeChoices";
 import { bookingPolicyError } from "@/lib/bookingPolicy";
-import { REGULAR_VISIT_COUNT, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
+import { REGULAR_MIN_VISITS, isRegularVisitCount, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
 import { bookingNotesForHome, parseCleaningHome } from "@/lib/cleaningHome";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -30,7 +31,7 @@ const supabaseAdmin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const { packageId, postcode, address, frequency, request, home, slot, optionalSlots, promoCode, durationMinutes, preferredProviderId, phone } = await req.json();
+    const { packageId, postcode, address, frequency, request, home, slot, optionalSlots, promoCode, durationMinutes, preferredProviderId, phone, earlyStartRequested, regularVisits } = await req.json();
     if (!packageId) {
       return NextResponse.json({ error: "Missing packageId" }, { status: 400 });
     }
@@ -94,15 +95,19 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+    const visitCount = regular ? Number(regularVisits ?? REGULAR_MIN_VISITS) : 1;
+    if (regular && !isRegularVisitCount(visitCount)) {
+      return NextResponse.json({ error: "Choose between six and ten visits." }, { status: 400 });
+    }
     let regularSlots: string[] = [];
     if (regular) {
       try {
-        regularSlots = regularVisitSlots(slot, bookingFrequency as RegularFrequency, minutes);
+        regularSlots = regularVisitSlots(slot, bookingFrequency as RegularFrequency, minutes, Date.now(), visitCount);
       } catch (cause) {
-        return NextResponse.json({ error: cause instanceof Error ? cause.message : "Choose a valid six-visit schedule." }, { status: 400 });
+        return NextResponse.json({ error: cause instanceof Error ? cause.message : "Choose a valid regular schedule." }, { status: 400 });
       }
       if (Array.isArray(optionalSlots) && optionalSlots.length > 0) {
-        return NextResponse.json({ error: "Optional times are only available for one-time visits. Your six regular dates are shown before payment." }, { status: 400 });
+        return NextResponse.json({ error: "Optional times are only available for one-time visits. Your regular dates are shown before payment." }, { status: 400 });
       }
     }
     let alternativeTimes: string[];
@@ -136,7 +141,28 @@ export async function POST(req: NextRequest) {
     }
 
     const perVisitGross = bookingPricePence(pkg, minutes);
-    const gross = perVisitGross * (regular ? REGULAR_VISIT_COUNT : 1); // amount in pence
+    const gross = perVisitGross * visitCount; // amount in pence
+
+    // A service may only start inside the customer's 14-day cancellation period
+    // at their express request, with their acknowledgement that the right to
+    // cancel ends once it is fully performed (Consumer Contracts Regulations
+    // 2013, reg. 36). Any of the chosen times could become the visit, so the
+    // earliest one decides.
+    const earliestStart = Math.min(
+      new Date(slot).getTime(),
+      ...alternativeTimes.map((time) => new Date(time).getTime()),
+    );
+    const startsInCancellationPeriod = startsWithinCancellationPeriod(earliestStart);
+    if (startsInCancellationPeriod && earlyStartRequested !== true) {
+      return NextResponse.json(
+        {
+          error: "Confirm that you want your service to start within your 14-day cancellation period.",
+          code: "early_start_required",
+        },
+        { status: 400 },
+      );
+    }
+    const earlyStartRequestedAt = startsInCancellationPeriod ? new Date().toISOString() : "";
 
     // Who's booking? Used to prefill their email on Stripe's checkout.
     const ssr = await createServerClient();
@@ -180,9 +206,9 @@ export async function POST(req: NextRequest) {
     if (regular) {
       const { data: regularReady, error: regularReadyError } = await supabaseAdmin.rpc("regular_checkout_ready");
       if (regularReadyError || regularReady !== true) {
-        console.error("Six-visit checkout is not ready:", regularReadyError);
+        console.error("Regular checkout is not ready:", regularReadyError);
         return NextResponse.json(
-          { error: "Six-visit booking is temporarily unavailable while an update finishes. No payment has been taken." },
+          { error: "Regular booking is temporarily unavailable while an update finishes. No payment has been taken." },
           { status: 503 },
         );
       }
@@ -262,7 +288,7 @@ export async function POST(req: NextRequest) {
             currency: "gbp",
             unit_amount: chargeAmount,
             product_data: {
-              name: `${pkg.name} — ${regular ? "6 visits × " : ""}${minutes / 60} hours${
+              name: `${pkg.name} — ${regular ? `${visitCount} visits × ` : ""}${minutes / 60} hours${
                 appliedCode ? ` (${appliedCode} applied)` : ""
               }`,
             },
@@ -270,7 +296,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       payment_intent_data: {
-        // A six-visit series is charged upfront to the platform. Each cleaner
+        // A regular series is charged upfront to the platform. Each cleaner
         // receives a separate transfer only after their own visit is complete.
         capture_method: regular ? "automatic" : "manual",
         ...(regular
@@ -279,7 +305,7 @@ export async function POST(req: NextRequest) {
         metadata: {
           kind: "booking",
           upfront_regular: regular ? "1" : "0",
-          regular_visit_count: regular ? String(REGULAR_VISIT_COUNT) : "1",
+          regular_visit_count: String(visitCount),
           customer_id: user.id,
           duration_minutes: String(minutes),
           service_address: serviceAddress.slice(0, 480),
@@ -295,6 +321,8 @@ export async function POST(req: NextRequest) {
           per_visit_gross: String(perVisitGross),
           promo_code: appliedCode ?? "",
           discount: String(discount),
+          // Evidence of the customer's express request, kept with the payment.
+          early_start_requested_at: earlyStartRequestedAt,
         },
       },
       success_url: `${req.nextUrl.origin}/api/book/finalize?session_id={CHECKOUT_SESSION_ID}`,

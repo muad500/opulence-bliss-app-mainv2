@@ -15,7 +15,7 @@ const admin = createClient(
 );
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
-/** Transfer one sixth of an upfront payment only after that visit is complete. */
+/** Transfer one visit's allocated share of an upfront payment after completion. */
 export async function settlePrepaidVisit(bookingId: string) {
   const { data: booking, error: bookingError } = await admin
     .from("bookings")
@@ -23,7 +23,7 @@ export async function settlePrepaidVisit(bookingId: string) {
     .eq("id", bookingId)
     .single();
   if (bookingError || !booking?.regular_series_id || booking.status !== "completed" || !booking.provider_id) {
-    throw new Error("A completed, assigned six-visit booking is required for payout.");
+    throw new Error("A completed, assigned regular booking is required for payout.");
   }
 
   const { data: payment, error: paymentError } = await admin

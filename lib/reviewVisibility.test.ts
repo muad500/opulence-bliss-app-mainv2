@@ -1,30 +1,18 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  effectiveReviewVisibility,
-  isPositiveCleanerReview,
-} from "./reviewVisibility";
+import { effectiveReviewVisibility } from "./reviewVisibility";
 
-test("one to three star cleaner reviews are always private", () => {
-  for (const rating of [1, 2, 3]) {
-    assert.equal(effectiveReviewVisibility(rating, "public"), "private");
-    assert.equal(isPositiveCleanerReview(rating), false);
-  }
+test("a review of any rating is public when the reviewer chooses public", () => {
+  assert.equal(effectiveReviewVisibility("public"), "public");
 });
 
-test("four and five star reviews can be public", () => {
-  for (const rating of [4, 5]) {
-    assert.equal(effectiveReviewVisibility(rating, "public"), "public");
-    assert.equal(isPositiveCleanerReview(rating), true);
-  }
+test("a reviewer can keep a review private", () => {
+  assert.equal(effectiveReviewVisibility("private"), "private");
 });
 
-test("a customer can keep a positive review private", () => {
-  assert.equal(effectiveReviewVisibility(5, "private"), "private");
-  assert.equal(effectiveReviewVisibility(5, undefined), "private");
-});
-
-test("a professional can make any client review public or private", () => {
-  assert.equal(effectiveReviewVisibility(1, "public", "provider"), "public");
-  assert.equal(effectiveReviewVisibility(5, "private", "provider"), "private");
+test("anything other than an explicit public request stays private", () => {
+  assert.equal(effectiveReviewVisibility(undefined), "private");
+  assert.equal(effectiveReviewVisibility(null), "private");
+  assert.equal(effectiveReviewVisibility("PUBLIC"), "private");
+  assert.equal(effectiveReviewVisibility("anything"), "private");
 });

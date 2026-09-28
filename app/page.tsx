@@ -6,10 +6,47 @@
 //
 // Landing page — two-level nav, hero, coloured service bands.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import SiteFooter from "@/components/SiteFooter";
 
+type HomeQuote = { id: string; rating: number; comment: string | null; professional: string };
+
 export default function Home() {
+  const [quotes, setQuotes] = useState<HomeQuote[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      const supabase = createClient();
+      const { data: featured } = await supabase.rpc("homepage_review_highlights_feed");
+      const selected = (featured ?? []) as {
+        id: string;
+        rating: number;
+        comment: string | null;
+        recipient_name: string;
+      }[];
+      const { data } = selected.length === 0
+        ? await supabase.rpc("public_reviews_feed", { p_limit: 100 })
+        : { data: selected.map((row) => ({ ...row, recipient_type: "professional" })) };
+      const rows = (data ?? []) as {
+        id: string;
+        rating: number;
+        comment: string | null;
+        recipient_name: string;
+        recipient_type: string;
+      }[];
+      setQuotes(
+        rows
+          .filter((row) => row.recipient_type === "professional" && row.rating >= 4)
+          .slice(0, 6)
+          .map((row) => ({
+            id: row.id,
+            rating: row.rating,
+            comment: row.comment?.trim() || null,
+            professional: row.recipient_name,
+          })),
+      );
+    })();
+  }, []);
   const [postcode, setPostcode] = useState("");
 
   const bookLink = postcode
@@ -41,9 +78,7 @@ export default function Home() {
               Book my cleaning
             </a>
           </div>
-          <p className="micro">
-            Central, North &amp; West London · cleaning bookings and handyman quotations
-          </p>
+          <p className="micro">Simple pay per visit booking down there</p>
           <a className="hero-quote" href="/services/handyman">
             Need something repaired or installed? Request a handyman quote →
           </a>
@@ -74,10 +109,10 @@ export default function Home() {
       {/* ---------- TRUST ---------- */}
       <section className="strip">
         {[
-          ["DBS-verified professionals", "Verification required before new bookings"],
+          ["Vetted cleaners", "Every approved cleaner is vetted before taking bookings"],
           ["Clear before you commit", "See the cleaning price or approve a handyman quote"],
           ["Your regular pro", "Ask for them again next time"],
-          ["Made for your schedule", "Choose a cleaning slot or request a preferred time"],
+          ["Same-day booking requests", "Choose a suitable time today; we'll look for your cleaner"],
         ].map(([t, s]) => (
           <div key={t}>
             <strong>{t}</strong>
@@ -94,8 +129,8 @@ export default function Home() {
           <ol className="steps">
             {[
               ["Choose a service", "Book cleaning or request handyman help."],
-              ["Tell us what you need", "Add your address, job details and preferred timing."],
-              ["Book or approve", "Confirm a cleaning price or approve your handyman quote."],
+              ["Tell us what you need", "Add your address and job details."],
+              ["Pick a suitable time", "Choose a cleaning time, then confirm your booking or approve a handyman quote."],
               ["Your pro arrives", "They check in and take care of the work."],
             ].map(([t, s], i) => (
               <li key={t}>
@@ -110,39 +145,37 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ---------- TESTIMONIALS ---------- */}
-      <section className="quotes-wrap">
-        <div className="inner">
-          <p className="eyebrow center">From our customers</p>
-          <h2 className="center big">Our reviews</h2>
-          <div className="quotes">
-            {[
-              [
-                "The same cleaner every fortnight has changed how our home feels. I no longer think about it.",
-                "Eleanor R. · Kensington",
-              ],
-              [
-                "The team is dependable, thoughtful and always leaves the flat feeling fresh.",
-                "James T. · Hampstead",
-              ],
-              [
-                "Booking took two minutes and the standard has never slipped. That's all I wanted.",
-                "Priya M. · Chiswick",
-              ],
-            ].map(([q, who]) => (
-              <blockquote key={who}>
-                <p>{q}</p>
-                <footer>{who}</footer>
-              </blockquote>
-            ))}
+      {/* ---------- REVIEWS ---------- */}
+      {/* Only genuine, positive public booking reviews are highlighted here.
+          The footer links to the complete public feed and includes all ratings in its overall score. */}
+      {quotes && quotes.length > 0 && (
+        <section className="quotes-wrap">
+          <div className="inner">
+            <p className="eyebrow center">From our customers</p>
+            <h2 className="center big">Happy Customer Moments</h2>
+            <div className="quotes">
+              {quotes.map((quote) => (
+                <blockquote key={quote.id}>
+                  <span className="quote-stars" aria-label={`${quote.rating} out of 5`}>
+                    {"\u2605".repeat(quote.rating)}
+                    {"\u2606".repeat(5 - quote.rating)}
+                  </span>
+                  <p>{quote.comment || "Rating shared without a written comment."}</p>
+                  <footer>Verified customer · about {quote.professional}</footer>
+                </blockquote>
+              ))}
+            </div>
+            <p className="center all-reviews">
+              <a href="/reviews">Read all reviews</a>
+            </p>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ---------- CTA ---------- */}
       <section className="cta-band">
         <h2>Ready to hand it over?</h2>
-        <p>Enter your postcode and see what&apos;s free this week.</p>
+        <p>Choose a cleaning time that suits you; we&apos;ll find your cleaner.</p>
         <a className="btn light" href="/book">
           Book a service
         </a>
@@ -513,6 +546,19 @@ export default function Home() {
           line-height: 1.5;
           color: var(--ink);
           margin: 0 0 16px;
+        }
+        .quote-stars {
+          display: block;
+          margin-bottom: 8px;
+          color: #f5c542;
+          letter-spacing: 2px;
+        }
+        .all-reviews {
+          margin-top: 22px;
+        }
+        .all-reviews a {
+          color: #6d28d9;
+          font-weight: 800;
         }
         blockquote footer {
           font-size: 13.5px;

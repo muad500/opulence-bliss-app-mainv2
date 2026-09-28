@@ -6,7 +6,7 @@ export const CUSTOMER_TERMS_HTML = String.raw`
       <p><strong>Company Registration Number:</strong> 15894675</p>
       <p><strong>Registered in:</strong> England and Wales</p>
       <h3>Contact Us</h3>
-      <p><strong>Call / SMS / WhatsApp:</strong> +44 07484 717935</p>
+      <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
       <p><strong>Email:</strong> opulencebliss@gmail.com</p>
       <h2>1. Introduction</h2>
       <p>Welcome to Opulence Bliss Ltd.</p>
