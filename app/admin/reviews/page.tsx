@@ -3,6 +3,7 @@ import ReviewList from "../ReviewList";
 import { requireAdminPage } from "@/lib/adminSession";
 import { loadAdminReviews } from "@/lib/adminReviews";
 import {
+  copyBookingReviewToTestimonial,
   createMarketingReview,
   deleteMarketingReview,
   updateMarketingReview,
@@ -21,6 +22,8 @@ type MarketingReview = {
   location: string | null;
   reviewed_at: string;
   published: boolean;
+  homepage_featured: boolean;
+  source_review_id: string | null;
   is_demo: boolean;
   sort_order: number;
 };
@@ -31,12 +34,14 @@ export default async function AdminReviewsPage() {
   const { data: marketingData, error: marketingError } = await supabase
     .from("marketing_reviews")
     .select(
-      "id, rating, service_label, comment, customer_name, location, reviewed_at, published, is_demo, sort_order",
+      "id, rating, service_label, comment, customer_name, location, reviewed_at, published, homepage_featured, source_review_id, is_demo, sort_order",
     )
     .eq("service_type", "cleaning")
     .order("sort_order", { ascending: true })
     .order("reviewed_at", { ascending: false });
   const marketingReviews = (marketingData ?? []) as MarketingReview[];
+  const homepageTestimonials = marketingReviews.filter((review) => review.homepage_featured);
+  const copiedReviewIds = new Set(marketingReviews.map((review) => review.source_review_id).filter(Boolean));
   const { data: featuredData, error: featuredError } = await supabase
     .from("homepage_review_highlights")
     .select("review_id, selected_at")
@@ -64,19 +69,25 @@ export default async function AdminReviewsPage() {
           <div className="marketing-heading">
             <div>
               <p style={eyebrow}>Homepage only</p>
-              <h2 id="homepage-highlights">Featured customer reviews</h2>
+              <h2 id="homepage-highlights">Homepage reviews</h2>
             </div>
             <p>
-              Choose up to six genuine 4- or 5-star customer reviews from completed bookings.
-              These are featured highlights, not the overall score. Customers can still
-              read every public review, including negative feedback, on the reviews page.
+              Choose up to six genuine booking reviews below, or copy a written
+              review to create an editable customer testimonial. When
+              any editable testimonials are selected, those appear on the
+              homepage instead of the booking-review selection. Original booking
+              reviews and the overall rating are never changed. Keep the
+              selection representative; every public booking review remains on
+              the full reviews page.
             </p>
           </div>
           {featuredError ? (
             <p style={errorBox}>{featuredError.message}</p>
           ) : (
             <>
-              <p className="highlight-count">{featuredIds.size} of 6 selected</p>
+              <p className="highlight-count">
+                {homepageTestimonials.length} of 3 editable testimonials on homepage · {featuredIds.size} of 6 booking reviews selected
+              </p>
               {(featuredData ?? []).filter((row) => !eligibleReviews.some((review) => review.id === row.review_id)).map((row) => (
                 <form className="highlight-row" action={unfeatureHomepageReview} key={row.review_id}>
                   <span>Previously selected review {row.review_id.slice(0, 8)}</span>
@@ -96,9 +107,18 @@ export default async function AdminReviewsPage() {
                     <small>Booking #{review.bookingReference} · {review.reviewerName}</small>
                   </span>
                   <input type="hidden" name="reviewId" value={review.id} />
-                  <button type="submit" disabled={!featuredIds.has(review.id) && featuredIds.size >= 6}>
-                    {featuredIds.has(review.id) ? "Remove from homepage" : "Feature on homepage"}
-                  </button>
+                  <div className="highlight-actions">
+                    <button type="submit" disabled={!featuredIds.has(review.id) && featuredIds.size >= 6}>
+                      {featuredIds.has(review.id) ? "Remove from homepage" : "Feature on homepage"}
+                    </button>
+                    <button
+                      type="submit"
+                      formAction={copyBookingReviewToTestimonial}
+                      disabled={!review.comment?.trim() || copiedReviewIds.has(review.id)}
+                    >
+                      {copiedReviewIds.has(review.id) ? "Copied for editing" : "Copy to editable testimonial"}
+                    </button>
+                  </div>
                 </form>
               ))}
             </>
@@ -108,20 +128,23 @@ export default async function AdminReviewsPage() {
         <section className="marketing-card" aria-labelledby="cleaning-testimonials">
           <div className="marketing-heading">
             <div>
-              <p style={eyebrow}>Public cleaning page</p>
-              <h2 id="cleaning-testimonials">Cleaning testimonials</h2>
+              <p style={eyebrow}>Homepage and cleaning page</p>
+              <h2 id="cleaning-testimonials">Editable customer testimonials</h2>
             </div>
             <p>
-              Use Feature on cleaning page to choose which genuine customer testimonials appear
-              in the featured selection. Prototype samples cannot be published.
-              This does not hide booking reviews or change the overall rating:
-              public 1–5 star reviews remain available in the full review feed.
+              Add genuine customer feedback for the cleaning page, or copy a
+              written booking review above to edit its displayed name, rating,
+              review and location for the homepage.
+              Only show a customer&apos;s name or location with their permission.
+              Show on homepage is separate from Feature on cleaning page.
+              Prototype samples cannot be shown publicly, and the original
+              booking review stays unchanged.
             </p>
           </div>
 
           <form className="review-form create" action={createMarketingReview}>
             <label>Service<input name="serviceLabel" placeholder="Essential Clean" required /></label>
-            <label>Customer<input name="customerName" placeholder="First name" required /></label>
+            <label>Customer name<input name="customerName" placeholder="First name" required /></label>
             <label>Location<input name="location" placeholder="London area (optional)" /></label>
             <label>Rating<select name="rating" defaultValue="5">{[5, 4, 3, 2, 1].map((rating) => <option value={rating} key={rating}>{rating} / 5</option>)}</select></label>
             <label>Date<input name="reviewedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label>
@@ -143,13 +166,14 @@ export default async function AdminReviewsPage() {
               {marketingReviews.map((review) => (
                 <form className="review-form managed" action={updateMarketingReview.bind(null, review.id)} key={review.id}>
                   <label>Service<input name="serviceLabel" defaultValue={review.service_label} required /></label>
-                  <label>Customer<input name="customerName" defaultValue={review.customer_name} required /></label>
+                  <label>Customer name<input name="customerName" defaultValue={review.customer_name} required /></label>
                   <label>Location<input name="location" defaultValue={review.location ?? ""} /></label>
                   <label>Rating<select name="rating" defaultValue={String(review.rating)}>{[5, 4, 3, 2, 1].map((rating) => <option value={rating} key={rating}>{rating} / 5</option>)}</select></label>
                   <label>Date<input name="reviewedAt" type="date" defaultValue={review.reviewed_at} required /></label>
                   <label>Order<input name="sortOrder" type="number" defaultValue={review.sort_order} /></label>
                   <label className="wide">Review<textarea name="comment" rows={3} defaultValue={review.comment} required /></label>
                   <div className="toggles">
+                    <label><input type="checkbox" name="homepageFeatured" defaultChecked={review.homepage_featured} disabled={!review.source_review_id || (!review.homepage_featured && homepageTestimonials.length >= 3)} /> Show on homepage (booking-backed only)</label>
                     <label><input type="checkbox" name="published" defaultChecked={review.published} /> Feature on cleaning page</label>
                     <label><input type="checkbox" name="isDemo" defaultChecked={review.is_demo} /> Prototype sample</label>
                   </div>
@@ -181,6 +205,7 @@ export default async function AdminReviewsPage() {
         .highlight-row strong{color:#6d28d9;white-space:nowrap;margin-right:8px}
         .highlight-row small{display:block;margin-top:4px;color:#68717d}
         .highlight-row button{flex:0 0 auto;min-height:38px;padding:7px 13px;border:1px solid #6d28d9;border-radius:999px;background:#fff;color:#6d28d9;font:inherit;font-size:12px;font-weight:900;cursor:pointer}
+        .highlight-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px}
         .highlight-row button:disabled{opacity:.45;cursor:not-allowed}
         @media(max-width:900px){.review-form{grid-template-columns:repeat(2,minmax(0,1fr))}.review-form .wide,.toggles{grid-column:1/-1}.form-actions{grid-column:1/-1}.marketing-heading{display:block}.marketing-heading>p{margin-top:8px}}
         @media(max-width:560px){.review-form{grid-template-columns:1fr}.review-form .wide,.toggles,.form-actions{grid-column:1}.marketing-card{padding:15px}.highlight-row{align-items:flex-start;flex-direction:column}}
