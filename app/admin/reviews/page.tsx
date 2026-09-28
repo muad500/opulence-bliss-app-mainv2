@@ -49,8 +49,7 @@ export default async function AdminReviewsPage() {
   const featuredIds = new Set((featuredData ?? []).map((row) => row.review_id));
   const eligibleReviews = reviews.filter((review) =>
     review.reviewer === "client" &&
-    review.visibility === "public" &&
-    review.rating >= 4,
+    review.visibility === "public",
   );
 
   return (
