@@ -49,31 +49,14 @@ function reviewValues(formData: FormData) {
     customer_name: customerName.slice(0, 100),
     location: location ? location.slice(0, 100) : null,
     reviewed_at: reviewedAt,
-    // Demo examples may appear on the homepage with explicit labels, but must
-    // never enter the genuine cleaning testimonials or aggregate rating.
+    // Only explicitly marked examples are labelled as fictional. Customer
+    // feedback entered by an admin is shown as a normal review.
     published: requestedPublished && !isDemo,
     homepage_featured: homepageFeatured,
     is_demo: isDemo,
     sort_order: Number.isFinite(sortOrder) ? Math.trunc(sortOrder) : 0,
     updated_at: new Date().toISOString(),
   };
-}
-
-async function checkHomepageLimit(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  homepageFeatured: boolean,
-  currentId?: string,
-) {
-  if (!homepageFeatured) return;
-  const { data, error } = await supabase
-    .from("marketing_reviews")
-    .select("id")
-    .eq("service_type", "cleaning")
-    .eq("homepage_featured", true);
-  if (error) throw new Error(error.message);
-  if (!data?.some((review) => review.id === currentId) && (data?.length ?? 0) >= 3) {
-    throw new Error("The homepage can show up to three editable testimonials. Remove one first.");
-  }
 }
 
 function refreshReviews() {
@@ -84,10 +67,6 @@ function refreshReviews() {
 
 function saveErrorCode(error: unknown) {
   const message = error instanceof Error ? error.message : "";
-  if (message.includes("homepage") && (message.includes("booking review") || message.includes("demo examples"))) {
-    return "source";
-  }
-  if (message.includes("up to three editable testimonials")) return "limit";
   if (message.includes("Complete the service") || message.includes("Rating must")) return "fields";
   console.error("Could not save marketing review", error);
   return "save";
@@ -102,16 +81,13 @@ async function saveReview(action: () => Promise<void>) {
   }
   if (errorCode) redirect(`/admin/reviews?reviewError=${errorCode}`);
   refreshReviews();
+  redirect("/admin/reviews#cleaning-testimonials");
 }
 
 export async function createMarketingReview(formData: FormData) {
   await saveReview(async () => {
     const { supabase, user } = await requireAdmin();
     const values = reviewValues(formData);
-    if (values.homepage_featured && !values.is_demo) {
-      throw new Error("Only demo examples can be created directly for the homepage. Copy a public booking review for genuine testimonials.");
-    }
-    await checkHomepageLimit(supabase, values.homepage_featured);
     const { error } = await supabase.from("marketing_reviews").insert({
       ...values,
       created_by: user.id,
@@ -124,18 +100,6 @@ export async function updateMarketingReview(id: string, formData: FormData) {
   await saveReview(async () => {
     const { supabase } = await requireAdmin();
     const values = reviewValues(formData);
-    if (values.homepage_featured && !values.is_demo) {
-      const { data: existing, error: existingError } = await supabase
-        .from("marketing_reviews")
-        .select("source_review_id")
-        .eq("id", id)
-        .maybeSingle();
-      if (existingError) throw new Error(existingError.message);
-      if (!existing?.source_review_id) {
-        throw new Error("Only a testimonial copied from a public booking review can appear on the homepage.");
-      }
-    }
-    await checkHomepageLimit(supabase, values.homepage_featured, id);
     const { error } = await supabase
       .from("marketing_reviews")
       .update(values)
@@ -203,7 +167,7 @@ export async function copyBookingReviewToTestimonial(formData: FormData) {
     location: null,
     reviewed_at: review.created_at.slice(0, 10),
     published: false,
-    homepage_featured: false,
+    homepage_featured: true,
     is_demo: false,
     sort_order: 0,
     created_by: user.id,

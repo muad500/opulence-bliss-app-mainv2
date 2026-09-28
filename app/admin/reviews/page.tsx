@@ -29,8 +29,6 @@ type MarketingReview = {
 };
 
 const saveErrors: Record<string, string> = {
-  source: "To show an illustrative example on the homepage, leave its fictional-example setting on. For a genuine customer review, copy a public booking review above first.",
-  limit: "The homepage already has three editable cards. Remove one before adding another.",
   fields: "Please complete the service, customer name, review, date and a rating from 1 to 5.",
   save: "The review could not be saved. Your previous entry is still here; please try again or contact support if this continues.",
 };
@@ -80,14 +78,11 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
               <h2 id="homepage-highlights">Homepage reviews</h2>
             </div>
             <p>
-              Choose up to six genuine booking reviews below, copy a public
-              review to create an editable customer testimonial, or add clearly
-              labelled demo examples for the showcase. When
-              any editable cards are selected, those appear on the
-              homepage instead of the booking-review selection. Original booking
-              reviews and the overall rating are never changed. Keep the
-              selection representative; every public booking review remains on
-              the full reviews page.
+              Add real customer feedback below and it appears on the homepage
+              automatically. You can also choose booking reviews or copy one
+              for editing. Admin-added reviews take precedence over the
+              booking-review selection. Original booking reviews and the
+              overall rating stay unchanged.
             </p>
           </div>
           {featuredError ? (
@@ -95,7 +90,7 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
           ) : (
             <>
               <p className="highlight-count">
-                {homepageTestimonials.length} of 3 editable cards on homepage · {featuredIds.size} of 6 booking reviews selected
+                {homepageTestimonials.length} admin-added reviews on homepage · {featuredIds.size} of 6 booking reviews selected
               </p>
               {(featuredData ?? []).filter((row) => !eligibleReviews.some((review) => review.id === row.review_id)).map((row) => (
                 <form className="highlight-row" action={unfeatureHomepageReview} key={row.review_id}>
@@ -138,18 +133,14 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
           <div className="marketing-heading">
             <div>
               <p style={eyebrow}>Homepage and cleaning page</p>
-              <h2 id="cleaning-testimonials">Editable testimonials and demo examples</h2>
+              <h2 id="cleaning-testimonials">Customer reviews</h2>
             </div>
             <p>
-              Add genuine customer feedback for the cleaning page, copy a
-              public booking review above to edit its displayed name, rating,
-              review and location, or create a fictional example for the homepage showcase.
-              Only show a customer&apos;s name or location with their permission.
-              If the original has no written comment, add wording only if the
-              customer has actually supplied it.
-              Show on homepage is separate from Feature on cleaning page.
-              Demo examples are visibly marked as fictional on the homepage and
-              excluded from real customer ratings. Original booking reviews stay unchanged.
+              Add feedback actually given by a customer. By saving it, you
+              confirm you have permission to use the customer&apos;s name and
+              location. New reviews appear on the homepage automatically;
+              you can also show them on the cleaning page. Copied booking
+              reviews remain unchanged in the original record.
             </p>
           </div>
 
@@ -161,12 +152,11 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
             <label>Date<input name="reviewedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label>
             <label>Order<input name="sortOrder" type="number" defaultValue="0" /></label>
             <label className="wide">Review<textarea name="comment" rows={3} placeholder="Cleaning-related feedback" required /></label>
+            <input type="hidden" name="homepageFeatured" value="on" />
             <div className="toggles">
-              <label><input type="checkbox" name="homepageFeatured" disabled={homepageTestimonials.length >= 3} /> Show on homepage as demo example</label>
-              <label><input type="checkbox" name="published" /> Feature on cleaning page (genuine only)</label>
-              <label><input type="checkbox" name="isDemo" defaultChecked /> Illustrative example (fictional; leave checked for homepage)</label>
+              <label><input type="checkbox" name="published" /> Also show on cleaning page</label>
             </div>
-            <button type="submit">Add review or example</button>
+            <button type="submit">Add customer review</button>
           </form>
 
           {marketingError ? (
@@ -193,16 +183,14 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
                   <label>Order<input name="sortOrder" type="number" defaultValue={review.sort_order} /></label>
                   <label className="wide">Review<textarea name="comment" rows={3} defaultValue={review.comment} required /></label>
                   <div className="toggles">
-                    <label><input type="checkbox" name="homepageFeatured" defaultChecked={review.homepage_featured} disabled={(!review.is_demo && !review.source_review_id) || (!review.homepage_featured && homepageTestimonials.length >= 3)} /> Show on homepage</label>
+                    <label><input type="checkbox" name="homepageFeatured" defaultChecked={review.homepage_featured} /> Show on homepage</label>
                     <label><input type="checkbox" name="published" defaultChecked={review.published} /> Feature on cleaning page</label>
                     {review.is_demo ? (
                       <>
                         <input type="hidden" name="isDemo" value="on" />
                         <span className="example-type">Illustrative example (fictional)</span>
                       </>
-                    ) : (
-                      <label><input type="checkbox" name="isDemo" /> Mark as illustrative example (fictional)</label>
-                    )}
+                    ) : null}
                   </div>
                   <div className="form-actions">
                     <button type="submit">Save</button>
