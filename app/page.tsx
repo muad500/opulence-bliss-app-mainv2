@@ -78,6 +78,7 @@ export default function Home() {
               Book my cleaning
             </a>
           </div>
+          <p className="micro">Simple pay per visit booking down there</p>
           <a className="hero-quote" href="/services/handyman">
             Need something repaired or installed? Request a handyman quote →
           </a>

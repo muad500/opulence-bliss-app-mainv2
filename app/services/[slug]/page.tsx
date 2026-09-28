@@ -29,7 +29,6 @@ type Review = {
   customer_name: string;
   location: string | null;
   is_demo: boolean;
-  verified: boolean;
 };
 
 type ServiceFaq = { q: string; a: string };
@@ -63,32 +62,36 @@ const COPY: Record<
       "Book a cleaner who learns your home — your products, your preferences, your rhythm. Choose the session and frequency that work for you.",
     faq: [
       {
-        q: "How do I book a cleaner near me?",
-        a: "Enter your postcode, choose the session that suits you, then select a permitted appointment time. We'll offer the booking to vetted cleaners in your area and tell you as soon as one accepts.",
+        q: "What is included in a standard clean?",
+        a: "A standard clean includes dusting, vacuuming, mopping floors, cleaning bathrooms and kitchens, wiping accessible surfaces, emptying bins and general tidying.",
       },
       {
-        q: "Do I need to provide anything?",
-        a: "No. Your cleaner brings all products and equipment, including eco-friendly cleaning products as standard. Someone does need to be home to let them in, or you can leave access instructions when you book.",
+        q: "Can I choose which cleaning tasks are prioritised?",
+        a: "Tasks can be agreed on before your appointment so we can focus on the areas that matter most to you.",
       },
       {
-        q: "Which cleaning session should I choose?",
-        a: "Essential Clean is our regular rate for six to ten weekly, fortnightly or monthly visits booked and paid together. If you want to arrange each clean separately, choose One-Time Essential Clean. Express Clean is our same-day standard clean, subject to availability. Signature Deep Clean is a thorough top-to-bottom reset. Your full price is confirmed before checkout.",
+        q: "Do you offer deep cleaning?",
+        a: "Yes. Deep cleaning is available for homes that need more detailed attention. This can include areas not normally covered during a standard clean, and is subject to the condition of the property and the time booked.",
       },
       {
-        q: "What specialist cleaning services can I book?",
-        a: "End of Tenancy / Move-In Clean is a detailed deep clean for moving out or moving in. Guest Ready covers fast holiday-rental turnarounds. Your price is confirmed when you book.",
+        q: "Do you offer end-of-tenancy cleaning?",
+        a: "Yes. We can provide end-of-tenancy cleaning to help prepare a property for handover. We recommend discussing the property’s size, condition and any specific requirements before booking so we can allow enough time.",
       },
       {
-        q: "How long can I book a clean for?",
-        a: "Choose from two to eight hours in 30-minute steps. The booking form shows the price per session as you adjust the duration.",
+        q: "Can I add ironing or laundry?",
+        a: "Yes. This can be requested as an additional cleaning service. Please let us know when booking so we can allow enough time.",
       },
       {
-        q: "When am I charged?",
-        a: "For a one-time visit, your card is held when you book and charged after the visit. For a regular Essential Clean booking, you pay for all 6 to 10 selected visits upfront. If a prepaid visit cannot be filled, that visit's amount is refunded.",
+        q: "Do you clean windows?",
+        a: "Interior window cleaning may be available as an additional service. Please ask when making your booking.",
       },
       {
-        q: "Can I have the same cleaner each time?",
-        a: "Yes — after a visit you can request that cleaner again, and we'll prioritise them for future bookings when they are available.",
+        q: "Do cleaners bring products and equipment?",
+        a: "This depends on the service and your booking. If you have preferred products or specific equipment, please let us know in advance. We will confirm what is required before the appointment.",
+      },
+      {
+        q: "Can you clean homes with pets?",
+        a: "Yes. We are happy to clean homes with pets. Please let us know about any pets when booking so we can take appropriate precautions.",
       },
     ],
   },
@@ -186,7 +189,6 @@ export default function ServicePage() {
         customer_name: "",
         location: null,
         is_demo: false,
-        verified: true,
       }));
       const managed = (curated ?? []).map((review) => ({
         id: `managed-${review.id}`,
@@ -197,7 +199,6 @@ export default function ServicePage() {
         customer_name: review.customer_name,
         location: review.location,
         is_demo: review.is_demo,
-        verified: false,
       }));
       // Keep a small curated testimonial selection alongside, rather than in
       // place of, the public booking reviews. The complete feed stays linked.
@@ -528,7 +529,6 @@ export default function ServicePage() {
               <div className="review-feed">
                 {reviews.map((review) => (
                   <article className="review-row" key={review.id}>
-                    <small>{review.verified ? "Public booking review" : "Featured customer testimonial"}</small>
                     <div className="review-meta">
                       <span className="rstars" aria-label={`${review.rating} out of 5 stars`}>
                         {"★".repeat(review.rating)}
@@ -552,7 +552,7 @@ export default function ServicePage() {
                   </article>
                 ))}
               </div>
-              <a href="/reviews">Read all public booking reviews</a>
+              <a href="/reviews">Read all reviews</a>
             </div>
           )}
         </div>
@@ -914,13 +914,13 @@ export default function ServicePage() {
 
         /* reviews */
         .reviews {
-          padding: 62px 0 10px;
+          padding: 40px 0 10px;
         }
         .reviews-layout {
           display: grid;
-          grid-template-columns: minmax(210px, 0.36fr) minmax(0, 1fr);
-          gap: clamp(28px, 6vw, 88px);
-          padding: clamp(24px, 4vw, 48px);
+          grid-template-columns: minmax(190px, 0.3fr) minmax(0, 1fr);
+          gap: clamp(18px, 3vw, 36px);
+          padding: clamp(18px, 2.5vw, 28px);
           border: 1px solid #eadffc;
           border-radius: 24px;
           background: linear-gradient(145deg, #fffdf7 0%, #fff8fb 48%, #f6f1ff 100%);
@@ -938,18 +938,18 @@ export default function ServicePage() {
           line-height: 1;
         }
         .summary-score strong {
-          font-size: clamp(54px, 7vw, 78px);
+          font-size: clamp(48px, 6vw, 62px);
           font-weight: 1000;
           letter-spacing: -0.07em;
         }
         .summary-score span {
           margin-left: 6px;
-          font-size: clamp(28px, 3vw, 42px);
+          font-size: clamp(24px, 2.5vw, 34px);
           font-weight: 950;
         }
         .review-summary p {
           max-width: 24ch;
-          margin: 18px 0;
+          margin: 10px 0;
           color: var(--ink);
           font-size: 17px;
           font-weight: 750;
@@ -964,11 +964,11 @@ export default function ServicePage() {
           min-width: 0;
         }
         .review-row {
-          padding: 0 0 28px;
+          padding: 0 0 16px;
           border-bottom: 1px solid #e7dfec;
         }
         .review-row + .review-row {
-          padding-top: 28px;
+          padding-top: 16px;
         }
         .review-row:last-child {
           padding-bottom: 0;
@@ -1012,12 +1012,12 @@ export default function ServicePage() {
           color: #6d28d9;
         }
         .review-row h3 {
-          margin: 11px 0 9px;
+          margin: 7px 0 6px;
           font-size: 14px;
           font-weight: 950;
         }
         .rtext {
-          margin: 0 0 13px;
+          margin: 0 0 8px;
           font-size: 16px;
           line-height: 1.6;
           color: var(--ink);
@@ -1300,7 +1300,7 @@ export default function ServicePage() {
           }
           .reviews-layout {
             grid-template-columns: 1fr;
-            gap: 30px;
+            gap: 20px;
           }
           .review-summary {
             position: static;
@@ -1419,7 +1419,7 @@ export default function ServicePage() {
         }
         @media (max-width: 620px) {
           .reviews-layout {
-            padding: 22px 18px;
+            padding: 18px;
             border-radius: 19px;
           }
           .review-summary {
@@ -1429,10 +1429,10 @@ export default function ServicePage() {
             margin: 12px 0;
           }
           .review-row + .review-row {
-            padding-top: 22px;
+            padding-top: 16px;
           }
           .review-row {
-            padding-bottom: 22px;
+            padding-bottom: 16px;
           }
           .tiles {
             grid-template-columns: repeat(2, minmax(0, 1fr));

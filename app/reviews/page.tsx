@@ -57,7 +57,6 @@ export default async function ReviewsPage() {
                 <blockquote>
                   {review.comment?.trim() || "Rating shared without a comment."}
                 </blockquote>
-                <span className="public-badge">Public review</span>
               </article>
             ))}
           </section>
@@ -76,8 +75,7 @@ export default async function ReviewsPage() {
         .review-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
         .stars{color:var(--ob-purple);letter-spacing:1px}.review-top time{color:var(--ob-muted);font-size:12px}
         .direction{margin:12px 0 7px;color:var(--ob-muted);font-size:12.5px;font-weight:800}
-        blockquote{margin:0 0 16px;color:var(--ob-text);font-size:15px;line-height:1.55}
-        .public-badge{display:inline-block;padding:5px 10px;border-radius:999px;background:#e4f6ec;color:#137b4e;font-size:11px;font-weight:900}
+        blockquote{margin:0;color:var(--ob-text);font-size:15px;line-height:1.55}
         .empty{max-width:620px;margin:0 auto;text-align:center;color:var(--ob-muted)}
       `}</style>
     </>
