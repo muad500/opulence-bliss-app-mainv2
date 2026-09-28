@@ -28,7 +28,15 @@ type MarketingReview = {
   sort_order: number;
 };
 
-export default async function AdminReviewsPage() {
+const saveErrors: Record<string, string> = {
+  source: "To show an illustrative example on the homepage, leave its fictional-example setting on. For a genuine customer review, copy a public booking review above first.",
+  limit: "The homepage already has three editable cards. Remove one before adding another.",
+  fields: "Please complete the service, customer name, review, date and a rating from 1 to 5.",
+  save: "The review could not be saved. Your previous entry is still here; please try again or contact support if this continues.",
+};
+
+export default async function AdminReviewsPage({ searchParams }: { searchParams: Promise<{ reviewError?: string }> }) {
+  const { reviewError } = await searchParams;
   const { supabase, user } = await requireAdminPage();
   const { reviews, error } = await loadAdminReviews(supabase, 100);
   const { data: marketingData, error: marketingError } = await supabase
@@ -63,6 +71,7 @@ export default async function AdminReviewsPage() {
           reviewer&apos;s profile, or use the reviewed-profile link to inspect the
           recipient.
         </p>
+        {reviewError && <p style={errorBox} role="alert">{saveErrors[reviewError] ?? saveErrors.save}</p>}
 
         <section className="marketing-card" aria-labelledby="homepage-highlights">
           <div className="marketing-heading">
@@ -155,7 +164,7 @@ export default async function AdminReviewsPage() {
             <div className="toggles">
               <label><input type="checkbox" name="homepageFeatured" disabled={homepageTestimonials.length >= 3} /> Show on homepage as demo example</label>
               <label><input type="checkbox" name="published" /> Feature on cleaning page (genuine only)</label>
-              <label><input type="checkbox" name="isDemo" defaultChecked /> Demo example (fictional)</label>
+              <label><input type="checkbox" name="isDemo" defaultChecked /> Illustrative example (fictional; leave checked for homepage)</label>
             </div>
             <button type="submit">Add review or example</button>
           </form>
@@ -186,7 +195,14 @@ export default async function AdminReviewsPage() {
                   <div className="toggles">
                     <label><input type="checkbox" name="homepageFeatured" defaultChecked={review.homepage_featured} disabled={(!review.is_demo && !review.source_review_id) || (!review.homepage_featured && homepageTestimonials.length >= 3)} /> Show on homepage</label>
                     <label><input type="checkbox" name="published" defaultChecked={review.published} /> Feature on cleaning page</label>
-                    <label><input type="checkbox" name="isDemo" defaultChecked={review.is_demo} /> Demo example (fictional)</label>
+                    {review.is_demo ? (
+                      <>
+                        <input type="hidden" name="isDemo" value="on" />
+                        <span className="example-type">Illustrative example (fictional)</span>
+                      </>
+                    ) : (
+                      <label><input type="checkbox" name="isDemo" /> Mark as illustrative example (fictional)</label>
+                    )}
                   </div>
                   <div className="form-actions">
                     <button type="submit">Save</button>
@@ -211,6 +227,7 @@ export default async function AdminReviewsPage() {
         .marketing-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:18px}.marketing-heading h2{margin:0;font-size:24px;font-weight:950}.marketing-heading>p{max-width:470px;margin:0;color:#68717d;font-size:13px;line-height:1.5}
         .review-form{display:grid;grid-template-columns:1.3fr 1fr 1fr 100px 150px 80px;gap:10px;align-items:end;padding:16px;border:1px solid #e5e7eb;border-radius:14px;background:#fff}.review-form label{display:grid;gap:5px;color:#59626d;font-size:11px;font-weight:900}.review-form input,.review-form select,.review-form textarea{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #dfe2e7;border-radius:9px;background:#fff;color:#16202a;font:inherit}.review-form .wide{grid-column:1/-1}.toggles{display:flex;flex-wrap:wrap;gap:15px;grid-column:1/-2}.toggles label{display:flex;grid-auto-flow:column;justify-content:start;align-items:center;gap:7px}.toggles input{width:16px;height:16px}.review-form button{min-height:40px;padding:8px 15px;border:0;border-radius:999px;background:#6d28d9;color:#fff;font:inherit;font-weight:900;cursor:pointer}.managed-list{display:grid;gap:12px;margin-top:14px}.review-form.managed{background:rgba(255,255,255,.78)}.form-actions{display:flex;justify-content:flex-end;gap:7px}.review-form button.delete{background:#fff;border:1px solid #d4455c;color:#b82d46}.marketing-empty{margin:14px 0 0;padding:18px;border:1px dashed #d9cdea;border-radius:12px;color:#68717d;text-align:center}
         .source-note{grid-column:1/-1;margin:0;color:#68717d;font-size:12px}
+        .example-type{display:inline-flex;align-items:center;color:#59626d;font-size:11px;font-weight:900}
         .highlight-count{margin:0 0 12px;color:#6d28d9;font-size:13px;font-weight:900}
         .highlight-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 0;border-top:1px solid #e5e7eb}
         .highlight-row>span{min-width:0;overflow-wrap:anywhere;color:#26302a;font-size:13px;line-height:1.45}
