@@ -58,7 +58,7 @@ export default function Home() {
       }[];
       setQuotes(
         rows
-          .filter((row) => row.recipient_type === "professional" && row.rating >= 4)
+          .filter((row) => row.recipient_type === "professional")
           .slice(0, 6)
           .map((row) => ({
             id: row.id,
@@ -175,7 +175,7 @@ export default function Home() {
         <section className="quotes-wrap">
           <div className="inner">
             <p className="eyebrow center">From our customers</p>
-            <h2 className="center big">Happy Customer Moments</h2>
+            <h2 className="center big">What customers say</h2>
             <div className="quotes">
               {quotes.map((quote) => (
                 <blockquote key={quote.id}>

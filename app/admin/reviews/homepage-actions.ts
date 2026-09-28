@@ -25,8 +25,8 @@ export async function featureHomepageReview(formData: FormData) {
     .eq("id", id)
     .maybeSingle();
   if (reviewError) throw new Error(reviewError.message);
-  if (review?.reviewer !== "client" || review.visibility !== "public" || review.rating < 4) {
-    throw new Error("Only public customer booking reviews rated 4 or 5 stars can be featured.");
+  if (review?.reviewer !== "client" || review.visibility !== "public") {
+    throw new Error("Only public customer booking reviews can be featured.");
   }
 
   const { data: selected, error: selectedError } = await supabase
