@@ -179,14 +179,14 @@ export default function Home() {
             <h2 className="center big">{hasDemoQuotes ? "Review examples and customer feedback" : "What customers say"}</h2>
             {hasDemoQuotes && (
               <p className="center demo-disclosure">
-                Demo cards are fictional examples for this showcase, not customer reviews or part of our customer rating.
+                Illustrative cards show fictional content, not customer reviews, and are not part of our customer rating.
               </p>
             )}
             <div className="quotes">
               {quotes.map((quote) => (
                 <blockquote key={quote.id}>
                   {quote.source === "testimonial" && quote.isDemo && (
-                    <span className="demo-badge">Demo example — not a customer review</span>
+                    <span className="demo-badge">Illustrative example — not a customer review</span>
                   )}
                   <span className="quote-stars" aria-label={`${quote.rating} out of 5`}>
                     {"\u2605".repeat(quote.rating)}
