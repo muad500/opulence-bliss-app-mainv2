@@ -18,6 +18,7 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as ssr } from "@/lib/supabase/server";
 import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
 import { settleTipPayout } from "@/lib/tipPayout";
+import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
 import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
 import {
   claimMoneyOperation,
@@ -225,7 +226,8 @@ export async function retryCapture(
 
   let pi: Stripe.PaymentIntent;
   try {
-    pi = await stripe.paymentIntents.capture(
+    pi = await captureBookingPayment(
+      stripe,
       pay.stripe_payment_ref,
       { metadata: { operation_key: key, booking_id: pay.booking_id } },
       { idempotencyKey: key }
@@ -236,6 +238,7 @@ export async function retryCapture(
     // A declined card is a definite failure. A timeout is not — we may have
     // charged the customer and not heard back.
     const definite =
+      e instanceof LegacyDestinationCaptureError ||
       e instanceof Stripe.errors.StripeCardError ||
       e instanceof Stripe.errors.StripeInvalidRequestError;
 

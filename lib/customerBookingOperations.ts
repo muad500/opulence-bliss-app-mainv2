@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
 import {
   claimMoneyOperation,
   modifyCustomerBookingState,
@@ -270,12 +271,11 @@ export async function cancelCustomerBooking(
                   Math.round(originalPlatformFee * retainedRatio * 100),
                 ),
               );
-              const cancellationIntent = await stripe.paymentIntents.retrieve(payment.stripe_payment_ref);
-              stripeObject = await stripe.paymentIntents.capture(
+              stripeObject = await captureBookingPayment(
+                stripe,
                 payment.stripe_payment_ref,
                 {
                   amount_to_capture: policy.cancellationChargePence,
-                  ...(cancellationIntent.transfer_data ? { application_fee_amount: platformFeePence } : {}),
                   metadata: {
                     operation_key: operationKey,
                     booking_id: id,
@@ -327,6 +327,7 @@ export async function cancelCustomerBooking(
                 ? error.message
                 : "Stripe cancellation adjustment failed";
             const definite =
+              error instanceof LegacyDestinationCaptureError ||
               error instanceof Stripe.errors.StripeCardError ||
               error instanceof Stripe.errors.StripeInvalidRequestError;
             await systemFinaliseMoneyOperation(
