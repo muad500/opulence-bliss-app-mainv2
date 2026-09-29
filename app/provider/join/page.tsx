@@ -74,6 +74,8 @@ const AVAILABILITY_LABELS: Record<ProviderAvailabilityPeriod, string> = {
 };
 
 export default function ProviderJoinPage() {
+  const [existingUserId, setExistingUserId] = useState<string | null>(null);
+  const [alreadyProfessional, setAlreadyProfessional] = useState(false);
   const [areas, setAreas] = useState<Area[]>([]);
   const [reviews, setReviews] = useState<PublicReview[]>([]);
   const [joinStep, setJoinStep] = useState<JoinStep>("estimate");
@@ -119,6 +121,30 @@ export default function ProviderJoinPage() {
     dbsStoragePath: string;
     dbsMimeType: string;
   } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !active) return;
+      const [{ data: profile }, { data: provider }] = await Promise.all([
+        supabase.from("profiles").select("full_name,phone,address").eq("id", user.id).maybeSingle(),
+        supabase.from("providers").select("id").eq("profile_id", user.id).maybeSingle(),
+      ]);
+      if (!active) return;
+      setExistingUserId(user.id);
+      setAlreadyProfessional(!!provider);
+      setEmail(user.email ?? "");
+      const name = String(profile?.full_name ?? "").trim().split(/\s+/);
+      setFirstName((old) => old || String(user.user_metadata?.first_name ?? name[0] ?? ""));
+      setLastName((old) => old || String(user.user_metadata?.last_name ?? name.slice(1).join(" ") ?? ""));
+      setPhone((old) => old || profile?.phone || "");
+      setAddress((old) => old || profile?.address || "");
+      setSalutation((old) => old || (user.user_metadata?.salutation as "miss" | "mrs" | "mr") || "");
+      setDateOfBirth((old) => old || String(user.user_metadata?.date_of_birth ?? ""));
+    })();
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -180,7 +206,7 @@ export default function ProviderJoinPage() {
       firstName.trim() &&
       lastName.trim() &&
       email.trim() &&
-      passwordValid &&
+      (existingUserId || passwordValid) &&
       phone.trim() &&
       address.trim() &&
       dateOfBirth,
@@ -313,7 +339,7 @@ export default function ProviderJoinPage() {
       // 1. Create the provider account and its private DBS review record.
       let application = createdApplication;
       if (!application) {
-        setStep("Creating your account…");
+        setStep(existingUserId ? "Saving your professional application…" : "Creating your account…");
         const res = await fetch("/api/provider-signup", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -323,7 +349,7 @@ export default function ProviderJoinPage() {
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             email: email.trim(),
-            password,
+            password: existingUserId ? undefined : password,
             phone: phone.trim(),
             address: address.trim(),
             dateOfBirth,
@@ -366,6 +392,7 @@ export default function ProviderJoinPage() {
       setStep("Signing you in…");
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.user.id !== application.userId) {
+        if (existingUserId) throw new Error("Your session expired. Sign in again and contact support to resume your application.");
         const { error: signInErr } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
@@ -471,8 +498,8 @@ export default function ProviderJoinPage() {
                 <p className="estimate-note">Estimate before tax, based on the hours you choose.</p>
               </div>
 
-              <button className="go signup-button" type="button" onClick={() => setJoinStep("account")}>
-                Sign up
+              <button className="go signup-button" type="button" onClick={() => alreadyProfessional ? window.location.assign("/worker") : setJoinStep("account")}>
+                {alreadyProfessional ? "Open professional portal" : existingUserId ? "Apply with my account" : "Join for free"}
               </button>
             </div>
           )}
@@ -485,7 +512,7 @@ export default function ProviderJoinPage() {
               <p className="form-kicker">Professional application</p>
               <h2 className="meet-heading">Let&apos;s meet!</h2>
               <p className="section-intro">
-                Tell us who you are to start your cleaner application.
+                {existingUserId ? "Use your current account to apply as a cleaner. Your client bookings stay available." : "Tell us who you are to start your cleaner application."}
               </p>
               <fieldset className="title-options">
                 <legend className="sr-only">Title</legend>
@@ -564,6 +591,7 @@ export default function ProviderJoinPage() {
                 id="provider-email"
                 type="email"
                 value={email}
+                readOnly={!!existingUserId}
                 onChange={(e) => setEmail(e.target.value)}
                 onBlur={() => setEmailTouched(true)}
                 placeholder="Email"
@@ -578,7 +606,7 @@ export default function ProviderJoinPage() {
                 </p>
               )}
 
-              <div
+              {!existingUserId && <><div
                 className={`password-field ${
                   showFieldError("password") && !passwordValid ? "invalid" : ""
                 }`}
@@ -613,6 +641,7 @@ export default function ProviderJoinPage() {
                   <li className={passwordChecks.length ? "passed" : showFieldError("password") ? "missing" : ""}><b>8+</b><span>Characters</span></li>
                 </ul>
               </div>
+              </>}
 
               <div className={`phone-field ${(phoneTouched || triedNext) && !phoneValid ? "invalid" : ""}`}>
                 <svg

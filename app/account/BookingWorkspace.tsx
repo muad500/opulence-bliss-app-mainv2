@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import SessionCountdown from "@/components/SessionCountdown";
 import { useEffect, useState, useTransition } from "react";
 import type { ReactNode } from "react";
@@ -457,7 +458,7 @@ export default function BookingWorkspace({
                   This professional&apos;s rating comes from completed visits.
                 </blockquote>
               )}
-              <a href="/providers">View all professionals</a>
+              <Link href="/providers">View all professionals</Link>
             </div>
             <p className="rating-note">
               <Info size={16} /> This rating is from completed visits by other

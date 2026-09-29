@@ -5,6 +5,7 @@
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { seedAndStartOfferRotation } from "@/lib/offerRotation";
+import { providerIdsWithinSavedCoverage } from "@/lib/providerCoverage";
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -114,6 +115,18 @@ export async function generateBookings(subId: string, cycleStart: Date) {
         .eq("is_suspended", false)
         .contains("services", ["cleaning"]);
       provs = data ?? [];
+    }
+  }
+
+  if (provs.length) {
+    try {
+      const coveredIds = new Set(await providerIdsWithinSavedCoverage(
+        admin, provs.map((provider) => provider.id), sub.postcode,
+      ));
+      provs = provs.filter((provider) => coveredIds.has(provider.id));
+    } catch (error) {
+      console.error("Could not check professional coverage for subscription visits:", error);
+      provs = [];
     }
   }
 

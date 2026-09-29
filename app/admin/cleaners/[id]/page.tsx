@@ -1,8 +1,11 @@
 import Link from "next/link";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
 import AdminNav from "../../AdminNav";
 import DbsReviewButtons from "../../DbsReviewButtons";
+import VerificationReview, { type VerificationRecord } from "../../VerificationReview";
 import VettingButtons from "../../VettingButtons";
 import { requireAdminPage } from "@/lib/adminSession";
+import { PROVIDER_DOCUMENT_LABELS, PROVIDER_DOCUMENT_TYPES } from "@/lib/providerVerification";
 import {
   setProviderDirectoryVisibility,
   setProviderSuspension,
@@ -38,6 +41,10 @@ function formatApplicationAvailability(value: Record<string, string> | null | un
 export default async function ProfessionalRecordPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase, user } = await requireAdminPage();
+  const serviceAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
   const [providerResult, bookingsResult, hoursResult, suspensionResult, dbsResult] = await Promise.all([
     supabase
       .from("providers")
@@ -92,6 +99,30 @@ export default async function ProfessionalRecordPage({ params }: { params: Promi
     created_at: string;
   } | null;
   const dbs = dbsResult.data;
+  const { data: verificationItems, error: verificationError } = await serviceAdmin
+    .from("provider_verification_items")
+    .select("document_type,status,document_storage_path,document_original_name,uploaded_at,issued_at,expires_at,next_check_at,reference,review_note")
+    .eq("provider_id", id);
+  const today = new Date().toISOString().slice(0, 10);
+  const verificationTypes = PROVIDER_DOCUMENT_TYPES.filter((type) => type !== "trade_certificate" || provider.services?.includes("handyman"));
+  const verificationRecords: VerificationRecord[] = await Promise.all(verificationTypes.map(async (type) => {
+    const item = verificationItems?.find((row) => row.document_type === type);
+    const { data: signed } = item?.document_storage_path
+      ? await serviceAdmin.storage.from("provider-verification").createSignedUrl(item.document_storage_path, 5 * 60)
+      : { data: null };
+    return {
+      type, label: PROVIDER_DOCUMENT_LABELS[type],
+      status: item?.status === "verified" && ((item.expires_at && item.expires_at < today) || (item.next_check_at && item.next_check_at < today)) ? "expired" : item?.status ?? "not submitted",
+      uploadedAt: item?.uploaded_at ?? null,
+      originalName: item?.document_original_name ?? null,
+      signedUrl: signed?.signedUrl ?? null,
+      issuedAt: item?.issued_at ?? null,
+      expiresAt: item?.expires_at ?? null,
+      nextCheckAt: item?.next_check_at ?? null,
+      reference: item?.reference ?? null,
+      reviewNote: item?.review_note ?? null,
+    };
+  }));
   let dbsCertificateUrl: string | null = null;
   if (dbs?.uploaded_at && dbs.certificate_storage_path) {
     const { data: signedCertificate } = await supabase.storage
@@ -159,6 +190,14 @@ export default async function ProfessionalRecordPage({ params }: { params: Promi
             <ApplicationField label="Maximum travel distance" value={application?.max_travel_distance ?? "Not supplied"} />
             <ApplicationField label="Application availability" value={formatApplicationAvailability(application?.weekly_availability)} />
           </div>
+        </section>
+
+        <section style={dbsCard}>
+          <p style={eyebrow}>Private document review</p>
+          <h2 style={{ ...sectionTitle, marginBottom: 5 }}>Right to work, identity and cover</h2>
+          <p style={muted}>Only the professional and review team can open these files. Verify each item only after checking its contents and dates.</p>
+          {verificationError ? <p style={uploadMissing}>Verification records could not be loaded. Apply the private document migration and refresh.</p>
+            : <div style={{ display: "grid", gap: 10, marginTop: 18 }}>{verificationRecords.map((record) => <VerificationReview key={`${record.type}:${record.uploadedAt ?? ""}`} providerId={id} record={record} />)}</div>}
         </section>
 
         <section style={dbsCard}>
@@ -268,6 +307,7 @@ export default async function ProfessionalRecordPage({ params }: { params: Promi
               <VettingButtons
                 id={id}
                 dbsVerified={provider.dbs_verified === true}
+                verificationRevision={verificationRecords.map((record) => `${record.type}:${record.status}:${record.uploadedAt ?? ""}`).join("|")}
               />
             </div>
           ) : null}

@@ -32,6 +32,7 @@ const NAV: NavLink[] = [
 export default function SiteHeader() {
   const path = usePathname() ?? "";
   const [role, setRole] = useState<string | null>(null);
+  const [hasProfessionalAccount, setHasProfessionalAccount] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -95,6 +96,7 @@ export default function SiteHeader() {
       if (!alive) return;
       if (!user) {
         setRole(null);
+        setHasProfessionalAccount(false);
         setUnread(0);
       } else {
         const { data: p } = await supabase
@@ -104,6 +106,11 @@ export default function SiteHeader() {
           .maybeSingle();
         if (!alive) return;
         setRole(p?.role ?? "customer");
+
+        const { data: provider } = await supabase.from("providers")
+          .select("id").eq("profile_id", user.id).maybeSingle();
+        if (!alive) return;
+        setHasProfessionalAccount(!!provider);
 
         const { count } = await supabase
           .from("notifications")
@@ -135,14 +142,7 @@ export default function SiteHeader() {
     }
   }
 
-  const accountHref =
-    role === "provider"
-      ? "/worker"
-      : role === "admin"
-        ? "/admin"
-        : role
-          ? "/account"
-          : "/login";
+  const accountHref = role === "admin" ? "/admin" : role ? "/account" : "/login";
 
   // The provider and admin portals have their own chrome.
   if (
@@ -234,7 +234,8 @@ export default function SiteHeader() {
                 {role ? (
                   <>
                     <p>Your account</p>
-                    <Link href={accountHref}>Open my account</Link>
+                    <Link href={accountHref}>{role === "admin" ? "Admin dashboard" : "Client account"}</Link>
+                    {role !== "admin" && <Link href={hasProfessionalAccount ? "/worker" : "/provider/join"}>{hasProfessionalAccount ? "Professional portal" : "Become a professional"}</Link>}
                     <button
                       type="button"
                       className="mobile-signout"
@@ -358,9 +359,8 @@ export default function SiteHeader() {
             </nav>
 
             <div className="mobile-account-actions">
-              <Link href={accountHref}>
-                {role ? "Open my account" : "Sign in"}
-              </Link>
+              <Link href={accountHref}>{role ? "Client account" : "Sign in"}</Link>
+              {role && role !== "admin" && <Link href={hasProfessionalAccount ? "/worker" : "/provider/join"}>{hasProfessionalAccount ? "Professional portal" : "Become a professional"}</Link>}
               {!role && <Link href="/provider">Sign in as a pro</Link>}
             </div>
           </aside>

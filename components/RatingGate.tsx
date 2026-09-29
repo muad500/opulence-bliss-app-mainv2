@@ -44,14 +44,15 @@ export default function RatingGate() {
       .eq("id", user.id)
       .maybeSingle();
 
-    const role: "client" | "provider" =
-      me?.role === "provider" ? "provider" : "client";
     if (me?.role === "admin") return;
+
+    const { data: provider } = await supabase.from("providers")
+      .select("id").eq("profile_id", user.id).maybeSingle();
 
     // Completed jobs on my side
     const { data: done } = await supabase
       .from("bookings")
-      .select("id, packages(name), providers(display_name)")
+      .select("id, customer_id, provider_id, packages(name), providers(display_name)")
       .eq("status", "completed")
       .order("scheduled_at", { ascending: false })
       .limit(20);
@@ -63,16 +64,21 @@ export default function RatingGate() {
     const { data: mine } = await supabase
       .rpc("my_review_submission_states");
 
-    const rated = new Set(
-      (mine ?? [])
-        .filter((review) => review.reviewer === role && ids.includes(review.booking_id))
-        .map((review) => review.booking_id),
-    );
-    const next = done.find((b) => !rated.has(b.id));
+    const rated = new Set((mine ?? [])
+      .filter((review) => ids.includes(review.booking_id))
+      .map((review) => `${review.booking_id}:${review.reviewer}`));
+    const pending = done.flatMap((booking) => {
+      const roles: Array<"client" | "provider"> = [];
+      if (booking.customer_id === user.id) roles.push("client");
+      if (provider?.id && booking.provider_id === provider.id) roles.push("provider");
+      return roles.filter((reviewer) => !rated.has(`${booking.id}:${reviewer}`))
+        .map((reviewer) => ({ booking, reviewer }));
+    });
+    const next = pending[0];
     if (!next) return;
 
-    const pkg = next.packages as { name: string } | { name: string }[] | null;
-    const prv = next.providers as
+    const pkg = next.booking.packages as { name: string } | { name: string }[] | null;
+    const prv = next.booking.providers as
       | { display_name: string | null }
       | { display_name: string | null }[]
       | null;
@@ -83,10 +89,10 @@ export default function RatingGate() {
       "your provider";
 
     setJob({
-      bookingId: next.id,
+      bookingId: next.booking.id,
       service: pkgName,
-      other: role === "client" ? provName : "this client",
-      role,
+      other: next.reviewer === "client" ? provName : "this client",
+      role: next.reviewer,
     });
   }, []);
 

@@ -13,6 +13,7 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as ssr } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { seedAndStartOfferRotation } from "@/lib/offerRotation";
+import { providerIdsWithinSavedCoverage, servicePostcodeFromText } from "@/lib/providerCoverage";
 
 const admin = createServiceClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -208,10 +209,7 @@ export async function cannotAttend(
   if (error) return { ok: false, message: error.message };
 
   // ---- queue everyone else who fits, then ask them one at a time ----
-  const district = (booking.address ?? "")
-    .toUpperCase()
-    .replace(/\s+/g, "")
-    .replace(/\d[A-Z]{2}$/, "");
+  const district = servicePostcodeFromText(booking.address)?.slice(0, -3) ?? "";
 
   const { data: areas } = await admin
     .from("service_areas")
@@ -257,12 +255,18 @@ export async function cannotAttend(
         : { data: [] };
 
       if (provs?.length) {
-        await seedAndStartOfferRotation(
-          admin,
-          bookingId,
-          provs.map((provider) => provider.id),
-        );
-        offered = provs.length;
+        let coveredIds: string[] = [];
+        try {
+          coveredIds = await providerIdsWithinSavedCoverage(
+            admin, provs.map((provider) => provider.id), booking.address,
+          );
+        } catch (coverageError) {
+          console.error(`Could not check replacement coverage for booking ${bookingId}:`, coverageError);
+        }
+        if (coveredIds.length) {
+          const started = await seedAndStartOfferRotation(admin, bookingId, coveredIds);
+          offered = Number((started.seed as { queued?: number })?.queued ?? 0);
+        }
       }
     }
   }
