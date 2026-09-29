@@ -62,7 +62,8 @@ export default function AvailabilityPage() {
         .select("weekday, start_time, end_time")
         .eq("provider_id", prov.id);
 
-      if (avail && avail.length) {
+      const { data: configured } = await supabase.rpc("my_professional_availability_configured");
+      if (avail && (avail.length || configured)) {
         const next = DAYS.map(() => ({ on: false, start: 9, end: 17 }));
         for (const a of avail) {
           next[a.weekday] = {
@@ -87,29 +88,18 @@ export default function AvailabilityPage() {
     setSaving(true);
     setMsg(null);
 
-    await supabase
-      .from("provider_availability")
-      .delete()
-      .eq("provider_id", providerId);
-
     const payload = rows
       .map((r, i) => ({ ...r, weekday: i }))
       .filter((r) => r.on && r.end > r.start)
       .map((r) => ({
-        provider_id: providerId,
         weekday: r.weekday,
         start_time: hh(r.start),
         end_time: hh(r.end),
       }));
-
-    if (payload.length) {
-      const { error } = await supabase
-        .from("provider_availability")
-        .insert(payload);
-      setMsg(error ? error.message : "Saved — clients can now book these times.");
-    } else {
-      setMsg("Saved — you're marked as unavailable.");
-    }
+    const { error } = await supabase.rpc("save_my_professional_availability", { p_periods: payload });
+    setMsg(error ? error.message : payload.length
+      ? "Saved — clients can now book these times."
+      : "Saved — you're marked as unavailable.");
     setSaving(false);
   }
 

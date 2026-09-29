@@ -19,6 +19,12 @@ export default async function PublicProviderPage({
   if (!PROVIDER_ID.test(id)) notFound();
 
   const supabase = await createClient();
+  const { data: eligible, error: eligibilityError } = await supabase
+    .rpc("public_eligible_provider_ids")
+    .eq("id", id)
+    .maybeSingle();
+  if (eligibilityError) throw new Error("Professional verification could not be checked.");
+  if (!eligible) notFound();
   const { data: provider, error } = await supabase
     .from("providers")
     .select("id,display_name,bio,photo_url,years_experience,services,public_rating_avg,public_rating_count")
