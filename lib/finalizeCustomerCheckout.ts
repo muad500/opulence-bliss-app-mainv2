@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isCleaning, validCleaningDuration } from "@/lib/cleaningBooking";
 import { appointmentFitsWindow, APPOINTMENT_WINDOW_MESSAGE } from "@/lib/appointmentWindow";
 import { rotateBookingOffer } from "@/lib/offerRotation";
+import { providerIdsWithinSavedCoverage } from "@/lib/providerCoverage";
 import { normaliseOptionalBookingTimes } from "@/lib/bookingTimeChoices";
 import { allocateRegularPayment, isRegularVisitCount, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
 import { bookingPolicyError, isBookingFrequency } from "@/lib/bookingPolicy";
@@ -16,7 +17,7 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   if (!customerId || pi.metadata.customer_id !== customerId || pi.metadata.kind !== "booking" ||
       !["requires_capture", "succeeded"].includes(pi.status)) throw new Error("Invalid customer checkout.");
   const { data: customer, error: customerError } = await admin.from("profiles").select("email, role").eq("id", customerId).single();
-  if (customerError || customer?.role !== "customer") throw new Error("Customer account not found.");
+  if (customerError || !customer || customer.role === "admin") throw new Error("Customer account not found.");
   const m = pi.metadata ?? {};
   const packageId = m.package_id || null;
   const postcode = m.postcode || null;
@@ -193,6 +194,12 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   // Provider matching is follow-up work and must never turn a saved booking into
   // a false checkout failure. The webhook or an operations retry can run it again.
   try {
+    if (matched.length) {
+      const coveredIds = new Set(await providerIdsWithinSavedCoverage(
+        admin, matched.map((provider) => provider.id), postcode,
+      ));
+      matched = matched.filter((provider) => coveredIds.has(provider.id));
+    }
     const preferred = m.preferred_provider_id;
     matched.sort((a, b) => Number(b.id === preferred) - Number(a.id === preferred));
     for (const bookingId of bookingIds) {

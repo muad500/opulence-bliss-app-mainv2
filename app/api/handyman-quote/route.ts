@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       .select("role")
       .eq("id", user.id)
       .maybeSingle();
-    if (profile?.role !== "customer") {
+    if (!profile || profile.role === "admin") {
       return NextResponse.json(
         { error: "A customer account is required to request a handyman quote." },
         { status: 403 },

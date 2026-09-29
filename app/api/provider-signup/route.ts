@@ -4,6 +4,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerClient } from "@/lib/supabase/server";
+import { isSameOriginMutation } from "@/lib/accountApi";
 import { isValidUkPhone, normalizeUkPhone } from "@/lib/ukPhone";
 import { LEGAL_VERSIONS } from "@/lib/legal";
 import {
@@ -32,6 +34,9 @@ const admin = createClient(
 
 export async function POST(req: NextRequest) {
   try {
+    if (!isSameOriginMutation(req)) return NextResponse.json({ error: "This request must come from the website." }, { status: 403 });
+    const signedIn = await createServerClient();
+    const { data: { user: existingUser } } = await signedIn.auth.getUser();
     const {
       fullName,
       salutation,
@@ -68,7 +73,7 @@ export async function POST(req: NextRequest) {
 
     if (
       !email ||
-      !password ||
+      (!existingUser && !password) ||
       !fullName ||
       !salutation ||
       !firstName ||
@@ -89,6 +94,15 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    if (existingUser && existingUser.email?.toLowerCase() !== normalizedEmail) {
+      return NextResponse.json({ error: "Use the email address on your signed-in account." }, { status: 403 });
+    }
+    if (existingUser) {
+      const { data: existingProfile } = await admin.from("profiles").select("role").eq("id", existingUser.id).maybeSingle();
+      if (!existingProfile || existingProfile.role === "admin") return NextResponse.json({ error: "This account cannot apply as a professional." }, { status: 403 });
+      const { data: alreadyProfessional } = await admin.from("providers").select("id").eq("profile_id", existingUser.id).maybeSingle();
+      if (alreadyProfessional) return NextResponse.json({ error: "Your professional account already exists. Open the professional portal." }, { status: 409 });
+    }
     if (!["miss", "mrs", "mr"].includes(String(salutation))) {
       return NextResponse.json(
         { error: "Select Miss, Mrs or Mr." },
@@ -104,6 +118,11 @@ export async function POST(req: NextRequest) {
         { error: "Enter a valid date of birth." },
         { status: 400 }
       );
+    }
+    const eighteenthBirthday = new Date(`${dateOfBirth}T00:00:00Z`);
+    eighteenthBirthday.setUTCFullYear(eighteenthBirthday.getUTCFullYear() + 18);
+    if (eighteenthBirthday > new Date()) {
+      return NextResponse.json({ error: "You must be at least 18 to apply." }, { status: 400 });
     }
     if (!isValidUkPhone(phone)) {
       return NextResponse.json(
@@ -211,7 +230,7 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (!isStrongProviderPassword(password)) {
+    if (!existingUser && !isStrongProviderPassword(password)) {
       return NextResponse.json(
         { error: "Password must have at least 8 characters, including uppercase, lowercase, a number and a symbol." },
         { status: 400 }
@@ -262,9 +281,11 @@ export async function POST(req: NextRequest) {
       LEGAL_VERSIONS["professional-partner-agreement"];
     const privacyVersion = privacyRow?.version ?? LEGAL_VERSIONS.privacy;
 
-    // 1. Create the account, already confirmed (no confirmation email).
-    const { data: created, error: createErr } =
-      await admin.auth.admin.createUser({
+    // Existing clients keep their account and can apply as a professional.
+    const acceptedAt = new Date().toISOString();
+    let userId = existingUser?.id;
+    if (!userId) {
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
         email: normalizedEmail,
         password,
         email_confirm: true,
@@ -276,43 +297,46 @@ export async function POST(req: NextRequest) {
           date_of_birth: dateOfBirth,
           professional_agreement_accepted: true,
           professional_agreement_version: professionalAgreementVersion,
-          professional_agreement_accepted_at: new Date().toISOString(),
+          professional_agreement_accepted_at: acceptedAt,
           legal_accepted: true,
           legal_versions: {
             "professional-partner-agreement": professionalAgreementVersion,
             privacy: privacyVersion,
           },
-          legal_accepted_at: new Date().toISOString(),
+          legal_accepted_at: acceptedAt,
         },
       });
-
-    if (createErr || !created.user) {
-      const msg = createErr?.message ?? "Could not create the account.";
-      const already = /already|exists|registered/i.test(msg);
-      return NextResponse.json(
-        {
-          error: already
-            ? "An account with that email already exists — log in instead."
-            : msg,
+      if (createErr || !created.user) {
+        const msg = createErr?.message ?? "Could not create the account.";
+        const already = /already|exists|registered/i.test(msg);
+        return NextResponse.json({ error: already ? "An account with that email already exists — log in instead." : msg }, { status: 400 });
+      }
+      userId = created.user.id;
+    } else {
+      const { error: metadataError } = await admin.auth.admin.updateUserById(userId, {
+        user_metadata: {
+          ...existingUser!.user_metadata,
+          professional_agreement_accepted: true,
+          professional_agreement_version: professionalAgreementVersion,
+          professional_agreement_accepted_at: acceptedAt,
         },
-        { status: 400 }
-      );
+      });
+      if (metadataError) return NextResponse.json({ error: "Could not save agreement acceptance." }, { status: 503 });
     }
 
-    const userId = created.user.id;
-
-    // 2. Profile with the provider role.
-    await admin.from("profiles").upsert(
-      {
-        id: userId,
-        email: normalizedEmail,
-        role: "provider",
-        full_name: fullName,
-        phone: normalizedPhone,
-        address,
-      },
-      { onConflict: "id" }
-    );
+    // New professional accounts retain the legacy provider role; existing
+    // client profiles keep their role and gain professional membership below.
+    const profileRecord = {
+      id: userId,
+      email: normalizedEmail,
+      ...(!existingUser ? { role: "provider" } : {}),
+      full_name: fullName,
+      phone: normalizedPhone,
+      address,
+    };
+    const { error: profileError } = await admin.from("profiles").upsert(profileRecord, { onConflict: "id" });
+    if (profileError) return NextResponse.json({ error: "Could not save your personal details." }, { status: 503 });
+    await admin.from("account_legal_acceptances").upsert({ user_id: userId, document_slug: "professional-partner-agreement", version: professionalAgreementVersion, accepted_at: acceptedAt }, { onConflict: "user_id,document_slug,version" });
 
     // 3. Provider record — work access begins after the admin approves it.
     const { data: prov, error: provErr } = await admin

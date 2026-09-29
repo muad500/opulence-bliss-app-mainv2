@@ -20,6 +20,7 @@ import { normaliseOptionalBookingTimes } from "@/lib/bookingTimeChoices";
 import { bookingPolicyError } from "@/lib/bookingPolicy";
 import { REGULAR_MIN_VISITS, isRegularVisitCount, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
 import { bookingNotesForHome, parseCleaningHome } from "@/lib/cleaningHome";
+import { getOrCreateBillingCustomer } from "@/lib/accountBilling";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest) {
 
     if (!user) return NextResponse.json({ error: "Please sign in before checkout." }, { status: 401 });
     const { data: profile } = await ssr.from("profiles").select("role, phone").eq("id", user.id).maybeSingle();
-    if (profile?.role !== "customer") return NextResponse.json({ error: "A customer account is required." }, { status: 403 });
+    if (!profile || profile.role === "admin") return NextResponse.json({ error: "A client account is required." }, { status: 403 });
 
     // Sign-up does not require a phone, but the assigned cleaner needs one
     // before a paid booking can be created.
@@ -276,11 +277,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Split misconfigured" }, { status: 500 });
     }
 
+    const billingCustomer = await getOrCreateBillingCustomer(stripe, { id: user.id, email: user.email });
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       ...(regular ? { payment_method_types: ["card"] as ["card"] } : {}),
       client_reference_id: user.id,
-      customer_email: user?.email ?? undefined,
+      customer: billingCustomer,
       line_items: [
         {
           quantity: 1,

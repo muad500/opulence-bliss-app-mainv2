@@ -451,16 +451,16 @@ export default function BookPage() {
     }
   }
 
-  /* ---------- provider guard ---------- */
-  if (role === "provider") {
+  /* ---------- administrator guard ---------- */
+  if (role === "admin") {
     return (
       <main className="guard">
         <div className="gcard">
           <div style={{ fontSize: 38 }}>🧹</div>
           <h1>This is the customer booking page</h1>
-          <p>Your jobs and hours are in the provider portal.</p>
-          <a className="btn" href="/worker/current">
-            Go to my current job
+          <p>Open your control panel to manage the service.</p>
+          <a className="btn" href="/admin">
+            Go to admin
           </a>
         </div>
         <style jsx>{`

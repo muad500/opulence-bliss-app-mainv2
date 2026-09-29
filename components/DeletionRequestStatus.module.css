@@ -1,0 +1,12 @@
+.card { margin-top: 16px; border: 1px solid #e3d9f4; border-radius: 12px; padding: 14px 16px; background: #faf7ff; color: #27303d; }
+.heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.heading strong { font-size: 14px; }
+.badge { border-radius: 999px; padding: 4px 9px; font-size: 11px; font-weight: 900; }
+.pending { background: #fff0c7; color: #775100; }
+.in_review { background: #e9e4ff; color: #5633a8; }
+.completed { background: #e5f5e9; color: #166c39; }
+.declined { background: #f6e5ea; color: #9b3850; }
+.card p { margin: 8px 0; font-size: 12px; line-height: 1.5; }
+.card small { color: #68717d; font-size: 11px; }
+.card .note { margin: 12px 0 0; border-top: 1px solid #e3d9f4; padding-top: 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.error { margin: 12px 0; color: #a52e47; font-size: 12px; }

@@ -75,7 +75,7 @@ export default function HandymanPage() {
         .select("role, full_name, email, phone, address, postcode")
         .eq("id", user.id)
         .maybeSingle();
-      if (profile?.role !== "customer") {
+      if (!profile || profile.role === "admin") {
         setQuoteAccess("wrong_role");
         return;
       }

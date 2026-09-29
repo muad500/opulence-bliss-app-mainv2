@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 // Notifications — everything that's happened on your bookings or jobs.
 // Save at: app/notifications/page.tsx
 
@@ -122,7 +123,7 @@ export default function NotificationsPage() {
         )}
 
         <p className="links">
-          <a href="/">← Back to site</a>
+          <Link href="/">← Back to site</Link>
         </p>
       </div>
 
