@@ -50,16 +50,43 @@ function assertTestMode(tool: string) {
   }
 }
 
-export async function approveProvider(id: string) {
-  const s = await requireAdmin();
-  const { data: dbs, error: dbsError } = await s
+async function approvalRequirements(id: string): Promise<string[]> {
+  const [dbsResult, checksResult] = await Promise.all([
+    admin
     .from("provider_dbs_checks")
     .select("status, uploaded_at")
     .eq("provider_id", id)
-    .maybeSingle();
-  if (dbsError) throw new Error(dbsError.message);
-  if (dbs?.status !== "verified" || !dbs.uploaded_at) {
-    throw new Error("Verify the uploaded DBS certificate before approving this professional.");
+    .maybeSingle(),
+    admin
+    .from("provider_verification_items")
+    .select("document_type,status,uploaded_at,document_storage_path,expires_at,next_check_at")
+    .eq("provider_id", id)
+    .in("document_type", ["right_to_work", "photo_id"]),
+  ]);
+  if (dbsResult.error || checksResult.error) throw new Error("Private verification records could not be loaded.");
+  const missing: string[] = [];
+  if (dbsResult.data?.status !== "verified" || !dbsResult.data.uploaded_at) missing.push("DBS certificate");
+  const today = new Date().toISOString().slice(0, 10);
+  for (const [type, label] of [["right_to_work", "right to work"], ["photo_id", "photo ID"]] as const) {
+    const check = checksResult.data?.find((item) => item.document_type === type);
+    if (!check || check.status !== "verified" || !check.uploaded_at || !check.document_storage_path ||
+        (check.expires_at && check.expires_at < today) || (check.next_check_at && check.next_check_at < today)) {
+      missing.push(label);
+    }
+  }
+  return missing;
+}
+
+export async function getProviderApprovalRequirements(id: string): Promise<string[]> {
+  await requireAdmin();
+  return approvalRequirements(id);
+}
+
+export async function approveProvider(id: string) {
+  const s = await requireAdmin();
+  const missing = await approvalRequirements(id);
+  if (missing.length) {
+    throw new Error(`Verify ${missing.join(", ")} before approving this professional.`);
   }
   const { data: p, error } = await s
     .from("providers")

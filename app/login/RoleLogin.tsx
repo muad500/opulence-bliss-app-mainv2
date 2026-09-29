@@ -51,7 +51,7 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
   useEffect(() => {
     const reason = new URLSearchParams(window.location.search).get("error");
     if (reason === "wrong-account") {
-      setErr("That Google account belongs to a professional or administrator. Use the correct sign-in page.");
+      setErr("This account needs administrator sign-in. Please use the admin page.");
     } else if (reason) {
       setErr("Google sign-in could not be completed. Please try again.");
     }
@@ -78,20 +78,24 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
       .eq("id", data.user.id)
       .maybeSingle();
 
-    const expectedRole = mode === "provider" ? "provider" : "customer";
-    if (profile?.role !== expectedRole) {
+    if (!profile || profile.role === "admin") {
       await supabase.auth.signOut();
-      setErr(
-        mode === "provider"
-          ? "This is not a professional account. Please use the regular sign-in page instead."
-          : "This is a professional account. Please use Sign in as a pro instead.",
-      );
+      setErr("This account cannot use this sign-in page. Please contact support if you need help.");
       setBusy(false);
       return;
     }
 
+    if (mode === "provider") {
+      const { data: provider } = await supabase.from("providers")
+        .select("id").eq("profile_id", data.user.id).maybeSingle();
+      if (!provider) {
+        window.location.href = "/provider/join";
+        return;
+      }
+    }
+
     const next = new URLSearchParams(window.location.search).get("next");
-    window.location.href = next || content.destination;
+    window.location.href = next?.startsWith("/") && !next.startsWith("//") ? next : content.destination;
   }
 
   function submit() {

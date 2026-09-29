@@ -1145,4 +1145,10 @@ dd,
   .service-sheet-open .support-chat-panel {
     display: none !important;
   }
+
+  /* Keep support reachable without covering the portal's bottom tabs. */
+  body:has(.portal-shell) .support-chat-fab,
+  body:has(.portal-shell) .support-chat-panel {
+    bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+  }
 }

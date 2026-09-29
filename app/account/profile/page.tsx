@@ -1,449 +1,164 @@
 "use client";
 
-// Client profile — your details, saved for faster booking.
-// Save at: app/account/profile/page.tsx
-
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import Image from "next/image";
+import { useCallback, useEffect, useState } from "react";
+import { ArrowDownToLine, ArrowRight, Bell, Check, ChevronRight, CircleHelp, CreditCard, Heart, Home, LockKeyhole, Mail, MapPin, Pencil, Plus, ShieldCheck, Star, Trash2, UserRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import DeletionRequestStatus, { DELETION_REQUEST_UPDATED_EVENT } from "@/components/DeletionRequestStatus";
+import styles from "./profile.module.css";
 
 const supabase = createClient();
+type Profile = { title: string | null; firstName: string; lastName: string; fullName: string; email: string; phone: string; photoUrl: string | null; customerRatingAvg: number | null; customerRatingCount: number };
+type Address = { id: string; label: string; isDefault: boolean; line1: string; line2: string | null; city: string; postcode: string; accessInstructions: string | null; propertyType: string | null; bedrooms: number | null; bathrooms: number | null; pets: string | null; productsProvidedBy: "customer" | "professional" | null };
+type Preferences = { contactChannels: string[]; notifications: { bookings: boolean; messages: boolean }; marketingEmails: boolean };
+type Favourite = { providerId: string; displayName: string; photoUrl: string | null; ratingAvg: number | null };
+type Legal = { documentSlug: string; version: string; acceptedAt: string };
+type Account = { profile: Profile; addresses: Address[]; preferences: Preferences; favourites: Favourite[]; legalAcceptances: Legal[] };
+type Review = { id: string; bookingId: string; rating: number; comment: string | null; visibility: "public" | "private"; createdAt: string; serviceName: string | null; recipientName: string | null; roleSide: "client" | "worker" };
+type Reviews = { left: Review[]; received: Review[] };
+type Payment = { booking_id: string | null; gross_amount: number | null; status: string; kind: string | null; created_at: string };
+type Visit = { id: string; provider_id: string | null; scheduled_at: string; providers: { display_name: string | null } | { display_name: string | null }[] | null };
+type AddressDraft = Omit<Address, "id">;
 
-type ReceivedReview = {
-  id: string;
-  rating: number;
-  comment: string | null;
-  visibility: "public" | "private";
-  created_at: string;
-  bookings:
-    | {
-        providers:
-          | { display_name: string | null }
-          | { display_name: string | null }[]
-          | null;
-        packages: { name: string } | { name: string }[] | null;
-      }
-    | {
-        providers:
-          | { display_name: string | null }
-          | { display_name: string | null }[]
-          | null;
-        packages: { name: string } | { name: string }[] | null;
-      }[];
-};
+const blankAddress: AddressDraft = { label: "Home", isDefault: false, line1: "", line2: "", city: "", postcode: "", accessInstructions: "", propertyType: "", bedrooms: null, bathrooms: null, pets: "", productsProvidedBy: null };
+const navigation = [["personal", "Personal"], ["addresses", "Addresses"], ["preferences", "Preferences"], ["payments", "Payments"], ["reviews", "Reviews"], ["privacy", "Privacy"], ["help", "Help"]];
+const gbp = (amount: number | null | undefined) => new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(Number(amount ?? 0));
+const shortDate = (value: string) => new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const one = <T,>(value: T | T[] | null | undefined): T | null => !value ? null : Array.isArray(value) ? value[0] ?? null : value;
 
-function one<T>(value: T | T[] | null | undefined): T | null {
-  if (!value) return null;
-  return Array.isArray(value) ? (value[0] ?? null) : value;
+async function json<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...init, headers: { "Content-Type": "application/json", ...init?.headers } });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result.error || result.message || "Please try again.");
+  return result as T;
 }
 
 export default function ClientProfilePage() {
-  const [uid, setUid] = useState<string | null>(null);
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [postcode, setPostcode] = useState("");
-  const [rating, setRating] = useState<number | null>(null);
-  const [ratingCount, setRatingCount] = useState(0);
+  const [account, setAccount] = useState<Account | null>(null);
+  const [person, setPerson] = useState<Profile | null>(null);
+  const [prefs, setPrefs] = useState<Preferences | null>(null);
+  const [reviews, setReviews] = useState<Reviews>({ left: [], received: [] });
+  const [visits, setVisits] = useState<Visit[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-  const [receivedReviews, setReceivedReviews] = useState<ReceivedReview[]>([]);
-  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [activityError, setActivityError] = useState("");
+  const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [addressId, setAddressId] = useState<string | null>(null);
+  const [address, setAddress] = useState<AddressDraft>(blankAddress);
+  const [reviewId, setReviewId] = useState<string | null>(null);
+  const [reviewDraft, setReviewDraft] = useState({ rating: 5, comment: "", visibility: "public" as "public" | "private" });
+  const [securityPanel, setSecurityPanel] = useState<"email" | "password" | "delete" | null>(null);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [deleteText, setDeleteText] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      setUid(user.id);
-      setEmail(user.email ?? "");
-
-      const { data } = await supabase
-        .from("profiles")
-        .select("full_name, phone, address, postcode, client_rating_avg, client_rating_count")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      setRating(data?.client_rating_avg == null ? null : Number(data.client_rating_avg));
-      setRatingCount(data?.client_rating_count ?? 0);
-      setName(data?.full_name ?? "");
-      setPhone(data?.phone ?? "");
-      setAddress(data?.address ?? "");
-      setPostcode(data?.postcode ?? "");
-
-      const { data: reviews, error: reviewError } = await supabase
-        .from("reviews")
-        .select(
-          "id, rating, comment, visibility, created_at, bookings!inner(customer_id, providers(display_name), packages(name))",
-        )
-        .eq("reviewer", "provider")
-        .eq("bookings.customer_id", user.id)
-        .order("created_at", { ascending: false });
-      setReceivedReviews((reviews ?? []) as unknown as ReceivedReview[]);
-      setReviewsError(
-        reviewError ? "Your reviews could not be loaded. Please refresh." : null,
-      );
-      setLoading(false);
-    })();
+  const refresh = useCallback(async () => {
+    const next = await json<Account>("/api/account/profile");
+    setAccount(next);
+    setPerson(next.profile);
+    setPrefs(next.preferences);
+  }, []);
+  const refreshReviews = useCallback(async () => {
+    const result = await json<Reviews>("/api/account/reviews");
+    setReviews({ left: result.left.filter((review) => review.roleSide === "client"), received: result.received.filter((review) => review.roleSide === "client") });
+  }, []);
+  const refreshActivity = useCallback(async () => {
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) return;
+    const { data: bookingRows, error: bookingError } = await supabase.from("bookings").select("id, provider_id, scheduled_at, providers(display_name)").eq("customer_id", auth.user.id).order("scheduled_at", { ascending: false });
+    if (bookingError) throw bookingError;
+    const ownVisits = (bookingRows ?? []) as unknown as Visit[];
+    setVisits(ownVisits);
+    if (!ownVisits.length) { setPayments([]); return; }
+    const { data: paymentRows, error: paymentError } = await supabase.from("payments").select("booking_id, gross_amount, status, kind, created_at").in("booking_id", ownVisits.map((visit) => visit.id)).order("created_at", { ascending: false });
+    if (paymentError) throw paymentError;
+    setPayments((paymentRows ?? []) as Payment[]);
   }, []);
 
-  async function save() {
-    if (!uid) return;
-    setSaving(true);
-    setMsg(null);
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        full_name: name.trim() || null,
-        phone: phone.trim() || null,
-        address: address.trim() || null,
-        postcode: postcode.trim().toUpperCase() || null,
-      })
-      .eq("id", uid);
-    setMsg(error ? error.message : "Saved — we'll use these next time you book.");
-    setSaving(false);
+  useEffect(() => {
+    let active = true;
+    void Promise.allSettled([refresh(), refreshReviews(), refreshActivity()]).then(([profileResult, reviewResult, activityResult]) => {
+      if (!active) return;
+      if (profileResult.status === "rejected") setLoadError(profileResult.reason instanceof Error ? profileResult.reason.message : "Account details could not be loaded.");
+      if (reviewResult.status === "rejected" || activityResult.status === "rejected") setActivityError("Some activity could not be loaded. Please refresh to try again.");
+      setLoading(false);
+    });
+    return () => { active = false; };
+  }, [refresh, refreshActivity, refreshReviews]);
+
+  async function act(key: string, action: () => Promise<void>, success: string) {
+    setBusy(key); setNotice(""); setError("");
+    try { await action(); setNotice(success); }
+    catch (problem) { setError(problem instanceof Error ? problem.message : "Please try again."); }
+    finally { setBusy(""); }
+  }
+  function editAddress(existing?: Address) {
+    setAddressId(existing?.id ?? "new");
+    setAddress(existing ? { label: existing.label, isDefault: existing.isDefault, line1: existing.line1, line2: existing.line2 ?? "", city: existing.city, postcode: existing.postcode, accessInstructions: existing.accessInstructions ?? "", propertyType: existing.propertyType ?? "", bedrooms: existing.bedrooms, bathrooms: existing.bathrooms, pets: existing.pets ?? "", productsProvidedBy: existing.productsProvidedBy } : { ...blankAddress, isDefault: !account?.addresses.length });
+  }
+  async function saveAddress(event: React.FormEvent) {
+    event.preventDefault();
+    if (!addressId) return;
+    await act("address", async () => { await json(addressId === "new" ? "/api/account/addresses" : `/api/account/addresses/${addressId}`, { method: addressId === "new" ? "POST" : "PATCH", body: JSON.stringify(address) }); await refresh(); setAddressId(null); }, "Address saved.");
   }
 
-  return (
-    <main className="wrap">
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=Hanken+Grotesk:wght@400;500;600&display=swap"
-      />
+  if (loading) return <main className={styles.page}><div className={styles.loading} role="status">Loading your account…</div></main>;
+  if (!account || !person || !prefs) return <main className={styles.page}><div className={styles.alert} role="alert">{loadError || "Your account could not be loaded."} <button onClick={() => window.location.reload()}>Try again</button></div></main>;
+  const firstName = person.firstName?.trim() || person.fullName?.split(" ")[0] || "there";
+  const favourites = account.favourites ?? [];
+  const recentPros = Array.from(new Map(visits.filter((visit) => visit.provider_id).map((visit) => [visit.provider_id!, one(visit.providers)?.display_name || "Professional"])).entries()).filter(([id]) => !favourites.some((favourite) => favourite.providerId === id)).slice(0, 4);
+  const tips = payments.filter((payment) => payment.kind === "tip" && payment.status === "succeeded");
+  const paid = payments.filter((payment) => payment.kind !== "tip" && payment.status === "succeeded");
+  const refunded = payments.filter((payment) => ["refunded", "partially_refunded"].includes(payment.status));
 
-      <div className="inner">
-        <p className="eyebrow">Your account</p>
-        <h1>Your details</h1>
-        <p className="lede">
-          Save your address once and your bookings get quicker. Your provider only
-          sees these after they accept a job.
-        </p>
+  return <main className={styles.page}>
+    <header className={styles.pageHeader}><div><p className={styles.eyebrow}>Your space</p><h1>Your account</h1><p>Everything about your home, visits and preferences in one place.</p></div><div className={styles.headerActions}><Link className={styles.secondaryButton} href="/account">My bookings <ArrowRight size={16} /></Link><Link className={styles.primaryButton} href="/book">Book a visit <ArrowRight size={16} /></Link></div></header>
+    <div className={styles.hero}><span className={styles.avatar}>{person.photoUrl ? <Image src={person.photoUrl} alt="" width={68} height={68} unoptimized /> : firstName.charAt(0).toUpperCase()}</span><div><small>Welcome back</small><h2>{firstName}</h2><p>{person.email}</p></div><span className={styles.badge}><Check size={14} /> Customer account</span></div>
+    <nav className={styles.sectionNav} aria-label="Account sections">{navigation.map(([id, label]) => <a key={id} href={`#${id}`}>{label}</a>)}</nav>
+    {(notice || error) && <div className={error ? styles.alert : styles.success} role={error ? "alert" : "status"}>{error || notice}</div>}
+    <div className={styles.columns}><div className={styles.mainColumn}>
 
-        {loading ? (
-          <p className="muted">Loading…</p>
-        ) : !uid ? (
-          <div className="card center">
-            <p>Log in to manage your details.</p>
-            <a className="cta" href="/login">
-              Go to log in
-            </a>
-          </div>
-        ) : (
-          <>
-            <div className="card" aria-label="Customer rating"><strong>{rating === null || ratingCount === 0 ? "Not yet rated" : `★ ${rating.toFixed(1)} / 5`}</strong><p>{ratingCount} cleaner review{ratingCount === 1 ? "" : "s"}</p></div>
-            <div className="card">
-              <label>Email</label>
-              <input value={email} disabled />
+      <section className={styles.card} id="personal" aria-labelledby="personal-title"><Heading icon={UserRound} kicker="The essentials" title="Personal details" id="personal-title" detail="Keep these current so we can confirm bookings and contact you." />
+        <form onSubmit={(event) => { event.preventDefault(); void act("person", async () => { await json("/api/account/profile", { method: "PATCH", body: JSON.stringify({ profile: { title: person.title, firstName: person.firstName, lastName: person.lastName, phone: person.phone, photoUrl: person.photoUrl } }) }); await refresh(); }, "Personal details saved."); }}>
+          <div className={styles.fields}><label>Title<select value={person.title ?? ""} onChange={(event) => setPerson({ ...person, title: event.target.value || null })}><option value="">Prefer not to say</option>{[["mr","Mr"],["mrs","Mrs"],["miss","Miss"],["ms","Ms"],["mx","Mx"],["other","Other"]].map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select></label><span className={styles.spacer} />
+            <label>First name<input required autoComplete="given-name" value={person.firstName} onChange={(event) => setPerson({ ...person, firstName: event.target.value })} /></label><label>Last name<input required autoComplete="family-name" value={person.lastName} onChange={(event) => setPerson({ ...person, lastName: event.target.value })} /></label>
+            <label>Phone number<input type="tel" autoComplete="tel" placeholder="07700 900000" value={person.phone ?? ""} onChange={(event) => setPerson({ ...person, phone: event.target.value })} /><small>Required before your first booking.</small></label><div className={styles.readOnly}><strong>Email address</strong><span>{person.email}</span><button type="button" onClick={() => setSecurityPanel(securityPanel === "email" ? null : "email")}>Change email</button></div>
+            <label className={styles.wide}>Profile photo link <em>optional</em><input type="url" placeholder="https://example.com/photo.jpg" value={person.photoUrl ?? ""} onChange={(event) => setPerson({ ...person, photoUrl: event.target.value || null })} /><small>Use an HTTPS link to a photo you control.</small></label>
+          </div><div className={styles.formActions}><button className={styles.primaryButton} disabled={busy === "person"}>{busy === "person" ? "Saving…" : "Save details"}</button></div>
+        </form>
+        {securityPanel === "email" && <form className={styles.inset} onSubmit={(event) => { event.preventDefault(); void act("email", async () => { await json("/api/account/email", { method: "POST", body: JSON.stringify({ currentPassword, newEmail }) }); setSecurityPanel(null); setCurrentPassword(""); setNewEmail(""); }, "Email change requested. Check your inbox for any confirmation message."); }}><h3>Change email</h3><div className={styles.fields}><label>New email<input required type="email" value={newEmail} onChange={(event) => setNewEmail(event.target.value)} /></label><label>Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label></div><div className={styles.formActions}><button className={styles.primaryButton} disabled={busy === "email"}>Request change</button></div></form>}
+        <div className={styles.securityRow}><span><LockKeyhole size={19} /><span><strong>Password</strong><small>Keep your sign-in secure.</small></span></span><button type="button" onClick={() => setSecurityPanel(securityPanel === "password" ? null : "password")}>Change password</button></div>
+        {securityPanel === "password" && <form className={styles.inset} onSubmit={(event) => { event.preventDefault(); if (newPassword !== confirmPassword) { setError("New passwords do not match."); return; } void act("password", async () => { await json("/api/account/password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword }) }); setSecurityPanel(null); setCurrentPassword(""); setNewPassword(""); setConfirmPassword(""); }, "Password changed."); }}><div className={styles.fields}><label>Current password<input required type="password" autoComplete="current-password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} /></label><label>New password<input required minLength={12} type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} /></label><label>Confirm new password<input required minLength={12} type="password" autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} /></label></div><div className={styles.formActions}><button className={styles.primaryButton} disabled={busy === "password"}>Save password</button></div></form>}
+      </section>
 
-              <label>Full name</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Alex Morgan"
-              />
+      <section className={styles.card} id="addresses" aria-labelledby="addresses-title"><Heading icon={Home} kicker="Your places" title="Addresses & home details" id="addresses-title" detail="Save your home, office and anything a professional should know before arriving." action={<button type="button" className={styles.secondaryButton} onClick={() => editAddress()}><Plus size={16} /> Add address</button>} />
+        {!account.addresses.length && !addressId && <Empty icon={MapPin} title="No saved addresses yet" text="Add your first address to speed up future bookings." />}
+        <div className={styles.addressGrid}>{account.addresses.map((item) => <article className={styles.addressCard} key={item.id}><div className={styles.addressTitle}><span><MapPin size={17} /></span><strong>{item.label}</strong>{item.isDefault && <small className={styles.defaultBadge}>Default</small>}</div><p>{item.line1}{item.line2 ? `, ${item.line2}` : ""}<br />{item.city} {item.postcode}</p><small className={styles.addressMeta}>{[item.propertyType, item.bedrooms != null ? `${item.bedrooms} bed` : null, item.bathrooms != null ? `${item.bathrooms} bath` : null, item.pets ? `Pets: ${item.pets}` : null].filter(Boolean).join(" · ") || "Home details not added yet"}</small>{item.accessInstructions && <small className={styles.privateNote}><LockKeyhole size={12} /> Access instructions saved</small>}<div className={styles.cardActions}><button onClick={() => editAddress(item)}><Pencil size={14} /> Edit</button>{!item.isDefault && <button disabled={!!busy} onClick={() => void act("default", async () => { await json(`/api/account/addresses/${item.id}`, { method: "PATCH", body: JSON.stringify({ isDefault: true }) }); await refresh(); }, "Default address changed.")}>Make default</button>}<button className={styles.dangerLink} disabled={!!busy} onClick={() => { if (window.confirm(`Remove ${item.label}?`)) void act("remove-address", async () => { await json(`/api/account/addresses/${item.id}`, { method: "DELETE" }); await refresh(); }, "Address removed."); }}><Trash2 size={14} /> Remove</button></div></article>)}</div>
+        {addressId && <form className={styles.inset} onSubmit={(event) => void saveAddress(event)}><h3>{addressId === "new" ? "Add an address" : "Edit address"}</h3><div className={styles.fields}><label>Label<input required placeholder="Home or office" value={address.label} onChange={(event) => setAddress({ ...address, label: event.target.value })} /></label><label>Postcode<input required autoComplete="postal-code" value={address.postcode} onChange={(event) => setAddress({ ...address, postcode: event.target.value.toUpperCase() })} /></label><label>Address line 1<input required autoComplete="address-line1" value={address.line1} onChange={(event) => setAddress({ ...address, line1: event.target.value })} /></label><label>Address line 2 <em>optional</em><input autoComplete="address-line2" value={address.line2 ?? ""} onChange={(event) => setAddress({ ...address, line2: event.target.value })} /></label><label>Town or city<input required autoComplete="address-level2" value={address.city} onChange={(event) => setAddress({ ...address, city: event.target.value })} /></label><label>Property type<select value={address.propertyType ?? ""} onChange={(event) => setAddress({ ...address, propertyType: event.target.value })}><option value="">Choose type</option>{["Flat", "House", "Office", "Other"].map((value) => <option key={value}>{value}</option>)}</select></label><label>Bedrooms<input type="number" min={0} max={30} value={address.bedrooms ?? ""} onChange={(event) => setAddress({ ...address, bedrooms: event.target.value ? Number(event.target.value) : null })} /></label><label>Bathrooms<input type="number" min={0} max={30} value={address.bathrooms ?? ""} onChange={(event) => setAddress({ ...address, bathrooms: event.target.value ? Number(event.target.value) : null })} /></label><label>Pets<input placeholder="None, cat, dog…" value={address.pets ?? ""} onChange={(event) => setAddress({ ...address, pets: event.target.value })} /></label><label>Cleaning products<select value={address.productsProvidedBy ?? ""} onChange={(event) => setAddress({ ...address, productsProvidedBy: (event.target.value || null) as Address["productsProvidedBy"] })}><option value="">Choose when booking</option><option value="customer">I supply them</option><option value="professional">Professional brings them</option></select></label><label className={styles.wide}>Access instructions <em>optional</em><textarea rows={3} placeholder="Key safe, concierge, entry code or parking" value={address.accessInstructions ?? ""} onChange={(event) => setAddress({ ...address, accessInstructions: event.target.value })} /><small>Store only details you are comfortable sharing for a booking.</small></label></div><label className={styles.checkbox}><input type="checkbox" checked={address.isDefault} onChange={(event) => setAddress({ ...address, isDefault: event.target.checked })} /> Use as default address</label><div className={styles.formActions}><button className={styles.secondaryButton} type="button" onClick={() => setAddressId(null)}>Cancel</button><button className={styles.primaryButton} disabled={busy === "address"}>{busy === "address" ? "Saving…" : "Save address"}</button></div></form>}
+      </section>
 
-              <label>Phone</label>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="07700 900000"
-              />
+      <section className={styles.card} id="preferences" aria-labelledby="preferences-title"><Heading icon={Heart} kicker="Made for you" title="Preferences" id="preferences-title" detail="Keep favourite professionals close and choose how you hear from us." /><h3 className={styles.subheading}>Favourite professionals</h3>{!favourites.length && <p className={styles.muted}>No favourites yet. Save a professional after a visit to find them here.</p>}<div className={styles.favourites}>{favourites.map((favourite) => <div className={styles.favourite} key={favourite.providerId}><span className={styles.miniAvatar}>{favourite.photoUrl ? <Image src={favourite.photoUrl} alt="" width={36} height={36} unoptimized /> : favourite.displayName.charAt(0)}</span><span><strong>{favourite.displayName}</strong><small>{favourite.ratingAvg == null ? "Professional" : `★ ${Number(favourite.ratingAvg).toFixed(1)}`}</small></span><button disabled={!!busy} onClick={() => void act("favourite", async () => { await json("/api/account/favourites", { method: "DELETE", body: JSON.stringify({ providerId: favourite.providerId }) }); await refresh(); }, "Removed from favourites.")}>Remove</button></div>)}</div>{recentPros.length > 0 && <div className={styles.recentPros}><small>Professionals from your visits</small><div>{recentPros.map(([id, name]) => <button key={id} disabled={!!busy} onClick={() => void act("favourite", async () => { await json("/api/account/favourites", { method: "POST", body: JSON.stringify({ providerId: id }) }); await refresh(); }, "Added to favourites.")}><Plus size={13} /> {name}</button>)}</div></div>}
+        <form onSubmit={(event) => { event.preventDefault(); void act("prefs", async () => { await json("/api/account/profile", { method: "PATCH", body: JSON.stringify({ preferences: prefs }) }); await refresh(); }, "Preferences saved."); }}><div className={styles.divider} /><h3 className={styles.subheading}>Contact me by</h3><div className={styles.choiceRow}>{[["email","Email"],["sms","SMS"],["whatsapp","WhatsApp"]].map(([value,label]) => <label className={styles.choice} key={value}><input type="checkbox" checked={prefs.contactChannels.includes(value)} onChange={(event) => setPrefs({ ...prefs, contactChannels: event.target.checked ? [...prefs.contactChannels, value] : prefs.contactChannels.filter((item) => item !== value) })} /> {label}</label>)}</div><p className={styles.smallNote}>We currently send essential service messages by email. SMS and WhatsApp choices are saved for when those channels become available.</p><div className={styles.divider} /><h3 className={styles.subheading}>Notifications</h3><Toggle title="Booking updates" detail="Confirmations, changes and reminders" checked={prefs.notifications.bookings} onChange={(value) => setPrefs({ ...prefs, notifications: { ...prefs.notifications, bookings: value } })} /><Toggle title="Messages" detail="Replies from your professional" checked={prefs.notifications.messages} onChange={(value) => setPrefs({ ...prefs, notifications: { ...prefs.notifications, messages: value } })} /><div className={styles.divider} /><Toggle title="Marketing emails" detail="Offers and news, separate from booking updates" checked={prefs.marketingEmails} onChange={(value) => setPrefs({ ...prefs, marketingEmails: value })} /><div className={styles.formActions}><button className={styles.primaryButton} disabled={busy === "prefs"}>{busy === "prefs" ? "Saving…" : "Save preferences"}</button></div></form>
+      </section>
 
-              <label>Address</label>
-              <textarea
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                rows={3}
-                placeholder="Flat 4, 12 Elm Gardens, London"
-              />
+      <section className={styles.card} id="payments" aria-labelledby="payments-title"><Heading icon={CreditCard} kicker="Your spending" title="Payments & documents" id="payments-title" detail="Review charges, tips, refunds and invoices from your visits." /><div className={styles.stats}><div><small>Completed payments</small><strong>{paid.length}</strong></div><div><small>Tips given</small><strong>{gbp(tips.reduce((sum, item) => sum + Number(item.gross_amount ?? 0), 0))}</strong></div><div><small>Refunds</small><strong>{refunded.length}</strong></div></div><div className={styles.noteBox}><LockKeyhole size={19} /><p><strong>Card details stay with Stripe.</strong> We do not store card numbers on this site.</p></div><button className={styles.secondaryButton} disabled={busy === "billing"} onClick={() => void act("billing", async () => { const result = await json<{ url: string }>("/api/account/billing-portal", { method: "POST" }); if (!result.url) throw new Error("Card management is unavailable right now."); window.location.assign(result.url); }, "Opening secure card management…")}>Manage saved cards <ArrowRight size={16} /></button>{activityError && <p className={styles.errorText}>{activityError}</p>}{!payments.length ? <Empty icon={CreditCard} title="No payments yet" text="Booking payments, tips and refunds will show here." /> : <div className={styles.paymentList}>{payments.slice(0, 8).map((payment, index) => <Link key={`${payment.booking_id}-${payment.created_at}-${index}`} href={payment.booking_id ? `/account/visit/${payment.booking_id}` : "/account"}><span className={styles.paymentIcon}><CreditCard size={17} /></span><span><strong>{payment.kind === "tip" ? "Tip" : payment.status === "refunded" ? "Refunded booking" : payment.status === "partially_refunded" ? "Partly refunded booking" : "Booking payment"}</strong><small>{shortDate(payment.created_at)} · {payment.status.replaceAll("_", " ")}</small></span><b>{gbp(payment.gross_amount)}</b><ChevronRight size={16} /></Link>)}</div>}<Link href="/account" className={styles.textLink}>View all bookings and invoices <ArrowRight size={16} /></Link></section>
 
-              <label>Postcode</label>
-              <input
-                value={postcode}
-                onChange={(e) => setPostcode(e.target.value)}
-                placeholder="SW3 1AA"
-                style={{ textTransform: "uppercase" }}
-              />
-            </div>
+      <section className={styles.card} id="reviews" aria-labelledby="reviews-title"><Heading icon={Star} kicker="After each visit" title="Reviews" id="reviews-title" detail="See feedback you have shared and feedback you have received." /><div className={styles.rating}><span>★</span><strong>{person.customerRatingAvg == null || !person.customerRatingCount ? "Not rated yet" : `${Number(person.customerRatingAvg).toFixed(1)} / 5`}</strong><small>{person.customerRatingCount} professional review{person.customerRatingCount === 1 ? "" : "s"} of you</small></div><h3 className={styles.subheading}>Reviews you left <small>{reviews.left.length}</small></h3>{!reviews.left.length && <p className={styles.muted}>You have not reviewed a visit yet.</p>}{reviews.left.map((review) => <article className={styles.review} key={review.id}><div className={styles.reviewTop}><strong>{"★".repeat(review.rating)}<span>{"☆".repeat(5 - review.rating)}</span></strong><small className={review.visibility === "public" && review.rating >= 4 ? styles.publicBadge : styles.privateBadge}>{review.visibility === "public" && review.rating >= 4 ? "Public" : "Private"}</small></div><p className={styles.reviewSubject}>{review.recipientName || "Your professional"}{review.serviceName ? ` · ${review.serviceName}` : ""}</p><p>{review.comment || "Rating submitted without a comment."}</p><div className={styles.reviewBottom}><time dateTime={review.createdAt}>{shortDate(review.createdAt)}</time><button onClick={() => { setReviewId(review.id); setReviewDraft({ rating: review.rating, comment: review.comment ?? "", visibility: review.visibility }); }}><Pencil size={13} /> Edit review</button></div>{reviewId === review.id && <div className={styles.inset}><div className={styles.fields}><label>Rating<select value={reviewDraft.rating} onChange={(event) => { const rating = Number(event.target.value); setReviewDraft({ ...reviewDraft, rating, visibility: rating <= 3 ? "private" : reviewDraft.visibility }); }}>{[5,4,3,2,1].map((value) => <option value={value} key={value}>{value} star{value === 1 ? "" : "s"}</option>)}</select></label><label>Visibility<select value={reviewDraft.rating <= 3 ? "private" : reviewDraft.visibility} disabled={reviewDraft.rating <= 3} onChange={(event) => setReviewDraft({ ...reviewDraft, visibility: event.target.value as "public" | "private" })}><option value="public">Public</option><option value="private">Private</option></select></label><label className={styles.wide}>Your review<textarea rows={3} value={reviewDraft.comment} onChange={(event) => setReviewDraft({ ...reviewDraft, comment: event.target.value })} /></label></div>{reviewDraft.rating <= 3 && <p className={styles.smallNote}>Reviews with 1–3 stars remain private.</p>}<div className={styles.formActions}><button className={styles.secondaryButton} onClick={() => setReviewId(null)}>Cancel</button><button className={styles.primaryButton} disabled={busy === "review"} onClick={() => void act("review", async () => { await json(`/api/account/reviews/${review.id}`, { method: "PATCH", body: JSON.stringify(reviewDraft) }); await refreshReviews(); setReviewId(null); }, "Review updated.")}>Save review</button></div></div>}</article>)}<div className={styles.divider} /><h3 className={styles.subheading}>Reviews you received <small>{reviews.received.length}</small></h3><p className={styles.smallNote}>Private feedback is visible only to you and the person who wrote it.</p>{!reviews.received.length && <p className={styles.muted}>No professional feedback yet.</p>}{reviews.received.map((review) => <article className={styles.review} key={review.id}><div className={styles.reviewTop}><strong>{"★".repeat(review.rating)}<span>{"☆".repeat(5 - review.rating)}</span></strong><small className={review.visibility === "public" ? styles.publicBadge : styles.privateBadge}>{review.visibility === "public" ? "Public" : "Private"}</small></div><p className={styles.reviewSubject}>{review.recipientName || "Your professional"}{review.serviceName ? ` · ${review.serviceName}` : ""}</p><p>{review.comment || "Rating submitted without a comment."}</p><time dateTime={review.createdAt}>{shortDate(review.createdAt)}</time></article>)}</section>
 
-            <button className="cta" onClick={save} disabled={saving}>
-              {saving ? "Saving…" : "Save details"}
-            </button>
-            {msg && <p className="msg">{msg}</p>}
+      <section className={styles.card} id="privacy" aria-labelledby="privacy-title"><Heading icon={ShieldCheck} kicker="In your hands" title="Privacy & security" id="privacy-title" detail="See what you accepted and request a copy or deletion of your personal data." /><DeletionRequestStatus /><h3 className={styles.subheading}>Legal documents accepted</h3>{!account.legalAcceptances.length && <p className={styles.muted}>No acceptance record is available yet.</p>}{account.legalAcceptances.map((item) => <div className={styles.legalRow} key={`${item.documentSlug}-${item.version}`}><span><ShieldCheck size={16} /> {item.documentSlug.replaceAll("-", " ")}</span><small>Version {item.version} · {shortDate(item.acceptedAt)}</small></div>)}<div className={styles.actionList}><a href="/api/account/export"><ArrowDownToLine size={19} /><span><strong>Download my data</strong><small>Get a copy of your account information.</small></span><ChevronRight size={17} /></a><button onClick={() => setSecurityPanel("delete")}><Trash2 size={19} /><span><strong>Delete my account</strong><small>Request account deletion and see what happens next.</small></span><ChevronRight size={17} /></button></div>{securityPanel === "delete" && <div className={styles.inset}><h3>Request account deletion</h3><p>We will review active bookings and legally required record retention. This request does not delete your account immediately.</p><label className={styles.deleteLabel}>Type DELETE to confirm<input value={deleteText} onChange={(event) => setDeleteText(event.target.value)} /></label><div className={styles.formActions}><button className={styles.secondaryButton} onClick={() => { setSecurityPanel(null); setDeleteText(""); }}>Keep my account</button><button className={styles.dangerButton} disabled={deleteText !== "DELETE" || busy === "delete"} onClick={() => void act("delete", async () => { const result = await json<{ message?: string }>("/api/account/delete", { method: "POST", body: JSON.stringify({ confirmation: "DELETE" }) }); setSecurityPanel(null); setDeleteText(""); if (result.message) setNotice(result.message); window.dispatchEvent(new Event(DELETION_REQUEST_UPDATED_EVENT)); }, "Deletion request received.")}>Send deletion request</button></div></div>}</section>
 
-            <section className="card received" aria-labelledby="received-reviews-title">
-              <div className="review-heading">
-                <div>
-                  <p className="review-eyebrow">Reviews you received</p>
-                  <h2 id="received-reviews-title">Professional feedback</h2>
-                </div>
-                <span className="review-count">{receivedReviews.length}</span>
-              </div>
-              <p className="review-help">
-                Public feedback can be seen by everyone. Private feedback is
-                visible here only to you.
-              </p>
-              {reviewsError ? (
-                <p className="review-error">{reviewsError}</p>
-              ) : receivedReviews.length === 0 ? (
-                <p className="review-empty">No professional feedback yet.</p>
-              ) : (
-                <div className="review-list">
-                  {receivedReviews.map((review) => {
-                    const booking = one(review.bookings);
-                    const provider = one(booking?.providers);
-                    const service = one(booking?.packages);
-                    return (
-                      <article className="review" key={review.id}>
-                        <div className="review-top">
-                          <span className="stars">
-                            {"★".repeat(review.rating)}
-                            {"☆".repeat(5 - review.rating)}
-                          </span>
-                          <span className={`visibility ${review.visibility}`}>
-                            {review.visibility === "public" ? "Public" : "Private"}
-                          </span>
-                        </div>
-                        <strong className="reviewer">
-                          {provider?.display_name ?? "Your professional"}
-                          {service?.name ? ` · ${service.name}` : ""}
-                        </strong>
-                        <p className={review.comment ? "review-comment" : "review-comment muted"}>
-                          {review.comment || "Rating submitted without a comment."}
-                        </p>
-                        <time dateTime={review.created_at}>
-                          {new Date(review.created_at).toLocaleDateString("en-GB", {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </time>
-                      </article>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          </>
-        )}
+      <section className={styles.card} id="help" aria-labelledby="help-title"><Heading icon={CircleHelp} kicker="We are here" title="Help" id="help-title" detail="Find answers or tell us when something is not right." /><div className={styles.actionList}><Link href="/faq"><CircleHelp size={19} /><span><strong>Frequently asked questions</strong><small>Bookings, payments and visits</small></span><ChevronRight size={17} /></Link><a href="mailto:opulencebliss@gmail.com?subject=Opulence%20Bliss%20support"><Mail size={19} /><span><strong>Contact support</strong><small>Send us an email</small></span><ChevronRight size={17} /></a><a href="mailto:opulencebliss@gmail.com?subject=Report%20a%20problem"><ShieldCheck size={19} /><span><strong>Report a problem</strong><small>Tell us what happened</small></span><ChevronRight size={17} /></a></div></section>
 
-        <p className="links">
-          <a href="/account">← My bookings</a>
-          <a href="/book">Book a service</a>
-        </p>
-      </div>
-
-      <style jsx>{`
-        .wrap {
-          min-height: 100vh;
-          background: transparent;
-          color: var(--ob-text);
-          font-family: "Hanken Grotesk", system-ui, sans-serif;
-          padding: 0 20px 80px;
-        }
-        .inner {
-          max-width: 560px;
-          margin: 0 auto;
-          padding-top: 40px;
-        }
-        .eyebrow {
-          text-transform: uppercase;
-          letter-spacing: 0.14em;
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--ob-purple);
-          margin: 0 0 6px;
-        }
-        h1 {
-          font-family: "Fraunces", serif;
-          font-weight: 500;
-          font-size: 36px;
-          color: var(--ob-text);
-          margin: 0 0 8px;
-        }
-        .lede {
-          color: var(--ob-muted);
-          margin: 0 0 26px;
-        }
-        .card {
-          background: var(--ob-surface-raised);
-          border: 1px solid var(--ob-border);
-          border-radius: 16px;
-          padding: 24px 22px;
-          margin-bottom: 20px;
-        }
-        .card.center {
-          text-align: center;
-        }
-        .received {
-          margin-top: 22px;
-        }
-        .review-heading,
-        .review-top {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
-        .review-eyebrow {
-          margin: 0 0 3px;
-          color: var(--ob-purple);
-          font-size: 11px;
-          font-weight: 800;
-          letter-spacing: .1em;
-          text-transform: uppercase;
-        }
-        h2 {
-          margin: 0;
-          font-family: "Fraunces", serif;
-          font-size: 22px;
-          font-weight: 500;
-        }
-        .review-count {
-          display: grid;
-          place-items: center;
-          min-width: 34px;
-          height: 34px;
-          border-radius: 999px;
-          background: var(--ob-purple-soft);
-          color: var(--ob-purple);
-          font-weight: 800;
-        }
-        .review-help {
-          margin: 9px 0 18px;
-          color: var(--ob-muted);
-          font-size: 13.5px;
-          line-height: 1.5;
-        }
-        .review-list {
-          display: grid;
-          gap: 10px;
-        }
-        .review {
-          padding: 14px;
-          border: 1px solid var(--ob-border);
-          border-radius: 12px;
-          background: var(--ob-surface-soft);
-        }
-        .stars {
-          color: var(--ob-purple);
-          letter-spacing: 1px;
-        }
-        .visibility {
-          border-radius: 999px;
-          padding: 4px 9px;
-          font-size: 11px;
-          font-weight: 800;
-        }
-        .visibility.public {
-          background: #e4f6ec;
-          color: #137b4e;
-        }
-        .visibility.private {
-          background: var(--ob-purple-soft);
-          color: var(--ob-purple);
-        }
-        .reviewer {
-          display: block;
-          margin-top: 9px;
-          color: var(--ob-text);
-          font-size: 13px;
-        }
-        .review-comment {
-          margin: 5px 0;
-          color: var(--ob-text);
-          font-size: 14px;
-          line-height: 1.45;
-        }
-        .review time {
-          color: var(--ob-muted);
-          font-size: 11.5px;
-        }
-        .review-empty,
-        .review-error {
-          margin: 0;
-          padding: 14px;
-          border-radius: 11px;
-          background: var(--ob-surface-soft);
-          color: var(--ob-muted);
-          font-size: 13.5px;
-        }
-        .review-error {
-          color: #b0384f;
-        }
-        label {
-          display: block;
-          font-size: 13.5px;
-          color: var(--ob-muted);
-          margin: 0 0 6px;
-        }
-        input,
-        textarea {
-          width: 100%;
-          box-sizing: border-box;
-          padding: 12px 14px;
-          border: 1.5px solid var(--ob-border);
-          border-radius: 12px;
-          font: inherit;
-          font-size: 15.5px;
-          background: var(--ob-surface-soft);
-          color: var(--ob-text);
-          margin-bottom: 18px;
-          resize: vertical;
-        }
-        input:disabled {
-          background: var(--ob-surface-soft);
-          color: var(--ob-muted);
-        }
-        input:focus-visible,
-        textarea:focus-visible {
-          outline: none;
-          border-color: #2f4a3a;
-        }
-        .cta {
-          background: #2f4a3a;
-          color: #fbf7f0;
-          border: none;
-          border-radius: 999px;
-          padding: 13px 26px;
-          font: inherit;
-          font-weight: 600;
-          font-size: 15px;
-          cursor: pointer;
-          text-decoration: none;
-          display: inline-block;
-        }
-        .cta:disabled {
-          opacity: 0.65;
-          cursor: wait;
-        }
-        .msg {
-          background: var(--ob-mint);
-          color: var(--ob-success-text);
-          padding: 12px 14px;
-          border-radius: 10px;
-          font-size: 14.5px;
-          margin: 16px 0 0;
-        }
-        .muted {
-          color: var(--ob-muted);
-        }
-        .links {
-          display: flex;
-          gap: 18px;
-          margin-top: 30px;
-        }
-        .links a {
-          color: var(--ob-purple);
-          font-size: 14px;
-          text-decoration: none;
-        }
-      `}</style>
-    </main>
-  );
+    </div><aside className={styles.aside} aria-label="Account at a glance"><div className={styles.asideCard}><p className={styles.eyebrow}>At a glance</p><h2>A little more you</h2><div><span><Home size={16} /> Saved addresses</span><strong>{account.addresses.length}</strong></div><div><span><Heart size={16} /> Favourites</span><strong>{favourites.length}</strong></div><div><span><Bell size={16} /> Visits</span><strong>{visits.length}</strong></div><Link href="/account">See your bookings <ArrowRight size={15} /></Link></div><div className={styles.workerCard}><small>Work with Opulence Bliss</small><h2>Offer your services too?</h2><p>Explore becoming a professional while keeping your customer account.</p><Link href="/provider/join">Explore professional work <ArrowRight size={15} /></Link></div></aside></div>
+  </main>;
 }
+
+function Heading({ icon: Icon, kicker, title, id, detail, action }: { icon: typeof UserRound; kicker: string; title: string; id: string; detail: string; action?: React.ReactNode }) { return <div className={styles.sectionHeader}><span className={styles.sectionIcon}><Icon size={20} /></span><div><p>{kicker}</p><h2 id={id}>{title}</h2><small>{detail}</small></div>{action && <span className={styles.sectionAction}>{action}</span>}</div>; }
+function Empty({ icon: Icon, title, text }: { icon: typeof MapPin; title: string; text: string }) { return <div className={styles.empty}><Icon size={24} /><strong>{title}</strong><p>{text}</p></div>; }
+function Toggle({ title, detail, checked, onChange }: { title: string; detail: string; checked: boolean; onChange: (value: boolean) => void }) { return <label className={styles.toggle}><span><strong>{title}</strong><small>{detail}</small></span><input type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} /></label>; }
