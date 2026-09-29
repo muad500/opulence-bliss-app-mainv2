@@ -29,9 +29,8 @@ export async function PATCH(request: NextRequest, { params }: Context) {
   if (body.comment !== undefined && body.comment !== null && typeof body.comment !== "string") return accountError("Enter a review comment.");
   const comment = body.comment === undefined ? review.comment : String(body.comment ?? "").trim();
   if (comment && comment.length > 2000) return accountError("Keep the review under 2,000 characters.");
-  const effectiveVisibility = review.reviewer === "client" && Number(rating) < 4 ? "private" : visibility;
   const { data: updated, error } = await ctx.admin.from("reviews")
-    .update({ rating, comment: comment || null, visibility: effectiveVisibility })
+    .update({ rating, comment: comment || null, visibility })
     .eq("id", id).select("id,booking_id,reviewer,rating,comment,visibility,created_at").single();
   if (error) return accountError("Review could not be updated.", 503);
   return NextResponse.json({ ok: true, review: {
