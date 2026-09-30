@@ -149,7 +149,7 @@ export default function HandymanPage() {
                 alt="Handyman preparing tools for work in a home"
                 fill
                 priority
-                sizes="(max-width: 800px) 100vw, 400px"
+                sizes="(max-width: 900px) 100vw, 560px"
                 style={{ objectFit: "cover", objectPosition: "center 45%" }}
               />
             </div>
@@ -343,7 +343,7 @@ export default function HandymanPage() {
         .page { color:#16202a; font-family:"Nunito",system-ui,sans-serif; }
         .inner { width:min(1120px,calc(100% - 40px)); margin:0 auto; }
         .hero { overflow:hidden; padding:72px 0; background:linear-gradient(120deg,#fff5d8 0%,#f8eaf8 52%,#eee7ff 100%); }
-        .heroGrid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr); gap:48px; align-items:center; }
+        .heroGrid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:40px; align-items:center; }
         .eyebrow { margin:0 0 9px; color:#6d28d9; font-size:12px; font-weight:900; letter-spacing:.13em; text-transform:uppercase; }
         h1 { max-width:780px; margin:0 0 18px; font-size:clamp(38px,6vw,66px); font-weight:900; letter-spacing:-.035em; line-height:1.02; }
         h2 { margin:0 0 16px; font-size:clamp(28px,4vw,40px); font-weight:900; line-height:1.1; }
@@ -409,24 +409,30 @@ export default function HandymanPage() {
         .gateActions a.secondary { background:#fff; color:#6d28d9; }
         @media (max-width:900px) {
           .page { padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
-          .heroGrid { position:relative; display:block; isolation:isolate; }
+          .heroGrid { position:relative; display:block; isolation:isolate; padding-bottom:240px; }
           .heroGrid > div:first-child { position:relative; z-index:1; max-width:680px; }
-          .heroVisual { margin-top:24px; }
+          .heroVisual { position:absolute; inset:0; z-index:0; display:block; margin:0; pointer-events:none; }
           .heroPhoto {
             position:absolute;
             inset:-72px -20px -72px auto;
-            z-index:-1;
             width:min(58%,480px);
             height:auto;
             aspect-ratio:auto;
             border-radius:0;
             box-shadow:none;
-            opacity:.38;
+            opacity:.72;
             -webkit-mask-image:linear-gradient(to right,transparent,#000 45%);
             mask-image:linear-gradient(to right,transparent,#000 45%);
-            pointer-events:none;
           }
-          .heroCard { position:relative; z-index:1; max-width:480px; }
+          .heroCard {
+            position:absolute;
+            right:0;
+            bottom:0;
+            z-index:1;
+            width:min(46%,460px);
+            padding:16px 18px;
+            background:rgba(255,255,255,.92);
+          }
           .hero .primary { display:none; }
           .mobileCta {
             position:fixed;
@@ -460,17 +466,29 @@ export default function HandymanPage() {
           .quoteGrid,.faqGrid { grid-template-columns:1fr; }
         }
         @media (max-width:800px) { .taskGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width:700px) {
+          .hero .lede {
+            margin-left:-8px;
+            padding:6px 8px;
+            border-radius:12px;
+            background:rgba(255,250,245,.7);
+            color:#303840;
+          }
+          .heroPhoto {
+            inset:-72px -20px -72px -20px;
+            width:auto;
+            height:auto;
+            opacity:.54;
+            -webkit-mask-image:none;
+            mask-image:none;
+          }
+          .heroGrid { padding-bottom:190px; }
+          .heroCard { right:0; left:0; width:auto; }
+        }
         @media (max-width:560px) {
           .inner { width:min(100% - 28px,1120px); }
           .hero { padding:50px 0; }
-          .heroPhoto {
-            inset:-50px -14px auto -14px;
-            width:auto;
-            height:320px;
-            opacity:.19;
-            -webkit-mask-image:linear-gradient(to bottom,#000,transparent 100%);
-            mask-image:linear-gradient(to bottom,#000,transparent 100%);
-          }
+          .heroPhoto { inset:-50px -14px -50px -14px; }
           .taskGrid,.two { grid-template-columns:1fr; }
           .services,.quoteBand { padding-top:54px; padding-bottom:60px; }
           .quoteForm,.success { padding:21px 17px; }

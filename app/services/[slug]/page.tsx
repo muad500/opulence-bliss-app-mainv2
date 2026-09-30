@@ -1327,7 +1327,7 @@ export default function ServicePage() {
             margin: 0;
             border-radius: 0;
             box-shadow: none;
-            opacity: 0.38;
+            opacity: 0.68;
             -webkit-mask-image: linear-gradient(to right, transparent, #000 45%);
             mask-image: linear-gradient(to right, transparent, #000 45%);
             pointer-events: none;
@@ -1510,7 +1510,7 @@ export default function ServicePage() {
             inset: -52px -16px auto -16px;
             width: auto;
             height: 320px;
-            opacity: 0.19;
+            opacity: 0.55;
             -webkit-mask-image: linear-gradient(to bottom, #000, transparent 100%);
             mask-image: linear-gradient(to bottom, #000, transparent 100%);
           }
