@@ -1152,3 +1152,14 @@ dd,
     bottom: calc(80px + env(safe-area-inset-bottom)) !important;
   }
 }
+
+/* Keep chat above the fixed service actions on narrow screens. */
+@media (max-width: 900px) {
+  body:has(.mobile-service-cta) .support-chat-fab,
+  body:has(.mobile-service-cta) .support-chat-panel {
+    bottom: calc(92px + env(safe-area-inset-bottom)) !important;
+  }
+  body:has(.mobile-service-cta) .support-chat-panel {
+    max-height: calc(100dvh - 108px - env(safe-area-inset-bottom)) !important;
+  }
+}
