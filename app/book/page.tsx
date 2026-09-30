@@ -29,6 +29,7 @@ type Pkg = {
 };
 
 type Area = { name: string; postcode_prefixes: string[] };
+type SavedAddress = { id: string; label: string; isDefault: boolean; line1: string; line2: string; city: string; postcode: string; propertyType: string; bedrooms: number | null; bathrooms: number | null };
 
 const STEPS = ["Address", "Session", "Frequency", "Hours", "Time", "Confirm"];
 
@@ -98,6 +99,8 @@ export default function BookPage() {
   const [step, setStep] = useState(0);
   const [postcode, setPostcode] = useState("");
   const [address, setAddress] = useState("");
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [savedAddressId, setSavedAddressId] = useState("");
   const [gate, setGate] = useState<null | { ok: boolean; area?: string }>(null);
   const [selected, setSelected] = useState<Pkg | null>(null);
 
@@ -113,6 +116,16 @@ export default function BookPage() {
   const minutes = cleaning ? cleaningMinutes : selected?.duration_minutes ?? 120;
   const addressValid = address.trim().length >= 5;
   const home = parseCleaningHome({ propertyType, bedrooms, bathrooms });
+  function applySavedAddress(place: SavedAddress) {
+    setSavedAddressId(place.id);
+    setAddress([place.line1, place.line2, place.city].filter(Boolean).join(", "));
+    setPostcode(place.postcode);
+    const kind = place.propertyType?.toLowerCase();
+    setPropertyType(["studio", "flat", "house", "other"].includes(kind) ? kind as PropertyType : "other");
+    setBedrooms(place.bedrooms != null && place.bedrooms <= 8 ? place.bedrooms : "");
+    setBathrooms(place.bathrooms != null && place.bathrooms >= 1 && place.bathrooms <= 8 ? place.bathrooms : "");
+    setGate(null); setSlot(null); setOptionalSlots([]);
+  }
 
   const [slots, setSlots] = useState<string[] | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
@@ -182,11 +195,29 @@ export default function BookPage() {
         setSavedPhone(p?.phone ?? "");
         const { data: cleaners } = await supabase.rpc("my_previous_cleaners");
         setPreviousCleaners(cleaners ?? []);
-        if (p?.postcode) {
+        const response = await fetch("/api/account/profile", { cache: "no-store" });
+        if (response.ok) {
+          const account = await response.json();
+          const saved = (account.addresses ?? []) as SavedAddress[];
+          setSavedAddresses(saved);
+          const defaultPlace = saved.find((place) => place.isDefault);
+          if (defaultPlace) {
+            applySavedAddress(defaultPlace);
+            savedPc = defaultPlace.postcode;
+            savedAddress = [defaultPlace.line1, defaultPlace.line2, defaultPlace.city].filter(Boolean).join(", ");
+          }
+          const merged = new Map<string, { provider_id: string; display_name: string }>((cleaners ?? []).map((cleaner: { provider_id: string; display_name: string }) => [cleaner.provider_id, cleaner]));
+          for (const favourite of account.favourites ?? []) merged.set(favourite.providerId, { provider_id: favourite.providerId, display_name: `${favourite.displayName} (favourite)` });
+          const options = Array.from(merged.values());
+          setPreviousCleaners(options);
+          const requested = new URLSearchParams(window.location.search).get("preferred");
+          if (requested && options.some((cleaner) => cleaner.provider_id === requested)) setPreferredCleaner(requested);
+        }
+        if (p?.postcode && !savedPc) {
           savedPc = p.postcode;
           setPostcode(p.postcode);
         }
-        if (p?.address) {
+        if (p?.address && !savedAddress) {
           savedAddress = p.address;
           setAddress(p.address);
         }
@@ -200,7 +231,7 @@ export default function BookPage() {
       const reviewHandoff = q.get("review") === "1";
 
       if (wantType === "clean") setServiceType("clean");
-      if (wantPc) setPostcode(wantPc);
+      if (wantPc) { setPostcode(wantPc); if (wantPc.replace(/\s/g, "").toUpperCase() !== savedPc?.replace(/\s/g, "").toUpperCase()) setSavedAddressId(""); }
 
       // Already know where they live? Verify it quietly — no need to ask again.
       const pcToCheck = wantPc ?? savedPc;
@@ -423,6 +454,7 @@ export default function BookPage() {
           durationMinutes: minutes,
           regularVisits: frequency === "one_time" ? undefined : regularVisits,
           address,
+          savedAddressId: savedAddressId || undefined,
           frequency,
           preferredProviderId: cleaning ? preferredCleaner || null : null,
           postcode,
@@ -548,12 +580,22 @@ export default function BookPage() {
               <h1>Where should we clean?</h1>
               <p className="lede">Start with the address for this visit.</p>
 
+              {savedAddresses.length > 0 && <label className="label">Saved address
+                <select value={savedAddressId} onChange={(event) => {
+                  const place = savedAddresses.find((item) => item.id === event.target.value);
+                  if (place) applySavedAddress(place); else { setSavedAddressId(""); setAddress(""); setPostcode(""); setGate(null); }
+                }} style={{ display: "block", width: "100%", padding: 14, margin: "10px 0 18px", borderRadius: 12, border: "1px solid #e5e1ef", background: "white" }}>
+                  <option value="">Enter a different address</option>
+                  {savedAddresses.map((place) => <option key={place.id} value={place.id}>{place.label} · {place.postcode}{place.isDefault ? " (default)" : ""}</option>)}
+                </select>
+                {savedAddressId && <small>Saved home and access details will be included for your assigned professional.</small>}
+              </label>}
               <p className="label">Full service address</p>
               <input
                 className="field bigAddress"
                 placeholder="e.g. 21 Baker Street, London"
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
+                onChange={(e) => { setAddress(e.target.value); setSavedAddressId(""); }}
                 autoComplete="street-address"
                 aria-label="Full service address"
               />
@@ -566,6 +608,7 @@ export default function BookPage() {
                   value={postcode}
                   onChange={(e) => {
                     setPostcode(e.target.value);
+                    setSavedAddressId("");
                     setGate(null);
                   }}
                   onKeyDown={(e) => e.key === "Enter" && checkPostcode()}
@@ -840,7 +883,7 @@ export default function BookPage() {
 
               {previousCleaners.length > 0 && (
                 <div className="previousCleaner">
-                  <label className="label" htmlFor="preferred-cleaner">Request a previous cleaner (optional)</label>
+                  <label className="label" htmlFor="preferred-cleaner">Request a favourite or previous cleaner (optional)</label>
                   <select id="preferred-cleaner" className="field" value={preferredCleaner} onChange={(e) => setPreferredCleaner(e.target.value)}>
                     <option value="">Match me with any available cleaner</option>
                     {previousCleaners.map((p) => <option key={p.provider_id} value={p.provider_id}>{p.display_name}</option>)}

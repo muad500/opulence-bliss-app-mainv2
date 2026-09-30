@@ -41,11 +41,11 @@ export async function accountContext(
   const admin = createAdminClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: profile, error: profileError } = await admin
     .from("profiles")
-    .select("role")
+    .select("role,account_deleted_at")
     .eq("id", user.id)
     .maybeSingle();
   if (profileError) return accountError("Account could not be loaded.", 503);
-  if (!profile || profile.role === "admin") return accountError("This account area is unavailable.", 403);
+  if (!profile || profile.role === "admin" || profile.account_deleted_at) return accountError("This account area is unavailable.", 403);
   const { data: provider, error: providerError } = await admin
     .from("providers")
     .select("id")

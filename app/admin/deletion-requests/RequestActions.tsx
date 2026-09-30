@@ -38,9 +38,9 @@ function DecisionForm({ id, nextStatus }: { id: string; nextStatus: "completed" 
     <form action={action} className={styles.actionForm}>
       <input type="hidden" name="requestId" value={id} />
       <input type="hidden" name="nextStatus" value={nextStatus} />
-      <h3>{completed ? "Complete request" : "Decline request"}</h3>
+      <h3>{completed ? "Erase reviewed account" : "Decline request"}</h3>
       <p>{completed
-        ? "Use this only after the separate account and data work is finished. This button records the outcome; it does not delete anything."
+        ? "This permanently removes sign-in, private profile details and uploaded documents. Closed transaction and agreement records are retained. Unfinished bookings or unsettled payments block erasure."
         : "Use this when the request cannot be fulfilled, and explain the reason."}</p>
       <label className={styles.noteLabel}>
         Outcome note
@@ -49,12 +49,12 @@ function DecisionForm({ id, nextStatus }: { id: string; nextStatus: "completed" 
       <p className={styles.noteHint}>Use factual wording. This note is included in the account holder&apos;s data export.</p>
       {completed && (
         <label className={styles.confirmLabel}>
-          <input type="checkbox" name="workConfirmed" value="yes" required />
-          <span>I have completed the separate account and data work.</span>
+          <span>Type ERASE ACCOUNT to confirm</span>
+          <input name="erasureConfirmed" required pattern="ERASE ACCOUNT" autoComplete="off" />
         </label>
       )}
       <button className={completed ? styles.primaryButton : styles.secondaryButton} disabled={pending} type="submit">
-        {pending ? "Saving…" : completed ? "Mark completed" : "Decline with reason"}
+        {pending ? "Saving…" : completed ? "Erase account" : "Decline with reason"}
       </button>
       {state.message && <p className={state.ok ? styles.success : styles.error} role="status">{state.message}</p>}
     </form>

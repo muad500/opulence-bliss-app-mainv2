@@ -18,7 +18,7 @@ async function loadWorkerProfile(ctx: AccountContext) {
     ctx.admin.from("provider_onboarding_details").select("date_of_birth,utr_number,resident_status,right_to_work,weekly_availability,preferred_weekly_hours").eq("provider_id", providerId).maybeSingle(),
     ctx.admin.from("provider_profile_settings").select("*").eq("provider_id", providerId).maybeSingle(),
     ctx.admin.from("provider_verification_items").select("document_type,label,status,reference,issued_at,expires_at,checked_at,next_check_at,uploaded_at,document_original_name,document_storage_path,review_note").eq("provider_id", providerId).order("created_at", { ascending: false }),
-    ctx.admin.from("provider_dbs_checks").select("status,issue_date,review_note,uploaded_at,certificate_storage_path").eq("provider_id", providerId).maybeSingle(),
+    ctx.admin.from("provider_dbs_checks").select("status,certificate_number,issue_date,review_note,uploaded_at,reviewed_at,certificate_storage_path").eq("provider_id", providerId).maybeSingle(),
     ctx.admin.from("provider_task_rates").select("task_name,hourly_rate_pence").eq("provider_id", providerId),
     ctx.admin.from("provider_time_off").select("id,starts_at,ends_at,note").eq("provider_id", providerId).gte("ends_at", new Date().toISOString()).order("starts_at"),
     ctx.admin.from("account_legal_acceptances").select("document_slug,version,accepted_at").eq("user_id", ctx.user.id),
@@ -50,8 +50,8 @@ async function loadWorkerProfile(ctx: AccountContext) {
     const dbs = dbsResult.data;
     verification.push({
       type: "dbs", label: "DBS check", status: dbs.status === "failed" ? "rejected" : dbs.status,
-      reference: null, issuedAt: dbs.issue_date, expiresAt: null,
-      lastCheckedAt: null, nextCheckAt: null, uploadedAt: dbs.uploaded_at,
+      reference: dbs.certificate_number, issuedAt: dbs.issue_date, expiresAt: null,
+      lastCheckedAt: dbs.reviewed_at, nextCheckAt: dbs.reviewed_at ? new Date(new Date(dbs.reviewed_at).setUTCFullYear(new Date(dbs.reviewed_at).getUTCFullYear() + 1)).toISOString().slice(0, 10) : null, uploadedAt: dbs.uploaded_at,
       originalName: null, hasDocument: !!dbs.certificate_storage_path,
       reviewNote: dbs.review_note,
     });
@@ -74,7 +74,7 @@ async function loadWorkerProfile(ctx: AccountContext) {
       residentStatus: application?.resident_status ?? null,
     },
     publicProfile: {
-      displayName: provider.display_name ?? "", photoUrl: provider.photo_url ?? "",
+      displayName: provider.display_name ?? "", photoUrl: settings?.photo_storage_path ? (await ctx.admin.storage.from("profile-photos").createSignedUrl(settings.photo_storage_path, 3600)).data?.signedUrl ?? "" : provider.photo_url ?? "",
       bio: provider.bio ?? "", languages: settings?.languages ?? [],
       yearsExperience: provider.years_experience ?? null, services: provider.services ?? [],
       equipmentProvided: settings?.brings_equipment ?? false,

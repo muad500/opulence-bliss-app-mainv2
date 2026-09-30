@@ -93,7 +93,7 @@ export default async function AdminDeletionRequestsPage() {
         <div className={styles.heading}>
           <div>
             <h1>Account deletion requests</h1>
-            <p className={styles.intro}>Review each request, check active bookings and required record retention, then record the outcome. Changing a status here does not delete an account or its data.</p>
+            <p className={styles.intro}>Review each request and required record retention. Erasure removes sign-in and private profile data after bookings, payments and open cases are resolved.</p>
           </div>
           <span className={styles.count}>{pendingCount} pending · {open.length - pendingCount} in review</span>
         </div>
