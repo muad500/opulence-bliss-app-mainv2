@@ -195,9 +195,9 @@ export default function BookPage() {
         setSavedPhone(p?.phone ?? "");
         const { data: cleaners } = await supabase.rpc("my_previous_cleaners");
         setPreviousCleaners(cleaners ?? []);
-        const response = await fetch("/api/account/profile", { cache: "no-store" });
-        if (response.ok) {
-          const account = await response.json();
+        const response = await fetch("/api/account/profile", { cache: "no-store" }).catch(() => null);
+        if (response?.ok) {
+          const account = await response.json().catch(() => ({ addresses: [], favourites: [] }));
           const saved = (account.addresses ?? []) as SavedAddress[];
           setSavedAddresses(saved);
           const defaultPlace = saved.find((place) => place.isDefault);
