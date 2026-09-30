@@ -10,6 +10,8 @@ const LINKS = [
   ["/admin/quotes", "Handyman quotes"],
   ["/admin/customers", "Customers"],
   ["/admin/cleaners", "Cleaners"],
+  ["/admin/deletion-requests", "Account requests"],
+  ["/admin/incidents", "Problems & incidents"],
   ["/admin/reviews", "Reviews"],
   ["/admin/faqs", "FAQs"],
   ["/admin/chat-flags", "Chat safety"],

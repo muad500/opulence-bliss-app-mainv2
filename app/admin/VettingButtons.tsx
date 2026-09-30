@@ -2,18 +2,32 @@
 
 // Approve / reject a provider. Save at: app/admin/VettingButtons.tsx
 
-import { useState, useTransition } from "react";
-import { approveProvider, rejectProvider } from "./actions";
+import { useEffect, useState, useTransition } from "react";
+import { approveProvider, getProviderApprovalRequirements, rejectProvider } from "./actions";
 
 export default function VettingButtons({
   id,
   dbsVerified,
+  verificationRevision,
 }: {
   id: string;
   dbsVerified: boolean;
+  verificationRevision?: string;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [missing, setMissing] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    void getProviderApprovalRequirements(id).then(
+      (items) => { if (live) { setMissing(items); setError(null); } },
+      (reason) => { if (live) { setMissing(null); setError(reason instanceof Error ? reason.message : "Could not check approval requirements."); } },
+    );
+    return () => { live = false; };
+  }, [id, dbsVerified, verificationRevision]);
+
+  const canApprove = missing !== null && missing.length === 0;
 
   const base: React.CSSProperties = {
     borderRadius: 999,
@@ -29,8 +43,8 @@ export default function VettingButtons({
     <div style={{ display: "grid", gap: 6 }}>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         <button
-          disabled={pending || !dbsVerified}
-          title={dbsVerified ? "Approve professional" : "Verify DBS before approval"}
+          disabled={pending || !canApprove}
+          title={canApprove ? "Approve professional" : "Complete identity and DBS checks before approval"}
           onClick={() => {
             setError(null);
             start(async () => {
@@ -43,11 +57,11 @@ export default function VettingButtons({
           }}
           style={{
             ...base,
-            background: dbsVerified ? "#2f4a3a" : "#d9dde2",
-            color: dbsVerified ? "#fbf7f0" : "#7a828c",
+            background: canApprove ? "#2f4a3a" : "#d9dde2",
+            color: canApprove ? "#fbf7f0" : "#7a828c",
             border: "none",
-            cursor: pending ? "wait" : dbsVerified ? "pointer" : "not-allowed",
-            opacity: pending ? 0.6 : dbsVerified ? 1 : 0.85,
+            cursor: pending ? "wait" : canApprove ? "pointer" : "not-allowed",
+            opacity: pending ? 0.6 : canApprove ? 1 : 0.85,
           }}
         >
           {pending ? "…" : "Approve"}
@@ -75,9 +89,10 @@ export default function VettingButtons({
           Reject
         </button>
       </div>
-      {!dbsVerified ? (
+      {missing === null && !error ? <small style={{ color: "#8a5a00", fontWeight: 800 }}>Checking approval requirements…</small> : null}
+      {missing?.length ? (
         <small style={{ color: "#8a5a00", fontWeight: 800 }}>
-          Verify DBS before approval.
+          Verify {missing.join(", ")} before approval.
         </small>
       ) : null}
       {error ? (

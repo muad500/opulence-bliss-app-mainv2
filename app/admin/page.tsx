@@ -102,6 +102,7 @@ export default async function AdminPage() {
             ["/admin/bookings", "Bookings & schedule", "View bookings and make audited time changes."],
             ["/admin/customers", "Customers", "Contact details and booking history."],
             ["/admin/cleaners", "Cleaners", "Approvals, availability and workload."],
+            ["/admin/deletion-requests", "Account requests", "Review and record account deletion requests."],
             ["/admin/legal", "Legal content", "Edit the customer terms, privacy policy and professional agreement."],
             ["/admin/review", "Reports", "Cases, payment blocks and reconciliation."],
           ].map(([href, label, copy]) => (

@@ -28,16 +28,6 @@ export default async function AccountLayout({
     .select("role, full_name")
     .eq("id", user.id)
     .maybeSingle();
-  if (prof?.role === "provider")
-    return (
-      <Gate
-        emoji="🧹"
-        title="This is the customer area"
-        body="You're signed in as a provider — your jobs and hours are in the provider portal."
-        href="/worker"
-        cta="Go to my jobs"
-      />
-    );
   if (prof?.role === "admin")
     return (
       <Gate
@@ -48,10 +38,15 @@ export default async function AccountLayout({
         cta="Go to control panel"
       />
     );
+  const { data: provider } = await supabase
+    .from("providers")
+    .select("id")
+    .eq("profile_id", user.id)
+    .maybeSingle();
   return (
     <div className="portal-shell account-shell" style={shell}>
       <PortalLiveSync userId={user.id} />
-      <ClientNav name={prof?.full_name ?? ""} email={user.email ?? ""} />
+      <ClientNav name={prof?.full_name ?? ""} email={user.email ?? ""} hasProfessionalAccount={!!provider} />
       <div className="portal-main" style={main}>
         {children}
       </div>

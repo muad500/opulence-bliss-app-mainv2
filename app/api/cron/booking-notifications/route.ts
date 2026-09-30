@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   }
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const key = process.env.RESEND_API_KEY;
-  const from = process.env.BOOKING_EMAIL_FROM;
+  const from = process.env.BOOKING_EMAIL_FROM ?? process.env.EMAIL_FROM;
   const origin = process.env.NEXT_PUBLIC_SITE_URL;
   const ready = Boolean(key && from && /(?:^|<|\s)no-?reply@/i.test(from) && origin?.startsWith("https://"));
   const { data, error } = await admin.rpc("claim_booking_emails", { p_email_ready: ready });
@@ -24,6 +24,13 @@ export async function GET(req: NextRequest) {
     let ok = false;
     let failure: string | null = null;
     try {
+      const { data: permitted, error: preferenceError } = await admin.rpc("booking_email_preference_allowed", { p_id: delivery.id });
+      if (preferenceError) throw new Error("Notification preferences could not be checked.");
+      if (permitted !== true) {
+        const { error: skipError } = await admin.rpc("skip_booking_email", { p_id: delivery.id, p_token: delivery.claim_token });
+        if (skipError) failed++;
+        return;
+      }
       if (!ready) throw new Error("Configure RESEND_API_KEY, a verified no-reply BOOKING_EMAIL_FROM, and HTTPS NEXT_PUBLIC_SITE_URL.");
       if (!delivery.email) throw new Error("Customer email is missing.");
       const response = await fetch("https://api.resend.com/emails", {

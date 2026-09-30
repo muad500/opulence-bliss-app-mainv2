@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -56,9 +57,9 @@ export default function AdminLoginPage() {
   return (
     <main className="wrap">
       <section className="card">
-        <a className="brand" href="/">
+        <Link className="brand" href="/">
           Opulence Bliss
-        </a>
+        </Link>
         <span className="icon">
           <ShieldCheck size={27} />
         </span>
