@@ -510,7 +510,7 @@ export default function ProviderJoinPage() {
                 ← Back
               </button>
               <p className="form-kicker">Professional application</p>
-              <h2 className="meet-heading">Let&apos;s meet!</h2>
+              <h2 className="meet-heading">Personal details</h2>
               <p className="section-intro">
                 {existingUserId ? "Use your current account to apply as a cleaner. Your client bookings stay available." : "Tell us who you are to start your cleaner application."}
               </p>
