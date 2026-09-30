@@ -36,7 +36,7 @@ export default function VerificationDocuments({ checks, services, onUploaded }: 
   const types = PROVIDER_DOCUMENT_TYPES.filter((type) => type !== "trade_certificate" || services.includes("handyman"));
   const dbs = checks.find((item) => item.type === "dbs");
 
-  async function upload(event: FormEvent<HTMLFormElement>, type: ProviderDocumentType) {
+  async function upload(event: FormEvent<HTMLFormElement>, type: ProviderDocumentType | "dbs") {
     event.preventDefault();
     const form = event.currentTarget;
     const data = new FormData(form);
@@ -66,13 +66,15 @@ export default function VerificationDocuments({ checks, services, onUploaded }: 
           <span className={`${styles.status} ${check ? styles[check.status] : styles.notSubmitted}`}>{check?.status ?? "Not submitted"}</span>
         </div>
         {check?.expiresAt && <small>Expires {dateText(check.expiresAt)}</small>}
+        {check?.reference && <small>Share code: {check.reference}</small>}
         {check?.nextCheckAt && <small>Re-check due {dateText(check.nextCheckAt)}</small>}
         {check?.reviewNote && <p className={styles.documentNote}>Review note: {check.reviewNote}</p>}
         {check?.hasDocument && <a className={styles.documentLink} href={`/api/account/verification-document?type=${type}`} target="_blank" rel="noopener noreferrer">View uploaded document ↗</a>}
         <details className={styles.documentUpload}>
           <summary>{check?.hasDocument ? "Replace document" : "Upload document"}</summary>
           <form onSubmit={(event) => void upload(event, type)}>
-            <label>PDF, JPEG or PNG, up to 8 MB<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+            {type === "right_to_work" && <label>Right-to-work share code (optional if providing visa evidence)<input name="reference" maxLength={9} placeholder="9 characters" autoComplete="off" /></label>}
+            <label>PDF, JPEG or PNG, up to 4 MB<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
             <div className={styles.documentDates}>
               <label>Issue date <input type="date" name="issuedAt" defaultValue={check?.issuedAt ?? ""} /></label>
               <label>Expiry date {type === "public_liability_insurance" ? "(required)" : "(if applicable)"}<input type="date" name="expiresAt" defaultValue={check?.expiresAt ?? ""} required={type === "public_liability_insurance"} /></label>
@@ -86,7 +88,19 @@ export default function VerificationDocuments({ checks, services, onUploaded }: 
     <article className={styles.documentCard}>
       <div className={styles.documentTop}><div><strong>DBS check</strong><span>{dbs?.status === "verified" ? "Certificate copy deleted after verification" : dbs?.uploadedAt ? "Certificate submitted" : "No certificate on file"}</span></div><span className={`${styles.status} ${dbs ? styles[dbs.status] : styles.notSubmitted}`}>{dbs?.status ?? "Not submitted"}</span></div>
       {dbs?.reviewNote && <p className={styles.documentNote}>Review note: {dbs.reviewNote}</p>}
-      <p className={styles.help}>DBS copies are removed after checking. Contact support if you need to replace a DBS certificate.</p>
+      {dbs?.reference && <small>Certificate number: {dbs.reference}</small>}
+      {dbs?.issuedAt && <small>Issued {dateText(dbs.issuedAt)}</small>}
+      {dbs?.nextCheckAt && <small>Annual re-check due {dateText(dbs.nextCheckAt)}</small>}
+      <p className={styles.help}>DBS copies are removed after checking. We remind you before your annual re-check.</p>
+      <details className={styles.documentUpload}><summary>{dbs ? "Submit updated certificate" : "Upload DBS certificate"}</summary>
+        <form onSubmit={(event) => void upload(event, "dbs")}>
+          <label>Certificate number<input name="reference" inputMode="numeric" pattern="[0-9]{12}" maxLength={12} required /></label>
+          <label>Issue date<input type="date" name="issuedAt" required /></label>
+          <label>PDF, JPEG or PNG, up to 4 MB<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+          <button className={styles.secondaryButton} type="submit" disabled={busy !== null}>{busy === "dbs" ? "Uploading…" : "Submit for review"}</button>
+        </form>
+      </details>
+      {feedback.dbs && <p role="status" className={feedback.dbs.error ? styles.errorNotice : styles.successNotice}>{feedback.dbs.text}</p>}
     </article>
   </div>;
 }

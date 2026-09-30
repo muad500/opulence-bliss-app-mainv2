@@ -24,6 +24,13 @@ export async function GET(req: NextRequest) {
     let ok = false;
     let failure: string | null = null;
     try {
+      const { data: permitted, error: preferenceError } = await admin.rpc("booking_email_preference_allowed", { p_id: delivery.id });
+      if (preferenceError) throw new Error("Notification preferences could not be checked.");
+      if (permitted !== true) {
+        const { error: skipError } = await admin.rpc("skip_booking_email", { p_id: delivery.id, p_token: delivery.claim_token });
+        if (skipError) failed++;
+        return;
+      }
       if (!ready) throw new Error("Configure RESEND_API_KEY, a verified no-reply BOOKING_EMAIL_FROM, and HTTPS NEXT_PUBLIC_SITE_URL.");
       if (!delivery.email) throw new Error("Customer email is missing.");
       const response = await fetch("https://api.resend.com/emails", {
