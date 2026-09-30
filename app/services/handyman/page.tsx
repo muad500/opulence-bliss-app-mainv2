@@ -465,6 +465,13 @@ export default function HandymanPage() {
           .mobileCtaQuote { color:#fff; background:linear-gradient(100deg,#f5c542,#c86fc9 55%,#7b2ff7); }
           .quoteGrid,.faqGrid { grid-template-columns:1fr; }
         }
+        @media (min-width:701px) and (max-width:900px) {
+          .heroGrid { padding-bottom:200px; }
+          .heroGrid > div:first-child { max-width:52%; }
+          .hero h1 { font-size:clamp(34px,4.8vw,44px); line-height:1.08; }
+          .hero .lede { font-size:16px; line-height:1.5; }
+          .heroCard { right:auto; left:0; width:min(52%,430px); }
+        }
         @media (max-width:800px) { .taskGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
         @media (max-width:700px) {
           .hero { padding:24px 0 36px; }
