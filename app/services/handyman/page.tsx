@@ -467,28 +467,41 @@ export default function HandymanPage() {
         }
         @media (max-width:800px) { .taskGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
         @media (max-width:700px) {
-          .hero .lede {
-            margin-left:-8px;
-            padding:6px 8px;
-            border-radius:12px;
-            background:rgba(255,250,245,.7);
-            color:#303840;
-          }
+          .hero { padding:24px 0 36px; }
+          .heroGrid { display:flex; flex-direction:column; gap:22px; padding-bottom:0; }
+          .heroGrid > div:first-child { order:1; }
+          .heroVisual { position:relative; order:0; width:100%; height:230px; pointer-events:auto; }
           .heroPhoto {
-            inset:-72px -20px -72px -20px;
-            width:auto;
-            height:auto;
-            opacity:.54;
+            position:absolute;
+            inset:0;
+            width:100%;
+            height:100%;
+            border-radius:20px;
+            opacity:1;
             -webkit-mask-image:none;
             mask-image:none;
           }
-          .heroGrid { padding-bottom:190px; }
-          .heroCard { right:0; left:0; width:auto; }
+          .heroCard {
+            right:12px;
+            bottom:12px;
+            left:12px;
+            width:auto;
+            gap:3px;
+            padding:10px 13px;
+            border-radius:14px;
+            background:rgba(255,255,255,.95);
+            box-shadow:0 6px 22px rgba(22,32,42,.13);
+          }
+          .heroCard :global(svg) { display:none; }
+          .heroCard strong { font-size:14px; line-height:1.25; }
+          .heroCard span { font-size:12px; line-height:1.3; }
+          .hero .eyebrow { margin-bottom:8px; font-size:11px; line-height:1.35; }
+          .hero h1 { max-width:550px; margin-bottom:12px; font-size:clamp(30px,7.5vw,40px); line-height:1.08; }
+          .hero .lede { max-width:540px; margin:0; color:#4b5563; font-size:16px; line-height:1.5; }
         }
         @media (max-width:560px) {
           .inner { width:min(100% - 28px,1120px); }
-          .hero { padding:50px 0; }
-          .heroPhoto { inset:-50px -14px -50px -14px; }
+          .heroVisual { height:210px; }
           .taskGrid,.two { grid-template-columns:1fr; }
           .services,.quoteBand { padding-top:54px; padding-bottom:60px; }
           .quoteForm,.success { padding:21px 17px; }
