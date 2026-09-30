@@ -4,7 +4,7 @@
   flex-direction: column;
   width: 268px;
   height: 100dvh;
-  min-height: 640px;
+  min-height: 0;
   padding: 22px 15px 17px;
   position: sticky;
   top: 0;
@@ -16,6 +16,9 @@
   border-right: 1px solid var(--ob-border);
   box-shadow: 8px 0 30px var(--ob-shadow-soft);
   z-index: 20;
+}
+:global(body:has(.preproduction-banner)) .desktop {
+  height: calc(100dvh - 32px);
 }
 .brandRow { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 3px 18px; }
 .brand, .mobileBrand { color: var(--ob-text); text-decoration: none; font-family: Nunito, system-ui, sans-serif; font-size: 22px; font-weight: 950; letter-spacing: -.045em; line-height: 1; white-space: nowrap; }
