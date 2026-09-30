@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   }
   const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
   const key = process.env.RESEND_API_KEY;
-  const from = process.env.BOOKING_EMAIL_FROM;
+  const from = process.env.BOOKING_EMAIL_FROM ?? process.env.EMAIL_FROM;
   const origin = process.env.NEXT_PUBLIC_SITE_URL;
   const ready = Boolean(key && from && /(?:^|<|\s)no-?reply@/i.test(from) && origin?.startsWith("https://"));
   const { data, error } = await admin.rpc("claim_booking_emails", { p_email_ready: ready });
