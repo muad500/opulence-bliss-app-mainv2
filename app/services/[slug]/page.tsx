@@ -350,6 +350,15 @@ export default function ServicePage() {
         </div>
       </header>
 
+      <nav className="mobile-cta mobile-service-cta" aria-label="Cleaning quick actions">
+        <a className="mobile-cta-services" href="#cleaning-services">
+          See our services
+        </a>
+        <a className="mobile-cta-book" href={bookLink}>
+          Book my cleaning
+        </a>
+      </nav>
+
       {/* ---------- SERVICES ---------- */}
       <section className="services" id="cleaning-services">
         <div className="inner">
@@ -677,6 +686,7 @@ export default function ServicePage() {
 
         /* hero */
         .hero {
+          overflow: hidden;
           background: linear-gradient(120deg,#FFF8E6,#F6F1FF 55%,#EDE4FB);
           padding: 52px 0 58px;
         }
@@ -852,6 +862,9 @@ export default function ServicePage() {
           aspect-ratio: 4 / 5;
           border-radius: 20px;
           box-shadow: 0 18px 48px rgba(76, 29, 149, 0.14);
+        }
+        .mobile-cta {
+          display: none;
         }
 
         .business {
@@ -1291,12 +1304,84 @@ export default function ServicePage() {
 
 
         @media (max-width: 900px) {
+          .page {
+            padding-bottom: calc(84px + env(safe-area-inset-bottom));
+          }
           .hero-grid {
-            grid-template-columns: 1fr;
+            position: relative;
+            display: block;
+            isolation: isolate;
+          }
+          .hero-grid > div:first-child {
+            position: relative;
+            z-index: 1;
+            max-width: 680px;
           }
           .hero-art {
-            width: min(100%, 480px);
-            margin: 0 auto;
+            position: absolute;
+            inset: -52px -20px -58px auto;
+            z-index: -1;
+            width: min(58%, 480px);
+            height: auto;
+            aspect-ratio: auto;
+            margin: 0;
+            border-radius: 0;
+            box-shadow: none;
+            opacity: 0.38;
+            -webkit-mask-image: linear-gradient(to right, transparent, #000 45%);
+            mask-image: linear-gradient(to right, transparent, #000 45%);
+            pointer-events: none;
+          }
+          .composer .btn,
+          .hero-actions .hero-btn.primary {
+            display: none;
+          }
+          .composer input {
+            min-height: 44px;
+          }
+          .mobile-cta {
+            position: fixed;
+            inset: auto 0 0;
+            z-index: 50;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            padding: 10px max(16px, env(safe-area-inset-left))
+              calc(10px + env(safe-area-inset-bottom))
+              max(16px, env(safe-area-inset-right));
+            border-top: 1px solid rgba(109, 40, 217, 0.15);
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 -8px 28px rgba(22, 32, 42, 0.1);
+            backdrop-filter: blur(12px);
+          }
+          .mobile-cta a {
+            display: flex;
+            min-height: 48px;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 10px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 900;
+            line-height: 1.2;
+            text-align: center;
+            text-decoration: none;
+          }
+          .mobile-cta a:focus-visible {
+            outline: 3px solid #6d28d9;
+            outline-offset: 2px;
+          }
+          .mobile-cta-services {
+            border: 1.5px solid #6d28d9;
+            color: #6d28d9;
+            background: #fff;
+          }
+          .mobile-cta-book {
+            color: #fff;
+            background: linear-gradient(100deg,#f5c542,#c86fc9 55%,#7b2ff7);
+          }
+          .services {
+            scroll-margin-top: 90px;
           }
           .cards3 {
             grid-template-columns: 1fr;
@@ -1421,6 +1506,14 @@ export default function ServicePage() {
           }
         }
         @media (max-width: 620px) {
+          .hero-art {
+            inset: -52px -16px auto -16px;
+            width: auto;
+            height: 320px;
+            opacity: 0.19;
+            -webkit-mask-image: linear-gradient(to bottom, #000, transparent 100%);
+            mask-image: linear-gradient(to bottom, #000, transparent 100%);
+          }
           .reviews-layout {
             padding: 18px;
             border-radius: 19px;
