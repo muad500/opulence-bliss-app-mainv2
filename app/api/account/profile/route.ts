@@ -35,7 +35,7 @@ async function loadProfile({ user, admin }: AccountContext) {
       fullName: p.full_name ?? "",
       email: user.email ?? p.email ?? "",
       phone: p.phone ?? "",
-      photoUrl: d?.photo_url ?? "",
+      photoUrl: d?.photo_storage_path ? (await admin.storage.from("profile-photos").createSignedUrl(d.photo_storage_path, 3600)).data?.signedUrl ?? "" : d?.photo_url ?? "",
       customerRatingAvg: p.client_rating_avg == null ? null : Number(p.client_rating_avg),
       customerRatingCount: p.client_rating_count ?? 0,
     },

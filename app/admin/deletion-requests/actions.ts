@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdminPage } from "@/lib/adminSession";
 import { deletionRequestAdminClient } from "./data";
+import { eraseReviewedAccount } from "@/lib/accountErasure";
 
 export type ReviewState = { ok: boolean; message: string };
 
@@ -30,8 +31,8 @@ export async function updateDeletionRequest(
   if (nextStatus !== "in_review" && note.length < 10) {
     return { ok: false, message: "Add an outcome note of at least 10 characters." };
   }
-  if (nextStatus === "completed" && formData.get("workConfirmed") !== "yes") {
-    return { ok: false, message: "Confirm the separate account and data work is complete." };
+  if (nextStatus === "completed" && formData.get("erasureConfirmed") !== "ERASE ACCOUNT") {
+    return { ok: false, message: "Type ERASE ACCOUNT to confirm irreversible account erasure." };
   }
 
   const admin = deletionRequestAdminClient();
@@ -53,27 +54,23 @@ export async function updateDeletionRequest(
     return { ok: false, message: "This request has changed. Refresh the page to see its current status." };
   }
 
-  const { data: updated, error } = await admin
-    .from("account_deletion_requests")
-    .update({
-      status: nextStatus,
-      resolution_note: note || null,
-      resolved_at: nextStatus === "in_review" ? null : new Date().toISOString(),
-    })
-    .eq("id", id)
-    .eq("status", currentStatus)
-    .select("id")
-    .maybeSingle();
-  if (error) return { ok: false, message: "Could not save the review decision." };
-  if (!updated) return { ok: false, message: "This request changed while you were reviewing it. Refresh the page." };
+  if (nextStatus === "completed") {
+    try {
+      await eraseReviewedAccount(admin, id, note);
+      revalidatePath("/admin/deletion-requests");
+      return { ok: true, message: "Account erased. Required transaction records were retained with your note." };
+    } catch (error) {
+      return { ok: false, message: error instanceof Error ? error.message : "Erasure could not finish. Review the request before retrying." };
+    }
+  }
+  const { error: decisionError } = await admin.rpc("review_account_deletion_request", { p_id: id, p_status: nextStatus, p_note: note });
+  if (decisionError) return { ok: false, message: decisionError.message || "Could not save the review decision." };
 
   revalidatePath("/admin/deletion-requests");
   return {
     ok: true,
     message: nextStatus === "in_review"
       ? "Request moved to In review. No account data was changed."
-      : nextStatus === "completed"
-        ? "Request marked completed. The outcome was recorded."
-        : "Request declined. The reason was recorded.",
+      : "Request declined. The reason was recorded.",
   };
 }

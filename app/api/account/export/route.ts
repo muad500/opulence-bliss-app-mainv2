@@ -68,10 +68,12 @@ export async function GET(request: NextRequest) {
       durationMinutes: booking.duration_minutes, packageId: booking.package_id,
       providerPayout: booking.provider_payout,
     }));
+    const incidents = await allFor(ctx.admin, "account_incidents", "reporter_id", userId);
     const exportData = {
       exportedAt: new Date().toISOString(),
       account: { email: ctx.user.email, userMetadata: ctx.user.user_metadata, profile, details, legal, consents, deletionRequests },
       client: { addresses, favourites, bookings: clientBookings, payments: payments.filter((row) => clientBookings.some((booking) => booking.id === row.booking_id)), reviews, messages: messages.filter((row) => row.sender_id === userId), notifications },
+      incidents,
       professional: providerId ? { provider, onboarding, settings, timeOff, taskRates, verification, dbsChecks, bookings: professionalJobs, payouts: payoutRuns, invoices: jobInvoices } : null,
       note: "Payment card and bank details are held by Stripe and are not included in this file.",
     };

@@ -21,14 +21,13 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   const m = pi.metadata ?? {};
   const packageId = m.package_id || null;
   const postcode = m.postcode || null;
-  const request = m.request || null;
   const frequency = m.booking_frequency || "one_time";
   const regular = m.upfront_regular === "1";
   const { data: stagedChoicesData } = await admin
     .from("booking_checkout_time_choices")
     .select(regular
-      ? "preferred_scheduled_at, optional_scheduled_at, regular_scheduled_at"
-      : "preferred_scheduled_at, optional_scheduled_at")
+      ? "preferred_scheduled_at, optional_scheduled_at, regular_scheduled_at, household_notes"
+      : "preferred_scheduled_at, optional_scheduled_at, household_notes")
     .eq("checkout_session_id", session.id)
     .eq("customer_id", customerId)
     .maybeSingle();
@@ -36,7 +35,9 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
     preferred_scheduled_at: string;
     optional_scheduled_at: string[];
     regular_scheduled_at?: string[];
+    household_notes?: string | null;
   } | null;
+  const request = stagedChoices?.household_notes ?? m.request ?? null;
   const slot = stagedChoices?.preferred_scheduled_at || m.slot || null;
   const serviceAddress = m.service_address?.trim() || null;
 

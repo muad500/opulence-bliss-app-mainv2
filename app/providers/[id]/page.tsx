@@ -132,8 +132,8 @@ export default async function PublicProviderPage({
           {rates.length > 0 && (
             <section className={styles.section}>
               <h2>Listed handyman rates</h2>
-              <ul className={styles.rateList}>{rates.map((rate) => <li key={rate.task_name}><span>{rate.task_name}</span><strong>£{(Number(rate.hourly_rate_pence) / 100).toFixed(2)}/hr</strong></li>)}</ul>
-              <p className={styles.rateNote}>The quote form confirms the price for each enquiry.</p>
+              <ul className={styles.rateList}>{rates.map((rate) => <li key={rate.task_name}><Link href={`/services/handyman?provider=${id}&task=${encodeURIComponent(rate.task_name)}#quote`}>{rate.task_name}</Link><strong>£{(Number(rate.hourly_rate_pence) / 100).toFixed(2)}/hr</strong></li>)}</ul>
+              <p className={styles.rateNote}>Select a task to request a quote at this professional&apos;s listed rate. Final hours and costs are confirmed before work begins.</p>
             </section>
           )}
 

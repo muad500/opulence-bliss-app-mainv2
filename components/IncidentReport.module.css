@@ -1,0 +1,10 @@
+.report { border: 1px solid #e4daf8; border-radius: 14px; padding: 14px; background: #fbf9ff; color: #16202a; margin-top: 14px; }
+.report summary { cursor: pointer; font-weight: 800; color: #7224eb; }
+.report form { display: grid; gap: 12px; margin-top: 12px; }
+.report p { margin: 0; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.report label { display: grid; gap: 6px; font-size: 12px; font-weight: 800; }
+.report input, .report select, .report textarea { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #ded7eb; border-radius: 10px; padding: 10px; font: inherit; background: white; color: #16202a; }
+.report textarea { resize: vertical; }
+.report button { border: 0; border-radius: 12px; padding: 12px; background: #7224eb; color: white; font: inherit; font-weight: 800; }
+.report button:disabled { opacity: .6; }
+.report .error { color: #ad254b; }.report .success { color: #176542; }
