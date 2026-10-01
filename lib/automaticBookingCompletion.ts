@@ -3,7 +3,9 @@ import "server-only";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email";
-import { settlePrepaidVisit } from "@/lib/prepaidVisitPayout";
+import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
+import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
+import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
 import {
   claimMoneyOperation,
   maybeReleasePayout,
@@ -48,7 +50,7 @@ export async function automaticallyCompleteBooking(bookingId: string) {
 
   if (booking.regular_series_id) {
     try {
-      const result = await settlePrepaidVisit(bookingId);
+      const result = await settleCompletedVisitPayout(bookingId);
       earned = result.earned;
       paymentSettled = true;
     } catch (cause) {
@@ -105,9 +107,20 @@ export async function automaticallyCompleteBooking(bookingId: string) {
             .select("stripe_account_id")
             .eq("id", booking.provider_id)
             .maybeSingle();
-          const destination = provider?.stripe_account_id ?? process.env.PROVIDER_TEST_ACCOUNT;
+          const destination = payoutDestination(provider?.stripe_account_id, {
+            livemode: !isTestStripeKey(process.env.STRIPE_SECRET_KEY),
+            testAccount: process.env.PROVIDER_TEST_ACCOUNT,
+          });
           if (!destination) {
+            await systemFinaliseMoneyOperation(admin, operation.id, "failed", {
+              error: "Provider payout account is not configured",
+            });
             await systemTransitionPayout(admin, payoutId, "held", { reason: "Provider payout account is not configured" });
+            await admin.rpc("open_review_case", {
+              p_booking_id: bookingId, p_category: "payout_failure", p_priority: "high",
+              p_blocks_payment: false, p_blocks_payout: true,
+              p_notes: "Provider payout account is not configured", p_created_by: null,
+            });
           } else {
             await systemTransitionPayout(admin, payoutId, "processing");
             try {
@@ -153,13 +166,13 @@ export async function automaticallyCompleteBooking(bookingId: string) {
       });
       if (operation.should_run) {
         try {
-          const intent = await stripe.paymentIntents.capture(payment.stripe_payment_ref, {}, { idempotencyKey: operationKey });
+          const intent = await captureBookingPayment(stripe, payment.stripe_payment_ref, {}, { idempotencyKey: operationKey });
           await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", { stripeObjectId: intent.id });
           await systemTransitionPayment(admin, payment.id, "succeeded");
           paymentSettled = true;
         } catch (error) {
           const reason = error instanceof Error ? error.message : "Capture failed";
-          const definite = error instanceof Stripe.errors.StripeCardError || error instanceof Stripe.errors.StripeInvalidRequestError;
+          const definite = error instanceof LegacyDestinationCaptureError || error instanceof Stripe.errors.StripeCardError || error instanceof Stripe.errors.StripeInvalidRequestError;
           await systemFinaliseMoneyOperation(admin, operation.id, definite ? "failed" : "ambiguous", { error: reason });
           if (definite) await systemTransitionPayment(admin, payment.id, "capture_failed", { reason });
           await systemTransitionBooking(admin, bookingId, "needs_review", "Payment capture failed after automatic checkout", {
@@ -183,6 +196,20 @@ export async function automaticallyCompleteBooking(bookingId: string) {
         await systemTransitionBooking(admin, bookingId, "needs_review", "Payment capture outcome is ambiguous", {
           payment_id: payment.id,
           operation_id: operation.id,
+        });
+      }
+    }
+    if (paymentSettled && payment) {
+      try {
+        const result = await settleCompletedVisitPayout(bookingId);
+        earned = result.earned;
+      } catch (cause) {
+        console.error(`One-off visit ${bookingId} payout needs review:`, cause);
+        await admin.rpc("open_review_case", {
+          p_booking_id: bookingId, p_category: "payout_failure", p_priority: "high",
+          p_blocks_payment: false, p_blocks_payout: true,
+          p_notes: cause instanceof Error ? cause.message : "One-off transfer failed",
+          p_created_by: null,
         });
       }
     }

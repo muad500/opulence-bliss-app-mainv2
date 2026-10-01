@@ -13,7 +13,9 @@ import {
 } from "@/lib/reviewVisibility";
 import { sendEmail } from "@/lib/email";
 import { rotateBookingOffer } from "@/lib/offerRotation";
-import { settlePrepaidVisit } from "@/lib/prepaidVisitPayout";
+import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
+import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
+import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
 import {
   claimMoneyOperation,
   maybeReleasePayout,
@@ -480,7 +482,7 @@ export async function checkOutJob(id: string) {
 
   if (bk?.regular_series_id) {
     try {
-      const result = await settlePrepaidVisit(id);
+      const result = await settleCompletedVisitPayout(id);
       earned = result.earned;
       paymentSettled = true;
     } catch (cause) {
@@ -551,12 +553,22 @@ export async function checkOutJob(id: string) {
             .select("stripe_account_id")
             .eq("id", bk.provider_id)
             .maybeSingle();
-          const destination =
-            prov?.stripe_account_id ?? process.env.PROVIDER_TEST_ACCOUNT;
+          const destination = payoutDestination(prov?.stripe_account_id, {
+            livemode: !isTestStripeKey(process.env.STRIPE_SECRET_KEY),
+            testAccount: process.env.PROVIDER_TEST_ACCOUNT,
+          });
 
           if (!destination) {
+            await systemFinaliseMoneyOperation(admin, op.id, "failed", {
+              error: "Provider payout account is not configured",
+            });
             await systemTransitionPayout(admin, payoutId, "held", {
               reason: "Provider payout account is not configured",
+            });
+            await admin.rpc("open_review_case", {
+              p_booking_id: id, p_category: "payout_failure", p_priority: "high",
+              p_blocks_payment: false, p_blocks_payout: true,
+              p_notes: "Provider payout account is not configured", p_created_by: null,
             });
           } else {
             await systemTransitionPayout(admin, payoutId, "processing");
@@ -614,7 +626,7 @@ export async function checkOutJob(id: string) {
       }
     }
   } else {
-    // ---- One-off visit: capture the held payment; Stripe splits it.
+    // ---- One-off visit: capture the hold, then transfer the cleaner share.
     const { data: pays } = await admin
       .from("payments")
       .select("id, stripe_payment_ref, status, split_breakdown, gross_amount")
@@ -640,7 +652,8 @@ export async function checkOutJob(id: string) {
       if (op.should_run) {
         let intent: Stripe.PaymentIntent | null = null;
         try {
-          intent = await stripe.paymentIntents.capture(
+          intent = await captureBookingPayment(
+            stripe,
             pay.stripe_payment_ref,
             {},
             { idempotencyKey: operationKey },
@@ -648,6 +661,7 @@ export async function checkOutJob(id: string) {
         } catch (e) {
           const reason = e instanceof Error ? e.message : "Capture failed";
           const definite =
+            e instanceof LegacyDestinationCaptureError ||
             e instanceof Stripe.errors.StripeCardError ||
             e instanceof Stripe.errors.StripeInvalidRequestError;
           await systemFinaliseMoneyOperation(
@@ -712,6 +726,20 @@ export async function checkOutJob(id: string) {
       earned = Number(
         (pay.split_breakdown as { provider?: number } | null)?.provider ?? 0,
       );
+    }
+    if (paymentSettled && pay) {
+      try {
+        const result = await settleCompletedVisitPayout(id);
+        earned = result.earned;
+      } catch (cause) {
+        console.error(`One-off visit ${id} payout needs review:`, cause);
+        await admin.rpc("open_review_case", {
+          p_booking_id: id, p_category: "payout_failure", p_priority: "high",
+          p_blocks_payment: false, p_blocks_payout: true,
+          p_notes: cause instanceof Error ? cause.message : "One-off transfer failed",
+          p_created_by: null,
+        });
+      }
     }
   }
 
