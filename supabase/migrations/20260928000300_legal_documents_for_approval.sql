@@ -54,8 +54,10 @@ set content_html = $policy$
   <p><strong>Registered office:</strong> 128 City Road, London, EC1V 2NX</p>
   <p>If you have questions about this Privacy Policy or how we handle your personal information, please contact us using the details above.</p>
   <h2>3. Our Privacy Approach</h2>
-  <p>Our business currently operates without a dedicated website.</p>
-  <p>Our booking and administration process is primarily managed using:</p>
+  <p>Customers can book and manage services through our website.</p>
+  <p>Our booking and administration process is supported by:</p>
+  <p>Our website, hosted by Vercel, with accounts, bookings and messages stored in Supabase</p>
+  <p>Stripe for card payments and professional payouts</p>
   <p>Google Forms / Google Workspace</p>
   <p>Google Sheets</p>
   <p>Google Calendar</p>
@@ -481,8 +483,7 @@ set content_html = $policy$
   <p>If access cannot be provided within that period, a cancellation charge may apply.</p>
   <h2>8. Refunds</h2>
   <p>Where a refund is approved, Opulence Bliss will normally return the applicable amount to the original payment method where reasonably possible.</p>
-  <p>Because we currently accept payment by bank transfer, refunds will normally be made by bank transfer.</p>
-  <p>Customers may be asked to provide the bank details required to process the refund.</p>
+  <p>Card payments are normally refunded to the original card through Stripe. For payments made by bank transfer, we may ask for bank details to return the refund.</p>
   <p>Customers should not send bank details by unsecured or inappropriate means.</p>
   <h2>9. Cleaning Quality and Refund Requests</h2>
   <p>A customer should not automatically cancel a booking or request a full refund because they are dissatisfied with part of the cleaning service.</p>
