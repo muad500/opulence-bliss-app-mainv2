@@ -29,6 +29,13 @@ export default function ProvidersPage() {
 
   useEffect(() => {
     (async () => {
+      const { data: eligible, error: eligibilityError } = await supabase.rpc("public_eligible_provider_ids");
+      const eligibleIds = (eligible ?? []).map((row: { id: string }) => row.id);
+      if (eligibilityError || eligibleIds.length === 0) {
+        setList([]);
+        setLoading(false);
+        return;
+      }
       const { data } = await supabase
         .from("providers")
         .select(
@@ -38,6 +45,7 @@ export default function ProvidersPage() {
         .eq("dbs_verified", true)
         .eq("is_suspended", false)
         .eq("show_on_our_pros", true)
+        .in("id", eligibleIds)
         .order("public_rating_avg", { ascending: false, nullsFirst: false });
       setList(data ?? []);
       setLoading(false);
@@ -106,6 +114,9 @@ export default function ProvidersPage() {
                   </div>
                 </div>
                 {p.bio && <p className="bio">{p.bio}</p>}
+                <a className="profile-link" href={`/providers/${p.id}`}>
+                  View profile <span aria-hidden="true">→</span>
+                </a>
               </article>
             ))}
           </div>
@@ -238,6 +249,20 @@ export default function ProvidersPage() {
           font-size: 14.5px;
           line-height: 1.6;
           margin: 16px 0 0;
+        }
+        .profile-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          margin-top: 18px;
+          color: #6D28D9;
+          font-size: 14px;
+          font-weight: 800;
+          text-decoration: none;
+        }
+        .profile-link:hover,
+        .profile-link:focus-visible {
+          text-decoration: underline;
         }
         .empty {
           background: #fff;

@@ -3,6 +3,7 @@
 // The provider portal shell. Everything under /worker lives inside this.
 
 import { createClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import PortalLiveSync from "@/components/PortalLiveSync";
 import PortalNav from "./PortalNav";
 
@@ -43,23 +44,22 @@ export default async function WorkerLayout({
     .eq("id", user.id)
     .maybeSingle();
 
-  // A customer wandered in.
-  if (prof?.role === "customer") {
+  if (prof?.role === "admin") {
     return (
       <main style={gateWrap}>
         <div style={gateCard}>
           <div style={{ fontSize: 38 }}>🧹</div>
-          <h1 style={gateTitle}>This is the provider portal</h1>
+          <h1 style={gateTitle}>Your admin tools are elsewhere</h1>
           <p style={gateBody}>
-            You&apos;re signed in as a customer. Fancy working with us instead?
+            Use the control panel to manage the service.
           </p>
-          <a href="/provider/join" style={btn}>
-            Become a provider
+          <a href="/admin" style={btn}>
+            Open control panel
           </a>
           <p style={{ marginTop: 16 }}>
-            <a href="/account" style={quiet}>
-              ← Back to my bookings
-            </a>
+            <Link href="/" style={quiet}>
+              ← Back to website
+            </Link>
           </p>
         </div>
       </main>
@@ -80,6 +80,7 @@ export default async function WorkerLayout({
     const { count: live } = await supabase
       .from("bookings")
       .select("*", { count: "exact", head: true })
+      .eq("provider_id", prov.id)
       .eq("status", "in_progress");
     hasCurrentJob = (live ?? 0) > 0;
   }

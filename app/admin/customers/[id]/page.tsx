@@ -34,7 +34,7 @@ export default async function CustomerRecordPage({
       .from("profiles")
       .select("id, email, full_name, phone, address, postcode, client_rating_avg, client_rating_count, created_at")
       .eq("id", id)
-      .eq("role", "customer")
+      .neq("role", "admin")
       .maybeSingle(),
     supabase
       .from("bookings")

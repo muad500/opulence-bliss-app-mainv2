@@ -10,7 +10,7 @@ export default async function AdminCustomersPage() {
       .select(
         "id, email, full_name, phone, address, postcode, client_rating_avg, client_rating_count",
       )
-      .eq("role", "customer")
+      .neq("role", "admin")
       .order("full_name", { ascending: true }),
     supabase.from("bookings").select("customer_id, status, scheduled_at"),
   ]);

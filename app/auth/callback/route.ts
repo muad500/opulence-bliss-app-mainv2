@@ -40,9 +40,13 @@ export async function GET(request: NextRequest) {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (existing && existing.role !== "customer") {
+  if (existing?.role === "admin") {
     await supabase.auth.signOut();
     return NextResponse.redirect(new URL("/login?error=wrong-account", url.origin));
+  }
+
+  if (existing && user.user_metadata?.legal_accepted === true) {
+    return NextResponse.redirect(new URL(next, url.origin));
   }
 
   if (!existing) {

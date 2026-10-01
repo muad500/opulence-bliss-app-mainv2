@@ -147,7 +147,7 @@ export default function SupportChat() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ message: question, history }),
+        body: JSON.stringify({ message: question, history, portalContext: window.location.pathname.startsWith("/worker") ? "professional" : "client" }),
       });
       const data = await res.json();
       setMsgs((m) => [
@@ -198,7 +198,7 @@ export default function SupportChat() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ actionToken: action.token }),
+        body: JSON.stringify({ actionToken: action.token, portalContext: window.location.pathname.startsWith("/worker") ? "professional" : "client" }),
       });
       const data = await response.json();
       setMsgs((current) => [

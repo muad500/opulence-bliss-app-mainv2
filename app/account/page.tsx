@@ -127,7 +127,6 @@ export default async function AccountPage() {
     .maybeSingle();
 
   if (me?.role === "admin") return <WrongArea role="admin" />;
-  if (me?.role === "provider") return <WrongArea role="provider" />;
 
   const { data: rowsData } = await supabase
     .from("bookings")

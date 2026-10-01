@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { handymanEstimatePence } from "@/lib/handymanEstimate";
 
 const supabase = createClient();
 
@@ -41,6 +42,29 @@ const TASK_OPTIONS = [
 
 export default function HandymanPage() {
   const [taskType, setTaskType] = useState("");
+  const [quoteProfessional, setQuoteProfessional] = useState<{ id: string; displayName: string; rates: { task_name: string; hourly_rate_pence: number }[] } | null>(null);
+  const [professionalLoading, setProfessionalLoading] = useState(false);
+  const [requestedProfessionalError, setRequestedProfessionalError] = useState<string | null>(null);
+  const [estimatedHours, setEstimatedHours] = useState(2);
+  const selectedRate = quoteProfessional?.rates.find((rate) => rate.task_name === taskType);
+  const estimate = selectedRate ? handymanEstimatePence(selectedRate.hourly_rate_pence, estimatedHours) : null;
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const provider = params.get("provider");
+    if (!provider) return;
+    void (async () => {
+      setProfessionalLoading(true);
+      try {
+        const response = await fetch(`/api/providers/${encodeURIComponent(provider)}/quote-options`);
+        const info = await response.json();
+        if (!response.ok) throw new Error(info.error ?? "This professional is unavailable.");
+        setQuoteProfessional(info);
+        const task = params.get("task");
+        if (info.rates.some((rate: { task_name: string }) => rate.task_name === task)) setTaskType(task!);
+      } catch (cause) { setRequestedProfessionalError(cause instanceof Error ? cause.message : "Could not load this professional."); }
+      finally { setProfessionalLoading(false); }
+    })();
+  }, []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reference, setReference] = useState<string | null>(null);
@@ -75,7 +99,7 @@ export default function HandymanPage() {
         .select("role, full_name, email, phone, address, postcode")
         .eq("id", user.id)
         .maybeSingle();
-      if (profile?.role !== "customer") {
+      if (!profile || profile.role === "admin") {
         setQuoteAccess("wrong_role");
         return;
       }
@@ -92,13 +116,17 @@ export default function HandymanPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (professionalLoading) { setError("Please wait while the professional’s rates load."); return; }
+    if (requestedProfessionalError) { setError(requestedProfessionalError); return; }
+    if (quoteProfessional && !selectedRate) { setError("Choose a task with a listed rate for this professional."); return; }
     if (quoteAccess !== "customer") {
       setError("Sign in with a customer account before requesting a quote.");
       return;
     }
     setBusy(true);
     setError(null);
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
 
     try {
       const response = await fetch("/api/handyman-quote", {
@@ -111,6 +139,7 @@ export default function HandymanPage() {
           address: form.get("address"),
           postcode: form.get("postcode"),
           taskType: form.get("taskType"),
+          preferredProviderId: quoteProfessional?.id, estimatedHours: quoteProfessional ? estimatedHours : undefined, expectedHourlyRatePence: selectedRate?.hourly_rate_pence,
           description: form.get("description"),
           preferredDate: form.get("preferredDate"),
           preferredTime: form.get("preferredTime"),
@@ -120,7 +149,7 @@ export default function HandymanPage() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Could not send your quote request.");
       setReference(data.reference);
-      event.currentTarget.reset();
+      formElement.reset();
       setTaskType("");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not send your quote request.");
@@ -293,11 +322,13 @@ export default function HandymanPage() {
                   required
                 >
                   <option value="">Choose a task</option>
-                  {TASK_OPTIONS.map((task) => (
+                  {(quoteProfessional ? quoteProfessional.rates.map((rate) => ({ value: rate.task_name, label: `${rate.task_name} — £${(rate.hourly_rate_pence / 100).toFixed(2)}/hr` })) : TASK_OPTIONS).map((task) => (
                     <option key={task.value} value={task.value}>{task.label}</option>
                   ))}
                 </select>
               </label>
+              {requestedProfessionalError && <p role="alert">{requestedProfessionalError} <Link href="/services/handyman#quote" onClick={() => { setRequestedProfessionalError(null); setQuoteProfessional(null); }}>Request a quote without choosing a professional</Link></p>}
+              {quoteProfessional && <div className="quoteEstimate"><strong>Requested professional: {quoteProfessional.displayName}</strong><label>Estimated hours<input type="number" min="0.5" max="16" step="0.5" value={estimatedHours} onChange={(event) => setEstimatedHours(Number(event.target.value))} required /></label>{estimate !== null && <p>Estimated labour: £{(estimate / 100).toFixed(2)}. Materials and final hours are confirmed in your quote. No payment is taken here.</p>}</div>}
               <label>
                 Describe the work
                 <textarea
@@ -362,6 +393,8 @@ export default function HandymanPage() {
         .task { display:flex; align-items:flex-start; gap:13px; min-height:118px; padding:20px; border:1.5px solid #e8e3ef; border-radius:18px; background:linear-gradient(145deg,#fffaf0,#f8f0ff); color:#16202a; font:inherit; text-align:left; cursor:pointer; }
         .task:nth-child(3n+2) { background:linear-gradient(145deg,#fff6f3,#f1ecff); }
         .task:nth-child(3n) { background:linear-gradient(145deg,#faf2ff,#ece8ff); }
+        .quoteEstimate { display:grid; gap:12px; padding:16px; border:1px solid #e4daf8; border-radius:14px; background:#fbf9ff; overflow-wrap:anywhere; }
+        .quoteEstimate p { margin:0; font-size:13px; line-height:1.6; }
         .task.selected { border-color:#6d28d9; box-shadow:0 0 0 3px rgba(109,40,217,.12); }
         .task svg { flex:0 0 auto; color:#6d28d9; }
         .task span { display:grid; gap:5px; }

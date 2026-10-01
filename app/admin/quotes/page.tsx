@@ -17,13 +17,17 @@ type Quote = {
   status: string;
   admin_notes: string | null;
   created_at: string;
+  preferred_provider_id: string | null;
+  quoted_hourly_rate_pence: number | null;
+  estimated_hours: number | null;
+  estimate_total_pence: number | null;
 };
 
 export default async function AdminQuotesPage() {
   const { supabase, user } = await requireAdminPage();
   const { data, error } = await supabase
     .from("handyman_quote_requests")
-    .select("id, reference, full_name, email, phone, address, postcode, task_type, description, preferred_date, preferred_time, status, admin_notes, created_at")
+    .select("id, reference, full_name, email, phone, address, postcode, task_type, description, preferred_date, preferred_time, status, admin_notes, created_at, preferred_provider_id, quoted_hourly_rate_pence, estimated_hours, estimate_total_pence")
     .order("created_at", { ascending: false });
   const quotes = (data ?? []) as Quote[];
 
@@ -51,6 +55,7 @@ export default async function AdminQuotesPage() {
                   <p><b>Address</b>{quote.address}<br />{quote.postcode}</p>
                   <p><b>Preferred</b>{quote.preferred_date ?? "Flexible"}{quote.preferred_time ? ` · ${quote.preferred_time}` : ""}</p>
                 </div>
+                {quote.preferred_provider_id && <p><a href={`/admin/cleaners/${quote.preferred_provider_id}`}>Requested professional →</a> · £{((quote.quoted_hourly_rate_pence ?? 0) / 100).toFixed(2)}/hr · {quote.estimated_hours} hours · estimate £{((quote.estimate_total_pence ?? 0) / 100).toFixed(2)}</p>}
                 <div className="description"><b>Job details</b><p>{quote.description}</p></div>
                 <form action={updateHandymanQuote.bind(null, quote.id)}>
                   <label>Status<select name="status" defaultValue={quote.status}>

@@ -1090,6 +1090,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const payload = await req.json();
     let role = "guest";
     let user: User | null = null;
     if (client) {
@@ -1102,7 +1103,15 @@ export async function POST(req: NextRequest) {
             .select("role")
             .eq("id", user.id)
             .maybeSingle();
-          role = me?.role === "customer" ? "client" : (me?.role ?? "client");
+          if (me?.role === "admin") {
+            role = "admin";
+          } else if (payload.portalContext === "professional") {
+            const { data: provider } = await client.from("providers")
+              .select("id").eq("profile_id", user.id).maybeSingle();
+            role = provider ? "provider" : "client";
+          } else {
+            role = "client";
+          }
         }
       } catch {
         /* stay a guest */
@@ -1116,7 +1125,6 @@ export async function POST(req: NextRequest) {
       role,
     };
 
-    const payload = await req.json();
     const actionToken = String(payload.actionToken ?? "").trim();
     if (actionToken) {
       try {

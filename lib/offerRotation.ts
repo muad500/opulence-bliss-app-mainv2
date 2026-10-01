@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { sendEmail } from "@/lib/email";
 
 export type OfferRotationResult = {
   action:
@@ -25,17 +26,32 @@ async function notifyRotationResult(
   bookingId: string,
   result: OfferRotationResult,
 ) {
-  if (result.action === "activated" && result.profile_id) {
+  if (result.action === "activated" && result.profile_id && result.provider_id) {
     const minutes = result.cadence_minutes ?? 15;
-    const { error } = await admin.from("notifications").insert({
-      user_id: result.profile_id,
-      title: "New job offer",
-      body: `${result.service ?? "Service"} in ${
-        result.address ?? "your area"
-      } — reserved for you for ${minutes} minutes.`,
-      href: "/worker",
-    });
-    if (error) throw new Error(error.message);
+    const { data: settings } = await admin.from("provider_profile_settings")
+      .select("alert_app,alert_email").eq("provider_id", result.provider_id).maybeSingle();
+    if (settings?.alert_app !== false) {
+      const { error } = await admin.from("notifications").insert({
+        user_id: result.profile_id,
+        title: "New job offer",
+        body: `${result.service ?? "Service"} in ${result.address ?? "your area"} — reserved for you for ${minutes} minutes.`,
+        href: "/worker",
+      });
+      if (error) throw new Error(error.message);
+    }
+    // Legacy accounts never opted in to email offers. A professional who saves
+    // an email preference may receive one for a newly activated offer.
+    if (settings?.alert_email === true) {
+      const { data: profile } = await admin.from("profiles")
+        .select("email").eq("id", result.profile_id).maybeSingle();
+      await sendEmail({
+        to: profile?.email,
+        subject: "New Opulence Bliss job offer",
+        title: "A new job offer is ready",
+        body: `<p>A visit has been offered to you for ${minutes} minutes. Open your professional portal to review it before the offer expires.</p>`,
+        cta: { text: "Review offer", url: "/worker" },
+      });
+    }
   }
 
   if (
