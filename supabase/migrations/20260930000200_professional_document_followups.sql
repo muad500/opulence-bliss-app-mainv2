@@ -140,4 +140,3 @@ grant execute on function public.remind_professional_document_checks() to servic
 select cron.schedule('opulence-dbs-recheck-reminders','0 8 * * *',$$select public.remind_professional_document_checks();$$);
 
 commit;
-
