@@ -1,6 +1,6 @@
-// Stripe Connect checkout — creates a payment that auto-splits.
+// Platform checkout. A completed visit is paid to its assigned cleaner later.
 // Save at: app/api/checkout/route.ts
-// Needs in .env.local: STRIPE_SECRET_KEY, PROVIDER_TEST_ACCOUNT,
+// Needs in .env.local: STRIPE_SECRET_KEY,
 //   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 import { bookingPricePence, isCleaning, validCleaningDuration } from "@/lib/cleaningBooking";
@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
     const PLATFORM_MARGIN_RATE = 0.2; // 20% platform margin
     // ---------------------------------------------------------------------
     const platformFeeFull = Math.round(gross * PLATFORM_MARGIN_RATE);
-    const providerAmount = gross - platformFeeFull; // auto-sent to the provider
+    const providerAmount = gross - platformFeeFull;
 
     // ---- Promo code (validated server-side; discount comes out of margin) ----
     let discount = 0;
@@ -296,12 +296,12 @@ export async function POST(req: NextRequest) {
         },
       ],
       payment_intent_data: {
-        // A regular series is charged upfront to the platform. Each cleaner
-        // receives a separate transfer only after their own visit is complete.
+        // Keep both charges on the platform. For a one-off, the card is only
+        // authorised now and captured after the assigned cleaner completes it.
         capture_method: regular ? "automatic" : "manual",
-        ...(regular
-          ? { transfer_group: `ob_regular_${crypto.randomUUID()}` }
-          : { application_fee_amount: platformFee, transfer_data: { destination: process.env.PROVIDER_TEST_ACCOUNT! } }),
+        transfer_group: regular
+          ? `ob_regular_${crypto.randomUUID()}`
+          : `ob_booking_${crypto.randomUUID()}`,
         metadata: {
           kind: "booking",
           upfront_regular: regular ? "1" : "0",
