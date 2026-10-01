@@ -149,7 +149,7 @@ export default function HandymanPage() {
                 alt="Handyman preparing tools for work in a home"
                 fill
                 priority
-                sizes="(max-width: 800px) 100vw, 400px"
+                sizes="(max-width: 900px) 100vw, 560px"
                 style={{ objectFit: "cover", objectPosition: "center 45%" }}
               />
             </div>
@@ -164,6 +164,11 @@ export default function HandymanPage() {
           </div>
         </div>
       </header>
+
+      <nav className="mobileCta mobile-service-cta" aria-label="Handyman quick actions">
+        <a className="mobileCtaServices" href="#handyman-services">See our services</a>
+        <a className="mobileCtaQuote" href="#quote">Request a quote</a>
+      </nav>
 
       <section className="inner services" aria-labelledby="handyman-services">
         <p className="eyebrow">What we can help with</p>
@@ -337,8 +342,8 @@ export default function HandymanPage() {
       <style jsx>{`
         .page { color:#16202a; font-family:"Nunito",system-ui,sans-serif; }
         .inner { width:min(1120px,calc(100% - 40px)); margin:0 auto; }
-        .hero { padding:72px 0; background:linear-gradient(120deg,#fff5d8 0%,#f8eaf8 52%,#eee7ff 100%); }
-        .heroGrid { display:grid; grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr); gap:48px; align-items:center; }
+        .hero { overflow:hidden; padding:72px 0; background:linear-gradient(120deg,#fff5d8 0%,#f8eaf8 52%,#eee7ff 100%); }
+        .heroGrid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:40px; align-items:center; }
         .eyebrow { margin:0 0 9px; color:#6d28d9; font-size:12px; font-weight:900; letter-spacing:.13em; text-transform:uppercase; }
         h1 { max-width:780px; margin:0 0 18px; font-size:clamp(38px,6vw,66px); font-weight:900; letter-spacing:-.035em; line-height:1.02; }
         h2 { margin:0 0 16px; font-size:clamp(28px,4vw,40px); font-weight:900; line-height:1.1; }
@@ -350,7 +355,9 @@ export default function HandymanPage() {
         .heroCard svg { color:#6d28d9; }
         .heroCard strong { font-size:19px; }
         .heroCard span { color:#68717d; line-height:1.55; }
+        .mobileCta { display:none; }
         .services { padding-top:72px; padding-bottom:78px; }
+        #handyman-services { scroll-margin-top:90px; }
         .taskGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:28px; }
         .task { display:flex; align-items:flex-start; gap:13px; min-height:118px; padding:20px; border:1.5px solid #e8e3ef; border-radius:18px; background:linear-gradient(145deg,#fffaf0,#f8f0ff); color:#16202a; font:inherit; text-align:left; cursor:pointer; }
         .task:nth-child(3n+2) { background:linear-gradient(145deg,#fff6f3,#f1ecff); }
@@ -400,8 +407,112 @@ export default function HandymanPage() {
         .gateActions { display:flex; flex-wrap:wrap; justify-content:center; gap:9px; margin-top:5px; }
         .gateActions a,.gateSingle { padding:11px 19px; border:1.5px solid #6d28d9; border-radius:999px; background:#6d28d9; color:#fff; font-weight:900; text-decoration:none; }
         .gateActions a.secondary { background:#fff; color:#6d28d9; }
-        @media (max-width:800px) { .heroGrid,.quoteGrid,.faqGrid { grid-template-columns:1fr; } .taskGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-        @media (max-width:560px) { .inner { width:min(100% - 28px,1120px); } .hero { padding:50px 0; } .taskGrid,.two { grid-template-columns:1fr; } .services,.quoteBand { padding-top:54px; padding-bottom:60px; } .quoteForm,.success { padding:21px 17px; } }
+        @media (max-width:900px) {
+          .page { padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
+          .heroGrid { position:relative; display:block; isolation:isolate; padding-bottom:240px; }
+          .heroGrid > div:first-child { position:relative; z-index:1; max-width:680px; }
+          .heroVisual { position:absolute; inset:0; z-index:0; display:block; margin:0; pointer-events:none; }
+          .heroPhoto {
+            position:absolute;
+            inset:-72px -20px -72px auto;
+            width:min(58%,480px);
+            height:auto;
+            aspect-ratio:auto;
+            border-radius:0;
+            box-shadow:none;
+            opacity:.72;
+            -webkit-mask-image:linear-gradient(to right,transparent,#000 45%);
+            mask-image:linear-gradient(to right,transparent,#000 45%);
+          }
+          .heroCard {
+            position:absolute;
+            right:0;
+            bottom:0;
+            z-index:1;
+            width:min(46%,460px);
+            padding:16px 18px;
+            background:rgba(255,255,255,.92);
+          }
+          .hero .primary { display:none; }
+          .mobileCta {
+            position:fixed;
+            inset:auto 0 0;
+            z-index:50;
+            display:grid;
+            grid-template-columns:repeat(2,minmax(0,1fr));
+            gap:10px;
+            padding:10px max(16px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-right));
+            border-top:1px solid rgba(109,40,217,.15);
+            background:rgba(255,255,255,.96);
+            box-shadow:0 -8px 28px rgba(22,32,42,.1);
+            backdrop-filter:blur(12px);
+          }
+          .mobileCta a {
+            display:flex;
+            min-height:48px;
+            align-items:center;
+            justify-content:center;
+            padding:9px 10px;
+            border-radius:999px;
+            font-size:14px;
+            font-weight:900;
+            line-height:1.2;
+            text-align:center;
+            text-decoration:none;
+          }
+          .mobileCta a:focus-visible { outline:3px solid #6d28d9; outline-offset:2px; }
+          .mobileCtaServices { border:1.5px solid #6d28d9; color:#6d28d9; background:#fff; }
+          .mobileCtaQuote { color:#fff; background:linear-gradient(100deg,#f5c542,#c86fc9 55%,#7b2ff7); }
+          .quoteGrid,.faqGrid { grid-template-columns:1fr; }
+        }
+        @media (min-width:701px) and (max-width:900px) {
+          .heroGrid { padding-bottom:200px; }
+          .heroGrid > div:first-child { max-width:52%; }
+          .hero h1 { font-size:clamp(34px,4.8vw,44px); line-height:1.08; }
+          .hero .lede { font-size:16px; line-height:1.5; }
+          .heroCard { right:auto; left:0; width:min(52%,430px); }
+        }
+        @media (max-width:800px) { .taskGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media (max-width:700px) {
+          .hero { padding:24px 0 36px; }
+          .heroGrid { display:flex; flex-direction:column; gap:22px; padding-bottom:0; }
+          .heroGrid > div:first-child { order:1; }
+          .heroVisual { position:relative; order:0; width:100%; height:230px; pointer-events:auto; }
+          .heroPhoto {
+            position:absolute;
+            inset:0;
+            width:100%;
+            height:100%;
+            border-radius:20px;
+            opacity:1;
+            -webkit-mask-image:none;
+            mask-image:none;
+          }
+          .heroCard {
+            right:12px;
+            bottom:12px;
+            left:12px;
+            width:auto;
+            gap:3px;
+            padding:10px 13px;
+            border-radius:14px;
+            background:rgba(255,255,255,.95);
+            box-shadow:0 6px 22px rgba(22,32,42,.13);
+          }
+          .heroCard :global(svg) { display:none; }
+          .heroCard strong { font-size:14px; line-height:1.25; }
+          .heroCard span { font-size:12px; line-height:1.3; }
+          .hero .eyebrow { margin-bottom:8px; font-size:11px; line-height:1.35; }
+          .hero h1 { max-width:550px; margin-bottom:12px; font-size:clamp(30px,7.5vw,40px); line-height:1.08; }
+          .hero .lede { max-width:540px; margin:0; color:#4b5563; font-size:16px; line-height:1.5; }
+        }
+        @media (max-width:560px) {
+          .inner { width:min(100% - 28px,1120px); }
+          .heroVisual { height:210px; }
+          .taskGrid,.two { grid-template-columns:1fr; }
+          .services,.quoteBand { padding-top:54px; padding-bottom:60px; }
+          .quoteForm,.success { padding:21px 17px; }
+        }
       `}</style>
     </main>
   );
