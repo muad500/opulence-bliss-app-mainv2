@@ -1,8 +1,10 @@
 // Provider earnings — what you've made and what's coming.
 // Save at: app/worker/earnings/page.tsx
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { SignedOut } from "@/app/account/page";
+import { earningsPeriodTotals } from "@/lib/earningsPeriod";
 import PayoutScheduleForm from "./PayoutScheduleForm";
 
 const gbp = (n: number) =>
@@ -16,6 +18,7 @@ type Bk = {
 
 type Pay = {
   id: string;
+  booking_id: string;
   gross_amount: number;
   split_breakdown: { provider?: number } | null;
   status: string;
@@ -35,6 +38,17 @@ function svc(p: Pay) {
   return pk?.name ?? "Service";
 }
 
+async function allEarningsRows(client: SupabaseClient, table: string, fields: string, providerId: string) {
+  const rows: unknown[] = [];
+  for (let from = 0; ; from += 500) {
+    const { data, error } = await client.from(table).select(fields).eq("bookings.provider_id", providerId)
+      .order("created_at", { ascending: false }).order("id").range(from, from + 499);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if (!data || data.length < 500) return rows;
+  }
+}
+
 export default async function EarningsPage() {
   const supabase = await createClient();
   const {
@@ -48,24 +62,23 @@ export default async function EarningsPage() {
     .eq("profile_id", user.id)
     .maybeSingle();
 
-  const { data: paysData } = await supabase
-    .from("payments")
-    .select(
-      "id, gross_amount, split_breakdown, status, kind, created_at, bookings(scheduled_at, status, packages(name))",
-    )
-    .order("created_at", { ascending: false });
+  if (!prov) return <p>Your professional account could not be found.</p>;
 
-  // Membership visits are paid by transfer, recorded in payouts.
-  const { data: payoutData } = await supabase
-    .from("payouts")
-    .select(
-      "id, amount, status, note, created_at, bookings(scheduled_at, status, packages(name))",
-    )
-    .order("created_at", { ascending: false });
+  let paysData: unknown[];
+  let payoutData: unknown[];
+  try {
+    [paysData, payoutData] = await Promise.all([
+      allEarningsRows(supabase, "payments", "id,booking_id,gross_amount,split_breakdown,status,kind,created_at,bookings!inner(provider_id,scheduled_at,status,packages(name))", prov.id),
+      allEarningsRows(supabase, "payouts", "id,booking_id,amount,status,note,created_at,bookings!inner(provider_id,scheduled_at,status,packages(name))", prov.id),
+    ]);
+  } catch {
+    return <main style={wrap}><h1 style={h1}>My earnings</h1><p>Earnings could not be loaded. Please try again.</p></main>;
+  }
 
   const { data: invoiceData } = await supabase
     .from("provider_job_invoices")
     .select("id, invoice_number, issued_at, payout_amount, status, service_name")
+    .eq("provider_id", prov.id)
     .order("issued_at", { ascending: false })
     .limit(12);
 
@@ -76,11 +89,12 @@ export default async function EarningsPage() {
   const tips = pays.filter((p) => p.kind === "tip" && p.status === "succeeded");
 
   const paid = jobs.filter((p) => p.status === "succeeded");
-  const held = jobs.filter((p) => p.status === "pending");
+  const held = jobs.filter((p) => ["created", "authorised", "capturing"].includes(p.status));
 
   // Membership visits, paid by transfer
   type Payout = {
     id: string;
+    booking_id: string;
     amount: number;
     status: string;
     note: string | null;
@@ -89,17 +103,25 @@ export default async function EarningsPage() {
   };
   const payouts = (payoutData ?? []) as unknown as Payout[];
   const payoutsPaid = payouts.filter((p) => p.status === "paid");
+  const settledPayoutBookingIds = new Set(payoutsPaid.map((p) => p.booking_id));
+  const paidWithoutPayout = paid.filter((p) => !settledPayoutBookingIds.has(p.booking_id));
 
   const earned =
-    paid.reduce((s, p) => s + share(p), 0) +
+    paidWithoutPayout.reduce((s, p) => s + share(p), 0) +
     payoutsPaid.reduce((s, p) => s + Number(p.amount ?? 0), 0);
+  const payoutBookingIds = new Set(payouts.map((p) => p.booking_id));
   const pendingTotal =
-    held.reduce((s, p) => s + share(p), 0) +
+    held.filter((p) => !payoutBookingIds.has(p.booking_id)).reduce((s, p) => s + share(p), 0) +
     payouts
-      .filter((p) => p.status === "pending")
+      .filter((p) => ["not_ready", "pending", "processing", "held"].includes(p.status))
       .reduce((s, p) => s + Number(p.amount ?? 0), 0);
   const tipTotal = tips.reduce((s, p) => s + share(p), 0);
-  const visitCount = paid.length + payoutsPaid.length;
+  const visitCount = new Set([...paid, ...payoutsPaid].filter((p) => one<Bk>(p.bookings)?.status === "completed").map((p) => p.booking_id)).size;
+  const periods = earningsPeriodTotals([
+    ...paidWithoutPayout.filter((p) => one<Bk>(p.bookings)?.status === "completed").map((p) => ({ date: one<Bk>(p.bookings)?.scheduled_at ?? p.created_at, amount: share(p) })),
+    ...tips.map((p) => ({ date: p.created_at, amount: share(p) })),
+    ...payoutsPaid.filter((p) => one<Bk>(p.bookings)?.status === "completed").map((p) => ({ date: one<Bk>(p.bookings)?.scheduled_at ?? p.created_at, amount: Number(p.amount ?? 0) })),
+  ]);
 
   // One combined list, newest first
   const rows: {
@@ -128,12 +150,12 @@ export default async function EarningsPage() {
     })),
     ...payouts.map((p) => ({
       key: `out-${p.id}`,
-      service: `Membership visit · ${
+      service: `Visit payout · ${
         one<{ name: string }>(one<Bk>(p.bookings)?.packages ?? null)?.name ??
         "Service"
       }`,
       when: one<Bk>(p.bookings)?.scheduled_at ?? null,
-      label: "paid from membership",
+      label: "professional payout",
       amount: Number(p.amount ?? 0),
       state: p.status === "paid" ? "Paid" : "Pending",
       note: p.note,
@@ -154,8 +176,10 @@ export default async function EarningsPage() {
         </p>
 
         <div className="worker-status-grid" style={statGrid}>
-          <Stat label="Paid to you" value={gbp(earned + tipTotal)} big />
-          <Stat label="Awaiting completion" value={gbp(pendingTotal)} />
+          <Stat label="Payments recorded" value={gbp(earned + tipTotal)} big />
+          <Stat label="Settled earnings this week" value={gbp(periods.week)} />
+          <Stat label="Settled earnings this month" value={gbp(periods.month)} />
+          <Stat label="Awaiting settlement" value={gbp(pendingTotal)} />
           <Stat label="Tips received" value={gbp(tipTotal)} />
           <Stat label="Visits completed" value={String(visitCount)} />
           <Stat
@@ -168,6 +192,8 @@ export default async function EarningsPage() {
           />
         </div>
 
+        <p style={{ color: "#7A828C", fontSize: 13 }}>Week and month totals include settled completed visits, using the visit date in London time; tips use the recorded date. Captured visit payments and their payouts count once. These figures do not confirm arrival in your bank account.</p>
+        <p><a href="/api/account/earnings-statement" style={link}>Download earnings statement (CSV)</a></p>
         <PayoutScheduleForm current={prov?.payout_schedule ?? "weekly"} />
 
         <h2 style={sectionTitle}>Job invoices</h2>

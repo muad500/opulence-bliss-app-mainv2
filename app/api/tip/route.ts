@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { createClient as createServerClient } from "@/lib/supabase/server";
+import { getOrCreateBillingCustomer } from "@/lib/accountBilling";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
@@ -56,10 +57,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Keep the payouts fix (no destination, so never the test account) and the
+    // account work's saved Stripe customer.
+    const billingCustomer = await getOrCreateBillingCustomer(stripe, { id: user.id, email: user.email });
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       client_reference_id: user.id,
-      customer_email: user.email ?? undefined,
+      customer: billingCustomer,
       line_items: [
         {
           quantity: 1,

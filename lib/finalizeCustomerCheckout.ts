@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isCleaning, validCleaningDuration } from "@/lib/cleaningBooking";
 import { appointmentFitsWindow, APPOINTMENT_WINDOW_MESSAGE } from "@/lib/appointmentWindow";
 import { rotateBookingOffer } from "@/lib/offerRotation";
+import { providerIdsWithinSavedCoverage } from "@/lib/providerCoverage";
 import { normaliseOptionalBookingTimes } from "@/lib/bookingTimeChoices";
 import { allocateRegularPayment, isRegularVisitCount, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
 import { bookingPolicyError, isBookingFrequency } from "@/lib/bookingPolicy";
@@ -16,18 +17,17 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   if (!customerId || pi.metadata.customer_id !== customerId || pi.metadata.kind !== "booking" ||
       !["requires_capture", "succeeded"].includes(pi.status)) throw new Error("Invalid customer checkout.");
   const { data: customer, error: customerError } = await admin.from("profiles").select("email, role").eq("id", customerId).single();
-  if (customerError || customer?.role !== "customer") throw new Error("Customer account not found.");
+  if (customerError || !customer || customer.role === "admin") throw new Error("Customer account not found.");
   const m = pi.metadata ?? {};
   const packageId = m.package_id || null;
   const postcode = m.postcode || null;
-  const request = m.request || null;
   const frequency = m.booking_frequency || "one_time";
   const regular = m.upfront_regular === "1";
   const { data: stagedChoicesData } = await admin
     .from("booking_checkout_time_choices")
     .select(regular
-      ? "preferred_scheduled_at, optional_scheduled_at, regular_scheduled_at"
-      : "preferred_scheduled_at, optional_scheduled_at")
+      ? "preferred_scheduled_at, optional_scheduled_at, regular_scheduled_at, household_notes"
+      : "preferred_scheduled_at, optional_scheduled_at, household_notes")
     .eq("checkout_session_id", session.id)
     .eq("customer_id", customerId)
     .maybeSingle();
@@ -35,7 +35,9 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
     preferred_scheduled_at: string;
     optional_scheduled_at: string[];
     regular_scheduled_at?: string[];
+    household_notes?: string | null;
   } | null;
+  const request = stagedChoices?.household_notes ?? m.request ?? null;
   const slot = stagedChoices?.preferred_scheduled_at || m.slot || null;
   const serviceAddress = m.service_address?.trim() || null;
 
@@ -130,7 +132,9 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
       .eq("is_suspended", false);
     if (serviceType) query = query.contains("services", [serviceType]);
     const { data } = await query;
-    matched = data ?? [];
+    // A professional who books as a customer must never be offered, assigned or
+    // paid for their own booking. The database enforces this too.
+    matched = (data ?? []).filter((provider) => provider.profile_id !== customerId);
   }
 
   // Both database functions lock the checkout reference. The six inserts and
@@ -199,6 +203,12 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   // Provider matching is follow-up work and must never turn a saved booking into
   // a false checkout failure. The webhook or an operations retry can run it again.
   try {
+    if (matched.length) {
+      const coveredIds = new Set(await providerIdsWithinSavedCoverage(
+        admin, matched.map((provider) => provider.id), postcode,
+      ));
+      matched = matched.filter((provider) => coveredIds.has(provider.id));
+    }
     const preferred = m.preferred_provider_id;
     matched.sort((a, b) => Number(b.id === preferred) - Number(a.id === preferred));
     for (const bookingId of bookingIds) {

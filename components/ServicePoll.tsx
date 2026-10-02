@@ -98,8 +98,7 @@ export default function ServicePoll({
         .maybeSingle();
 
       if (!active) return;
-      // submit_customer_service_interest rejects anything but 'customer'.
-      if (profile?.role !== "customer") {
+      if (!profile || profile.role === "admin") {
         setNotClient(true);
         setLoaded(true);
         return;
