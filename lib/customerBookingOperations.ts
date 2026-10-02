@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
+import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
 import {
   claimMoneyOperation,
   modifyCustomerBookingState,
@@ -270,11 +271,11 @@ export async function cancelCustomerBooking(
                   Math.round(originalPlatformFee * retainedRatio * 100),
                 ),
               );
-              stripeObject = await stripe.paymentIntents.capture(
+              stripeObject = await captureBookingPayment(
+                stripe,
                 payment.stripe_payment_ref,
                 {
                   amount_to_capture: policy.cancellationChargePence,
-                  application_fee_amount: platformFeePence,
                   metadata: {
                     operation_key: operationKey,
                     booking_id: id,
@@ -286,22 +287,24 @@ export async function cancelCustomerBooking(
 
               if (policy.refundPercent > 0 && policy.refundPercent < 100) {
                 const platformFee = platformFeePence / 100;
-                const update = await admin
-                  .from("payments")
-                  .update({
-                    gross_amount: policy.cancellationCharge,
-                    split_breakdown: {
-                      ...split,
-                      provider: Number(
-                        (policy.cancellationCharge - platformFee).toFixed(2),
-                      ),
-                      platform_margin: platformFee,
-                      original_gross_amount: originalGross,
-                      cancellation_refund: policy.refundAmount,
-                      cancellation_policy: policy.tier,
-                    },
-                  })
-                  .eq("id", payment.id);
+                moneyOperationSucceeded = true;
+                await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", {
+                  stripeObjectId: stripeObject.id,
+                });
+                const update = await admin.rpc("system_record_cancellation_capture", {
+                  p_payment_id: payment.id,
+                  p_operation_id: operation.id,
+                  p_split_breakdown: {
+                    ...split,
+                    provider: Number(
+                      (policy.cancellationCharge - platformFee).toFixed(2),
+                    ),
+                    platform_margin: platformFee,
+                    original_gross_amount: originalGross,
+                    cancellation_refund: policy.refundAmount,
+                    cancellation_policy: policy.tier,
+                  },
+                });
                 if (update.error) {
                   await admin.rpc("open_review_case", {
                     p_booking_id: id,
@@ -316,16 +319,19 @@ export async function cancelCustomerBooking(
               }
             }
 
-            moneyOperationSucceeded = true;
-            await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", {
-              stripeObjectId: stripeObject.id,
-            });
+            if (!moneyOperationSucceeded) {
+              moneyOperationSucceeded = true;
+              await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", {
+                stripeObjectId: stripeObject.id,
+              });
+            }
           } catch (error) {
             const failure =
               error instanceof Error
                 ? error.message
                 : "Stripe cancellation adjustment failed";
             const definite =
+              error instanceof LegacyDestinationCaptureError ||
               error instanceof Stripe.errors.StripeCardError ||
               error instanceof Stripe.errors.StripeInvalidRequestError;
             await systemFinaliseMoneyOperation(
@@ -353,6 +359,7 @@ export async function cancelCustomerBooking(
               : shouldReleaseHold
                 ? "cancelled"
                 : "succeeded",
+            { reason: `Customer cancellation adjustment confirmed: ${policy.title}` },
           );
         }
       }

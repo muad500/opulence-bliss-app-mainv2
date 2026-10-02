@@ -56,17 +56,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: prov } = await admin
-      .from("providers")
-      .select("stripe_account_id")
-      .eq("id", booking.provider_id)
-      .maybeSingle();
-
-    const destination =
-      prov?.stripe_account_id ?? process.env.PROVIDER_TEST_ACCOUNT!;
-
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      client_reference_id: user.id,
       customer_email: user.email ?? undefined,
       line_items: [
         {
@@ -82,8 +74,9 @@ export async function POST(req: NextRequest) {
         },
       ],
       payment_intent_data: {
-        // No application fee — the provider gets all of it.
-        transfer_data: { destination },
+        // Keep the captured tip on the platform until we can transfer it to
+        // the assigned cleaner's account, with an auditable retry path.
+        transfer_group: `ob_tip_${crypto.randomUUID()}`,
         metadata: { kind: "tip", booking_id: bookingId },
       },
       success_url: `${req.nextUrl.origin}/api/tip/finalize?session_id={CHECKOUT_SESSION_ID}`,
