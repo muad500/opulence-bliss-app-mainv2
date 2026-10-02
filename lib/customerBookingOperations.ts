@@ -287,22 +287,24 @@ export async function cancelCustomerBooking(
 
               if (policy.refundPercent > 0 && policy.refundPercent < 100) {
                 const platformFee = platformFeePence / 100;
-                const update = await admin
-                  .from("payments")
-                  .update({
-                    gross_amount: policy.cancellationCharge,
-                    split_breakdown: {
-                      ...split,
-                      provider: Number(
-                        (policy.cancellationCharge - platformFee).toFixed(2),
-                      ),
-                      platform_margin: platformFee,
-                      original_gross_amount: originalGross,
-                      cancellation_refund: policy.refundAmount,
-                      cancellation_policy: policy.tier,
-                    },
-                  })
-                  .eq("id", payment.id);
+                moneyOperationSucceeded = true;
+                await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", {
+                  stripeObjectId: stripeObject.id,
+                });
+                const update = await admin.rpc("system_record_cancellation_capture", {
+                  p_payment_id: payment.id,
+                  p_operation_id: operation.id,
+                  p_split_breakdown: {
+                    ...split,
+                    provider: Number(
+                      (policy.cancellationCharge - platformFee).toFixed(2),
+                    ),
+                    platform_margin: platformFee,
+                    original_gross_amount: originalGross,
+                    cancellation_refund: policy.refundAmount,
+                    cancellation_policy: policy.tier,
+                  },
+                });
                 if (update.error) {
                   await admin.rpc("open_review_case", {
                     p_booking_id: id,
@@ -317,10 +319,12 @@ export async function cancelCustomerBooking(
               }
             }
 
-            moneyOperationSucceeded = true;
-            await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", {
-              stripeObjectId: stripeObject.id,
-            });
+            if (!moneyOperationSucceeded) {
+              moneyOperationSucceeded = true;
+              await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", {
+                stripeObjectId: stripeObject.id,
+              });
+            }
           } catch (error) {
             const failure =
               error instanceof Error
@@ -355,6 +359,7 @@ export async function cancelCustomerBooking(
               : shouldReleaseHold
                 ? "cancelled"
                 : "succeeded",
+            { reason: `Customer cancellation adjustment confirmed: ${policy.title}` },
           );
         }
       }
