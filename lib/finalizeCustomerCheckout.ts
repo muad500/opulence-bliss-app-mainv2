@@ -132,7 +132,9 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
       .eq("is_suspended", false);
     if (serviceType) query = query.contains("services", [serviceType]);
     const { data } = await query;
-    matched = data ?? [];
+    // A professional who books as a customer must never be offered, assigned or
+    // paid for their own booking. The database enforces this too.
+    matched = (data ?? []).filter((provider) => provider.profile_id !== customerId);
   }
 
   // Both database functions lock the checkout reference. The six inserts and
