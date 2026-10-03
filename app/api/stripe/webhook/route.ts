@@ -7,6 +7,7 @@
 //   stripe listen --forward-to localhost:3000/api/stripe/webhook
 // Copy the whsec_... it prints into .env.local as STRIPE_WEBHOOK_SECRET.
 
+import {finalizeHandymanCheckout} from '@/lib/handymanServer';
 import { finalizeCustomerCheckout } from "@/lib/finalizeCustomerCheckout";
 import { finalizeTipCheckout } from "@/lib/finalizeTipCheckout";
 import { NextRequest, NextResponse } from "next/server";
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
           const payment = await stripe.paymentIntents.retrieve(paymentId);
           if (payment.metadata.kind === "booking") await finalizeCustomerCheckout(session, payment);
           if (payment.metadata.kind === "tip") await finalizeTipCheckout(session, payment);
+          if (payment.metadata.kind === "handyman") await finalizeHandymanCheckout(admin,stripe,session,payment);
         } catch (failure) {
           console.error("Booking webhook finalisation failed:", failure);
           return NextResponse.json({ error: "Booking finalisation failed; retry required." }, { status: 500 });
