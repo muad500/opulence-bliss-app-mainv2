@@ -52,6 +52,15 @@ end $fn$;
 revoke all on function public.professional_verification_block(uuid,date) from public,anon,authenticated;
 grant execute on function public.professional_verification_block(uuid,date) to service_role;
 
+create or replace function public.public_eligible_provider_ids()
+returns table(id uuid) language sql stable security definer set search_path=public as $fn$
+ select p.id from public.providers p where p.vetting_status='approved' and p.dbs_verified and not p.is_suspended and p.show_on_our_pros
+ and public.professional_verification_block(p.id) is null
+ and not exists(select 1 from public.provider_verification_items v where v.provider_id=p.id and v.document_type='photo_id' and(v.status<>'verified' or(v.expires_at is not null and v.expires_at<current_date) or(v.next_check_at is not null and v.next_check_at<current_date)));
+$fn$;
+revoke all on function public.public_eligible_provider_ids() from public,service_role;
+grant execute on function public.public_eligible_provider_ids() to anon,authenticated;
+
 create or replace function public.guard_current_professional_verification()
 returns trigger language plpgsql security definer set search_path=public as $fn$
 declare reason text;
