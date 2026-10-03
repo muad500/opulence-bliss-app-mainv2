@@ -1,6 +1,7 @@
 'use client';
 import {useState} from 'react';
 import {useRouter} from 'next/navigation';
+import {CalendarDays,BriefcaseBusiness} from 'lucide-react';
 
 export default function AccountModeSwitch({mode}:{mode:'client'|'professional'}){
  const router=useRouter();const[busy,setBusy]=useState(false);const[error,setError]=useState('');
@@ -14,7 +15,7 @@ export default function AccountModeSwitch({mode}:{mode:'client'|'professional'})
   }catch(e){setError(e instanceof Error?e.message:'Please try again.');}finally{setBusy(false);}
  }
  return <div aria-label="Account mode" style={{display:'grid',gap:6,minWidth:0}}>
-  {(['client','professional'] as const).map(value=><button key={value} type="button" disabled={busy} aria-pressed={mode===value} onClick={()=>void choose(value)} style={{border:'1px solid var(--ob-border)',borderRadius:10,padding:'9px 12px',background:mode===value?'var(--ob-purple-soft)':'white',color:'var(--ob-purple)',fontWeight:800,textAlign:'left',cursor:'pointer'}}>{value==='client'?'Book a clean':'My jobs'}</button>)}
+  {(['client','professional'] as const).map(value=><button key={value} type="button" aria-label={value==='client'?'Book a clean':'My jobs'} title={value==='client'?'Book a clean':'My jobs'} disabled={busy} aria-pressed={mode===value} onClick={()=>void choose(value)} style={{display:'flex',alignItems:'center',gap:8,border:'1px solid var(--ob-border)',borderRadius:10,padding:'9px 12px',background:mode===value?'var(--ob-purple-soft)':'white',color:'var(--ob-purple)',fontWeight:800,textAlign:'left',cursor:'pointer'}}>{value==='client'?<CalendarDays size={18} style={{flexShrink:0}}/>:<BriefcaseBusiness size={18} style={{flexShrink:0}}/>}<span>{value==='client'?'Book a clean':'My jobs'}</span></button>)}
   {error&&<small role="alert">{error}</small>}
  </div>;
 }
