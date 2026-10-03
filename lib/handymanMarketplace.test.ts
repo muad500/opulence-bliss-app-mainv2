@@ -1,8 +1,93 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {handymanBill,handymanReviewSummary,handymanEnabled,isHandymanMarketplacePath,regulatedHandymanDescription,validHandymanTask} from './handymanMarketplace';
-test('handyman marketplace requires an explicit environment switch',()=>{assert.equal(handymanEnabled({}),false);assert.equal(handymanEnabled({HANDYMAN_MARKETPLACE_ENABLED:'false'}),false);assert.equal(handymanEnabled({HANDYMAN_MARKETPLACE_ENABLED:'true'}),true);});
-test('disabled page gate covers nested marketplace pages while preserving the existing quote page',()=>{assert.equal(isHandymanMarketplacePath('/handyman'),true);assert.equal(isHandymanMarketplacePath('/handyman/jobs/123'),true);assert.equal(isHandymanMarketplacePath('/services/handyman'),false);assert.equal(isHandymanMarketplacePath('/handymanager'),false);assert.equal(isHandymanMarketplacePath('/api/handyman/config'),false);});
-test('one-hour minimum and 20 percent of labour exclude VAT and pass through materials',()=>{assert.deepEqual(handymanBill(3500,20,2000,1299),{billedMinutes:60,labour:3500,vat:700,materials:1299,platform:700,gross:5499,provider:4799});assert.deepEqual(handymanBill(2999,91,0,105),{billedMinutes:91,labour:4548,vat:0,materials:105,platform:910,gross:4653,provider:3743});});
-test('invalid rates, worked time and receipt amounts cannot be billed',()=>{for(const args of [[0,60,0,0],[3500,-1,0,0],[3500,961,0,0],[3500,60,500,0],[3500,60,0,-1]])assert.throws(()=>handymanBill(...args as [number,number,number,number]));});
-test('only supported unregulated tasks can enter marketplace checkout',()=>{assert.equal(validHandymanTask('Furniture assembly'),true);assert.equal(validHandymanTask('Electrical work'),false);assert.equal(regulatedHandymanDescription('Replace electrical sockets'),true);assert.equal(regulatedHandymanDescription('Assemble a bookcase'),false);});
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  handymanBill,
+  handymanReviewSummary,
+  handymanEnabled,
+  isHandymanMarketplacePath,
+  regulatedHandymanDescription,
+  validHandymanTask
+} from './handymanMarketplace';
+test('handyman marketplace requires an explicit environment switch', () => {
+  assert.equal(handymanEnabled({}), false);
+  assert.equal(
+    handymanEnabled({ HANDYMAN_MARKETPLACE_ENABLED: 'false' }),
+    false
+  );
+  assert.equal(handymanEnabled({ HANDYMAN_MARKETPLACE_ENABLED: 'true' }), true);
+});
+test('disabled page gate covers nested marketplace pages while preserving the existing quote page', () => {
+  assert.equal(isHandymanMarketplacePath('/handyman'), true);
+  assert.equal(isHandymanMarketplacePath('/handyman/jobs/123'), true);
+  assert.equal(isHandymanMarketplacePath('/services/handyman'), false);
+  assert.equal(isHandymanMarketplacePath('/handymanager'), false);
+  assert.equal(isHandymanMarketplacePath('/api/handyman/config'), false);
+});
+test('one-hour minimum and 20 percent of labour exclude VAT and pass through materials', () => {
+  assert.deepEqual(handymanBill(3500, 20, 2000, 1299), {
+    billedMinutes: 60,
+    labour: 3500,
+    vat: 700,
+    materials: 1299,
+    platform: 700,
+    gross: 5499,
+    provider: 4799
+  });
+  assert.deepEqual(handymanBill(2999, 91, 0, 105), {
+    billedMinutes: 91,
+    labour: 4548,
+    vat: 0,
+    materials: 105,
+    platform: 910,
+    gross: 4653,
+    provider: 3743
+  });
+});
+test('invalid rates, worked time and receipt amounts cannot be billed', () => {
+  for (const args of [
+    [0, 60, 0, 0],
+    [3500, -1, 0, 0],
+    [3500, 961, 0, 0],
+    [3500, 60, 500, 0],
+    [3500, 60, 0, -1]
+  ])
+    assert.throws(() =>
+      handymanBill(...(args as [number, number, number, number]))
+    );
+});
+test('only supported unregulated tasks can enter marketplace checkout', () => {
+  assert.equal(validHandymanTask('Furniture assembly'), true);
+  assert.equal(validHandymanTask('Electrical work'), false);
+  assert.equal(
+    regulatedHandymanDescription('Replace electrical sockets'),
+    true
+  );
+  assert.equal(regulatedHandymanDescription('Assemble a bookcase'), false);
+});
 
-test('private feedback contributes an anonymous score without leaking words or date',()=>{const privateReview={rating:1,comment:'PRIVATE ONLY',is_public:false,reviewed_at:'2026-10-03T10:00:00Z'},publicReview={rating:5,comment:'Public words',is_public:true,reviewed_at:'2026-10-02T10:00:00Z'};const summary=handymanReviewSummary([privateReview,publicReview]);assert.equal(summary.rating,3);assert.equal(summary.ratingCount,2);assert.deepEqual(summary.publicReviews,[{rating:5,comment:'Public words',reviewed_at:publicReview.reviewed_at}]);assert.ok(!JSON.stringify(summary).includes('PRIVATE ONLY'));assert.equal(handymanReviewSummary([]).rating,null);});
+test('private feedback contributes an anonymous score without leaking words or date', () => {
+  const privateReview = {
+      rating: 1,
+      comment: 'PRIVATE ONLY',
+      is_public: false,
+      reviewed_at: '2026-10-03T10:00:00Z'
+    },
+    publicReview = {
+      rating: 5,
+      comment: 'Public words',
+      is_public: true,
+      reviewed_at: '2026-10-02T10:00:00Z'
+    };
+  const summary = handymanReviewSummary([privateReview, publicReview]);
+  assert.equal(summary.rating, 3);
+  assert.equal(summary.ratingCount, 2);
+  assert.deepEqual(summary.publicReviews, [
+    {
+      rating: 5,
+      comment: 'Public words',
+      reviewed_at: publicReview.reviewed_at
+    }
+  ]);
+  assert.ok(!JSON.stringify(summary).includes('PRIVATE ONLY'));
+  assert.equal(handymanReviewSummary([]).rating, null);
+});
