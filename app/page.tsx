@@ -12,7 +12,7 @@ import SiteFooter from "@/components/SiteFooter";
 
 type HomeQuote =
   | { id: string; rating: number; comment: string | null; source: "booking"; professional: string }
-  | { id: string; rating: number; comment: string; source: "testimonial"; customerName: string; location: string | null; isDemo: boolean };
+  | { id: string; rating: number; comment: string; source: "testimonial"; customerName: string; location: string | null };
 
 export default function Home() {
   const [quotes, setQuotes] = useState<HomeQuote[] | null>(null);
@@ -21,8 +21,9 @@ export default function Home() {
       const supabase = createClient();
       const { data: managed } = await supabase
         .from("marketing_reviews")
-        .select("id, rating, comment, customer_name, location, is_demo")
+        .select("id, rating, comment, customer_name, location")
         .eq("service_type", "cleaning")
+        .eq("is_demo", false)
         .eq("homepage_featured", true)
         .order("sort_order", { ascending: true })
         .order("reviewed_at", { ascending: false });
@@ -34,7 +35,6 @@ export default function Home() {
           source: "testimonial" as const,
           customerName: review.customer_name,
           location: review.location,
-          isDemo: review.is_demo,
         })));
         return;
       }
@@ -70,7 +70,6 @@ export default function Home() {
     })();
   }, []);
   const [postcode, setPostcode] = useState("");
-  const hasDemoQuotes = quotes?.some((quote) => quote.source === "testimonial" && quote.isDemo) ?? false;
 
   const bookLink = postcode
     ? `/book?pc=${encodeURIComponent(postcode)}`
@@ -169,24 +168,15 @@ export default function Home() {
       </section>
 
       {/* ---------- REVIEWS ---------- */}
-      {/* Admin-managed cards take priority when selected. Demo examples are
-          labelled on every card and never affect real reviews or ratings. */}
+      {/* Real customer reviews only: admin-featured cards take priority. */}
       {quotes && quotes.length > 0 && (
         <section className="quotes-wrap">
           <div className="inner">
-            <p className="eyebrow center">{hasDemoQuotes ? "Site showcase" : "From our customers"}</p>
-            <h2 className="center big">{hasDemoQuotes ? "Review examples and customer feedback" : "What customers say"}</h2>
-            {hasDemoQuotes && (
-              <p className="center demo-disclosure">
-                Illustrative cards show fictional content, not customer reviews, and are not part of our customer rating.
-              </p>
-            )}
+            <p className="eyebrow center">From our customers</p>
+            <h2 className="center big">Happy Customer Moments</h2>
             <div className="quotes">
               {quotes.map((quote) => (
                 <blockquote key={quote.id}>
-                  {quote.source === "testimonial" && quote.isDemo && (
-                    <span className="demo-badge">Illustrative example — not a customer review</span>
-                  )}
                   <strong className="quote-name">
                     {quote.source === "testimonial" ? quote.customerName : "Customer"}
                   </strong>
@@ -200,7 +190,7 @@ export default function Home() {
               ))}
             </div>
             <p className="center all-reviews">
-              <a href="/reviews">{hasDemoQuotes ? "Read real customer reviews" : "Read all reviews"}</a>
+              <a href="/reviews">Read all reviews</a>
             </p>
           </div>
         </section>
@@ -542,24 +532,6 @@ export default function Home() {
           grid-template-columns: repeat(3, 1fr);
           gap: 22px;
           margin-top: 42px;
-        }
-        .demo-disclosure {
-          max-width: 58ch;
-          margin: 8px auto 0;
-          color: var(--muted);
-          font-size: 14px;
-          line-height: 1.5;
-        }
-        .demo-badge {
-          display: inline-block;
-          margin-bottom: 12px;
-          padding: 6px 10px;
-          border: 1px solid #b45309;
-          border-radius: 999px;
-          color: #92400e;
-          background: #fffbeb;
-          font-size: 12px;
-          font-weight: 800;
         }
         blockquote {
           background: var(--ob-surface-raised);
