@@ -45,6 +45,8 @@ export default function PortalNavigation({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [unread, setUnread] = useState(0);
+  const [handyman,setHandyman]=useState(false);
+  useEffect(()=>{void fetch("/api/handyman/config").then(r=>r.json()).then(d=>setHandyman(d.enabled===true)).catch(()=>undefined);},[]);
   const [signingOut, setSigningOut] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
@@ -64,6 +66,8 @@ export default function PortalNavigation({
         { href: "/account/profile", label: "My profile", mobileLabel: "Profile", icon: UserRound, bottom: true },
         { href: "/account/updates", label: "Updates", mobileLabel: "Updates", icon: Bell, bottom: true },
       ];
+
+  if(handyman)items.push({href:"/handyman/jobs",label:"Handyman jobs",mobileLabel:"Trade jobs",icon:BriefcaseBusiness});
 
   useEffect(() => {
     try { setCollapsed(localStorage.getItem(`opulence-${mode}-nav`) === "collapsed"); } catch { /* storage may be disabled */ }

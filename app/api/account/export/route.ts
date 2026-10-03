@@ -70,7 +70,13 @@ export async function GET(request: NextRequest) {
       providerPayout: booking.provider_payout,
     }));
     const incidents = await allFor(ctx.admin, "account_incidents", "reporter_id", userId);
+    const customerHandyman=await allFor(ctx.admin,'handyman_jobs','customer_id',userId);
+    const workerHandyman=providerId?await allFor(ctx.admin,'handyman_jobs','provider_id',providerId):[];
+    const handymanJobs=[...new Map([...customerHandyman,...workerHandyman].map(row=>[String(row.id),row])).values()];
+    const handymanIds=handymanJobs.map(row=>String(row.id));
+    const handymanFiles=await allByIds(ctx.admin,'handyman_files','job_id',handymanIds),handymanReviews=await allByIds(ctx.admin,'handyman_reviews','job_id',handymanIds);
     const exportData = {
+      handyman:{jobs:handymanJobs,files:handymanFiles,reviews:handymanReviews},
       exportedAt: new Date().toISOString(),
       account: { email: ctx.user.email, userMetadata: ctx.user.user_metadata, profile, details, legal, consents, marketingConsents, deletionRequests },
       client: { addresses, favourites, bookings: clientBookings, payments: payments.filter((row) => clientBookings.some((booking) => booking.id === row.booking_id)), reviews, messages, notifications },

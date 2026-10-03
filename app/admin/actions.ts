@@ -52,7 +52,7 @@ function assertTestMode(tool: string) {
 }
 
 async function approvalRequirements(id: string): Promise<string[]> {
-  const [dbsResult, checksResult] = await Promise.all([
+  const [dbsResult, checksResult, providerResult] = await Promise.all([
     admin
     .from("provider_dbs_checks")
     .select("status, uploaded_at,issue_date")
@@ -62,9 +62,10 @@ async function approvalRequirements(id: string): Promise<string[]> {
     .from("provider_verification_items")
     .select("document_type,status,uploaded_at,document_storage_path,expires_at,next_check_at,gov_uk_checked_on,reference")
     .eq("provider_id", id)
-    .in("document_type", ["right_to_work", "photo_id"]),
+    .in("document_type", ["right_to_work", "photo_id", "public_liability_insurance"]),
+    admin.from("providers").select("services").eq("id",id).single(),
   ]);
-  if (dbsResult.error || checksResult.error) throw new Error("Private verification records could not be loaded.");
+  if (dbsResult.error || checksResult.error || providerResult.error) throw new Error("Private verification records could not be loaded.");
   const missing: string[] = [];
   if (dbsResult.data?.status !== "verified" || !dbsResult.data.uploaded_at) missing.push("DBS certificate");
   const today = new Date().toISOString().slice(0, 10);
@@ -76,6 +77,7 @@ async function approvalRequirements(id: string): Promise<string[]> {
       missing.push(label);
     }
   }
+  if(providerResult.data?.services?.includes("handyman")){const insurance=checksResult.data?.find(x=>x.document_type==="public_liability_insurance");if(!insurance||insurance.status!=="verified"||!insurance.document_storage_path||!insurance.uploaded_at||!insurance.expires_at||insurance.expires_at<today)missing.push("current public liability insurance");}
   return missing;
 }
 
