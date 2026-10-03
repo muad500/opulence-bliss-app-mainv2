@@ -17,7 +17,7 @@ revoke all on function public.queue_booking_sms_copy() from public,anon,authenti
 
 create or replace function public.booking_sms_allowed(p_id uuid,p_token uuid)
 returns boolean language sql stable security definer set search_path=public as $fn$
- select coalesce((select d.status='processing' and d.claim_token=p_token and d.expires_at>now() and b.status::text in('offered','scheduled') and coalesce(s.contact_sms,false) and(d.kind in('received','confirmed') or coalesce(s.notify_bookings,true))
+ select coalesce((select d.status='processing' and d.claim_token=p_token and d.expires_at>now() and b.status::text in('offered','scheduled') and coalesce(s.contact_sms,false) and(d.kind='received' or (b.status::text='scheduled' and (d.kind='confirmed' or coalesce(s.notify_bookings,true))))
   from public.booking_notification_deliveries d join public.bookings b on b.id=d.booking_id left join public.account_profile_details s on s.user_id=d.user_id where d.id=p_id and d.channel='sms'),false) and auth.role()='service_role';
 $fn$;
 revoke all on function public.booking_sms_allowed(uuid,uuid) from public,anon,authenticated;
@@ -33,7 +33,7 @@ begin
  perform pg_advisory_xact_lock(hashtextextended('booking-sms-budget:'||month::text,0));
  -- No automatic retries after a lease expires: provider acceptance is unknown.
  update public.booking_notification_deliveries d set status='failed',last_error='SMS outcome uncertain; manual provider review required.',claim_token=null where d.channel='sms' and d.status='processing' and d.claimed_at<now()-interval '10 minutes';
- update public.booking_notification_deliveries d set status='cancelled',claim_token=null where d.channel='sms' and d.status='pending' and(d.expires_at<=now() or not exists(select 1 from public.bookings b join public.account_profile_details s on s.user_id=d.user_id where b.id=d.booking_id and b.status::text in('offered','scheduled') and s.contact_sms and(d.kind in('received','confirmed') or s.notify_bookings)));
+ update public.booking_notification_deliveries d set status='cancelled',claim_token=null where d.channel='sms' and d.status='pending' and(d.expires_at<=now() or not exists(select 1 from public.bookings b join public.account_profile_details s on s.user_id=d.user_id where b.id=d.booking_id and b.status::text in('offered','scheduled') and s.contact_sms and(d.kind='received' or (b.status::text='scheduled' and (d.kind='confirmed' or s.notify_bookings)))));
  select coalesce(sum(d.sms_cost_cap_pence),0) into spent from public.booking_notification_deliveries d where d.sms_budget_month=month;
  for item in select d.id,d.booking_id,d.kind,p.phone,b.scheduled_at from public.booking_notification_deliveries d join public.profiles p on p.id=d.user_id join public.bookings b on b.id=d.booking_id where d.channel='sms' and d.status='pending' and d.due_at<=now() and d.expires_at>now() and p.phone~'^\+44[0-9]{10}$' order by d.due_at,d.id limit 5 for update of d skip locked loop
   if spent+p_cost_cap_pence>p_budget_pence then exit; end if;
