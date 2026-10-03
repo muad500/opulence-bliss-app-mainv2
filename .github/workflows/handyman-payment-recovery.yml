@@ -1,0 +1,47 @@
+name: Handyman payment recovery SQL checks
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20261003002000_handyman_payment_recovery.sql'
+      - 'supabase/tests/0023_handyman_payment_recovery.sql'
+      - '.github/workflows/handyman-payment-recovery.yml'
+permissions:
+  contents: read
+jobs:
+  database-contracts:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: payment_recovery_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: isolated-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test recovery migration on isolated PostgreSQL fixtures
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/0023_handyman_payment_recovery.sql
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGDATABASE: payment_recovery_test
+          PGUSER: postgres
+          PGPASSWORD: isolated-ci-only
+      - name: Confirm Production marketplace remains disabled
+        shell: python
+        run: |
+          import json, urllib.request
+          url = "https://opulence-bliss-app-mainv2.vercel.app/api/handyman/config"
+          with urllib.request.urlopen(url, timeout=30) as response:
+              configuration = json.load(response)
+          if configuration.get("enabled") is not False:
+              raise RuntimeError("Production marketplace is not confirmed disabled.")
+          print("Production HANDYMAN_MARKETPLACE_ENABLED is off.")

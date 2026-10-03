@@ -6,7 +6,8 @@ import {
   handymanStripe,
   handymanCheckout,
   finalizeHandymanCheckout,
-  settleHandyman
+  settleHandyman,
+  HandymanAuthorisationRequired
 } from '@/lib/handymanServer';
 import { readAccountBody } from '@/lib/accountApi';
 type Params = { params: Promise<{ id: string }> };
@@ -187,7 +188,11 @@ export async function POST(req: NextRequest, { params }: Params) {
       }
       try {
         await settleHandyman(ctx.admin, handymanStripe(), j!);
-      } catch {
+      } catch (failure) {
+        if (failure instanceof HandymanAuthorisationRequired)
+          return NextResponse.json({
+            error: failure.message, status: 'awaiting_authorization'
+          }, { status: 409 });
         await ctx.admin
           .from('handyman_jobs')
           .update({
@@ -226,10 +231,14 @@ export async function POST(req: NextRequest, { params }: Params) {
         );
         if (session.status === 'open')
           await stripe.checkout.sessions.expire(session.id);
-        else if (session.status === 'complete')
-          throw Error(
-            'A completed hold needs reconciliation before cancellation'
-          );
+        else if (session.status === 'complete' && session.payment_intent) {
+          const intentId = typeof session.payment_intent === 'string'
+            ? session.payment_intent : session.payment_intent.id;
+          await finalizeHandymanCheckout(ctx.admin, stripe, session,
+            await stripe.paymentIntents.retrieve(intentId));
+        } else if (session.status === 'complete') {
+          throw Error('Completed checkout has no recorded authorisation.');
+        }
       }
       const { error: cancelError } = await ctx.admin
         .from('handyman_jobs')

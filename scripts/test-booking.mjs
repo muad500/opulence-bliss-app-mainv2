@@ -21,6 +21,9 @@ try {
     stdio: "inherit",
     env: { ...process.env, NODE_PATH: join(process.cwd(), "node_modules") },
   });
+  execFileSync(process.execPath, [
+    "--test", "scripts/test-handyman-payment-recovery.mjs"
+  ], { stdio: "inherit" });
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

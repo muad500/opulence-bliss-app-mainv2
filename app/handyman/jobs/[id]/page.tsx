@@ -84,7 +84,10 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
           body: JSON.stringify({ action: name, ...fields })
         }),
         d = await r.json();
-      if (!r.ok) throw Error(d.error);
+      if (!r.ok) {
+        if (d.status === 'awaiting_authorization') await load();
+        throw Error(d.error);
+      }
       if (d.url) {
         window.location.assign(d.url);
         return;
@@ -192,7 +195,7 @@ export default function Page({ params }: { params: Promise<{ id: string }> }) {
                       onClick={() => void action('authorise')}
                     >
                       {j.status === 'awaiting_authorization'
-                        ? 'Authorise the revised bill'
+                        ? 'Authorise the approved bill'
                         : 'Continue card authorisation'}
                     </button>
                     <button
