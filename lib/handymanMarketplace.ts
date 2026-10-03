@@ -1,5 +1,6 @@
 export const HANDYMAN_TASKS=['Mounting and hanging','Furniture assembly','Minor repairs','Curtains and blinds','Furniture moving','Minor decorating'] as const;
 export function handymanEnabled(env:Record<string,string|undefined>=process.env){return env.HANDYMAN_MARKETPLACE_ENABLED==='true';}
+export function isHandymanMarketplacePath(path:string){return path==='/handyman'||path.startsWith('/handyman/');}
 export function validHandymanTask(task:unknown):task is typeof HANDYMAN_TASKS[number]{return typeof task==='string'&&(HANDYMAN_TASKS as readonly string[]).includes(task);}
 export function regulatedHandymanDescription(text:string){return /\b(gas|boiler|electrical|electrics|wiring|rewir\w*|circuit\w*|socket\w*|consumer unit|asbestos|structural|load.bearing|plumbing installation)\b/i.test(text);}
 export type HandymanReview={rating:number;comment:string|null;is_public:boolean;reviewed_at:string};
