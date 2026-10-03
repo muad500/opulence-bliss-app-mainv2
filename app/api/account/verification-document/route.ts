@@ -63,6 +63,14 @@ export async function POST(request: NextRequest) {
     const type = form.get("type");
     const file = form.get("file");
     if (!isProviderDocumentType(type) && type !== "dbs") return accountError("Choose a supported document type.");
+    const reference = String(form.get("reference") ?? "").trim().toUpperCase().replace(/\s/g, "");
+    if(type==='right_to_work'&&reference&&(!(file instanceof File)||file.size===0)){
+      if(!/^[A-Z0-9]{9}$/.test(reference))return accountError('Enter a valid 9-character share code.');
+      const {data:previous,error}=await ctx.admin.rpc('submit_rtw_share_code',{p_provider_id:ctx.providerId,p_code:reference});
+      if(error)return accountError('Share code could not be submitted.',503);
+      if(previous)await ctx.admin.storage.from(BUCKET).remove([previous]);
+      return NextResponse.json({ok:true,status:'pending'});
+    }
     if (!(file instanceof File) || file.size === 0 || file.size > MAX_BYTES) {
       return accountError("Choose a file no larger than 4 MB.");
     }
@@ -70,7 +78,6 @@ export async function POST(request: NextRequest) {
     const issuedAt = String(form.get("issuedAt") ?? "").trim();
     const expiresAt = String(form.get("expiresAt") ?? "").trim();
     const today = new Date().toISOString().slice(0, 10);
-    const reference = String(form.get("reference") ?? "").trim().toUpperCase().replace(/\s/g, "");
     if (type === "right_to_work" && reference && !/^[A-Z0-9]{9}$/.test(reference)) return accountError("Enter a valid 9-character share code, or leave it blank and provide your visa document.");
     if (type === "dbs" && (!/^\d{12}$/.test(reference) || !isDbsCertificateNumber(reference) || !isDbsIssueDate(issuedAt))) return accountError("Enter the 12-digit DBS certificate number and issue date.");
     if ((issuedAt && (!validDocumentDate(issuedAt) || issuedAt > today)) ||

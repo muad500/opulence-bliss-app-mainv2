@@ -23,17 +23,19 @@ export async function reviewProviderDocument(
   const admin = createAdminClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 
   const { data: record, error: readError } = await admin.from("provider_verification_items")
-    .select("document_storage_path,uploaded_at,status")
+    .select("document_storage_path,uploaded_at,status,reference")
     .eq("provider_id", providerId)
     .eq("document_type", documentType)
     .maybeSingle();
   if (readError) throw new Error("Document record could not be loaded.");
-  if (!record?.document_storage_path || !record.uploaded_at || record.status !== "pending") {
+  const codeOnly=documentType==='right_to_work'&&!!record?.reference&&/^[A-Z0-9]{9}$/.test(record.reference);
+  if (!record || (!record.document_storage_path&&!codeOnly) || !record.uploaded_at || (record.status !== "pending" && !(documentType==='right_to_work'&&['verified','expired'].includes(record.status)))) {
     throw new Error("This document is no longer awaiting review.");
   }
   if (record.uploaded_at !== expectedUploadedAt) {
     throw new Error("A newer document was uploaded. Reload this page before reviewing it.");
   }
+  if(record.document_storage_path){
   const pathPrefix = `${providerId}/${documentType}/`;
   if (!record.document_storage_path.startsWith(pathPrefix)) {
     throw new Error("The document path is invalid.");
@@ -46,13 +48,16 @@ export async function reviewProviderDocument(
   if (storageError || !fileName || !files?.some((file) => file.name === fileName)) {
     throw new Error("The uploaded document could not be found.");
   }
+  }
 
   const issuedAt = String(form.get("issuedAt") ?? "").trim();
   const expiresAt = String(form.get("expiresAt") ?? "").trim();
   const nextCheckAt = String(form.get("nextCheckAt") ?? "").trim();
   const reference = String(form.get("reference") ?? "").trim();
+  const govCheckedOn=String(form.get('govCheckedOn')??'').trim();
   const note = String(form.get("note") ?? "").trim();
   const today = new Date().toISOString().slice(0, 10);
+  if(documentType==='right_to_work'&&decision==='verified'&&(!govCheckedOn||!validDocumentDate(govCheckedOn)||govCheckedOn>today))throw new Error('Record the date you completed the GOV.UK right-to-work check.');
   if ((issuedAt && (!validDocumentDate(issuedAt) || issuedAt > today)) ||
       (expiresAt && (!validDocumentDate(expiresAt) || (decision === "verified" && expiresAt < today))) ||
       (nextCheckAt && (!validDocumentDate(nextCheckAt) || (decision === "verified" && nextCheckAt < today))) ||
@@ -79,12 +84,13 @@ export async function reviewProviderDocument(
       review_note: note || null,
       reviewed_by: user.id,
       checked_at: new Date().toISOString(),
+      ...(documentType==='right_to_work'?{gov_uk_checked_on:govCheckedOn||null}:{}),
       updated_at: new Date().toISOString(),
     })
     .eq("provider_id", providerId)
     .eq("document_type", documentType)
     .eq("uploaded_at", expectedUploadedAt)
-    .eq("status", "pending")
+    .eq("status", record.status)
     .select("id")
     .maybeSingle();
   if (updateError) throw new Error("Document review could not be saved.");

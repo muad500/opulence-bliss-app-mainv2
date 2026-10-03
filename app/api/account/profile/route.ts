@@ -50,6 +50,7 @@ async function loadProfile({ user, admin }: AccountContext) {
       contactChannels: [d?.contact_email !== false && "email", d?.contact_sms === true && "sms", d?.contact_whatsapp === true && "whatsapp"].filter(Boolean),
       notifications: { bookings: d?.notify_bookings !== false, messages: d?.notify_messages !== false },
       marketingEmails: d?.marketing_emails === true,
+      marketingConsentAt: d?.marketing_consent_at ?? null,
     },
     favourites: (favouritesResult.data ?? []).map((row) => {
       const provider = Array.isArray(row.providers) ? row.providers[0] : row.providers;

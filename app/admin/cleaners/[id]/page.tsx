@@ -101,7 +101,7 @@ export default async function ProfessionalRecordPage({ params }: { params: Promi
   const dbs = dbsResult.data;
   const { data: verificationItems, error: verificationError } = await serviceAdmin
     .from("provider_verification_items")
-    .select("document_type,status,document_storage_path,document_original_name,uploaded_at,issued_at,expires_at,next_check_at,reference,review_note")
+    .select("document_type,status,document_storage_path,document_original_name,uploaded_at,issued_at,expires_at,next_check_at,reference,review_note,gov_uk_checked_on")
     .eq("provider_id", id);
   const today = new Date().toISOString().slice(0, 10);
   const verificationTypes = PROVIDER_DOCUMENT_TYPES.filter((type) => type !== "trade_certificate" || provider.services?.includes("handyman"));
@@ -121,6 +121,7 @@ export default async function ProfessionalRecordPage({ params }: { params: Promi
       nextCheckAt: item?.next_check_at ?? null,
       reference: item?.reference ?? null,
       reviewNote: item?.review_note ?? null,
+      govCheckedOn:item?.gov_uk_checked_on??null,
     };
   }));
   let dbsCertificateUrl: string | null = null;

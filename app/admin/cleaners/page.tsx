@@ -3,6 +3,7 @@ import Link from "next/link";
 import VettingButtons from "../VettingButtons";
 import { requireAdminPage } from "@/lib/adminSession";
 import { setProviderDirectoryVisibility } from "../actions";
+import {dbsRecheckDate,renewalState} from '@/lib/verificationRenewal';
 
 function profileOf(value: unknown) {
   if (Array.isArray(value)) return value[0] as { email?: string } | undefined;
@@ -48,7 +49,7 @@ export default async function AdminCleanersPage() {
     supabase.from("bookings").select("provider_id, status"),
     supabase
       .from("provider_dbs_checks")
-      .select("provider_id, status, uploaded_at"),
+      .select("provider_id, status, uploaded_at,issue_date"),
   ]);
 
   const providers = providersResult.data ?? [];
@@ -159,6 +160,7 @@ export default async function AdminCleanersPage() {
                     </p>
                     <p style={meta}>
                       <strong>DBS:</strong> {dbsLabel}
+                      {dbs?.issue_date&&<> · Annual re-check {dbsRecheckDate(dbs.issue_date)} ({renewalState(dbsRecheckDate(dbs.issue_date),new Date().toISOString().slice(0,10))})</>}
                     </p>
                     <p style={meta}>
                       {provider.rating_avg

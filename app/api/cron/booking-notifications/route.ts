@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import {processBookingSms} from '@/lib/processBookingSms';
 
 export const maxDuration = 60;
 type Delivery = { id: string; claim_token: string; email: string | null; title: string; body: string; href: string };
@@ -51,5 +52,7 @@ export async function GET(req: NextRequest) {
     if (finishError || !ok) failed++; else sent++;
     }));
   }
-  return NextResponse.json({ sent, failed, emailConfigured: ready }, { status: failed || !ready ? 503 : 200 });
+  let sms:{enabled:boolean;submitted:number;failed:number};
+  try{sms=await processBookingSms(admin);}catch{sms={enabled:true,submitted:0,failed:1};}
+  return NextResponse.json({ sent, failed, emailConfigured: ready,sms }, { status: failed || sms.failed || !ready ? 503 : 200 });
 }

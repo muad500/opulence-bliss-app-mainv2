@@ -134,7 +134,7 @@ export default function Home() {
           ["Vetted cleaners", "Every approved cleaner is vetted before taking bookings"],
           ["Clear before you commit", "See the cleaning price or approve a handyman quote"],
           ["Your regular pro", "Ask for them again next time"],
-          ["Same-day booking requests", "Choose a suitable time today; we'll look for your cleaner"],
+          ["Book in 2 hours", "Same-day booking available"],
         ].map(([t, s]) => (
           <div key={t}>
             <strong>{t}</strong>

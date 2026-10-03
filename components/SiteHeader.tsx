@@ -11,6 +11,7 @@ import { Fragment, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LogOut, Menu, UserRound, X } from "lucide-react";
+import AccountModeSwitch from './AccountModeSwitch';
 
 const supabase = createClient();
 
@@ -37,6 +38,7 @@ export default function SiteHeader() {
   const [unread, setUnread] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [accountMode,setAccountMode]=useState<'client'|'professional'>('client');
 
   useEffect(() => {
     setMobileOpen(false);
@@ -111,6 +113,8 @@ export default function SiteHeader() {
           .select("id").eq("profile_id", user.id).maybeSingle();
         if (!alive) return;
         setHasProfessionalAccount(!!provider);
+        const {data:details}=await supabase.from('account_profile_details').select('last_account_mode').eq('user_id',user.id).maybeSingle();
+        if(alive)setAccountMode(provider&&details?.last_account_mode==='professional'?'professional':'client');
 
         const { count } = await supabase
           .from("notifications")
@@ -124,10 +128,12 @@ export default function SiteHeader() {
     load();
     const { data: sub } = supabase.auth.onAuthStateChange(() => load());
     const timer = setInterval(load, 30000);
+    window.addEventListener('opulence-account-mode',load);
     return () => {
       alive = false;
       clearInterval(timer);
       sub.subscription.unsubscribe();
+      window.removeEventListener('opulence-account-mode',load);
     };
   }, []);
 
@@ -142,7 +148,7 @@ export default function SiteHeader() {
     }
   }
 
-  const accountHref = role === "admin" ? "/admin" : role ? "/account" : "/login";
+  const accountHref = role === "admin" ? "/admin" : role ? accountMode==='professional'?'/worker':"/account" : "/login";
 
   // The provider and admin portals have their own chrome.
   if (
@@ -200,6 +206,7 @@ export default function SiteHeader() {
           <Link href="/book" style={cta}>
             Book now
           </Link>
+          {role&&role!=='admin'&&hasProfessionalAccount&&<AccountModeSwitch mode={accountMode}/>}
         </div>
 
         <div className="mobile-primary">
@@ -234,8 +241,8 @@ export default function SiteHeader() {
                 {role ? (
                   <>
                     <p>Your account</p>
-                    <Link href={accountHref}>{role === "admin" ? "Admin dashboard" : "Client account"}</Link>
-                    {role !== "admin" && <Link href={hasProfessionalAccount ? "/worker" : "/provider/join"}>{hasProfessionalAccount ? "Professional portal" : "Become a professional"}</Link>}
+                    <Link href={accountHref}>{role === "admin" ? "Admin dashboard" : "My account"}</Link>
+                    {role !== "admin" && (hasProfessionalAccount?<AccountModeSwitch mode={accountMode}/>:<Link href="/provider/join">Become a professional</Link>)}
                     <button
                       type="button"
                       className="mobile-signout"

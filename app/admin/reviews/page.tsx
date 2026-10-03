@@ -120,7 +120,7 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
                       formAction={copyBookingReviewToTestimonial}
                       disabled={copiedReviewIds.has(review.id)}
                     >
-                      {copiedReviewIds.has(review.id) ? "Copied for editing" : "Copy to editable testimonial"}
+                      {copiedReviewIds.has(review.id) ? "Copied for placement" : "Feature original review"}
                     </button>
                   </div>
                 </form>
@@ -139,8 +139,8 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
               Add feedback actually given by a customer. By saving it, you
               confirm you have permission to use the customer&apos;s name and
               location. New reviews appear on the homepage automatically;
-              they also appear under Read all reviews and contribute to the
-              customer rating. You can choose whether to show the full review
+              they also appear under Read all reviews. Only booking reviews
+              contribute to the headline rating. You can choose whether to show the full review
               on the cleaning page. Copied booking reviews are counted only
               once and always show the customer&apos;s own rating, words and
               date. Never write or change a customer&apos;s words or rating.

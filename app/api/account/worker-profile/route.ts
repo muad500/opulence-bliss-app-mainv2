@@ -4,6 +4,7 @@ import {
   optionalBoolean, optionalInteger, optionalText, readAccountBody, safeProfilePhoto,
   textList, type AccountContext,
 } from "@/lib/accountApi";
+import {dbsRecheckDate} from '@/lib/verificationRenewal';
 
 const HANDYMAN_TASKS = [
   "Mounting and hanging", "Furniture assembly", "Minor repairs",
@@ -17,7 +18,7 @@ async function loadWorkerProfile(ctx: AccountContext) {
     ctx.admin.from("providers").select("id,display_name,bio,photo_url,years_experience,services,rating_avg,rating_count,stripe_account_id,payout_schedule,vetting_status,is_suspended").eq("id", providerId).single(),
     ctx.admin.from("provider_onboarding_details").select("date_of_birth,utr_number,resident_status,right_to_work,weekly_availability,preferred_weekly_hours").eq("provider_id", providerId).maybeSingle(),
     ctx.admin.from("provider_profile_settings").select("*").eq("provider_id", providerId).maybeSingle(),
-    ctx.admin.from("provider_verification_items").select("document_type,label,status,reference,issued_at,expires_at,checked_at,next_check_at,uploaded_at,document_original_name,document_storage_path,review_note").eq("provider_id", providerId).order("created_at", { ascending: false }),
+    ctx.admin.from("provider_verification_items").select("document_type,label,status,reference,issued_at,expires_at,checked_at,gov_uk_checked_on,next_check_at,uploaded_at,document_original_name,document_storage_path,review_note").eq("provider_id", providerId).order("created_at", { ascending: false }),
     ctx.admin.from("provider_dbs_checks").select("status,certificate_number,issue_date,review_note,uploaded_at,reviewed_at,certificate_storage_path").eq("provider_id", providerId).maybeSingle(),
     ctx.admin.from("provider_task_rates").select("task_name,hourly_rate_pence").eq("provider_id", providerId),
     ctx.admin.from("provider_time_off").select("id,starts_at,ends_at,note").eq("provider_id", providerId).gte("ends_at", new Date().toISOString()).order("starts_at"),
@@ -30,6 +31,8 @@ async function loadWorkerProfile(ctx: AccountContext) {
   const provider = providerResult.data;
   if (!profile || !provider) throw new Error("Professional account not found.");
   const application = onboardingResult.data;
+  const {data:verificationBlock,error:verificationBlockError}=await ctx.admin.rpc('professional_verification_block',{p_provider_id:providerId});
+  if(verificationBlockError)throw new Error('Verification status could not be loaded.');
   const settings = settingsResult.data;
   const nowDate = new Date().toISOString().slice(0, 10);
   const verification = (verificationResult.data ?? []).filter((row) => row.document_type !== "dbs").map((row) => ({
@@ -39,7 +42,7 @@ async function loadWorkerProfile(ctx: AccountContext) {
     reference: row.reference,
     issuedAt: row.issued_at,
     expiresAt: row.expires_at,
-    lastCheckedAt: row.checked_at,
+    lastCheckedAt: row.document_type==='right_to_work'?row.gov_uk_checked_on:row.checked_at,
     nextCheckAt: row.next_check_at,
     uploadedAt: row.uploaded_at,
     originalName: row.document_original_name,
@@ -49,9 +52,9 @@ async function loadWorkerProfile(ctx: AccountContext) {
   if (dbsResult.data) {
     const dbs = dbsResult.data;
     verification.push({
-      type: "dbs", label: "DBS check", status: dbs.status === "failed" ? "rejected" : dbs.status,
+      type: "dbs", label: "DBS check", status: dbs.status === "failed" ? "rejected" : dbs.status==='verified'&&(dbsRecheckDate(dbs.issue_date)??'')<nowDate?'expired':dbs.status,
       reference: dbs.certificate_number, issuedAt: dbs.issue_date, expiresAt: null,
-      lastCheckedAt: dbs.reviewed_at, nextCheckAt: dbs.reviewed_at ? new Date(new Date(dbs.reviewed_at).setUTCFullYear(new Date(dbs.reviewed_at).getUTCFullYear() + 1)).toISOString().slice(0, 10) : null, uploadedAt: dbs.uploaded_at,
+      lastCheckedAt: dbs.reviewed_at, nextCheckAt: dbsRecheckDate(dbs.issue_date), uploadedAt: dbs.uploaded_at,
       originalName: null, hasDocument: !!dbs.certificate_storage_path,
       reviewNote: dbs.review_note,
     });
@@ -107,7 +110,7 @@ async function loadWorkerProfile(ctx: AccountContext) {
       notifications: { messages: settings?.notify_messages !== false },
     },
     legalAcceptances,
-    accountStatus: { vetting: provider.vetting_status, suspended: provider.is_suspended },
+    accountStatus: { vetting: provider.vetting_status, suspended: provider.is_suspended,verificationBlock },
   };
 }
 
