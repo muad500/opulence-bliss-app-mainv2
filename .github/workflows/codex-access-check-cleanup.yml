@@ -1,0 +1,53 @@
+name: Remove temporary Codex access-check branch
+on:
+  push:
+    branches: [codex/handyman-payment-recovery]
+    paths: ['.github/workflows/codex-access-check-cleanup.yml']
+permissions: {}
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Verify and remove only the empty access-check branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import json, os, urllib.request, urllib.error
+          root = "https://api.github.com/repos/muad500/opulence-bliss-app-mainv2"
+          headers = {"Authorization": "Bearer " + os.environ["GH_TOKEN"],
+                     "Accept": "application/vnd.github+json",
+                     "X-GitHub-Api-Version": "2022-11-28"}
+          def request(path, method="GET"):
+              req = urllib.request.Request(root + path, headers=headers, method=method)
+              with urllib.request.urlopen(req) as response:
+                  data = response.read()
+                  return json.loads(data) if data else None
+          path = "/git/refs/heads/codex/access-check-20261003"
+          expected = "cb2f9b8cba474951207f3883ee6fdca5dc02c25d"
+          try:
+              ref = request(path)
+          except urllib.error.HTTPError as failure:
+              if failure.code == 404:
+                  print("Temporary access-check branch is already absent.")
+                  raise SystemExit(0)
+              raise
+          if ref["object"]["sha"] != expected:
+              raise RuntimeError("Branch moved; refusing deletion.")
+          commit = request("/git/commits/" + expected)
+          if len(commit["parents"]) != 1:
+              raise RuntimeError("Unexpected access-check commit parents.")
+          parent = request("/git/commits/" + commit["parents"][0]["sha"])
+          if commit["tree"]["sha"] != parent["tree"]["sha"]:
+              raise RuntimeError("Access-check commit is not empty.")
+          request(path, "DELETE")
+          try:
+              request(path)
+          except urllib.error.HTTPError as failure:
+              if failure.code != 404:
+                  raise
+          else:
+              raise RuntimeError("Branch still exists after deletion.")
+          print("Verified empty commit; temporary access-check branch deleted.")
