@@ -76,6 +76,15 @@ export async function POST(req: NextRequest) {
     let j = await load();
     check(j.customer_id === customer && j.provider_id === provider && j.description === description,'Unowned job');
     const session = async () => { check(j.checkout_session,'No checkout');return stripe.checkout.sessions.retrieve(j.checkout_session); };
+    if (action === 'inspect') {
+      const pi = j.payment_intent ? await stripe.paymentIntents.retrieve(j.payment_intent) : null;
+      check(!pi || (!pi.livemode && pi.metadata.job_id === j.id), 'Wrong recorded payment');
+      const transfers = await stripe.transfers.list({transfer_group:'handyman_'+j.id});
+      check(transfers.data.every(t => !t.livemode), 'Live transfer prohibited');
+      const attempts = await unwrap(db.from('handyman_payment_attempts').select('id,status,session_id,payment_intent').eq('job_id',j.id));
+      if (j.status === 'completed') check(pi?.amount_received === j.bill?.gross && transfers.data.length === 1 && transfers.data[0].destination === account && transfers.data[0].amount === j.bill?.provider, 'Settlement changed after event replay');
+      return NextResponse.json({jobId:j.id,status:j.status,paymentIntent:pi?.id,stripeStatus:pi?.status,received:pi?.amount_received,capturable:pi?.amount_capturable,previousPaymentIntent:j.previous_payment_intent,bill:j.bill,transferCount:transfers.data.length,transfers:transfers.data.map(t => ({id:t.id,destination:t.destination,amount:t.amount})),attempts});
+    }
     if (action === 'retry') {
       const before = await session(), result = await handymanCheckout(stripe,db,j,user,site);
       const current = await load();check(current.checkout_session === before.id,'Duplicate checkout');
