@@ -6,6 +6,7 @@ import {
   HANDYMAN_TERMS_URL,
   PRIVACY_URL,
   PROFESSIONAL_PARTNER_AGREEMENT_URL,
+  REVIEW_POLICY_URL,
   TERMS_URL,
 } from "@/lib/legal";
 import styles from "./SiteFooter.module.css";
@@ -120,6 +121,9 @@ export default function SiteFooter() {
           </a>
           <a href={HANDYMAN_TERMS_URL} target="_blank" rel="noopener noreferrer">
             Handyman Terms
+          </a>
+          <a href={REVIEW_POLICY_URL} target="_blank" rel="noopener noreferrer">
+            Review Policy
           </a>
           <a
             href={PROFESSIONAL_PARTNER_AGREEMENT_URL}
