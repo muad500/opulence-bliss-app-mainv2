@@ -49,10 +49,10 @@ function reviewValues(formData: FormData) {
     customer_name: customerName.slice(0, 100),
     location: location ? location.slice(0, 100) : null,
     reviewed_at: reviewedAt,
-    // Only explicitly marked examples are labelled as fictional. Customer
-    // feedback entered by an admin is shown as a normal review.
+    // Examples can never be published or shown on the homepage; the database
+    // enforces this too.
     published: requestedPublished && !isDemo,
-    homepage_featured: homepageFeatured,
+    homepage_featured: homepageFeatured && !isDemo,
     is_demo: isDemo,
     sort_order: Number.isFinite(sortOrder) ? Math.trunc(sortOrder) : 0,
     updated_at: new Date().toISOString(),
@@ -97,10 +97,29 @@ export async function createMarketingReview(formData: FormData) {
   });
 }
 
+/** Where a review appears: the only thing that can change on a copied booking review. */
+function placementValues(formData: FormData) {
+  const sortOrder = Number(formData.get("sortOrder") ?? 0);
+  return {
+    published: formData.get("published") === "on",
+    homepage_featured: formData.get("homepageFeatured") === "on",
+    sort_order: Number.isFinite(sortOrder) ? Math.trunc(sortOrder) : 0,
+    updated_at: new Date().toISOString(),
+  };
+}
+
 export async function updateMarketingReview(id: string, formData: FormData) {
   await saveReview(async () => {
     const { supabase } = await requireAdmin();
-    const values = reviewValues(formData);
+    const { data: existing, error: readError } = await supabase
+      .from("marketing_reviews")
+      .select("source_review_id")
+      .eq("id", id)
+      .maybeSingle();
+    if (readError) throw new Error(readError.message);
+    // A copied booking review always shows the customer's own rating, words
+    // and date (the database enforces this), so only its placement can change.
+    const values = existing?.source_review_id ? placementValues(formData) : reviewValues(formData);
     const { error } = await supabase
       .from("marketing_reviews")
       .update(values)
@@ -164,7 +183,7 @@ export async function copyBookingReviewToTestimonial(formData: FormData) {
     service_label: service.name,
     rating: review.rating,
     comment: review.comment?.trim() || "Rating shared without a written comment.",
-    customer_name: "Customer",
+    customer_name: "Verified customer",
     location: null,
     reviewed_at: review.created_at.slice(0, 10),
     published: false,

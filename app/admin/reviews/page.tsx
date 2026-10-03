@@ -142,7 +142,8 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
               they also appear under Read all reviews and contribute to the
               customer rating. You can choose whether to show the full review
               on the cleaning page. Copied booking reviews are counted only
-              once and remain unchanged in the original record.
+              once and always show the customer&apos;s own rating, words and
+              date. Never write or change a customer&apos;s words or rating.
             </p>
           </div>
 
@@ -171,22 +172,22 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
                 <form className="review-form managed" action={updateMarketingReview.bind(null, review.id)} key={review.id}>
                   {review.source_review_id && (
                     <p className="source-note">
-                      Copied from booking review #{review.source_review_id.slice(0, 8)}. Keep edits faithful to customer-provided feedback.
+                      Copied from booking review #{review.source_review_id.slice(0, 8)}. Shown exactly as the customer left it: the rating, wording and date can&apos;t be changed. You can choose where it appears.
                     </p>
                   )}
                   {review.is_demo && (
-                    <p className="source-note">Fictional demo example. Homepage cards are visibly labelled and excluded from real customer ratings.</p>
+                    <p className="source-note">Example only. It can&apos;t be published or shown on the homepage; delete it when no longer needed.</p>
                   )}
-                  <label>Service<input name="serviceLabel" defaultValue={review.service_label} required /></label>
-                  <label>Customer name<input name="customerName" defaultValue={review.customer_name} required /></label>
-                  <label>Location<input name="location" defaultValue={review.location ?? ""} /></label>
-                  <label>Rating<select name="rating" defaultValue={String(review.rating)}>{[5, 4, 3, 2, 1].map((rating) => <option value={rating} key={rating}>{rating} / 5</option>)}</select></label>
-                  <label>Date<input name="reviewedAt" type="date" defaultValue={review.reviewed_at} required /></label>
+                  <label>Service<input name="serviceLabel" defaultValue={review.service_label} required disabled={Boolean(review.source_review_id)} /></label>
+                  <label>Customer name<input name="customerName" defaultValue={review.customer_name} required disabled={Boolean(review.source_review_id)} /></label>
+                  <label>Location<input name="location" defaultValue={review.location ?? ""} disabled={Boolean(review.source_review_id)} /></label>
+                  <label>Rating<select name="rating" defaultValue={String(review.rating)} disabled={Boolean(review.source_review_id)}>{[5, 4, 3, 2, 1].map((rating) => <option value={rating} key={rating}>{rating} / 5</option>)}</select></label>
+                  <label>Date<input name="reviewedAt" type="date" defaultValue={review.reviewed_at} required disabled={Boolean(review.source_review_id)} /></label>
                   <label>Order<input name="sortOrder" type="number" defaultValue={review.sort_order} /></label>
-                  <label className="wide">Review<textarea name="comment" rows={3} defaultValue={review.comment} required /></label>
+                  <label className="wide">Review<textarea name="comment" rows={3} defaultValue={review.comment} required disabled={Boolean(review.source_review_id)} /></label>
                   <div className="toggles">
-                    <label><input type="checkbox" name="homepageFeatured" defaultChecked={review.homepage_featured} /> Show on homepage</label>
-                    <label><input type="checkbox" name="published" defaultChecked={review.published} /> Feature on cleaning page</label>
+                    <label><input type="checkbox" name="homepageFeatured" defaultChecked={review.homepage_featured} disabled={review.is_demo} /> Show on homepage</label>
+                    <label><input type="checkbox" name="published" defaultChecked={review.published} disabled={review.is_demo} /> Feature on cleaning page</label>
                     {review.is_demo ? (
                       <>
                         <input type="hidden" name="isDemo" value="on" />
