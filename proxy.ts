@@ -1,7 +1,15 @@
 import { updateSession } from "@/lib/supabase/proxy";
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { handymanEnabled, isHandymanMarketplacePath } from "@/lib/handymanMarketplace";
 
 export async function proxy(request: NextRequest) {
+  // Stop before Next streams the disabled layout, which can otherwise yield 200.
+  if (isHandymanMarketplacePath(request.nextUrl.pathname) && !handymanEnabled()) {
+    return new NextResponse("Not found", {
+      status: 404,
+      headers: { "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8" },
+    });
+  }
   return await updateSession(request);
 }
 
