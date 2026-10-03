@@ -35,3 +35,13 @@ jobs:
           PGDATABASE: payment_recovery_test
           PGUSER: postgres
           PGPASSWORD: isolated-ci-only
+      - name: Confirm Production marketplace remains disabled
+        shell: python
+        run: |
+          import json, urllib.request
+          url = "https://opulence-bliss-app-mainv2.vercel.app/api/handyman/config"
+          with urllib.request.urlopen(url, timeout=30) as response:
+              configuration = json.load(response)
+          if configuration.get("enabled") is not False:
+              raise RuntimeError("Production marketplace is not confirmed disabled.")
+          print("Production HANDYMAN_MARKETPLACE_ENABLED is off.")

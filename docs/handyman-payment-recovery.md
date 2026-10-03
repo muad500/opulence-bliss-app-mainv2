@@ -9,8 +9,14 @@ the user's confirmation. HANDYMAN_MARKETPLACE_ENABLED must stay false in
 Production. The legal documents patch remains held.
 
 The command/browser runners currently fail before starting with
-helper_unknown_error: apply deny-read ACLs. Regression tests are added, but no
-staging payment test or migration is claimed here.
+helper_unknown_error: apply deny-read ACLs. The 111 existing tests, 13 new payment-recovery regressions, TypeScript, lint,
+build and isolated PostgreSQL migration/RPC tests passed in GitHub Actions.
+Vercel's preparation-branch Preview build also passed. These are not staging
+Stripe integration tests; no staging payment test or migration is claimed here.
+
+The access-check branch was created, empty commit cb2f9b8 was pushed, and the
+branch was deleted after verifying its head and unchanged file tree. The one-time
+cleanup workflow was removed afterward.
 
 ## Changes
 
