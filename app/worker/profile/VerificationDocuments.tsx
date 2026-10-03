@@ -67,6 +67,7 @@ export default function VerificationDocuments({ checks, services, onUploaded }: 
         </div>
         {check?.expiresAt && <small>Expires {dateText(check.expiresAt)}</small>}
         {check?.reference && <small>Share code: {check.reference}</small>}
+        {type==='right_to_work'&&check?.lastCheckedAt&&<small>GOV.UK check completed {dateText(check.lastCheckedAt.slice(0,10))}</small>}
         {check?.nextCheckAt && <small>Re-check due {dateText(check.nextCheckAt)}</small>}
         {check?.reviewNote && <p className={styles.documentNote}>Review note: {check.reviewNote}</p>}
         {check?.hasDocument && <a className={styles.documentLink} href={`/api/account/verification-document?type=${type}`} target="_blank" rel="noopener noreferrer">View uploaded document ↗</a>}
@@ -74,7 +75,7 @@ export default function VerificationDocuments({ checks, services, onUploaded }: 
           <summary>{check?.hasDocument ? "Replace document" : "Upload document"}</summary>
           <form onSubmit={(event) => void upload(event, type)}>
             {type === "right_to_work" && <label>Right-to-work share code (optional if providing visa evidence)<input name="reference" maxLength={9} placeholder="9 characters" autoComplete="off" /></label>}
-            <label>PDF, JPEG or PNG, up to 4 MB<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required /></label>
+            <label>PDF, JPEG or PNG, up to 4 MB{type==='right_to_work'?' (optional with a share code)':''}<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png" required={type!=='right_to_work'} /></label>
             <div className={styles.documentDates}>
               <label>Issue date <input type="date" name="issuedAt" defaultValue={check?.issuedAt ?? ""} /></label>
               <label>Expiry date {type === "public_liability_insurance" ? "(required)" : "(if applicable)"}<input type="date" name="expiresAt" defaultValue={check?.expiresAt ?? ""} required={type === "public_liability_insurance"} /></label>

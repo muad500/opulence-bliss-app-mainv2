@@ -25,6 +25,7 @@ type Profile = {
   tax: { utrNumber: string | null; vatNumber: string | null };
   alerts: { jobOffers: { app: boolean; sms: boolean; email: boolean }; notifications: { messages: boolean } };
   legalAcceptances: { documentSlug: string; version: string; acceptedAt: string }[];
+  accountStatus?:{verificationBlock:string|null};
 };
 
 function dateText(value: string | null | undefined) {
@@ -211,7 +212,7 @@ export default function WorkerProfilePage() {
       <div className={styles.divider} /><h3>Time off and holidays</h3>{p.work.timeOff?.length ? <ul className={styles.timeList}>{p.work.timeOff.map((item) => <li key={item.id}><div><strong>{dateText(item.startDate)} – {dateText(item.endDate)}</strong>{item.note && <span>{item.note}</span>}</div><button type="button" disabled={busy === "time"} onClick={() => void removeTimeOff(item.id)}>Remove</button></li>)}</ul> : <p className={styles.help}>No time off planned.</p>}
       <form onSubmit={(e) => void addTimeOff(e)}><div className={styles.grid}><Field label="From"><input type="date" value={timeFrom} onChange={(e) => setTimeFrom(e.target.value)} required /></Field><Field label="To"><input type="date" min={timeFrom} value={timeTo} onChange={(e) => setTimeTo(e.target.value)} required /></Field></div><Field label="Note (optional)"><input maxLength={120} value={timeNote} onChange={(e) => setTimeNote(e.target.value)} placeholder="Holiday" /></Field><button className={styles.secondaryButton} type="submit" disabled={busy === "time"}>{busy === "time" ? "Saving…" : "Add time off"}</button></form>{message("time")}</Section>
 
-      <Section id="verification" eyebrow="Private documents" title="Verification and documents" intro="Only you and the review team can see these records. A document is verified only after review."><VerificationDocuments checks={p.verification} services={p.publicProfile.services} onUploaded={refresh} /><button className={styles.textButton} type="button" onClick={openSupport}>Contact support about documents →</button></Section>
+      <Section id="verification" eyebrow="Private documents" title="Verification and documents" intro="Only you and the review team can see these records. A document is verified only after review.">{p.accountStatus?.verificationBlock&&<p role="status" className={styles.errorNotice}>{p.accountStatus.verificationBlock}</p>}<VerificationDocuments checks={p.verification} services={p.publicProfile.services} onUploaded={refresh} /><button className={styles.textButton} type="button" onClick={openSupport}>Contact support about documents →</button></Section>
 
       <Section id="payments" eyebrow="Money and tax" title="Payments and payouts" intro="Stripe holds bank details; they are not stored in your profile.">
         <div className={styles.summaryGrid}>

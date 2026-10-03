@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import styles from "./PortalNavigation.module.css";
+import AccountModeSwitch from './AccountModeSwitch';
 
 type NavItem = {
   href: string;
@@ -135,7 +136,7 @@ export default function PortalNavigation({
 
   function renderFooter() {
     return <div className={styles.footer}>
-      <Link href={switchHref} className={styles.switchLink} aria-label={switchLabel} onClick={() => setDrawerOpen(false)}><ArrowLeftRight size={18} aria-hidden="true" /><span>{switchLabel}</span></Link>
+      {professional || hasProfessionalAccount ? <AccountModeSwitch mode={mode} /> : <Link href={switchHref} className={styles.switchLink} aria-label={switchLabel} onClick={() => setDrawerOpen(false)}><ArrowLeftRight size={18} aria-hidden="true" /><span>{switchLabel}</span></Link>}
       <Link href="/faq" className={styles.quietLink} aria-label="Help and FAQ" onClick={() => setDrawerOpen(false)}><CircleHelp size={18} aria-hidden="true" /><span>Help & FAQ</span></Link>
       <button type="button" className={styles.quietLink} aria-label={signingOut ? "Signing out" : "Sign out"} onClick={() => void signOut()} disabled={signingOut}><LogOut size={18} aria-hidden="true" /><span>{signingOut ? "Signing out…" : "Sign out"}</span></button>
     </div>;

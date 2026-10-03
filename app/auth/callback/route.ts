@@ -10,7 +10,7 @@ function safeNext(value: string | null) {
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const next = safeNext(url.searchParams.get("next"));
+  let next = safeNext(url.searchParams.get("next"));
 
   if (!code) {
     return NextResponse.redirect(new URL("/login?error=google-callback", url.origin));
@@ -43,6 +43,14 @@ export async function GET(request: NextRequest) {
   if (existing?.role === "admin") {
     await supabase.auth.signOut();
     return NextResponse.redirect(new URL("/login?error=wrong-account", url.origin));
+  }
+
+  if(next==='/account'){
+    const [details,professional]=await Promise.all([
+      admin.from('account_profile_details').select('last_account_mode').eq('user_id',user.id).maybeSingle(),
+      admin.from('providers').select('id').eq('profile_id',user.id).maybeSingle(),
+    ]);
+    if(professional.data&&details.data?.last_account_mode==='professional')next='/worker';
   }
 
   if (existing && user.user_metadata?.legal_accepted === true) {

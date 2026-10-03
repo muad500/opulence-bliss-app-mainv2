@@ -8,6 +8,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { rescheduleBookingState } from "@/lib/bookingState";
 import { rotateBookingOffer } from "@/lib/offerRotation";
+import {dbsRecheckDate} from '@/lib/verificationRenewal';
 
 const admin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -54,12 +55,12 @@ async function approvalRequirements(id: string): Promise<string[]> {
   const [dbsResult, checksResult] = await Promise.all([
     admin
     .from("provider_dbs_checks")
-    .select("status, uploaded_at")
+    .select("status, uploaded_at,issue_date")
     .eq("provider_id", id)
     .maybeSingle(),
     admin
     .from("provider_verification_items")
-    .select("document_type,status,uploaded_at,document_storage_path,expires_at,next_check_at")
+    .select("document_type,status,uploaded_at,document_storage_path,expires_at,next_check_at,gov_uk_checked_on,reference")
     .eq("provider_id", id)
     .in("document_type", ["right_to_work", "photo_id"]),
   ]);
@@ -67,10 +68,11 @@ async function approvalRequirements(id: string): Promise<string[]> {
   const missing: string[] = [];
   if (dbsResult.data?.status !== "verified" || !dbsResult.data.uploaded_at) missing.push("DBS certificate");
   const today = new Date().toISOString().slice(0, 10);
+  if(dbsResult.data&&(dbsRecheckDate(dbsResult.data.issue_date)??'')<today)missing.push('annual DBS re-check');
   for (const [type, label] of [["right_to_work", "right to work"], ["photo_id", "photo ID"]] as const) {
     const check = checksResult.data?.find((item) => item.document_type === type);
-    if (!check || check.status !== "verified" || !check.uploaded_at || !check.document_storage_path ||
-        (check.expires_at && check.expires_at < today) || (check.next_check_at && check.next_check_at < today)) {
+    if (!check || check.status !== "verified" || !check.uploaded_at || (!check.document_storage_path&&!(type==='right_to_work'&&check.reference&&/^[A-Z0-9]{9}$/.test(check.reference))) ||
+        (type==='right_to_work'&&!check.gov_uk_checked_on) || (check.expires_at && check.expires_at < today) || (check.next_check_at && check.next_check_at < today)) {
       missing.push(label);
     }
   }

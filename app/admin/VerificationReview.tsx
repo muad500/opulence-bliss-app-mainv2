@@ -16,6 +16,7 @@ export type VerificationRecord = {
   nextCheckAt: string | null;
   reference: string | null;
   reviewNote: string | null;
+  govCheckedOn?:string|null;
 };
 
 export default function VerificationReview({ providerId, record }: {
@@ -52,9 +53,11 @@ export default function VerificationReview({ providerId, record }: {
       <span style={{ ...badge, background: record.status === "verified" ? "#dff5e8" : record.status === "pending" ? "#fff3d6" : record.status === "not submitted" ? "#f1f2f3" : "#ffe6ea" }}>{record.status}</span>
     </div>
     {record.uploadedAt ? <p style={muted}>Uploaded {new Date(record.uploadedAt).toLocaleString("en-GB")}</p> : null}
-    {record.signedUrl ? <a href={record.signedUrl} target="_blank" rel="noopener noreferrer" style={link}>Open private document ↗</a> : record.uploadedAt ? <p style={warning}>The uploaded file is unavailable; ask the professional to replace it.</p> : null}
+    {record.type==='right_to_work'&&record.reference&&<p style={muted}>Share code: {record.reference}</p>}
+    {record.signedUrl ? <a href={record.signedUrl} target="_blank" rel="noopener noreferrer" style={link}>Open private document ↗</a> : record.uploadedAt&&!(record.type==='right_to_work'&&record.reference) ? <p style={warning}>The uploaded file is unavailable; ask the professional to replace it.</p> : null}
     {record.reviewNote ? <p style={muted}>Review note: {record.reviewNote}</p> : null}
-    {record.status === "pending" && record.uploadedAt && record.signedUrl ? <form ref={form} style={fields} onSubmit={(event) => event.preventDefault()}>
+    {(record.status === "pending" || (record.type==='right_to_work'&&['verified','expired'].includes(record.status))) && record.uploadedAt && (record.signedUrl||(record.type==='right_to_work'&&record.reference)) ? <form ref={form} style={fields} onSubmit={(event) => event.preventDefault()}>
+      {record.type==='right_to_work'&&<><a href="https://www.gov.uk/view-right-to-work" target="_blank" rel="noopener noreferrer">Complete the GOV.UK check ↗</a><label>GOV.UK check completed on<input name="govCheckedOn" type="date" required defaultValue={record.govCheckedOn??''}/></label></>}
       <label>Reference <input name="reference" defaultValue={record.reference ?? ""} maxLength={120} /></label>
       <label>Issue date <input name="issuedAt" type="date" defaultValue={record.issuedAt ?? ""} /></label>
       <label>Expiry date <input name="expiresAt" type="date" defaultValue={record.expiresAt ?? ""} required={record.type === "public_liability_insurance"} /></label>

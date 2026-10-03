@@ -35,13 +35,14 @@ export async function GET(request: NextRequest) {
   try {
     const userId = ctx.user.id;
     const providerId = ctx.providerId;
-    const [profile, details, addresses, favourites, legal, consents, notifications, deletionRequests, clientBookings, providerBookings] = await Promise.all([
+    const [profile, details, addresses, favourites, legal, consents, marketingConsents, notifications, deletionRequests, clientBookings, providerBookings] = await Promise.all([
       allFor(ctx.admin, "profiles", "id", userId),
       allFor(ctx.admin, "account_profile_details", "user_id", userId),
       allFor(ctx.admin, "customer_addresses", "user_id", userId),
       allFor(ctx.admin, "customer_favourite_providers", "user_id", userId),
       allFor(ctx.admin, "account_legal_acceptances", "user_id", userId),
       allFor(ctx.admin, "signup_consents", "user_id", userId),
+      allFor(ctx.admin, "account_marketing_consents", "user_id", userId),
       allFor(ctx.admin, "notifications", "user_id", userId),
       allFor(ctx.admin, "account_deletion_requests", "user_id", userId),
       allFor(ctx.admin, "bookings", "customer_id", userId),
@@ -71,8 +72,8 @@ export async function GET(request: NextRequest) {
     const incidents = await allFor(ctx.admin, "account_incidents", "reporter_id", userId);
     const exportData = {
       exportedAt: new Date().toISOString(),
-      account: { email: ctx.user.email, userMetadata: ctx.user.user_metadata, profile, details, legal, consents, deletionRequests },
-      client: { addresses, favourites, bookings: clientBookings, payments: payments.filter((row) => clientBookings.some((booking) => booking.id === row.booking_id)), reviews, messages: messages.filter((row) => row.sender_id === userId), notifications },
+      account: { email: ctx.user.email, userMetadata: ctx.user.user_metadata, profile, details, legal, consents, marketingConsents, deletionRequests },
+      client: { addresses, favourites, bookings: clientBookings, payments: payments.filter((row) => clientBookings.some((booking) => booking.id === row.booking_id)), reviews, messages, notifications },
       incidents,
       professional: providerId ? { provider, onboarding, settings, timeOff, taskRates, verification, dbsChecks, bookings: professionalJobs, payouts: payoutRuns, invoices: jobInvoices } : null,
       note: "Payment card and bank details are held by Stripe and are not included in this file.",
