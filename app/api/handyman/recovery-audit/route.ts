@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
     const p = await unwrap(db.from('providers').select('stripe_account_id,profile_id').eq('id', provider).single());
     check(p.profile_id === worker && p.stripe_account_id === account, 'Wrong professional fixture');
     const b = await req.json(); const action = String(b.action), label = String(b.label ?? 'retry');
+    const auditRun = b.run == null ? '' : String(b.run);
+    check(!auditRun || /^\d{8}T\d{4}$/.test(auditRun), 'Invalid audit run');
+    const description = prefix + (auditRun ? auditRun + ' ' : '') + label;
     if (action === 'schedule') {
       check(typeof b.bypass === 'string' && b.bypass.length>=16,'Staging protection access missing');
       const jobId = await unwrap(db.rpc('configure_staging_handyman_recovery',{p_cron:process.env.CRON_SECRET,p_bypass:b.bypass}));
@@ -56,22 +59,22 @@ export async function POST(req: NextRequest) {
     }
     check(process.env.HANDYMAN_MARKETPLACE_ENABLED === 'true', 'Staging marketplace disabled');
     check(labels.includes(label), 'Unknown fixture label');
-    const load = async () => await unwrap(db.from('handyman_jobs').select('*').eq('customer_id',customer).eq('provider_id',provider).eq('description',prefix+label).single()) as HandymanJob;
+    const load = async () => await unwrap(db.from('handyman_jobs').select('*').eq('customer_id',customer).eq('provider_id',provider).eq('description',description).single()) as HandymanJob;
     if (action === 'prepare') {
-      const existing = await unwrap(db.from('handyman_jobs').select('id').eq('customer_id',customer).eq('description',prefix+label).maybeSingle());
+      const existing = await unwrap(db.from('handyman_jobs').select('id').eq('customer_id',customer).eq('description',description).maybeSingle());
       let j: HandymanJob;
       if (existing) j = await load();
       else {
         const i = labels.indexOf(label), date = new Date(Date.now()+86400000*(i === 4?2:1));
         date.setUTCHours(i === 4?11:11+i*2,0,0,0);
-        j = await unwrap(db.rpc('reserve_handyman_job',{p_customer:customer,p_provider:provider,p_task:'Mounting and hanging',p_description:prefix+label,p_address:'SYNTHETIC STAGING TEST ADDRESS',p_postcode:'SW3 1AA',p_slot:date.toISOString(),p_minutes:60,p_materials:0})) as HandymanJob;
+        j = await unwrap(db.rpc('reserve_handyman_job',{p_customer:customer,p_provider:provider,p_task:'Mounting and hanging',p_description:description,p_address:'SYNTHETIC STAGING TEST ADDRESS',p_postcode:'SW3 1AA',p_slot:date.toISOString(),p_minutes:60,p_materials:0})) as HandymanJob;
       }
       const result = await handymanCheckout(stripe,db,j,user,site);
       if(label === 'reject') await unwrap(db.from('handyman_jobs').update({created_at:new Date(Date.now()-7200000).toISOString()}).eq('id',j.id));
       return NextResponse.json({...result,label});
     }
     let j = await load();
-    check(j.customer_id === customer && j.provider_id === provider && j.description === prefix+label,'Unowned job');
+    check(j.customer_id === customer && j.provider_id === provider && j.description === description,'Unowned job');
     const session = async () => { check(j.checkout_session,'No checkout');return stripe.checkout.sessions.retrieve(j.checkout_session); };
     if (action === 'retry') {
       const before = await session(), result = await handymanCheckout(stripe,db,j,user,site);
