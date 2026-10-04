@@ -6,12 +6,7 @@ import { isCleaning, validCleaningDuration } from "@/lib/cleaningBooking";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
-  APPOINTMENT_END_HOUR,
-  APPOINTMENT_START_HOUR,
-  BOOKING_HORIZON_YEARS,
   DEFAULT_APPOINTMENT_DURATION_MINUTES,
-  appointmentFitsWindow,
-  londonDate,
   londonParts,
 } from "@/lib/appointmentWindow";
 
@@ -20,7 +15,7 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const SLOT_INTERVAL_MINUTES = 30;
+import { permittedAppointmentSlots } from "@/lib/appointmentSlots";
 
 function outwardCode(pc: string) {
   const s = (pc || "").toUpperCase().replace(/\s+/g, "");
@@ -71,40 +66,7 @@ export async function GET(req: NextRequest) {
     // remove a permitted time: matching and offer rotation happen after the
     // booking is paid. This keeps the customer flow open even with a thin
     // worker roster.
-    const now = Date.now();
-    const horizon = new Date(now);
-    horizon.setUTCFullYear(horizon.getUTCFullYear() + BOOKING_HORIZON_YEARS);
-    const slots: string[] = [];
-    const today = londonParts(now);
-
-    // 366 iterations covers a full calendar year when a leap day is included.
-    // The exact instant below remains the hard limit.
-    for (let d = 0; d <= 366; d++) {
-      // Use a timezone-neutral calendar cursor, then convert each London wall
-      // clock time to its real UTC instant. This stays correct across BST/GMT.
-      const day = new Date(Date.UTC(today.year, today.month - 1, today.day + d));
-      const year = day.getUTCFullYear();
-      const month = day.getUTCMonth() + 1;
-      const date = day.getUTCDate();
-
-      for (
-        let minute = APPOINTMENT_START_HOUR * 60;
-        minute <= APPOINTMENT_END_HOUR * 60;
-        minute += SLOT_INTERVAL_MINUTES
-      ) {
-        const slot = londonDate(
-          year,
-          month,
-          date,
-          Math.floor(minute / 60),
-          minute % 60,
-        );
-        if (slot.getTime() < now + 2 * 60 * 60 * 1000) continue;
-        if (slot > horizon) continue;
-        if (!appointmentFitsWindow(slot, durationMinutes)) continue;
-        slots.push(slot.toISOString());
-      }
-    }
+    const { slots, horizon } = permittedAppointmentSlots(durationMinutes);
 
     // Suggested times are convenience choices, never availability claims.
     const suggested: { iso: string; reason: string }[] = [];
