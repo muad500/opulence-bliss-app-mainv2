@@ -6,6 +6,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import AssistantBooking from "@/components/AssistantBooking";
+import { safeAssistantHref } from "@/lib/assistantBooking";
 
 const supabase = createClient();
 
@@ -34,10 +36,10 @@ type AssistantAction =
 type ChatMsg = Msg & { action?: AssistantAction };
 
 const SUGGESTIONS = [
-  "What's my next booking status?",
-  "Help me reschedule",
-  "Book a service for me",
-  "Cancel my next booking",
+  "Which clean is right for me?",
+  "Are professionals vetted?",
+  "What should I prepare?",
+  "How do payments work?",
 ];
 
 /* ---------- link handling ---------- */
@@ -55,26 +57,16 @@ const PATHS = [
   "worker",
   "login",
   "book",
+  "faq",
+  "services/cleaning",
+  "services/handyman",
+  "legal",
 ];
 
 const LINK_RE = new RegExp(
-  `\\[([^\\]]+)\\]\\(([^)]+)\\)|(https?://[^\\s)]+)|(/(?:${PATHS.join(
-    "|",
-  )})(?:\\?[^\\s)]*)?)`,
+  `\\[([^\\]]+)\\]\\(([^)]+)\\)|(https?://[^\\s)]+)|(/(?:${PATHS.join("|")})(?:/[a-zA-Z0-9_-]+)*(?:[?#][^\\s)]*)?(?![a-zA-Z0-9_-]))`,
   "g",
 );
-
-function toPath(href: string) {
-  try {
-    if (/^https?:\/\//.test(href)) {
-      const u = new URL(href);
-      return u.pathname + u.search;
-    }
-  } catch {
-    /* ignore */
-  }
-  return href;
-}
 
 function Linkified({ text }: { text: string }) {
   const out: React.ReactNode[] = [];
@@ -84,13 +76,19 @@ function Linkified({ text }: { text: string }) {
 
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index));
-    const href = toPath(m[2] ?? m[3] ?? m[4] ?? "");
-    const label = m[1] ?? href;
-    const booking = href.startsWith("/book?");
+    const raw = m[2] ?? m[3] ?? m[4] ?? "";
+    const href = safeAssistantHref(raw, typeof window === "undefined" ? undefined : window.location.origin);
+    const label = m[1] ?? raw;
+    const booking = href?.startsWith("/book?");
+    if (!href) {
+      out.push(label);
+      last = m.index + m[0].length;
+      continue;
+    }
     out.push(
       booking ? (
         <a key={m.index} href={href} className="confirm">
-          Confirm &amp; pay →
+          Review booking →
         </a>
       ) : (
         <a key={m.index} href={href}>
@@ -114,13 +112,31 @@ export default function SupportChat() {
       text: "Hi! I can answer questions, find live times, check your booking and payment status, prepare a booking, or help you cancel and reschedule safely. What would you like to do?",
     },
   ]);
+  const [guided, setGuided] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [lastFailed, setLastFailed] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const chatUser = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, open]);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSignedIn(!!session);
+      const nextUser = session?.user.id ?? null;
+      if (chatUser.current !== undefined && chatUser.current !== nextUser) {
+        setMsgs([{ role: "assistant", text: "How can I help? Book a clean, ask a question, or check your own bookings after signing in." }]);
+        setGuided(false);
+      }
+      chatUser.current = nextUser;
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const show = () => setOpen(true);
@@ -136,6 +152,7 @@ export default function SupportChat() {
     setMsgs((m) => [...m, { role: "user", text: question }]);
     setInput("");
     setBusy(true);
+    setLastFailed(null);
 
     try {
       const { data: s } = await supabase.auth.getSession();
@@ -148,8 +165,10 @@ export default function SupportChat() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ message: question, history, portalContext: window.location.pathname.startsWith("/worker") ? "professional" : "client" }),
+        signal: AbortSignal.timeout(70_000),
       });
       const data = await res.json();
+      if (!res.ok) setLastFailed(question);
       setMsgs((m) => [
         ...m,
         {
@@ -162,6 +181,7 @@ export default function SupportChat() {
         },
       ]);
     } catch {
+      setLastFailed(question);
       setMsgs((m) => [
         ...m,
         {
@@ -177,7 +197,8 @@ export default function SupportChat() {
   async function confirmAction(index: number, action: AssistantAction) {
     if (busy) return;
     if (action.kind === "navigate") {
-      window.location.href = action.href;
+      const href = safeAssistantHref(action.href, window.location.origin);
+      if (href) window.location.href = href;
       return;
     }
     if (!window.confirm(action.confirmText)) return;
@@ -220,7 +241,7 @@ export default function SupportChat() {
         ...current,
         {
           role: "assistant",
-          text: "I couldn't reach the server, so nothing was changed. Please try again.",
+          text: "I couldn't confirm the result. Check your booking before trying again, or contact support.",
         },
       ]);
     } finally {
@@ -359,7 +380,7 @@ export default function SupportChat() {
 
   /* ---------- open: the panel ---------- */
   return (
-    <div className="panel support-chat-panel">
+    <div className="panel support-chat-panel" role="dialog" aria-label="Opulence Bliss support assistant">
       <header>
         <div className="hwho">
           <span className="dot" />
@@ -373,7 +394,19 @@ export default function SupportChat() {
         </button>
       </header>
 
-      <div className="log">
+      <nav className="shortcuts" aria-label="Assistant shortcuts">
+        <button type="button" disabled={busy} onClick={() => setGuided(true)}>Book a clean</button>
+        {signedIn && <button type="button" disabled={busy} onClick={() => { setGuided(false); void send("Show my bookings and their status"); }}>My bookings</button>}
+        <a href="/faq">FAQ</a>
+        <a href="mailto:opulencebliss@gmail.com">Contact support</a>
+      </nav>
+      {guided ? <AssistantBooking onClose={() => setGuided(false)} onPrepared={(draft) => {
+        setMsgs((current) => [...current, {
+          role: "assistant", text: `${draft.service} · ${draft.duration_minutes / 60} hours · £${draft.total_gbp.toFixed(2)}${draft.visits > 1 ? ` for ${draft.visits} visits` : ""}.\nPreferred time: ${new Date(draft.preferred_time).toLocaleString("en-GB", { timeZone: "Europe/London" })}${draft.optional_times.length ? `\nOptional times: ${draft.optional_times.map((time) => new Date(time).toLocaleString("en-GB", { timeZone: "Europe/London" })).join("; ")}` : ""}\n${draft.note}`,
+          action: { kind: "navigate", label: "Review booking", summary: "Confirm your address, home details and final price on the booking page.", href: draft.url, tone: "primary" },
+        }]); setGuided(false);
+      }} /> : <>
+      <div className="log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages">
         {msgs.map((m, i) => (
           <div key={i} className={m.role === "user" ? "row me" : "row them"}>
             <div className="message-stack">
@@ -389,7 +422,7 @@ export default function SupportChat() {
                   <span>{m.action.summary}</span>
                   <div className="action-row">
                     {m.action.kind === "navigate" ? (
-                      <a href={m.action.href}>{m.action.label}</a>
+                      <a href={safeAssistantHref(m.action.href, typeof window === "undefined" ? undefined : window.location.origin) ?? "/book"}>{m.action.label}</a>
                     ) : (
                       <button
                         type="button"
@@ -444,6 +477,7 @@ export default function SupportChat() {
         <div ref={endRef} />
       </div>
 
+      {lastFailed && <button type="button" className="retry" disabled={busy} onClick={() => void send(lastFailed)}>Try that question again</button>}
       <div className="composer">
         <input
           value={input}
@@ -464,6 +498,7 @@ export default function SupportChat() {
         </button>
       </div>
 
+      </>}
       <p className="note">
         Actions only run after you confirm. Never share card details or passwords.
       </p>
@@ -475,7 +510,7 @@ export default function SupportChat() {
           bottom: 20px;
           z-index: 9998;
           width: min(380px, calc(100vw - 40px));
-          height: min(540px, calc(100vh - 110px));
+          height: min(640px, calc(100dvh - 110px));
           background: #fff;
           border: 2px solid #edeff1;
           border-radius: 22px;
@@ -541,8 +576,14 @@ export default function SupportChat() {
         header button:hover {
           background: rgba(255, 255, 255, 0.3);
         }
+        .shortcuts { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 14px; border-bottom: 1px solid #edeff1; }
+        .shortcuts button, .shortcuts a, .retry { color: ${PURPLE}; border: 1px solid #e8dcfa; border-radius: 999px; background: #fff; font: inherit; font-weight: 800; font-size: 11px; padding: 7px 10px; cursor: pointer; text-decoration: none; }
+        .retry { margin: 6px 14px; }
+        .shortcuts button:disabled { opacity: .5; }
         .log {
           flex: 1;
+          min-height: 0;
+          overscroll-behavior: contain;
           overflow-y: auto;
           padding: 16px;
           display: flex;
@@ -754,7 +795,7 @@ export default function SupportChat() {
             left: 12px;
             bottom: 76px;
             width: auto;
-            height: min(70vh, 520px);
+            height: min(78dvh, 620px);
           }
         }
       `}</style>
