@@ -906,7 +906,7 @@ async function runTool(
 
 /* ------------------------------------------------------------------ */
 
-async function generateWithFallback(body: unknown) {
+async function generateWithFallback(body: unknown, deadline: number) {
   const models = [
     CHAT_MODEL,
     ...(CHAT_MODEL === "gemini-3.5-flash-lite"
@@ -916,13 +916,16 @@ async function generateWithFallback(body: unknown) {
   let lastError = "Gemini request failed";
 
   for (const model of models) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    try {
     const response = await fetch(
       `${API}/${model}:generateContent`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY! },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(45_000),
+        signal: AbortSignal.timeout(Math.min(20_000, remaining)),
       },
     );
     if (response.ok) {
@@ -931,6 +934,9 @@ async function generateWithFallback(body: unknown) {
 
     lastError = await response.text();
     if (![429, 500, 502, 503, 504].includes(response.status)) break;
+    } catch {
+      lastError = "Gemini request timed out or could not connect";
+    }
   }
 
   return { ok: false as const, error: lastError };
@@ -1112,10 +1118,11 @@ export async function POST(req: NextRequest) {
     });
 
     let pendingAction: AssistantAction | undefined;
+    const deadline = Date.now() + 55_000;
 
     // Tool loop — enough for lookup → options → confirmation preparation.
     for (let round = 0; round < 5; round++) {
-      const generated = await generateWithFallback(body());
+      const generated = await generateWithFallback(body(), deadline);
       if (!generated.ok) {
         console.error("Gemini request failed");
         return NextResponse.json(
@@ -1154,6 +1161,14 @@ export async function POST(req: NextRequest) {
           id?: string;
         };
         const result = await runTool(fc.name, fc.args ?? {}, agentContext);
+        // A validated draft is already complete. Return its server-authored
+        // summary immediately rather than asking the model to rewrite it.
+        if (fc.name === "prepare_booking" && result.ok && result.client_action?.kind === "navigate") {
+          return NextResponse.json({
+            reply: `Your draft is ready: ${result.client_action.summary}. The selected time is your first choice. Review your address, home details and booking on the next page. Nothing has been booked or charged yet.`,
+            action: result.client_action,
+          });
+        }
         if (result.client_action) pendingAction = result.client_action;
         const safeResult = { ...result };
         delete safeResult.client_action;

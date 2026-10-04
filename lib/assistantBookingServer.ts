@@ -77,7 +77,10 @@ export async function prepareAssistantBooking(
   input: Record<string, unknown>,
 ) {
   const postcode = normaliseAssistantPostcode(input.postcode);
-  const packages = await assistantServices(db);
+  const [packages, coverage] = await Promise.all([
+    assistantServices(db),
+    assistantCoverage(db, postcode),
+  ]);
   const wanted = String(input.service_name ?? "")
     .trim()
     .toLowerCase();
@@ -88,7 +91,6 @@ export async function prepareAssistantBooking(
   );
   if (!pkg)
     throw new Error("Choose an exact service from the current cleaning list.");
-  const coverage = await assistantCoverage(db, postcode);
   if (!coverage.covered)
     throw new Error("We do not currently cover that postcode.");
   return assistantBookingHandoff(pkg, { ...input, postcode });
