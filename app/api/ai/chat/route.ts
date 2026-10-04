@@ -958,11 +958,13 @@ function systemPrompt(context: string, role: string) {
 ${who}
 
 Today is ${now.toLocaleDateString("en-GB", {
+    timeZone: "Europe/London",
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
   })}. The current time is ${now.toLocaleTimeString("en-GB", {
+    timeZone: "Europe/London",
     hour: "2-digit",
     minute: "2-digit",
     hour12: true,
