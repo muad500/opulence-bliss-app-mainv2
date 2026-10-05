@@ -54,7 +54,7 @@ const DOCS: { title: string; content: string }[] = [
   {
     title: "Where we cover",
     content:
-      "We currently cover Central London, North London and West London. If your postcode isn't covered, the booking form will tell you at the postcode step and you won't be able to book. We're expanding, so it's worth checking again later.",
+      "We cover London, including Central, North, South, East and West London and outer London boroughs. Check the customer postcode with the live coverage tool or booking form. Coverage does not mean a professional is already assigned; matching happens after booking.",
   },
   {
     title: "How payment works",
