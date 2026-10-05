@@ -610,9 +610,10 @@ export default function BookPage() {
               )}
               {gate && !gate.ok && (
                 <div className="alert">
-                  <strong>We&apos;re not in your area just yet.</strong>
+                  <strong>Please check your postcode.</strong>
                   <span>
-                    Right now we cover {areas.map((a) => a.name).join(", ")}.
+                    We cover London, including all outer London boroughs. Enter
+                    your full postcode, for example SW1A 1AA.
                   </span>
                 </div>
               )}
