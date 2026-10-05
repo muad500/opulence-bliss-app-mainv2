@@ -168,6 +168,7 @@ export default function ServicePage() {
           )
           .eq("service_type", "cleaning")
           .eq("published", true)
+          .eq("is_demo", false)
           .order("sort_order", { ascending: true })
           .order("reviewed_at", { ascending: false })
           .limit(12),

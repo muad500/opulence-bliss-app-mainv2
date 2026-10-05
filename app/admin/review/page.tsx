@@ -5,6 +5,7 @@
 import { createClient } from "@/lib/supabase/server";
 import DeskControls, { PrototypeFindingsCleanup } from "./DeskControls";
 import AdminNav from "../AdminNav";
+import { developmentToolsEnabled } from "@/lib/developmentTools";
 
 function money(n: number | null | undefined) {
   return n === null || n === undefined ? "—" : "£" + Number(n).toFixed(2);
@@ -173,7 +174,7 @@ export default async function ReviewDeskPage() {
           observations — they never alter a record.
         </p>
 
-        {unmatchedTransferFindings > 0 && (
+        {developmentToolsEnabled(process.env) && unmatchedTransferFindings > 0 && (
           <PrototypeFindingsCleanup count={unmatchedTransferFindings} />
         )}
 

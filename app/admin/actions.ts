@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { rescheduleBookingState } from "@/lib/bookingState";
 import { rotateBookingOffer } from "@/lib/offerRotation";
 import {dbsRecheckDate} from '@/lib/verificationRenewal';
+import { assertDevelopmentToolsEnabled } from "@/lib/developmentTools";
 
 const admin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -41,14 +42,7 @@ const ALL = "00000000-0000-0000-0000-000000000000"; // sentinel for "match every
  * transfers permanently destroys our ability to reconcile real money.
  */
 function assertTestMode(tool: string) {
-  const key = process.env.STRIPE_SECRET_KEY ?? "";
-  if (key.startsWith("sk_live_")) {
-    throw new Error(
-      `"${tool}" is disabled in live mode. Deleting financial records while ` +
-        `Stripe retains the charges would make reconciliation impossible. ` +
-        `Correct data through the resolution desk instead.`,
-    );
-  }
+  assertDevelopmentToolsEnabled(process.env, tool);
 }
 
 async function approvalRequirements(id: string): Promise<string[]> {
