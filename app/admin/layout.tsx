@@ -1,19 +1,18 @@
 import PortalLiveSync from "@/components/PortalLiveSync";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/adminSession";
+
+export const metadata = { robots: { index: false, follow: false } };
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await requireAdminPage();
 
   return (
     <>
-      {user && <PortalLiveSync userId={user.id} />}
+      <PortalLiveSync userId={user.id} />
       {children}
     </>
   );

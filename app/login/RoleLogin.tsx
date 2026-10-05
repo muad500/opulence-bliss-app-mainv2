@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/client";
 import GoogleAuthButton from "@/components/GoogleAuthButton";
 
 const supabase = createClient();
-const DEMO_PASSWORD = "Demo1234!";
 
 type Mode = "client" | "provider";
 
@@ -15,8 +14,6 @@ const COPY = {
     title: "SIGN IN",
     body: "Manage your bookings, messages and payments.",
     button: "Sign in",
-    demoEmail: "client@test.com",
-    demoLabel: "Use client demo account",
     destination: "/account",
     switchText: "Are you an Opulence Bliss professional?",
     switchLabel: "Sign in as a pro",
@@ -29,8 +26,6 @@ const COPY = {
     title: "SIGN IN AS A PRO",
     body: "Sign in to manage offers, visits, messages, hours and earnings.",
     button: "Sign in as a pro",
-    demoEmail: "worker@test.com",
-    demoLabel: "Use professional demo account",
     destination: "/worker",
     switchText: "Looking for your bookings?",
     switchLabel: "Sign in",
@@ -156,15 +151,6 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
         </button>
 
         {err && <p className="error">{err}</p>}
-
-        <button
-          className="demo"
-          type="button"
-          disabled={busy}
-          onClick={() => void signIn(content.demoEmail, DEMO_PASSWORD)}
-        >
-          {content.demoLabel}
-        </button>
 
         <div className="switch-role">
           <span>{content.switchText}</span>
@@ -333,8 +319,7 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
         .provider .submit {
           background: linear-gradient(100deg, #8b5cf6, #6d28d9);
         }
-        .submit:disabled,
-        .demo:disabled {
+        .submit:disabled {
           opacity: 0.6;
           cursor: wait;
         }
@@ -346,19 +331,6 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
           color: #a92f47;
           font-size: 13.5px;
           font-weight: 700;
-        }
-        .demo {
-          width: 100%;
-          margin-top: 14px;
-          padding: 11px;
-          border: 1.5px solid #dfd3f5;
-          border-radius: 999px;
-          background: #faf7ff;
-          color: #6d28d9;
-          cursor: pointer;
-          font: inherit;
-          font-size: 13.5px;
-          font-weight: 800;
         }
         .switch-role {
           display: grid;

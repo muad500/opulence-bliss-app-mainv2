@@ -5,20 +5,18 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function requireAdminPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (!user) redirect("/admin/login");
+  if (authError || !user) redirect("/staff/login");
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("role, full_name")
+    .select("role, full_name, account_deleted_at")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (profile?.role !== "admin") {
-    redirect("/admin/login?error=access");
+  if (profileError || profile?.role !== "admin" || profile.account_deleted_at) {
+    redirect("/staff/login?error=access");
   }
 
   return { supabase, user, profile };

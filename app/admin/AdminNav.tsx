@@ -43,7 +43,7 @@ export default function AdminNav({ email }: { email: string }) {
         type="button"
         onClick={async () => {
           await createClient().auth.signOut();
-          window.location.href = "/admin/login";
+          window.location.href = "/staff/login";
         }}
       >
         Sign out

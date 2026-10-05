@@ -48,7 +48,7 @@ export default async function AdminPage() {
               ? "This account doesn't have admin access."
               : "Log in with an admin account to continue."}
           </p>
-          <Link href="/admin/login" style={btn}>
+          <Link href="/staff/login" style={btn}>
             Go to admin login
           </Link>
         </div>

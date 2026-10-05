@@ -8,7 +8,6 @@ export async function updateSession(request: NextRequest) {
   });
   const PUBLIC = [
     "/api",
-    "/admin/login",
     "/login",
     "/book",
     "/services",
@@ -24,7 +23,7 @@ export async function updateSession(request: NextRequest) {
     "/worker",
     "/notifications",
   ];
-  const publicPath = PUBLIC.some((p) =>
+  const publicPath = request.nextUrl.pathname === "/staff/login" || PUBLIC.some((p) =>
     request.nextUrl.pathname.startsWith(p)
   );
   // If the env vars are not set, skip proxy check. You can remove this
@@ -77,7 +76,7 @@ export async function updateSession(request: NextRequest) {
     // no user, potentially respond by redirecting the user to the login page
     const url = request.nextUrl.clone();
     url.pathname = request.nextUrl.pathname.startsWith("/admin")
-      ? "/admin/login"
+      ? "/staff/login"
       : "/auth/login";
     return NextResponse.redirect(url);
   }

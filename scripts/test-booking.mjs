@@ -24,6 +24,9 @@ try {
   execFileSync(process.execPath, [
     "--test", "scripts/test-handyman-payment-recovery.mjs"
   ], { stdio: "inherit" });
+  execFileSync(process.execPath, [
+    "--test", "scripts/test-login-security.mjs"
+  ], { stdio: "inherit" });
 } finally {
   await rm(directory, { recursive: true, force: true });
 }
