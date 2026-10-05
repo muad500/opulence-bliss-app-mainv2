@@ -16,6 +16,7 @@ import { rotateBookingOffer } from "@/lib/offerRotation";
 import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
 import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
 import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
+import { developmentToolsEnabled } from "@/lib/developmentTools";
 import {
   claimMoneyOperation,
   maybeReleasePayout,
@@ -235,15 +236,12 @@ export async function checkInJob(
 
   // You can only check in on the day of the visit, from 30 minutes before.
   //
-  // Development shortcuts require Stripe test mode. Skipping the time window
-  // additionally needs ALLOW_EARLY_CHECKIN=true; a failed geofence can be
-  // forced only while no real money is enabled.
-  const testPayments = (process.env.STRIPE_SECRET_KEY ?? "").startsWith(
-    "sk_test_",
-  );
-  const allowEarly = process.env.ALLOW_EARLY_CHECKIN === "true" && testPayments;
+  // Shortcuts require an explicitly enabled test environment. Production
+  // always enforces the visit window and location, even with a test key.
+  const testShortcuts = developmentToolsEnabled(process.env);
+  const allowEarly = process.env.ALLOW_EARLY_CHECKIN === "true" && testShortcuts;
 
-  if (ctx.scheduledAt && !allowEarly && !(force && testPayments)) {
+  if (ctx.scheduledAt && !allowEarly && !(force && testShortcuts)) {
     const start = new Date(ctx.scheduledAt);
     const openFrom = new Date(start.getTime() - 30 * 60 * 1000);
     const endOfDay = new Date(start);
@@ -264,7 +262,7 @@ export async function checkInJob(
         pass: null,
         distance: null,
         reason: `Too early — this visit is ${when}. You can check in from 30 minutes before it starts.`,
-        canForce: testPayments,
+        canForce: testShortcuts,
       };
     }
     if (now > endOfDay) {
@@ -274,7 +272,7 @@ export async function checkInJob(
         distance: null,
         reason:
           "This visit's day has passed. Contact the team so we can sort it out.",
-        canForce: testPayments,
+        canForce: testShortcuts,
       };
     }
   }
@@ -308,9 +306,9 @@ export async function checkInJob(
   // the server—not the button—decides whether that bypass exists.
   if (pass !== true) {
     if (!force) {
-      return { blocked: true, pass, distance, reason, canForce: testPayments };
+      return { blocked: true, pass, distance, reason, canForce: testShortcuts };
     }
-    if (!testPayments) {
+    if (!testShortcuts) {
       return {
         blocked: true,
         pass,
@@ -325,7 +323,7 @@ export async function checkInJob(
   // Development may bypass the clock/geofence so the flow can be exercised
   // from a desk, but it must never bypass the customer's OTP. Otherwise the
   // exact path that needs testing is skipped.
-  if (force && testPayments) {
+  if (force && testShortcuts) {
     reason = "Development location bypass accepted.";
   }
 
@@ -346,7 +344,7 @@ export async function checkInJob(
       pass,
       distance,
       reason: challengeError.message,
-      canForce: testPayments,
+      canForce: testShortcuts,
     };
   }
 
@@ -364,7 +362,7 @@ export async function checkInJob(
       distance,
       reason:
         "Too many incorrect codes. Wait for this code to expire, then request a new one.",
-      canForce: testPayments,
+      canForce: testShortcuts,
     };
   }
 
@@ -380,7 +378,7 @@ export async function checkInJob(
         pass,
         distance,
         reason: `Location passed, but the code could not be delivered: ${deliveryError.message}`,
-        canForce: testPayments,
+        canForce: testShortcuts,
       };
     }
 

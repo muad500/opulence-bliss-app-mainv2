@@ -9,6 +9,7 @@ import VettingButtons from "./VettingButtons";
 import ReviewList from "./ReviewList";
 import AdminNav from "./AdminNav";
 import { loadAdminReviews } from "@/lib/adminReviews";
+import { developmentToolsEnabled } from "@/lib/developmentTools";
 
 async function count(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -48,7 +49,7 @@ export default async function AdminPage() {
               ? "This account doesn't have admin access."
               : "Log in with an admin account to continue."}
           </p>
-          <Link href="/admin/login" style={btn}>
+          <Link href="/staff/login" style={btn}>
             Go to admin login
           </Link>
         </div>
@@ -286,12 +287,15 @@ export default async function AdminPage() {
           )}
         </div>
 
-        {/* Tools */}
-        <h2 style={sectionTitle}>Reset tools</h2>
-        <p style={{ color: "#7A828C", margin: "0 0 16px", fontSize: 14.5 }}>
-          Useful between demos. Each one asks you to confirm first.
-        </p>
-        <AdminButtons />
+        {developmentToolsEnabled(process.env) && (
+          <section>
+            <h2 style={sectionTitle}>Development tools</h2>
+            <p style={{ color: "#7A828C", margin: "0 0 16px", fontSize: 14.5 }}>
+              For test activity only. Each tool asks you to confirm first.
+            </p>
+            <AdminButtons />
+          </section>
+        )}
 
         <p style={{ marginTop: 30 }}>
           <Link href="/" style={{ color: "#6D28D9", fontSize: 14 }}>
