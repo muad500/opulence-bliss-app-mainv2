@@ -25,6 +25,7 @@ import {
   isProviderWeeklyAvailability,
   isProviderWeeklyHours,
   providerAvailabilityRows,
+  providerApplicationEligibilityError,
 } from "@/lib/providerOnboarding";
 
 const admin = createClient(
@@ -142,6 +143,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    const eligibilityError = providerApplicationEligibilityError(residentStatus, rightToWork);
+    if (eligibilityError) return NextResponse.json({ error: eligibilityError }, { status: 400 });
     if (!isOptionalUtrNumber(utrNumber)) {
       return NextResponse.json(
         { error: "The UTR number must contain 10 digits, or be left blank." },
@@ -175,9 +178,9 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-    if (!String(businessName ?? "").trim()) {
+    if (businessName != null && (typeof businessName !== "string" || businessName.trim().length > 160)) {
       return NextResponse.json(
-        { error: "Enter your trading or business name, or write Not applicable." },
+        { error: "Keep your trading or business name under 160 characters, or leave it blank." },
         { status: 400 }
       );
     }
@@ -388,7 +391,7 @@ export async function POST(req: NextRequest) {
         provider_id: prov.id,
         preferred_weekly_hours: weeklyHours,
         resident_status: residentStatus,
-        utr_number: utrNumber ? String(utrNumber) : null,
+        utr_number: typeof utrNumber === "string" ? utrNumber.trim() || null : null,
         self_employed_confirmed: true,
         salutation,
         date_of_birth: dateOfBirth,
@@ -398,7 +401,7 @@ export async function POST(req: NextRequest) {
           currentlySelfEmployed === "other"
             ? String(currentSelfEmploymentDetail).trim()
             : null,
-        business_name: String(businessName).trim(),
+        business_name: typeof businessName === "string" ? businessName.trim() || null : null,
         cleaning_experience_years: cleaningExperienceYears,
         cleaning_experience_types: cleaningExperienceTypes,
         other_cleaning_experience: cleaningExperienceTypes.includes("Other")

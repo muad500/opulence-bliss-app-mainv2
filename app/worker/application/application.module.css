@@ -1,0 +1,13 @@
+.page { width: 100%; max-width: 880px; margin: 0 auto; color: var(--ob-text); }
+.page h1 { font-size: clamp(28px, 5vw, 38px); font-weight: 900; margin: 6px 0 16px; }
+.page h2 { font-size: 22px; font-weight: 850; margin: 0 0 12px; }
+.page p { line-height: 1.65; color: var(--ob-muted); margin: 14px 0; }
+.page .eyebrow { color: var(--ob-purple); text-transform: uppercase; letter-spacing: .1em; font-size: 11px; font-weight: 900; }
+.status { display: inline-block; padding: 8px 14px; background: var(--ob-purple-soft); color: var(--ob-purple); border-radius: 999px; font-weight: 800; }
+.card { background: white; border: 1px solid var(--ob-border); border-radius: 20px; padding: 24px; margin: 20px 0; }
+.card ul { list-style: none; margin: 18px 0 22px; padding: 0; }
+.card li { display: flex; justify-content: space-between; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--ob-border); }
+.card li span { color: var(--ob-muted); font-size: 13px; }
+.button { display: inline-block; padding: 13px 18px; border-radius: 999px; background: var(--ob-purple); color: white; text-decoration: none; font-weight: 800; }
+.links { display: flex; gap: 20px; flex-wrap: wrap; margin: 22px 0; color: var(--ob-purple); font-weight: 800; }
+@media (max-width: 600px) { .card { padding: 18px; } .card li { flex-direction: column; gap: 5px; } .button { border-radius: 14px; text-align: center; width: 100%; box-sizing: border-box; } }

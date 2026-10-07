@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { handymanContext, isAccountError } from '@/lib/handymanServer';
 import { isRecord, readAccountBody } from '@/lib/accountApi';
 import { validHandymanTask } from '@/lib/handymanMarketplace';
-import { PROVIDER_RESIDENT_STATUSES } from '@/lib/providerOnboarding';
+import { PROVIDER_RESIDENT_STATUSES, providerApplicationEligibilityError } from '@/lib/providerOnboarding';
 export async function POST(req: NextRequest) {
   const ctx = await handymanContext(req, true);
   if (isAccountError(ctx)) return ctx;
   const b = await readAccountBody(req);
   if (b instanceof NextResponse) return b;
+  const eligibilityError = providerApplicationEligibilityError(b.residentStatus, b.rightToWork);
+  if (eligibilityError) return NextResponse.json({ error: eligibilityError }, { status: 400 });
   const birth =
       typeof b.dateOfBirth === 'string'
         ? new Date(b.dateOfBirth + 'T00:00:00Z')

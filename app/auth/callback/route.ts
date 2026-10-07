@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { LEGAL_VERSIONS } from "@/lib/legal";
+import { canUseProfessionalTools } from "@/lib/professionalAccess";
 
 function safeNext(value: string | null) {
   return value?.startsWith("/") && !value.startsWith("//") ? value : "/account";
@@ -48,9 +49,9 @@ export async function GET(request: NextRequest) {
   if(next==='/account'){
     const [details,professional]=await Promise.all([
       admin.from('account_profile_details').select('last_account_mode').eq('user_id',user.id).maybeSingle(),
-      admin.from('providers').select('id').eq('profile_id',user.id).maybeSingle(),
+      admin.from('providers').select('id,vetting_status,is_suspended').eq('profile_id',user.id).maybeSingle(),
     ]);
-    if(professional.data&&details.data?.last_account_mode==='professional')next='/worker';
+    if(canUseProfessionalTools(professional.data)&&details.data?.last_account_mode==='professional')next='/worker';
   }
 
   if (existing && user.user_metadata?.legal_accepted === true) {

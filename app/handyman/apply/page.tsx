@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { HANDYMAN_TASKS } from '@/lib/handymanMarketplace';
-import { PROVIDER_RESIDENT_STATUSES } from '@/lib/providerOnboarding';
+import { PROVIDER_RESIDENT_STATUSES, providerApplicationEligibilityError } from '@/lib/providerOnboarding';
 import styles from '../marketplace.module.css';
 export default function Page() {
   const [legalName, setLegalName] = useState(''),
@@ -11,6 +11,7 @@ export default function Page() {
     [birth, setBirth] = useState(''),
     [resident, setResident] = useState(''),
     [selfEmployed, setSelfEmployed] = useState(false),
+    [rightToWork, setRightToWork] = useState(false),
     [bio, setBio] = useState(''),
     [experience, setExperience] = useState(0),
     [coverage, setCoverage] = useState(''),
@@ -31,6 +32,8 @@ export default function Page() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   async function submit() {
+    const eligibilityError = providerApplicationEligibilityError(resident, rightToWork);
+    if (eligibilityError) { setError(eligibilityError); return; }
     setBusy(true);
     setError('');
     try {
@@ -45,6 +48,7 @@ export default function Page() {
             dateOfBirth: birth,
             residentStatus: resident,
             selfEmployed,
+            rightToWork,
             yearsExperience: experience,
             coveragePostcodes: coverage
               .split(',')
@@ -163,6 +167,9 @@ export default function Page() {
           />
           I work on a self-employed basis.
         </label>
+        <label className={styles.check}><input type="checkbox" checked={rightToWork} onChange={(e) => setRightToWork(e.target.checked)} />My UK permission allows these services on a self-employed basis.</label>
+        {resident && providerApplicationEligibilityError(resident, true) && <p role="alert">{providerApplicationEligibilityError(resident, true)}</p>}
+        <p className={styles.muted}>Our team checks your evidence before approval. Student-visa applicants must contact support about any exceptional permission.</p>
       </section>
       <section className={styles.card}>
         <h2>Tasks and your hourly rates</h2>

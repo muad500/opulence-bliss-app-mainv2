@@ -33,6 +33,8 @@ type Props = {
   approved?: boolean;
   hasCurrentJob?: boolean;
   hasProfessionalAccount?: boolean;
+  professionalApproved?: boolean;
+  applicationStatus?: string;
 };
 
 const supabase = createClient();
@@ -40,6 +42,7 @@ const supabase = createClient();
 export default function PortalNavigation({
   mode, name, email, rating, ratingCount = 0, registered = false,
   approved = false, hasCurrentJob = false, hasProfessionalAccount = false,
+  professionalApproved = false, applicationStatus = "Application under review",
 }: Props) {
   const path = usePathname() ?? "";
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -54,12 +57,13 @@ export default function PortalNavigation({
   const professional = mode === "professional";
   const items: NavItem[] = professional
     ? [
-        ...(hasCurrentJob ? [{ href: "/worker/current", label: "Current job", mobileLabel: "Now", icon: BriefcaseBusiness, bottom: true }] : []),
-        { href: "/worker", label: "Jobs & offers", mobileLabel: "Jobs", icon: House, exact: true, bottom: true },
-        { href: "/worker/availability", label: "Availability", mobileLabel: "Hours", icon: CalendarDays, bottom: true, locked: !registered },
-        { href: "/worker/earnings", label: "Earnings & payouts", mobileLabel: "Earnings", icon: Wallet, bottom: !hasCurrentJob, locked: !registered },
+        ...(hasCurrentJob && approved ? [{ href: "/worker/current", label: "Current job", mobileLabel: "Now", icon: BriefcaseBusiness, bottom: true }] : []),
+        ...(!approved && registered ? [{ href: "/worker/application", label: "My application", mobileLabel: "Application", icon: UserRound, bottom: true }] : []),
+        { href: "/worker", label: "Jobs & offers", mobileLabel: "Jobs", icon: House, exact: true, bottom: true, locked: !approved },
+        { href: "/worker/availability", label: "Availability", mobileLabel: "Hours", icon: CalendarDays, bottom: true, locked: !approved },
+        { href: "/worker/earnings", label: "Earnings & payouts", mobileLabel: "Earnings", icon: Wallet, bottom: !hasCurrentJob, locked: !approved },
         { href: "/worker/profile", label: "My profile", mobileLabel: "Profile", icon: UserRound, bottom: !hasCurrentJob, locked: !registered },
-        { href: "/worker/updates", label: "Updates", mobileLabel: "Updates", icon: Bell, locked: !registered },
+        { href: "/worker/updates", label: "Updates", mobileLabel: "Updates", icon: Bell, locked: !approved },
       ]
     : [
         { href: "/account", label: "My bookings", mobileLabel: "Bookings", icon: CalendarDays, exact: true, bottom: true },
@@ -67,7 +71,7 @@ export default function PortalNavigation({
         { href: "/account/updates", label: "Updates", mobileLabel: "Updates", icon: Bell, bottom: true },
       ];
 
-  if(handyman)items.push({href:"/handyman/jobs",label:"Handyman jobs",mobileLabel:"Trade jobs",icon:BriefcaseBusiness});
+  if(handyman)items.push({href:"/handyman/jobs",label:"Handyman jobs",mobileLabel:"Trade jobs",icon:BriefcaseBusiness,locked:professional&&!approved});
 
   useEffect(() => {
     try { setCollapsed(localStorage.getItem(`opulence-${mode}-nav`) === "collapsed"); } catch { /* storage may be disabled */ }
@@ -117,9 +121,9 @@ export default function PortalNavigation({
 
   const isActive = (item: NavItem) => item.exact ? path === item.href : path.startsWith(item.href);
   const first = (name || email || "O").trim().charAt(0).toUpperCase();
-  const switchHref = professional ? "/account" : hasProfessionalAccount ? "/worker" : "/provider/join";
-  const switchLabel = professional ? "Client account" : hasProfessionalAccount ? "Professional portal" : "Become a professional";
-  const status = professional ? !registered ? "Not registered" : approved ? "Active" : "Awaiting approval" : "Client account";
+  const switchHref = professional ? "/account" : hasProfessionalAccount ? "/worker/application" : "/provider/join";
+  const switchLabel = professional ? "Client account" : hasProfessionalAccount ? "My application" : "Apply as a professional";
+  const status = professional ? !registered ? "Not applied" : approved ? "Approved" : applicationStatus : "Client account";
 
   async function signOut() {
     if (signingOut) return;
@@ -133,14 +137,14 @@ export default function PortalNavigation({
       const Icon = item.icon;
       const className = `${styles.navLink} ${isActive(item) ? styles.active : ""} ${item.locked ? styles.locked : ""}`;
       const contents = <><Icon size={19} strokeWidth={2} aria-hidden="true" /><span className={styles.navLabel}>{item.label}</span>{item.href.endsWith("/updates") && unread > 0 && <span className={styles.badge}>{unread > 99 ? "99+" : unread}</span>}</>;
-      return item.locked ? <span className={className} key={item.href} title="Register as a professional to unlock">{contents}</span> :
+      return item.locked ? <span className={className} key={item.href} aria-disabled="true" title="Locked until your professional application is approved">{contents}</span> :
         <Link key={item.href} href={item.href} className={className} aria-current={isActive(item) ? "page" : undefined} title={!inDrawer && collapsed ? item.label : undefined} onClick={() => setDrawerOpen(false)}>{contents}</Link>;
     });
   }
 
   function renderFooter() {
     return <div className={styles.footer}>
-      {professional || hasProfessionalAccount ? <AccountModeSwitch mode={mode} /> : <Link href={switchHref} className={styles.switchLink} aria-label={switchLabel} onClick={() => setDrawerOpen(false)}><ArrowLeftRight size={18} aria-hidden="true" /><span>{switchLabel}</span></Link>}
+      {professional || hasProfessionalAccount ? <AccountModeSwitch mode={mode} professionalApproved={professional ? approved : professionalApproved} hasProfessionalAccount={professional ? registered : hasProfessionalAccount} /> : <Link href={switchHref} className={styles.switchLink} aria-label={switchLabel} onClick={() => setDrawerOpen(false)}><ArrowLeftRight size={18} aria-hidden="true" /><span>{switchLabel}</span></Link>}
       <Link href="/faq" className={styles.quietLink} aria-label="Help and FAQ" onClick={() => setDrawerOpen(false)}><CircleHelp size={18} aria-hidden="true" /><span>Help & FAQ</span></Link>
       <button type="button" className={styles.quietLink} aria-label={signingOut ? "Signing out" : "Sign out"} onClick={() => void signOut()} disabled={signingOut}><LogOut size={18} aria-hidden="true" /><span>{signingOut ? "Signing out…" : "Sign out"}</span></button>
     </div>;
