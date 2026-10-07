@@ -131,6 +131,27 @@ export default function ServicePage() {
   const lastTileRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
+    // Cross-page hash navigation can run before the client-side styles and
+    // fonts settle. Align once after hydration so the heading stays in view.
+    let cancelled = false;
+    let frame = 0;
+    void document.fonts.ready.then(() => {
+      frame = requestAnimationFrame(() => {
+        if (!cancelled && window.location.hash === "#cleaning-services") {
+          document.getElementById("cleaning-services")?.scrollIntoView({
+            block: "start",
+            behavior: "instant",
+          });
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  useEffect(() => {
     const mq = window.matchMedia("(max-width: 899px)");
     const sync = () => setIsNarrow(mq.matches);
     sync();
@@ -1054,7 +1075,7 @@ export default function ServicePage() {
         /* services */
         .services {
           padding: 62px 0 10px;
-          scroll-margin-top: 24px;
+          scroll-margin-top: 90px;
         }
         .service-collection {
           position: relative;
@@ -1107,15 +1128,19 @@ export default function ServicePage() {
           position: relative;
           display: flex;
           flex-direction: column;
+          justify-content: flex-end;
           gap: 4px;
           width: 100%;
           min-width: 0;
           min-height: 122px;
           padding: 16px 14px 14px;
-          border: 1.5px solid var(--line);
-          border-radius: 16px;
-          background: linear-gradient(145deg, #fff9e9 0%, #fff5f7 52%, #f3edff 100%);
-          color: var(--ink);
+          border: 1.5px solid transparent;
+          border-radius: 20px;
+          background:
+            linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)),
+            linear-gradient(145deg, #7b2ff7 0%, #a33ea6 55%, #f5c542 140%);
+          color: #fff;
+          box-shadow: 0 9px 26px rgba(22, 32, 42, 0.08);
           font: inherit;
           text-align: left;
           cursor: pointer;
@@ -1125,19 +1150,19 @@ export default function ServicePage() {
         .tile.pop {
           border-color: var(--apricot);
         }
-        .tiles > li:nth-child(3n + 2) .tile {
-          background: linear-gradient(145deg, #fff7ee 0%, #faefff 58%, #eee8ff 100%);
-        }
-        .tiles > li:nth-child(3n) .tile {
-          background: linear-gradient(145deg, #fff4f5 0%, #f7edff 55%, #ebe7ff 100%);
+        .tiles > li:nth-child(even) .tile {
+          background:
+            linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)),
+            linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%);
         }
         .tile.on {
           border-color: var(--apricot-deep);
-          box-shadow: 0 0 0 2px rgba(109, 40, 217, 0.16);
+          box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--apricot-deep),
+            0 9px 26px rgba(22, 32, 42, 0.12);
         }
         .tile:focus-visible {
-          outline: 3px solid rgba(109, 40, 217, 0.35);
-          outline-offset: 2px;
+          outline: 3px solid var(--apricot-deep);
+          outline-offset: 5px;
         }
         /* Hover effects only where a real pointer exists, so phones never
            get stuck in a half-applied hover state after a tap. */
