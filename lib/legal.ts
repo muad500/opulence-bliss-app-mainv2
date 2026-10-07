@@ -3,6 +3,8 @@ export const PRIVACY_URL = process.env.NEXT_PUBLIC_PRIVACY_URL || "/legal/privac
 export const CANCELLATION_REFUND_URL =
   process.env.NEXT_PUBLIC_CANCELLATION_REFUND_URL ||
   "/legal/cancellation-refund";
+export const REVIEW_POLICY_URL =
+  process.env.NEXT_PUBLIC_REVIEW_POLICY_URL || "/legal/review-policy";
 export const HANDYMAN_TERMS_URL =
   process.env.NEXT_PUBLIC_HANDYMAN_TERMS_URL || "/legal/handyman-terms";
 export const PROFESSIONAL_PARTNER_AGREEMENT_URL =
@@ -11,9 +13,10 @@ export const PROFESSIONAL_PARTNER_AGREEMENT_URL =
 
 export const LEGAL_VERSIONS: Record<string, string> = {
   terms: "2.0",
-  privacy: "1.0",
-  "cancellation-refund": "1.0",
+  privacy: "1.1",
+  "cancellation-refund": "1.1",
   "handyman-terms": "1.0",
+  "review-policy": "1.0",
   "professional-partner-agreement": "2026-09-20",
 };
 
