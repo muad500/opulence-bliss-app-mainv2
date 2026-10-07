@@ -6,7 +6,7 @@
 //
 // Landing page — two-level nav, hero, coloured service bands.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -15,6 +15,32 @@ type HomeQuote =
   | { id: string; rating: number; comment: string; source: "testimonial"; customerName: string; location: string | null };
 
 export default function Home() {
+  const firstScreen = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const intro = firstScreen.current;
+    if (!intro) return;
+    const measureNavigation = () => {
+      const offset = Math.max(0, intro.getBoundingClientRect().top + window.scrollY);
+      intro.style.setProperty("--home-navigation-height", `${offset}px`);
+    };
+    measureNavigation();
+    const observer = new ResizeObserver(measureNavigation);
+    // Account for both navigation rows and any environment banner above the page.
+    let ancestor: HTMLElement | null = intro;
+    while (ancestor && ancestor !== document.body) {
+      let sibling = ancestor.previousElementSibling;
+      while (sibling) {
+        observer.observe(sibling);
+        sibling = sibling.previousElementSibling;
+      }
+      ancestor = ancestor.parentElement;
+    }
+    window.addEventListener("resize", measureNavigation);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measureNavigation);
+    };
+  }, []);
   const [quotes, setQuotes] = useState<HomeQuote[] | null>(null);
   useEffect(() => {
     (async () => {
@@ -77,6 +103,7 @@ export default function Home() {
 
   return (
     <div className="site">
+      <div className="first-screen" ref={firstScreen}>
       {/* ---------- HERO ---------- */}
       <header className="hero">
         <div className="hero-inner">
@@ -127,6 +154,8 @@ export default function Home() {
           <span className="arrow">→</span>
         </a>
       </section>
+
+      </div>
 
       {/* ---------- TRUST ---------- */}
       <section className="strip">
@@ -305,21 +334,29 @@ export default function Home() {
         }
 
         /* HERO */
+        .first-screen {
+          min-height: calc(100svh - var(--home-navigation-height, 100px));
+          display: grid;
+          grid-template-rows: minmax(min-content, 1fr) auto;
+        }
         .hero {
+          display: flex;
+          align-items: center;
           position: relative;
           isolation: isolate;
           overflow: hidden;
           background: linear-gradient(90deg, rgba(19, 16, 22, 0.86) 0%, rgba(26, 19, 27, 0.72) 37%, rgba(24, 16, 22, 0.16) 78%), url("/hero-home.webp") center / cover no-repeat;
-          padding: 88px 28px 96px;
+          padding: clamp(24px, 4svh, 44px) 28px;
         }
         .hero-inner {
+          width: 100%;
           max-width: 1080px;
           margin: 0 auto;
           text-align: left;
         }
         h1 {
           color: #fff;
-          font-size: clamp(38px, 6.5vw, 74px);
+          font-size: clamp(38px, 5vw, 64px);
           line-height: 1.02;
           letter-spacing: -0.015em;
           max-width: 760px;
@@ -330,7 +367,7 @@ export default function Home() {
           font-size: 18px;
           line-height: 1.6;
           max-width: 44ch;
-          margin: 0 0 30px;
+          margin: 0 0 20px;
         }
         .composer {
           display: flex;
@@ -393,19 +430,22 @@ export default function Home() {
 
         /* SERVICE BANDS */
         .bands {
+          width: 100%;
+          box-sizing: border-box;
           max-width: 1080px;
           margin: 0 auto;
-          padding: 44px 28px 10px;
+          padding: 20px 28px 10px;
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 16px;
         }
         .band {
+          box-sizing: border-box;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          min-height: 168px;
-          padding: 30px 34px;
+          min-height: 142px;
+          padding: 22px 28px;
           border: 1px solid var(--line);
           border-radius: 22px;
           text-decoration: none;
@@ -418,6 +458,7 @@ export default function Home() {
         }
         .band h2 {
           font-size: clamp(30px, 4.4vw, 46px);
+          line-height: 1.15;
           margin: 0 0 4px;
           color: var(--green);
         }
@@ -614,16 +655,50 @@ export default function Home() {
             gap: 20px;
           }
           .hero {
-            padding: 54px 16px 62px;
+            padding: 22px 16px;
             background-position: 62% center;
           }
+          h1 {
+            font-size: clamp(30px, 8vw, 40px);
+            margin-bottom: 12px;
+          }
+          .lede {
+            font-size: 14px;
+            line-height: 1.45;
+            margin-bottom: 16px;
+          }
+          .micro {
+            font-size: 12px;
+            margin-top: 10px;
+          }
+          .hero-quote {
+            font-size: 12px;
+            margin-top: 10px;
+          }
           .bands {
-            padding: 30px 16px 4px;
-            grid-template-columns: 1fr;
+            padding: 14px 16px 4px;
+            gap: 10px;
           }
           .band {
-            min-height: 130px;
-            padding: 22px 22px;
+            min-height: 136px;
+            padding: 14px 12px;
+            position: relative;
+            align-items: flex-start;
+          }
+          .band h2 {
+            font-size: clamp(20px, 5.4vw, 28px);
+          }
+          .band p {
+            font-size: 12px;
+            line-height: 1.4;
+            min-height: 34px;
+          }
+          .band .from {
+            font-size: 11px;
+            padding: 5px 8px;
+          }
+          .band .arrow {
+            display: none;
           }
           .strip,
           .steps,
@@ -637,7 +712,10 @@ export default function Home() {
           .composer {
             flex-direction: column;
             border-radius: 18px;
-            padding: 14px;
+            padding: 10px;
+          }
+          .composer input {
+            min-height: 26px;
           }
           .composer .btn {
             width: 100%;
@@ -648,6 +726,19 @@ export default function Home() {
             margin-left: 16px;
             margin-right: 16px;
           }
+        }
+        @media (max-height: 800px) and (min-width: 621px) {
+          .hero { padding-top: 20px; padding-bottom: 20px; }
+          h1 { font-size: 48px; margin-bottom: 12px; }
+          .lede { font-size: 16px; line-height: 1.45; margin-bottom: 16px; }
+        }
+        @media (max-width: 620px) and (max-height: 600px) {
+          .hero { padding: 16px; }
+          h1 { font-size: 28px; }
+          .lede { font-size: 13px; margin-bottom: 12px; }
+          .composer { flex-direction: row; border-radius: 999px; gap: 6px; padding: 6px 6px 6px 12px; }
+          .composer .btn { width: auto; font-size: 12px; padding: 13px 12px; }
+          .band { min-height: 132px; }
         }
       `}</style>
     </div>
