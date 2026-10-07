@@ -753,12 +753,13 @@ export default function Home() {
         }
         @media (max-width: 620px) and (max-height: 600px) {
           .first-screen { grid-template-rows: minmax(min-content, 1fr) auto; }
-          .hero { padding: 16px; }
-          h1 { font-size: 28px; }
-          .lede { font-size: 13px; margin-bottom: 12px; }
-          .composer { flex-direction: row; border-radius: 999px; gap: 6px; padding: 6px 6px 6px 12px; }
+          .hero { padding: 12px 16px; }
+          h1 { font-size: 28px; margin-bottom: 8px; }
+          .lede { font-size: 13px; margin-bottom: 8px; }
+          .micro, .hero-quote { margin-top: 6px; }
+          .composer { flex-direction: row; border-radius: 999px; gap: 6px; padding: 4px 4px 4px 12px; }
           .composer .btn { width: auto; font-size: 12px; padding: 13px 12px; }
-          .band { min-height: 132px; }
+          .band { min-height: 132px; padding-block: 12px; }
         }
       `}</style>
     </div>
