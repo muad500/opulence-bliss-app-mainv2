@@ -6,7 +6,7 @@
 //
 // Landing page — two-level nav, hero, coloured service bands.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -15,6 +15,32 @@ type HomeQuote =
   | { id: string; rating: number; comment: string; source: "testimonial"; customerName: string; location: string | null };
 
 export default function Home() {
+  const firstScreen = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const intro = firstScreen.current;
+    if (!intro) return;
+    const measureNavigation = () => {
+      const offset = Math.max(0, intro.getBoundingClientRect().top + window.scrollY);
+      intro.style.setProperty("--home-navigation-height", `${offset}px`);
+    };
+    measureNavigation();
+    const observer = new ResizeObserver(measureNavigation);
+    // Account for both navigation rows and any environment banner above the page.
+    let ancestor: HTMLElement | null = intro;
+    while (ancestor && ancestor !== document.body) {
+      let sibling = ancestor.previousElementSibling;
+      while (sibling) {
+        observer.observe(sibling);
+        sibling = sibling.previousElementSibling;
+      }
+      ancestor = ancestor.parentElement;
+    }
+    window.addEventListener("resize", measureNavigation);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measureNavigation);
+    };
+  }, []);
   const [quotes, setQuotes] = useState<HomeQuote[] | null>(null);
   useEffect(() => {
     (async () => {
@@ -77,6 +103,7 @@ export default function Home() {
 
   return (
     <div className="site">
+      <div className="first-screen" ref={firstScreen}>
       {/* ---------- HERO ---------- */}
       <header className="hero">
         <div className="hero-inner">
@@ -127,6 +154,8 @@ export default function Home() {
           <span className="arrow">→</span>
         </a>
       </section>
+
+      </div>
 
       {/* ---------- TRUST ---------- */}
       <section className="strip">
@@ -305,7 +334,14 @@ export default function Home() {
         }
 
         /* HERO */
+        .first-screen {
+          min-height: calc(100svh - var(--home-navigation-height, 100px));
+          display: grid;
+          grid-template-rows: minmax(min-content, 1fr) auto;
+        }
         .hero {
+          display: flex;
+          align-items: center;
           position: relative;
           isolation: isolate;
           overflow: hidden;
@@ -313,6 +349,7 @@ export default function Home() {
           padding: clamp(24px, 4svh, 44px) 28px;
         }
         .hero-inner {
+          width: 100%;
           max-width: 1080px;
           margin: 0 auto;
           text-align: left;
@@ -393,6 +430,8 @@ export default function Home() {
 
         /* SERVICE BANDS */
         .bands {
+          width: 100%;
+          box-sizing: border-box;
           max-width: 1080px;
           margin: 0 auto;
           padding: 20px 28px 10px;
