@@ -203,9 +203,6 @@ export default function SiteHeader() {
               </span>
             )}
           </Link>
-          <Link href="/book" style={cta}>
-            Book now
-          </Link>
           {role&&role!=='admin'&&hasProfessionalAccount&&<AccountModeSwitch mode={accountMode}/>}
         </div>
 
@@ -428,9 +425,8 @@ export default function SiteHeader() {
             justify-content: center;
             min-height: 36px;
             padding: 6px 8px;
-            border: 1px solid #e6dcf5;
-            border-radius: 10px;
-            background: #faf7ff;
+            border: 0;
+            background: transparent;
             color: ${CORAL};
             font-size: 11.5px;
             font-weight: 900;
@@ -449,9 +445,8 @@ export default function SiteHeader() {
             width: 38px;
             height: 38px;
             padding: 0;
-            border: 1px solid #e5e0eb;
-            border-radius: 11px;
-            background: #fff;
+            border: 0;
+            background: transparent;
             color: ${INK};
             cursor: pointer;
           }
@@ -638,8 +633,7 @@ export default function SiteHeader() {
             place-items: center;
             min-height: 44px;
             padding: 9px 12px;
-            border: 1.5px solid #dccbfa;
-            border-radius: 12px;
+            border: 0;
             color: ${CORAL};
             font-size: 13.5px;
             font-weight: 900;
@@ -721,40 +715,21 @@ const logo: React.CSSProperties = {
 };
 
 const ghostBtn: React.CSSProperties = {
-  fontSize: 14,
+  fontSize: 13,
   fontWeight: 800,
   color: INK,
   textDecoration: "none",
-  padding: "8px 14px",
-  borderRadius: 999,
-  borderWidth: 2,
-  borderStyle: "solid",
-  borderColor: "#EDEDEF",
+  padding: "8px 4px",
   whiteSpace: "nowrap",
 };
 
 const proBtn: React.CSSProperties = {
   ...ghostBtn,
   color: CORAL,
-  borderColor: "#DCCBFA",
-  background: "#FAF7FF",
 };
 
 const blogBtn: React.CSSProperties = {
   ...ghostBtn,
-  background: "#fff",
-};
-
-const cta: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 900,
-  color: "#fff",
-  textDecoration: "none",
-  padding: "9px 19px",
-  borderRadius: 999,
-  background: `linear-gradient(100deg,#F5C542,#C86FC9 55%,#7B2FF7)`,
-  whiteSpace: "nowrap",
-  boxShadow: "0 6px 16px rgba(109,40,217,0.26)",
 };
 
 const navRow: React.CSSProperties = {

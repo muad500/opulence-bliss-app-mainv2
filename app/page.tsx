@@ -128,6 +128,9 @@ export default function Home() {
               Book my cleaning
             </a>
           </div>
+          <a className="btn mobile-book" href="#services">
+            Book a service
+          </a>
           <p className="micro">Simple pay per visit booking down there</p>
           <a className="hero-quote" href="/services/handyman">
             Need something repaired or installed? Request a handyman quote →
@@ -412,6 +415,9 @@ export default function Home() {
           filter: brightness(1.06);
           transform: translateY(-1px);
         }
+        .mobile-book {
+          display: none;
+        }
         .btn.light {
           background: var(--cream);
           color: var(--green);
@@ -432,6 +438,7 @@ export default function Home() {
 
         /* SERVICE BANDS */
         .bands {
+          scroll-margin-top: 80px;
           width: 100%;
           box-sizing: border-box;
           max-width: 1080px;
@@ -663,7 +670,7 @@ export default function Home() {
             margin-right: 20px;
           }
         }
-        @media (max-width: 620px) {
+        @media (max-width: 700px) {
           .topbar,
           .servicenav {
             padding-left: 16px;
@@ -676,8 +683,9 @@ export default function Home() {
             padding: 22px 16px;
             background-position: 62% center;
           }
-          h1 {
-            font-size: clamp(30px, 8vw, 40px);
+          .hero h1 {
+            font-size: clamp(36px, 10vw, 48px) !important;
+            line-height: 1.05 !important;
             margin-bottom: 12px;
           }
           .lede {
@@ -685,13 +693,9 @@ export default function Home() {
             line-height: 1.45;
             margin-bottom: 16px;
           }
-          .micro {
-            font-size: 12px;
-            margin-top: 10px;
-          }
+          .micro,
           .hero-quote {
-            font-size: 12px;
-            margin-top: 10px;
+            display: none;
           }
           .bands {
             padding: 18px 16px 8px;
@@ -712,8 +716,7 @@ export default function Home() {
             min-height: 34px;
           }
           .band .from {
-            font-size: 11px;
-            padding: 5px 8px;
+            display: none;
           }
           .service-icon {
             width: 108px;
@@ -729,36 +732,30 @@ export default function Home() {
             border-bottom: 1px solid var(--line);
           }
           .composer {
-            flex-direction: column;
-            border-radius: 18px;
-            padding: 10px;
+            display: none;
           }
-          .composer input {
-            min-height: 26px;
-          }
-          .composer .btn {
-            width: 100%;
-            box-sizing: border-box;
-            text-align: center;
+          .mobile-book {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 12px 26px;
           }
           .strip {
             margin-left: 16px;
             margin-right: 16px;
           }
         }
-        @media (max-height: 800px) and (min-width: 621px) {
+        @media (max-height: 800px) and (min-width: 701px) {
           .hero { padding-top: 20px; padding-bottom: 20px; }
           h1 { font-size: 48px; margin-bottom: 12px; }
           .lede { font-size: 16px; line-height: 1.45; margin-bottom: 16px; }
         }
-        @media (max-width: 620px) and (max-height: 600px) {
+        @media (max-width: 700px) and (max-height: 600px) {
           .first-screen { grid-template-rows: minmax(min-content, 1fr) auto; }
           .hero { padding: 12px 16px; }
-          h1 { font-size: 28px; margin-bottom: 8px; }
+          .hero h1 { margin-bottom: 8px; }
           .lede { font-size: 13px; margin-bottom: 8px; }
-          .micro, .hero-quote { margin-top: 6px; }
-          .composer { flex-direction: row; border-radius: 999px; gap: 6px; padding: 4px 4px 4px 12px; }
-          .composer .btn { width: auto; font-size: 12px; padding: 13px 12px; }
           .band { min-height: 132px; padding-block: 12px; }
         }
       `}</style>
