@@ -336,7 +336,8 @@ export default function Home() {
 
         /* HERO */
         .first-screen {
-          min-height: calc(100svh - var(--home-navigation-height, 100px));
+          height: calc(100svh - var(--home-navigation-height, 100px));
+          min-height: min-content;
           display: grid;
           grid-template-rows: minmax(min-content, 13fr) minmax(min-content, 7fr);
         }
