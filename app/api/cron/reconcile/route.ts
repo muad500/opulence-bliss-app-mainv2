@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { isRegularVisitCount } from "@/lib/regularBooking";
+import { developmentToolsEnabled } from "@/lib/developmentTools";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -60,6 +61,10 @@ function beforeEpoch(createdUnix: number, epoch: Date | null) {
 }
 
 async function effectiveReconciliationEpoch(configured: Date) {
+  // A historical demo reset must not hide production reconciliation evidence.
+  if (!developmentToolsEnabled(process.env)) {
+    return { epoch: configured, resetAt: null as Date | null };
+  }
   const { data, error } = await admin.rpc("latest_prototype_reset_at");
   throwOnQueryError("Reading the latest prototype reset", error);
   if (!data) return { epoch: configured, resetAt: null as Date | null };

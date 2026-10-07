@@ -25,14 +25,14 @@ export default async function AdminLegalPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/admin/login");
+  if (!user) redirect("/staff/login");
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
-  if (profile?.role !== "admin") redirect("/admin/login");
+  if (profile?.role !== "admin") redirect("/staff/login");
 
   const { data, error } = await supabase
     .from("legal_documents")

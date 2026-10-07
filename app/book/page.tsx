@@ -13,6 +13,7 @@ import { cleaningHomeLabel, parseCleaningHome, recommendedCleaningMinutesForHome
 import AppointmentTimePicker from "@/components/AppointmentTimePicker";
 import { isStoredUkPhone, isValidUkPhone } from "@/lib/ukPhone";
 import { EARLY_START_REQUEST_TEXT, startsWithinCancellationPeriod } from "@/lib/cancellationPeriod";
+import { assistantBookingHandoff, type AssistantPackage } from "@/lib/assistantBooking";
 import { CANCELLATION_REFUND_URL } from "@/lib/legal";
 
 const supabase = createClient();
@@ -149,6 +150,7 @@ export default function BookPage() {
   const [earlyStartAgreed, setEarlyStartAgreed] = useState(false);
   // Set when the server says a request is needed, in case time moved on.
   const [earlyStartForced, setEarlyStartForced] = useState(false);
+  const [assistantDraft, setAssistantDraft] = useState<{ packageId: string; postcode: string; minutes: number; slot: string; optional: string[] } | null>(null);
   const [handoffError, setHandoffError] = useState<string | null>(null);
 
   /* ---------- load ---------- */
@@ -254,61 +256,32 @@ export default function BookPage() {
       }
       const hasAddress = (savedAddress ?? "").trim().length >= 5;
 
-      // Assistant handoffs are checked against the current permitted booking
-      // window before opening the payment summary. A saved full address is
-      // required before an assistant can skip the first screen.
-      if (reviewHandoff && match && wantSlot && pcToCheck && hasAddress) {
+      // Carry the assistant's choices without skipping address or home details.
+      // Prices, notice, frequency and every optional time are checked again.
+      if (reviewHandoff && match && wantSlot && pcToCheck) {
         try {
-          const response = await fetch(
-            `/api/slots?postcode=${encodeURIComponent(
-              pcToCheck,
-            )}&service=${encodeURIComponent(
-              match.service_type ?? "",
-            )}&duration=${encodeURIComponent(
-              String(match.duration_minutes ?? 120),
-            )}`,
-            { cache: "no-store" },
-          );
-          const data = await response.json();
-          const liveSlots = (data.slots ?? []) as string[];
-          const wantedTime = new Date(wantSlot).getTime();
-          const liveSlot = liveSlots.find(
-            (candidate) => new Date(candidate).getTime() === wantedTime,
-          );
-
-          setSelected(match);
-          setSlots(liveSlots);
-          setGate(
-            data.covered
-              ? { ok: true, area: areaList.find((area) =>
-                  area.postcode_prefixes.includes(outwardCode(pcToCheck)),
-                )?.name }
-              : { ok: false },
-          );
-
-          if (data.covered && liveSlot) {
-            setSlot(liveSlot);
-            setStep(match.name === "Essential Clean" ? 2 : 3);
-          } else {
-            setStep(data.covered ? 3 : 0);
-            setHandoffError(
-              data.covered
-                ? "That time was just taken. Add your home details, then choose another time."
-                : "That postcode is not currently in our service area.",
-            );
-          }
-        } catch {
-          setStep(3);
-          setHandoffError(
-            "We could not recheck that time. Add your home details, then choose a live time.",
-          );
+          const draft = assistantBookingHandoff(match as AssistantPackage, {
+            postcode: pcToCheck, slot: wantSlot,
+            duration_minutes: q.get("duration") ?? match.duration_minutes ?? 120,
+            frequency: q.get("frequency") ?? (match.name === "Essential Clean" ? "weekly" : "one_time"),
+            visits: q.get("visits") ?? 6, optional_slots: q.getAll("optional"),
+          });
+          if (!covered) throw new Error("That postcode is not currently in our service area.");
+          setCleaningMinutes(draft.duration_minutes);
+          setFrequency(draft.frequency as BookingFrequency);
+          setRegularVisits(draft.visits > 1 ? draft.visits : 6);
+          setSlot(draft.preferred_time);
+          setOptionalSlots(draft.optional_times);
+          setAssistantDraft({ packageId: match.id, postcode: draft.postcode, minutes: draft.duration_minutes, slot: draft.preferred_time, optional: draft.optional_times });
+          if (wantPc && wantPc.replace(/\s/g, "").toUpperCase() !== savedPc?.replace(/\s/g, "").toUpperCase()) setAddress("");
+          setHandoffError("Your booking draft is ready. Confirm the full address, then add or check your home details. Your chosen times will be kept.");
+          setStep(0);
+        } catch (cause) {
+          setSlot(null); setOptionalSlots([]); setStep(0);
+          setHandoffError(cause instanceof Error ? cause.message : "Please choose your booking details again.");
         }
       } else if (reviewHandoff) {
-        setHandoffError(
-          hasAddress
-            ? "That booking link is incomplete. Please ask the assistant to prepare it again."
-            : "Confirm your full service address before continuing.",
-        );
+        setHandoffError("That booking link is incomplete. Please ask the assistant to prepare it again.");
         setStep(0);
       } else if (match && wantSlot && covered && hasAddress) {
         setSlot(wantSlot);
@@ -349,6 +322,15 @@ export default function BookPage() {
       const data = await res.json();
       const list: string[] = data.slots ?? [];
       setSlots(list);
+      if (assistantDraft && assistantDraft.packageId === selected?.id && assistantDraft.minutes === durationMinutes && assistantDraft.postcode.replace(/\s/g, "") === pc.toUpperCase().replace(/\s/g, "")) {
+        if (data.covered && list.includes(assistantDraft.slot)) {
+          setSlot(assistantDraft.slot);
+          setOptionalSlots(assistantDraft.optional.filter((time) => list.includes(time)));
+        } else {
+          setHandoffError("Your preferred time is no longer permitted. Please choose another time.");
+        }
+        setAssistantDraft(null);
+      }
     } catch {
       setSlots([]);
     }
@@ -356,6 +338,7 @@ export default function BookPage() {
 
   function pick(p: Pkg) {
     setSelected(p);
+    setAssistantDraft(null);
     setFrequency(p.name === "Essential Clean" ? "weekly" : "one_time");
     setPromoInfo(null);
     setPreferredCleaner("");
@@ -627,23 +610,24 @@ export default function BookPage() {
               )}
               {gate && !gate.ok && (
                 <div className="alert">
-                  <strong>We&apos;re not in your area just yet.</strong>
+                  <strong>Please check your postcode.</strong>
                   <span>
-                    Right now we cover {areas.map((a) => a.name).join(", ")}.
+                    We cover London, including all outer London boroughs. Enter
+                    your full postcode, for example SW1A 1AA.
                   </span>
                 </div>
               )}
 
               <button
                 className="next"
-                onClick={() => setStep(1)}
+                onClick={() => setStep(assistantDraft ? 3 : 1)}
                 disabled={!addressValid || !gate?.ok}
               >
                 {!addressValid
                   ? "Add your full address"
                   : !gate?.ok
                     ? "Check your postcode"
-                    : "Continue to sessions"}
+                    : assistantDraft ? "Confirm home details" : "Continue to sessions"}
               </button>
 
               <ul className="trust">

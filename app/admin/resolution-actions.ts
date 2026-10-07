@@ -20,6 +20,7 @@ import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
 import { settleTipPayout } from "@/lib/tipPayout";
 import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
 import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
+import { assertDevelopmentToolsEnabled } from "@/lib/developmentTools";
 import {
   claimMoneyOperation,
   maybeReleasePayout,
@@ -96,6 +97,7 @@ function refreshAdmin() {
  */
 export async function closePreResetTransferFindings(): Promise<Result> {
   const { s } = await requireAdmin();
+  assertDevelopmentToolsEnabled(process.env, "Clear pre-reset test findings");
   const { data: resetValue, error: resetError } = await admin.rpc(
     "latest_prototype_reset_at",
   );
@@ -128,7 +130,7 @@ export async function closePreResetTransferFindings(): Promise<Result> {
       const transfer = await stripe.transfers.retrieve(
         finding.stripe_object_id,
       );
-      if (transfer.created * 1000 >= resetAt.getTime()) {
+      if (transfer.livemode !== false || transfer.created * 1000 >= resetAt.getTime()) {
         kept++;
         continue;
       }
