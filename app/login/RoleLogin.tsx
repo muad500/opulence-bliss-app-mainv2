@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import GoogleAuthButton from "@/components/GoogleAuthButton";
+import { canUseProfessionalTools } from "@/lib/professionalAccess";
 
 const supabase = createClient();
 
@@ -91,8 +92,8 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
 
     const next = new URLSearchParams(window.location.search).get("next");
     const {data:details}=await supabase.from('account_profile_details').select('last_account_mode').eq('user_id',data.user.id).maybeSingle();
-    const {data:professional}=await supabase.from('providers').select('id').eq('profile_id',data.user.id).maybeSingle();
-    const destination=mode==='client'&&professional&&details?.last_account_mode==='professional'?'/worker':content.destination;
+    const {data:professional}=await supabase.from('providers').select('id,vetting_status,is_suspended').eq('profile_id',data.user.id).maybeSingle();
+    const destination=mode==='client'&&canUseProfessionalTools(professional)&&details?.last_account_mode==='professional'?'/worker':content.destination;
     window.location.href = next?.startsWith("/") && !next.startsWith("//") ? next : destination;
   }
 

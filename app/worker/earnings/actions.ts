@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { canUseProfessionalTools } from "@/lib/professionalAccess";
 
 export type PayoutScheduleState = { ok: boolean; message: string };
 
@@ -28,10 +29,11 @@ export async function savePayoutSchedule(
 
   const { data: provider } = await admin
     .from("providers")
-    .select("id, stripe_account_id, is_suspended")
+    .select("id, stripe_account_id, is_suspended, vetting_status")
     .eq("profile_id", user.id)
     .maybeSingle();
   if (!provider) return { ok: false, message: "Provider account not found." };
+  if (!canUseProfessionalTools(provider)) return { ok: false, message: "Payout settings unlock after your professional application is approved." };
   if (provider.is_suspended) {
     return { ok: false, message: "Payment settings cannot change while the account is suspended." };
   }

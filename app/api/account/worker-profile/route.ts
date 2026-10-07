@@ -110,7 +110,7 @@ async function loadWorkerProfile(ctx: AccountContext) {
       notifications: { messages: settings?.notify_messages !== false },
     },
     legalAcceptances,
-    accountStatus: { vetting: provider.vetting_status, suspended: provider.is_suspended,verificationBlock },
+    accountStatus: { vetting: provider.vetting_status, suspended: provider.is_suspended, verificationBlock, canUseJobs: ctx.professionalApproved },
   };
 }
 
@@ -134,6 +134,7 @@ export async function PATCH(request: NextRequest) {
   const work = (body.work ?? {}) as Record<string, unknown>;
   const tax = (body.tax ?? {}) as Record<string, unknown>;
   const alerts = (body.alerts ?? {}) as Record<string, unknown>;
+  if (!ctx.professionalApproved && Object.keys(work).length) return accountError("Working tools unlock after your application is approved.", 403);
   try {
     const allowed: [Record<string, unknown>, string[]][] = [
       [personal, ["legalName", "phone", "homePostcode", "emergencyContactName", "emergencyContactPhone"]],

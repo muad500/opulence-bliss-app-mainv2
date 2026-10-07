@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import PortalLiveSync from "@/components/PortalLiveSync";
 import PortalNav from "./PortalNav";
+import { professionalStatusLabel } from "@/lib/professionalAccess";
 
 export default async function WorkerLayout({
   children,
@@ -69,7 +70,7 @@ export default async function WorkerLayout({
   const { data: prov } = await supabase
     .from("providers")
     .select(
-      "id, display_name, vetting_status, rating_avg, rating_count",
+      "id, display_name, vetting_status, rating_avg, rating_count, is_suspended",
     )
     .eq("profile_id", user.id)
     .maybeSingle();
@@ -90,11 +91,11 @@ export default async function WorkerLayout({
   const suspensionResult = prov?.id
     ? await supabase
         .from("providers")
-        .select("is_suspended, suspension_reason")
+        .select("suspension_reason")
         .eq("id", prov.id)
         .maybeSingle()
     : { data: null };
-  const suspended = suspensionResult.data?.is_suspended === true;
+  const suspended = prov?.is_suspended !== false;
 
   return (
     <div className="portal-shell worker-shell" style={shell}>
@@ -106,6 +107,7 @@ export default async function WorkerLayout({
         registered={registered}
         approved={approved && !suspended}
         hasCurrentJob={hasCurrentJob}
+        applicationStatus={professionalStatusLabel(prov ? { ...prov, is_suspended: suspended } : null)}
       />
 
       <div className="portal-main" style={main}>
@@ -130,7 +132,7 @@ export default async function WorkerLayout({
             body={
               prov?.vetting_status === "rejected"
                 ? "Please get in touch if you think this is a mistake."
-                : "Your details are with our team. Jobs arrive as soon as you're approved — meanwhile, set your hours and complete your profile."
+                : "Complete your profile and verification documents. Jobs, availability and earnings remain locked until our team approves your application."
             }
           />
         )}

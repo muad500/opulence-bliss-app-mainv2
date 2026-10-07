@@ -22,6 +22,7 @@ import {
 import {
   estimateProviderMonthlyEarnings,
   isOptionalUtrNumber,
+  providerApplicationEligibilityError,
   isStrongProviderPassword,
   PROVIDER_AVAILABILITY_PERIODS,
   PROVIDER_CLEANING_EXPERIENCE_TYPES,
@@ -236,6 +237,8 @@ export default function ProviderJoinPage() {
       setErr("Select your resident status in the UK.");
       return;
     }
+    const eligibilityError = providerApplicationEligibilityError(residentStatus, rightToWork === "yes");
+    if (eligibilityError) { setErr(eligibilityError); return; }
     if (selfEmployed !== "agree") {
       setErr("You must agree to work as self-employed to continue.");
       return;
@@ -250,10 +253,6 @@ export default function ProviderJoinPage() {
     }
     if (currentlySelfEmployed === "other" && !currentSelfEmploymentDetail.trim()) {
       setErr("Describe your current self-employment status.");
-      return;
-    }
-    if (!businessName.trim()) {
-      setErr("Enter your trading or business name, or write Not applicable.");
       return;
     }
     setErr(null);
@@ -309,6 +308,8 @@ export default function ProviderJoinPage() {
   }
 
   async function submit() {
+    const eligibilityError = providerApplicationEligibilityError(residentStatus, rightToWork === "yes");
+    if (eligibilityError) { setErr(eligibilityError); return; }
     if (!isDbsCertificateNumber(dbsCertificateNumber)) {
       setErr("Enter the 12-digit DBS certificate number.");
       return;
@@ -361,7 +362,7 @@ export default function ProviderJoinPage() {
             currentlySelfEmployed,
             currentSelfEmploymentDetail:
               currentSelfEmploymentDetail.trim() || null,
-            businessName: businessName.trim(),
+            businessName: businessName.trim() || null,
             cleaningExperienceYears: Number(cleaningExperienceYears),
             cleaningExperienceTypes,
             otherCleaningExperience: otherCleaningExperience.trim() || null,
@@ -419,7 +420,7 @@ export default function ProviderJoinPage() {
 
       // 4. No joining payment: continue directly to the provider portal.
       setStep("Opening your provider portal…");
-      window.location.href = "/worker";
+      window.location.href = "/worker/application";
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong");
       setBusy(false);
@@ -432,11 +433,11 @@ export default function ProviderJoinPage() {
   );
   const ready = Boolean(
     accountReady &&
-      rightToWork &&
+      rightToWork === "yes" &&
       residentStatus &&
+      !providerApplicationEligibilityError(residentStatus, true) &&
       selfEmployed === "agree" &&
       currentlySelfEmployed &&
-      businessName.trim() &&
       cleaningExperienceYears &&
       cleaningExperienceTypes.length &&
       skills.length &&
@@ -731,7 +732,7 @@ export default function ProviderJoinPage() {
               <h2>What&apos;s your professional status?</h2>
 
               <fieldset className="choice-card">
-                <legend>Do you have the right to work in the UK?</legend>
+                <legend>Does your UK permission allow self-employed work?</legend>
                 <div className="choice-options">
                   <label>
                     <input type="radio" name="right-to-work" checked={rightToWork === "yes"} onChange={() => setRightToWork("yes")} />
@@ -785,12 +786,15 @@ export default function ProviderJoinPage() {
                 </>
               )}
 
-              <label htmlFor="provider-business-name">Trading or business name</label>
+              {residentStatus && providerApplicationEligibilityError(residentStatus, true) && <p role="alert" className="help-copy">{providerApplicationEligibilityError(residentStatus, true)}</p>}
+              <p className="help-copy">Being a student is not itself a restriction. Your visa or immigration permission must allow self-employment, and our team will check your evidence before approval.</p>
+              <label htmlFor="provider-business-name">Trading or business name <span>(optional)</span></label>
               <input
                 id="provider-business-name"
                 value={businessName}
                 onChange={(event) => setBusinessName(event.target.value)}
-                placeholder="Write Not applicable if you do not have one"
+                placeholder="Leave blank if you do not have one"
+                maxLength={160}
               />
 
               <label htmlFor="provider-utr">UTR number <span>(optional)</span></label>

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { hasEnvVars } from "../utils";
+import { canUseProfessionalTools } from "../professionalAccess";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -65,6 +66,23 @@ export async function updateSession(request: NextRequest) {
   // with the Supabase client, your users may be randomly logged out.
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
+
+  // Check direct URLs and RSC navigation, while keeping evidence submission open.
+  if (request.nextUrl.pathname === "/worker" || request.nextUrl.pathname.startsWith("/worker/")) {
+    let destination: string | null = null;
+    if (!user?.sub) destination = "/provider/login";
+    else {
+      const { data: provider } = await supabase.from("providers").select("id,vetting_status,is_suspended").eq("profile_id", user.sub).maybeSingle();
+      if (!provider) destination = "/provider/join";
+      else if (!canUseProfessionalTools(provider) && !["/worker/application", "/worker/profile"].includes(request.nextUrl.pathname)) destination = "/worker/application";
+    }
+    if (destination) {
+      const url = request.nextUrl.clone(); url.pathname = destination; url.search = "";
+      const response = NextResponse.redirect(url);
+      for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie);
+      return response;
+    }
+  }
 
   if (
     request.nextUrl.pathname !== "/" &&

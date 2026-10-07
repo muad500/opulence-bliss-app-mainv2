@@ -58,6 +58,7 @@ test("client and professional login render without demo buttons and retain signu
     "next/link": { default: ({ href, children, ...props }) => React.createElement("a", { href, ...props }, children) },
     "@/lib/supabase/client": { createClient: () => ({}) },
     "@/components/GoogleAuthButton": { default: () => null },
+    "@/lib/professionalAccess": {},
   });
   for (const mode of ["client", "provider"]) {
     const html = renderToStaticMarkup(React.createElement(RoleLogin, { mode }));

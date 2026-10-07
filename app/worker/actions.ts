@@ -149,10 +149,11 @@ export async function acceptJob(id: string, selectedSlot: string) {
 
   const { data: me } = await supabase
     .from("providers")
-    .select("id, is_suspended")
+    .select("id, is_suspended, vetting_status")
     .eq("profile_id", user.id)
     .maybeSingle();
   if (!me) return { error: "Not a provider" };
+  if (me.vetting_status !== "approved") return { error: "Your professional application must be approved before accepting jobs." };
   if (me.is_suspended) {
     return { error: "Your provider account is suspended, so you cannot accept new jobs." };
   }

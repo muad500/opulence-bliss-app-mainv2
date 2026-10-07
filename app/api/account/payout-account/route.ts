@@ -11,7 +11,7 @@ async function stripeAccount(ctx: AccountContext) {
 }
 
 export async function GET(request: NextRequest) {
-  const ctx = await accountContext(request, { provider: true });
+  const ctx = await accountContext(request, { provider: true, approvedProvider: true });
   if (isAccountError(ctx)) return ctx;
   try {
     const { account } = await stripeAccount(ctx);
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const ctx = await accountContext(request, { provider: true, mutation: true });
+  const ctx = await accountContext(request, { provider: true, approvedProvider: true, mutation: true });
   if (isAccountError(ctx)) return ctx;
   try {
     const { stripe, account, suspended } = await stripeAccount(ctx);
