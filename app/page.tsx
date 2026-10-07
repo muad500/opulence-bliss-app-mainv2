@@ -140,7 +140,7 @@ export default function Home() {
 
       {/* ---------- SERVICE BANDS ---------- */}
       <section className="bands" id="services">
-        <a className="band clean" href="/services/cleaning">
+        <a className="band clean" href="/services/cleaning#cleaning-services">
           <div>
             <h2>Cleaning</h2>
             <p>and ironing, at home</p>

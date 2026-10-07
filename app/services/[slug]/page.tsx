@@ -6,6 +6,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import {
+  BedDouble,
+  Brush,
+  KeyRound,
+  PanelsTopLeft,
+  Shirt,
+  Sparkles,
+  SprayCan,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { compareCleaningSessions } from "@/lib/cleaningBooking";
 
@@ -33,6 +44,18 @@ type Review = {
 };
 
 type ServiceFaq = { q: string; a: string };
+
+const SERVICE_ICONS: Record<string, LucideIcon> = {
+  "Essential Clean": Sparkles,
+  "One-Time Essential Clean": SprayCan,
+  "Express Clean": Zap,
+  "Signature Deep Clean": Brush,
+  "End of Tenancy / Move-In Clean": KeyRound,
+  "Guest Ready": BedDouble,
+  "Linen Care": Shirt,
+  "Window Cleaning": PanelsTopLeft,
+  "Essential Clean and Linen Care": Shirt,
+};
 
 const COPY: Record<
   string,
@@ -129,6 +152,27 @@ export default function ServicePage() {
   const [isNarrow, setIsNarrow] = useState(false);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const lastTileRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    // Cross-page hash navigation can run before the client-side styles and
+    // fonts settle. Align once after hydration so the heading stays in view.
+    let cancelled = false;
+    let frame = 0;
+    void document.fonts.ready.then(() => {
+      frame = requestAnimationFrame(() => {
+        if (!cancelled && window.location.hash === "#cleaning-services") {
+          document.getElementById("cleaning-services")?.scrollIntoView({
+            block: "start",
+            behavior: "instant",
+          });
+        }
+      });
+    });
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 899px)");
@@ -374,6 +418,7 @@ export default function ServicePage() {
                 <ul className="tiles">
                   {items.map((pkg) => {
                     const active = picked === pkg.id;
+                    const ServiceIcon = SERVICE_ICONS[pkg.name] ?? Sparkles;
                     return (
                       <li key={pkg.id}>
                         <button
@@ -393,6 +438,9 @@ export default function ServicePage() {
                           {pkg.name === POPULAR && (
                             <span className="tile-pill">Popular</span>
                           )}
+                          <span className="tile-icon" aria-hidden="true">
+                            <ServiceIcon size={56} strokeWidth={1.4} />
+                          </span>
                           <span className="tile-name">{pkg.name}</span>
                         </button>
                       </li>
@@ -1054,7 +1102,7 @@ export default function ServicePage() {
         /* services */
         .services {
           padding: 62px 0 10px;
-          scroll-margin-top: 24px;
+          scroll-margin-top: 90px;
         }
         .service-collection {
           position: relative;
@@ -1105,49 +1153,65 @@ export default function ServicePage() {
         }
         .tile {
           position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          appearance: none;
+          box-sizing: border-box;
           display: flex;
           flex-direction: column;
+          justify-content: flex-end;
           gap: 4px;
           width: 100%;
           min-width: 0;
           min-height: 122px;
           padding: 16px 14px 14px;
-          border: 1.5px solid var(--line);
-          border-radius: 16px;
-          background: linear-gradient(145deg, #fff9e9 0%, #fff5f7 52%, #f3edff 100%);
-          color: var(--ink);
+          border: 0;
+          border-radius: 20px;
+          background:
+            linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)),
+            linear-gradient(145deg, #7b2ff7 0%, #a33ea6 55%, #f5c542 140%);
+          color: #fff;
+          box-shadow: 0 9px 26px rgba(22, 32, 42, 0.08);
           font: inherit;
           text-align: left;
           cursor: pointer;
-          transition: border-color 0.15s ease, box-shadow 0.15s ease,
-            transform 0.15s ease;
+          transition: box-shadow 0.15s ease, transform 0.15s ease;
         }
         .tile.pop {
-          border-color: var(--apricot);
+          box-shadow: inset 0 0 0 1px var(--apricot),
+            0 9px 26px rgba(22, 32, 42, 0.08);
         }
-        .tiles > li:nth-child(3n + 2) .tile {
-          background: linear-gradient(145deg, #fff7ee 0%, #faefff 58%, #eee8ff 100%);
-        }
-        .tiles > li:nth-child(3n) .tile {
-          background: linear-gradient(145deg, #fff4f5 0%, #f7edff 55%, #ebe7ff 100%);
+        .tiles > li:nth-child(even) .tile {
+          background:
+            linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)),
+            linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%);
         }
         .tile.on {
-          border-color: var(--apricot-deep);
-          box-shadow: 0 0 0 2px rgba(109, 40, 217, 0.16);
+          box-shadow: 0 0 0 3px var(--apricot-deep),
+            0 9px 26px rgba(22, 32, 42, 0.12);
         }
         .tile:focus-visible {
-          outline: 3px solid rgba(109, 40, 217, 0.35);
-          outline-offset: 2px;
+          outline: 3px solid var(--apricot-deep);
+          outline-offset: 5px;
         }
         /* Hover effects only where a real pointer exists, so phones never
            get stuck in a half-applied hover state after a tap. */
         @media (hover: hover) and (pointer: fine) {
           .tile:hover {
-            border-color: var(--apricot-deep);
             transform: translateY(-2px);
           }
         }
+        .tile-icon {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          width: 56px;
+          height: 56px;
+          color: rgba(255, 255, 255, 0.3);
+          pointer-events: none;
+        }
         .tile-name {
+          position: relative;
           font-size: 14.5px;
           font-weight: 800;
           line-height: 1.25;
@@ -1155,12 +1219,13 @@ export default function ServicePage() {
         }
         .tile-pill {
           position: absolute;
-          top: -9px;
-          right: 10px;
+          top: 12px;
+          left: 12px;
+          z-index: 1;
           padding: 3px 9px;
           border-radius: 999px;
-          background: var(--apricot-deep);
-          color: #fff;
+          background: #fff;
+          color: var(--apricot-deep);
           font-size: 9.5px;
           font-weight: 800;
           letter-spacing: 0.07em;
