@@ -27,7 +27,7 @@ const NAV: NavLink[] = [
   { href: "/services/cleaning", label: "Cleaning", match: ["/services/cleaning"] },
   { href: "/services/handyman", label: "Handyman", match: ["/services/handyman"] },
   { href: "/providers", label: "Our pros", match: ["/providers"] },
-  { href: "/provider", label: "Services", match: ["/provider"] },
+  { href: "/provider", label: "Jobs", match: ["/provider"] },
 ];
 
 export default function SiteHeader() {
@@ -214,7 +214,7 @@ export default function SiteHeader() {
             Cleaning
           </Link>
           <Link href="/provider" className="mobile-quick-link">
-            Services
+            Jobs
           </Link>
           <div className="mobile-profile-wrap">
             <button
@@ -362,7 +362,7 @@ export default function SiteHeader() {
               <Link href="/blog">Blog</Link>
               <Link href="/faq">Frequently asked questions</Link>
               <Link href="/reviews">Customer reviews</Link>
-              <Link href="/provider">Services</Link>
+              <Link href="/provider">Jobs &amp; become a pro</Link>
             </nav>
 
             <div className="mobile-account-actions">

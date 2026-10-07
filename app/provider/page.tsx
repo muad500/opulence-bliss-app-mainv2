@@ -15,7 +15,7 @@ import styles from "./page.module.css";
 export const metadata: Metadata = {
   title: "Become an Opulence Bliss partner",
   description:
-    "Join our London network of self-employed home professionals. Cleaning and handyman services are live now, with more trades opening soon.",
+    "Apply to join our London network of self-employed cleaners and handymen, with more trades opening soon.",
 };
 
 type Trade = {
@@ -32,8 +32,6 @@ type Trade = {
    * behind the text instead of the tint, e.g. "/trades/cleaner.jpg".
    */
   image?: string;
-  /** A live customer service without an online professional application yet. */
-  liveService?: boolean;
 };
 
 const TRADES: Trade[] = [
@@ -51,8 +49,7 @@ const TRADES: Trade[] = [
     blurb: "Repairs, assembly, mounting and minor decorating.",
     icon: Hammer,
     tint: "linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%)",
-    href: "/services/handyman",
-    liveService: true,
+    href: "/provider/handyman",
   },
   {
     key: "moving_support",
@@ -106,7 +103,7 @@ export default function PartnerPage() {
       </header>
 
       <ul className={styles.grid}>
-        {TRADES.map(({ key, role, blurb, icon: Icon, tint, href, image, liveService }) => {
+        {TRADES.map(({ key, role, blurb, icon: Icon, tint, href, image }) => {
           const open = Boolean(href);
 
           const inner = (
@@ -126,7 +123,7 @@ export default function PartnerPage() {
               <span className={styles.body}>
                 {!open && <span className={styles.flag}>Coming soon</span>}
                 <span className={styles.kicker}>
-                  {liveService ? "Service available" : "Join as a"}
+                  Join as a
                 </span>
                 <span className={styles.role}>{role}</span>
                 <span className={styles.blurb}>{blurb}</span>
@@ -152,8 +149,8 @@ export default function PartnerPage() {
       </ul>
 
       <p className={styles.foot}>
-        Cleaning applications and Handyman services are live now. Professional
-        Handyman onboarding is currently handled directly by our team. The
+        Cleaning applications are open. Contact our team to apply as a
+        Handyman. The
         remaining trades follow as we launch them, and the order depends partly
         on what customers vote for on our{" "}
         <Link href="/coming-soon">coming soon page</Link>.

@@ -7,6 +7,7 @@
 // Landing page — two-level nav, hero, coloured service bands.
 
 import { useEffect, useRef, useState } from "react";
+import { Hammer, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import SiteFooter from "@/components/SiteFooter";
 
@@ -142,7 +143,7 @@ export default function Home() {
             <p>and ironing, at home</p>
             <span className="from">Book a cleaning visit</span>
           </div>
-          <span className="arrow">→</span>
+          <span className="service-icon" aria-hidden="true"><Sparkles strokeWidth={1.4} /></span>
         </a>
 
         <a className="band handyman" href="/services/handyman">
@@ -151,7 +152,7 @@ export default function Home() {
             <p>repairs, assembly and home maintenance</p>
             <span className="from">Request a tailored quote</span>
           </div>
-          <span className="arrow">→</span>
+          <span className="service-icon" aria-hidden="true"><Hammer strokeWidth={1.4} /></span>
         </a>
       </section>
 
@@ -337,7 +338,7 @@ export default function Home() {
         .first-screen {
           min-height: calc(100svh - var(--home-navigation-height, 100px));
           display: grid;
-          grid-template-rows: minmax(min-content, 1fr) auto;
+          grid-template-rows: minmax(min-content, 13fr) minmax(min-content, 7fr);
         }
         .hero {
           display: flex;
@@ -434,15 +435,18 @@ export default function Home() {
           box-sizing: border-box;
           max-width: 1080px;
           margin: 0 auto;
-          padding: 20px 28px 10px;
+          padding: 24px 28px 18px;
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 16px;
         }
         .band {
           box-sizing: border-box;
+          position: relative;
+          isolation: isolate;
+          overflow: hidden;
           display: flex;
-          align-items: center;
+          align-items: flex-end;
           justify-content: space-between;
           min-height: 142px;
           padding: 22px 28px;
@@ -452,6 +456,10 @@ export default function Home() {
           transition: transform 0.18s ease, box-shadow 0.18s ease;
           box-shadow: 0 9px 26px var(--ob-shadow-soft);
         }
+        .band > div {
+          position: relative;
+          z-index: 1;
+        }
         .band:hover {
           transform: translateY(-3px);
           box-shadow: 0 18px 46px var(--ob-shadow);
@@ -460,12 +468,12 @@ export default function Home() {
           font-size: clamp(30px, 4.4vw, 46px);
           line-height: 1.15;
           margin: 0 0 4px;
-          color: var(--green);
+          color: #fff;
         }
         .band p {
           margin: 0 0 10px;
           font-size: 16px;
-          color: rgba(38, 48, 42, 0.72);
+          color: rgba(255, 255, 255, 0.9);
         }
         .from {
           display: inline-block;
@@ -477,16 +485,25 @@ export default function Home() {
           padding: 6px 14px;
           border-radius: 999px;
         }
-        .arrow {
-          font-size: 30px;
-          color: var(--green);
-          opacity: 0.6;
+        .service-icon {
+          position: absolute;
+          right: -14px;
+          bottom: -14px;
+          z-index: 0;
+          width: 132px;
+          height: 132px;
+          color: rgba(255, 255, 255, 0.22);
+          pointer-events: none;
+        }
+        .service-icon :global(svg) {
+          width: 100%;
+          height: 100%;
         }
         .band.clean {
-          background: linear-gradient(100deg,#F6F1FF,#EDE4FB);
+          background: linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)), linear-gradient(145deg, #7b2ff7 0%, #a33ea6 55%, #f5c542 140%);
         }
         .band.handyman {
-          background: linear-gradient(120deg, #fff7df 0%, #f8e9f7 56%, #eee7ff 100%);
+          background: linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)), linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%);
         }
 
         /* TRUST STRIP */
@@ -676,14 +693,14 @@ export default function Home() {
             margin-top: 10px;
           }
           .bands {
-            padding: 14px 16px 4px;
+            padding: 18px 16px 8px;
             gap: 10px;
           }
           .band {
             min-height: 136px;
             padding: 14px 12px;
             position: relative;
-            align-items: flex-start;
+            align-items: flex-end;
           }
           .band h2 {
             font-size: clamp(20px, 5.4vw, 28px);
@@ -697,8 +714,9 @@ export default function Home() {
             font-size: 11px;
             padding: 5px 8px;
           }
-          .band .arrow {
-            display: none;
+          .service-icon {
+            width: 108px;
+            height: 108px;
           }
           .strip,
           .steps,
@@ -733,6 +751,7 @@ export default function Home() {
           .lede { font-size: 16px; line-height: 1.45; margin-bottom: 16px; }
         }
         @media (max-width: 620px) and (max-height: 600px) {
+          .first-screen { grid-template-rows: minmax(min-content, 1fr) auto; }
           .hero { padding: 16px; }
           h1 { font-size: 28px; }
           .lede { font-size: 13px; margin-bottom: 12px; }

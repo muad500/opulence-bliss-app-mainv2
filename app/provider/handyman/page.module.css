@@ -1,0 +1,111 @@
+.page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 36px 20px 64px;
+  color: #16202a;
+}
+
+.back {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: #6d28d9;
+  font-weight: 800;
+}
+
+.card {
+  padding: clamp(24px, 5vw, 44px);
+  border: 1px solid #e8dcfa;
+  border-radius: 24px;
+  background: linear-gradient(130deg, #fff7df, #faf6ff 60%, #eee7ff);
+  box-shadow: 0 12px 36px rgba(65, 35, 100, 0.08);
+}
+
+.eyebrow {
+  margin: 0 0 12px;
+  color: #6d28d9;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.card h1 {
+  margin: 0 0 18px;
+  font-size: clamp(30px, 6vw, 46px);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.card h2 {
+  margin: 26px 0 12px;
+  font-size: 21px;
+  font-weight: 900;
+}
+
+.card p,
+.card li {
+  line-height: 1.6;
+}
+
+.lede {
+  font-size: 18px;
+}
+
+.card ul {
+  margin: 0 0 20px;
+  padding-left: 22px;
+  list-style: disc;
+}
+
+.card li {
+  margin-bottom: 6px;
+}
+
+.card p:not(.eyebrow) {
+  margin-bottom: 18px;
+}
+
+.button {
+  display: inline-flex;
+  justify-content: center;
+  margin: 6px 0 18px;
+  padding: 14px 24px;
+  border-radius: 999px;
+  background: linear-gradient(100deg, #f5c542, #c86fc9 55%, #7b2ff7);
+  color: #fff;
+  font-weight: 900;
+  text-align: center;
+  text-decoration: none;
+}
+
+.button:focus-visible {
+  outline: 3px solid #6d28d9;
+  outline-offset: 4px;
+}
+
+.contact {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.contact a,
+.signIn a {
+  color: #6d28d9;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.signIn {
+  margin-top: 24px;
+}
+
+@media (max-width: 480px) {
+  .page {
+    padding: 24px 16px 48px;
+  }
+
+  .button {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
