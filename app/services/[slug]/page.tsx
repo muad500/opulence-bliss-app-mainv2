@@ -6,6 +6,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import {
+  BedDouble,
+  Brush,
+  KeyRound,
+  PanelsTopLeft,
+  Shirt,
+  Sparkles,
+  SprayCan,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { compareCleaningSessions } from "@/lib/cleaningBooking";
 
@@ -33,6 +44,18 @@ type Review = {
 };
 
 type ServiceFaq = { q: string; a: string };
+
+const SERVICE_ICONS: Record<string, LucideIcon> = {
+  "Essential Clean": Sparkles,
+  "One-Time Essential Clean": SprayCan,
+  "Express Clean": Zap,
+  "Signature Deep Clean": Brush,
+  "End of Tenancy / Move-In Clean": KeyRound,
+  "Guest Ready": BedDouble,
+  "Linen Care": Shirt,
+  "Window Cleaning": PanelsTopLeft,
+  "Essential Clean and Linen Care": Shirt,
+};
 
 const COPY: Record<
   string,
@@ -395,6 +418,7 @@ export default function ServicePage() {
                 <ul className="tiles">
                   {items.map((pkg) => {
                     const active = picked === pkg.id;
+                    const ServiceIcon = SERVICE_ICONS[pkg.name] ?? Sparkles;
                     return (
                       <li key={pkg.id}>
                         <button
@@ -414,6 +438,9 @@ export default function ServicePage() {
                           {pkg.name === POPULAR && (
                             <span className="tile-pill">Popular</span>
                           )}
+                          <span className="tile-icon" aria-hidden="true">
+                            <ServiceIcon size={56} strokeWidth={1.4} />
+                          </span>
                           <span className="tile-name">{pkg.name}</span>
                         </button>
                       </li>
@@ -1126,6 +1153,10 @@ export default function ServicePage() {
         }
         .tile {
           position: relative;
+          isolation: isolate;
+          overflow: hidden;
+          appearance: none;
+          box-sizing: border-box;
           display: flex;
           flex-direction: column;
           justify-content: flex-end;
@@ -1134,7 +1165,7 @@ export default function ServicePage() {
           min-width: 0;
           min-height: 122px;
           padding: 16px 14px 14px;
-          border: 1.5px solid transparent;
+          border: 0;
           border-radius: 20px;
           background:
             linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)),
@@ -1144,11 +1175,11 @@ export default function ServicePage() {
           font: inherit;
           text-align: left;
           cursor: pointer;
-          transition: border-color 0.15s ease, box-shadow 0.15s ease,
-            transform 0.15s ease;
+          transition: box-shadow 0.15s ease, transform 0.15s ease;
         }
         .tile.pop {
-          border-color: var(--apricot);
+          box-shadow: inset 0 0 0 1px var(--apricot),
+            0 9px 26px rgba(22, 32, 42, 0.08);
         }
         .tiles > li:nth-child(even) .tile {
           background:
@@ -1156,8 +1187,7 @@ export default function ServicePage() {
             linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%);
         }
         .tile.on {
-          border-color: var(--apricot-deep);
-          box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--apricot-deep),
+          box-shadow: 0 0 0 3px var(--apricot-deep),
             0 9px 26px rgba(22, 32, 42, 0.12);
         }
         .tile:focus-visible {
@@ -1168,11 +1198,20 @@ export default function ServicePage() {
            get stuck in a half-applied hover state after a tap. */
         @media (hover: hover) and (pointer: fine) {
           .tile:hover {
-            border-color: var(--apricot-deep);
             transform: translateY(-2px);
           }
         }
+        .tile-icon {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          width: 56px;
+          height: 56px;
+          color: rgba(255, 255, 255, 0.3);
+          pointer-events: none;
+        }
         .tile-name {
+          position: relative;
           font-size: 14.5px;
           font-weight: 800;
           line-height: 1.25;
@@ -1180,12 +1219,13 @@ export default function ServicePage() {
         }
         .tile-pill {
           position: absolute;
-          top: -9px;
-          right: 10px;
+          top: 12px;
+          left: 12px;
+          z-index: 1;
           padding: 3px 9px;
           border-radius: 999px;
-          background: var(--apricot-deep);
-          color: #fff;
+          background: #fff;
+          color: var(--apricot-deep);
           font-size: 9.5px;
           font-weight: 800;
           letter-spacing: 0.07em;
