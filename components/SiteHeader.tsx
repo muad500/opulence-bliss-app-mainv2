@@ -12,6 +12,7 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LogOut, Menu, UserRound, X } from "lucide-react";
 import AccountModeSwitch from './AccountModeSwitch';
+import { canUseProfessionalTools } from '@/lib/professionalAccess';
 
 const supabase = createClient();
 
@@ -34,6 +35,7 @@ export default function SiteHeader() {
   const path = usePathname() ?? "";
   const [role, setRole] = useState<string | null>(null);
   const [hasProfessionalAccount, setHasProfessionalAccount] = useState(false);
+  const [professionalApproved, setProfessionalApproved] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -99,6 +101,7 @@ export default function SiteHeader() {
       if (!user) {
         setRole(null);
         setHasProfessionalAccount(false);
+        setProfessionalApproved(false);
         setUnread(0);
       } else {
         const { data: p } = await supabase
@@ -110,11 +113,12 @@ export default function SiteHeader() {
         setRole(p?.role ?? "customer");
 
         const { data: provider } = await supabase.from("providers")
-          .select("id").eq("profile_id", user.id).maybeSingle();
+          .select("id,vetting_status,is_suspended").eq("profile_id", user.id).maybeSingle();
         if (!alive) return;
         setHasProfessionalAccount(!!provider);
+        setProfessionalApproved(canUseProfessionalTools(provider));
         const {data:details}=await supabase.from('account_profile_details').select('last_account_mode').eq('user_id',user.id).maybeSingle();
-        if(alive)setAccountMode(provider&&details?.last_account_mode==='professional'?'professional':'client');
+        if(alive)setAccountMode(canUseProfessionalTools(provider)&&details?.last_account_mode==='professional'?'professional':'client');
 
         const { count } = await supabase
           .from("notifications")
@@ -203,7 +207,7 @@ export default function SiteHeader() {
               </span>
             )}
           </Link>
-          {role&&role!=='admin'&&hasProfessionalAccount&&<AccountModeSwitch mode={accountMode}/>}
+          {role&&role!=='admin'&&hasProfessionalAccount&&<AccountModeSwitch mode={accountMode} professionalApproved={professionalApproved} hasProfessionalAccount={hasProfessionalAccount}/>}
         </div>
 
         <div className="mobile-primary">
@@ -239,7 +243,7 @@ export default function SiteHeader() {
                   <>
                     <p>Your account</p>
                     <Link href={accountHref}>{role === "admin" ? "Admin dashboard" : "My account"}</Link>
-                    {role !== "admin" && (hasProfessionalAccount?<AccountModeSwitch mode={accountMode}/>:<Link href="/provider/join">Become a professional</Link>)}
+                    {role !== "admin" && (hasProfessionalAccount?<AccountModeSwitch mode={accountMode} professionalApproved={professionalApproved} hasProfessionalAccount={hasProfessionalAccount}/>:<Link href="/provider/join">Apply as a professional</Link>)}
                     <button
                       type="button"
                       className="mobile-signout"
@@ -364,7 +368,7 @@ export default function SiteHeader() {
 
             <div className="mobile-account-actions">
               <Link href={accountHref}>{role ? "Client account" : "Sign in"}</Link>
-              {role && role !== "admin" && <Link href={hasProfessionalAccount ? "/worker" : "/provider/join"}>{hasProfessionalAccount ? "Professional portal" : "Become a professional"}</Link>}
+              {role && role !== "admin" && <Link href={professionalApproved ? "/worker" : hasProfessionalAccount ? "/worker/application" : "/provider/join"}>{professionalApproved ? "My jobs" : hasProfessionalAccount ? "My application" : "Apply as a professional"}</Link>}
               {!role && <Link href="/provider">Sign in as a pro</Link>}
             </div>
           </aside>

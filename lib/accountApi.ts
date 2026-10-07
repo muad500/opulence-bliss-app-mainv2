@@ -2,11 +2,14 @@ import { createClient as createAdminClient, type SupabaseClient, type User } fro
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { canUseProfessionalTools, professionalStatusLabel } from "@/lib/professionalAccess";
 
 export type AccountContext = {
   user: User;
   admin: SupabaseClient;
   providerId: string | null;
+  professionalApproved: boolean;
+  professionalStatus: string;
 };
 
 export function accountError(message: string, status = 400) {
@@ -27,7 +30,7 @@ export function isSameOriginMutation(request: NextRequest) {
 
 export async function accountContext(
   request: NextRequest,
-  options: { provider?: boolean; mutation?: boolean } = {},
+  options: { provider?: boolean; approvedProvider?: boolean; mutation?: boolean } = {},
 ): Promise<AccountContext | NextResponse> {
   if (options.mutation && !isSameOriginMutation(request)) {
     return accountError("This request must come from the website.", 403);
@@ -48,12 +51,14 @@ export async function accountContext(
   if (!profile || profile.role === "admin" || profile.account_deleted_at) return accountError("This account area is unavailable.", 403);
   const { data: provider, error: providerError } = await admin
     .from("providers")
-    .select("id")
+    .select("id,vetting_status,is_suspended")
     .eq("profile_id", user.id)
     .maybeSingle();
   if (providerError) return accountError("Account could not be loaded.", 503);
   if (options.provider && !provider) return accountError("Professional profile not found.", 403);
-  return { user, admin, providerId: provider?.id ?? null };
+  const professionalApproved = canUseProfessionalTools(provider);
+  if (options.approvedProvider && !professionalApproved) return accountError("Professional tools unlock after your application is approved. Open My application to review your status.", 403);
+  return { user, admin, providerId: provider?.id ?? null, professionalApproved, professionalStatus: professionalStatusLabel(provider) };
 }
 
 export function isAccountError(value: AccountContext | NextResponse): value is NextResponse {

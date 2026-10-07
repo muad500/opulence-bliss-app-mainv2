@@ -12,6 +12,7 @@ import {
   isProviderWeeklyAvailability,
   isProviderWeeklyHours,
   providerAvailabilityRows,
+  providerApplicationEligibilityError,
 } from "./providerOnboarding";
 
 test("professional availability accepts every whole hour from zero through forty", () => {
@@ -40,6 +41,19 @@ test("UTR is optional but must contain ten digits when supplied", () => {
   assert.equal(isOptionalUtrNumber(""), true);
   assert.equal(isOptionalUtrNumber("1234567890"), true);
   assert.equal(isOptionalUtrNumber("12345"), false);
+  assert.equal(isOptionalUtrNumber("   "), true);
+  assert.equal(isOptionalUtrNumber(" 1234567890 "), true);
+  assert.equal(isOptionalUtrNumber(1234567890), false);
+});
+
+test("self-employment permission cannot be bypassed by agreeing to partner", () => {
+  assert.match(providerApplicationEligibilityError("Student Visa", true)!, /Student visa.*cannot continue/);
+  assert.match(providerApplicationEligibilityError("Asylum Seeker", true)!, /manual review/);
+  assert.match(providerApplicationEligibilityError("British or Irish citizen", false)!, /permission/);
+  assert.match(providerApplicationEligibilityError("Tourist", true)!, /Select/);
+  assert.equal(providerApplicationEligibilityError("British or Irish citizen", true), null);
+  assert.equal(providerApplicationEligibilityError("Indefinite leave to remain / settled status", true), null);
+  assert.equal(providerApplicationEligibilityError("Refugee", true), null);
 });
 
 test("only self-employed professionals can finalize the partnership", () => {

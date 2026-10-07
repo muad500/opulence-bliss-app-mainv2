@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { accountContext, accountError, isAccountError, readAccountBody } from "@/lib/accountApi";
 
 export async function POST(request: NextRequest) {
-  const ctx = await accountContext(request, { provider: true, mutation: true });
+  const ctx = await accountContext(request, { provider: true, approvedProvider: true, mutation: true });
   if (isAccountError(ctx)) return ctx;
   const body = await readAccountBody(request);
   if (body instanceof NextResponse) return body;

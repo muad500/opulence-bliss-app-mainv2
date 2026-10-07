@@ -3,7 +3,7 @@ import { accountContext, accountError, isAccountError } from "@/lib/accountApi";
 import { csvCell } from "@/lib/earningsPeriod";
 
 export async function GET(request: NextRequest) {
-  const ctx = await accountContext(request, { provider: true });
+  const ctx = await accountContext(request, { provider: true, approvedProvider: true });
   if (isAccountError(ctx)) return ctx;
   try {
     const rows: unknown[][] = [];
