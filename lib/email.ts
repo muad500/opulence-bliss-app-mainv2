@@ -124,6 +124,7 @@ async function deliverWithSender(
     title: string;
     body: string;
     cta?: { text: string; url: string };
+    idempotencyKey?: string;
   }
 ) {
   const response = await fetch("https://api.resend.com/emails", {
@@ -132,6 +133,7 @@ async function deliverWithSender(
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
       "User-Agent": "opulence-bliss/1.0",
+      ...(opts.idempotencyKey ? { "Idempotency-Key": opts.idempotencyKey } : {}),
     },
     body: JSON.stringify({
       from: sender,
@@ -156,6 +158,7 @@ export async function sendEmail(opts: {
   title: string;
   body: string;
   cta?: { text: string; url: string };
+  idempotencyKey?: string;
 }) {
   const key = process.env.RESEND_API_KEY;
   if (!key || !opts.to) {

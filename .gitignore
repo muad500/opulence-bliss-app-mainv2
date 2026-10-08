@@ -49,3 +49,6 @@ next-env.d.ts
 .env.local
 .env.*.local
 !.env.example
+
+# Private Retell rollback snapshot (may contain integration credentials)
+/.retell-booking-backup.json
