@@ -7,7 +7,7 @@ const agentId = process.env.RETELL_BOOKING_AGENT_ID;
 if (!origin || !agentId) throw new Error("Set NEXT_PUBLIC_SITE_URL and RETELL_BOOKING_AGENT_ID privately before running this script.");
 const url = new URL(origin);
 if (url.protocol !== "https:" || url.pathname !== "/" || url.search || url.hash || url.username || url.password) throw new Error("NEXT_PUBLIC_SITE_URL must be the deployed HTTPS origin.");
-const tools = bookingTools(url.origin);
+const tools = bookingTools(url.origin, { vercelProtectionBypass: process.env.VERCEL_AUTOMATION_BYPASS_SECRET });
 const prompt = await readFile(new URL("../docs/retell-receptionist-prompt.txt", import.meta.url), "utf8");
 const apply = process.argv.includes("--apply");
 if (!apply) {

@@ -1,4 +1,7 @@
-export function bookingTools(origin) {
+export function bookingTools(origin, { vercelProtectionBypass } = {}) {
+  if (vercelProtectionBypass && !new URL(origin).hostname.endsWith(".vercel.app")) {
+    throw new Error("A Vercel protection secret can only be sent to a vercel.app deployment.");
+  }
   const text = (description, extra = {}) => ({ type: "string", description, ...extra });
   const number = (description, extra = {}) => ({ type: "integer", description, ...extra });
   const common = {
@@ -12,6 +15,7 @@ export function bookingTools(origin) {
     type: "custom", name, description, url: `${origin}/api/retell/booking`, method: "POST",
     parameter_type: "json", args_at_root: false, timeout_ms: 30_000, max_retry: 1,
     speak_during_execution: false, speak_after_execution: true, enable_typing_sound: false,
+    ...(vercelProtectionBypass ? { headers: { "x-vercel-protection-bypass": vercelProtectionBypass } } : {}),
     parameters: { type: "object", properties, required, additionalProperties: false },
   });
   return [

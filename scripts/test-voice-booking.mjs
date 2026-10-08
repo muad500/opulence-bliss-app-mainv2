@@ -153,4 +153,8 @@ test("Retell settings contain all four signed POST functions with matching names
   assert.equal(tools.length, 4);
   for (const tool of tools) { assert.equal(tool.method, "POST"); assert.equal(tool.args_at_root, false); assert.equal(tool.speak_during_execution, false); assert.equal(tool.url, "https://site.example/api/retell/booking"); }
   assert.ok(tools.find((tool) => tool.name === "create_voice_booking").parameters.required.includes("confirmed"));
+  assert.ok(tools.every((tool) => !tool.headers));
+  const protectedTools = bookingTools("https://preview.vercel.app", { vercelProtectionBypass: "test-only-placeholder" });
+  assert.ok(protectedTools.every((tool) => tool.headers["x-vercel-protection-bypass"] === "test-only-placeholder"));
+  assert.throws(() => bookingTools("https://elsewhere.example", { vercelProtectionBypass: "test-only-placeholder" }));
 });

@@ -12,7 +12,7 @@ An emailed request is **awaiting payment**, not a confirmed booking. Confirmatio
    - `RETELL_BOOKING_AGENT_ID`: the receptionist's agent ID (the ID button in the agent editor).
    - `NEXT_PUBLIC_SITE_URL`: the **HTTPS origin of that deployment**, without a path. For production this is `https://opulence-bliss-app-mainv2.vercel.app` unless you use a configured custom domain. Do not send staging booking links to a production origin.
    - Existing Supabase public/service-role variables, Stripe secret key and `RESEND_API_KEY` must belong to that environment. Configure a verified `BOOKING_EMAIL_FROM` or `EMAIL_FROM` sender. The new flow reports email failure; it never silently claims delivery.
-3. Deploy the branch. Retell needs a publicly reachable API; a Vercel preview with deployment protection must be made reachable through the deployment's normal authorised integration process before using it as a function endpoint. Do not point the agent at localhost.
+3. Deploy the branch. Retell needs a reachable API. For a protected Vercel preview, privately place an explicitly authorised automation-bypass secret in the `x-vercel-protection-bypass` header of each of the four Retell functions. This secret grants access to protected deployments in this Vercel project, so sharing it with Retell requires the owner's explicit approval. Keep it out of chat, prompts, knowledge bases and Git. Keep Vercel authentication enabled. The API still requires the Retell signature and matching agent. Do not point the agent at localhost.
 4. Install the four Retell functions and **replace** the old questions-only prompt with `docs/retell-receptionist-prompt.txt`. The old prompt's instruction to send people to fill out the website conflicts with the booking flow.
 
 ## Install the Retell draft automatically
@@ -29,6 +29,8 @@ node --env-file=.env.local scripts/configure-retell-booking.mjs --apply
 
 The script refuses to overwrite an existing rollback snapshot. Preserve that snapshot privately, then deliberately rename it if installing again. A Retell API key must be scoped to the intended workspace. If other agents share the same Retell LLM, the prompt/tool update affects that shared LLM too; give the receptionist its own LLM configuration before applying.
 
+For an authorised protected-preview connection, the installer accepts `VERCEL_AUTOMATION_BYPASS_SECRET` from the private local environment and places it in the four function headers. Its dry run prints no header values. Never export a JSON tool configuration containing that secret into Git. Omit it when installing against the public production origin. A preview also needs its own working `RESEND_API_KEY`; a Production-only email variable is not inherited by Preview.
+
 After a browser test call succeeds, publish the agent in Retell and ensure the number uses the intended published version. The script also supports `--apply --publish` for an explicitly chosen installation/publish run; do not publish before testing.
 
 ## Configure functions manually instead
@@ -44,7 +46,7 @@ For each custom function, copy its `name`, `description` and `parameters` from t
 | Setting | Value |
 | --- | --- |
 | Payload: args only | **OFF**: the endpoint needs Retell's `name`, `call`, `args` wrapper |
-| Headers / query parameters | Leave empty; Retell signs the request automatically |
+| Headers / query parameters | Retell signs automatically. For an authorised protected preview only, add the private `x-vercel-protection-bypass` header; no query parameters. |
 | Talk while waiting / typing sound | OFF |
 | Talk after action completed | ON |
 | `create_voice_booking` response variables | `voice_booking_request_id` → `request_id` |
