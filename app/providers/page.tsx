@@ -4,6 +4,7 @@
 // Save at: app/providers/page.tsx
 
 import { useEffect, useState } from "react";
+import { visibleProfessionalServices } from "@/lib/professionalServices";
 import { createClient } from "@/lib/supabase/client";
 
 const supabase = createClient();
@@ -17,10 +18,16 @@ type P = {
   services: string[] | null;
   public_rating_avg: number | null;
   public_rating_count: number;
+  ratings: {
+    service: string;
+    rating_avg: number | null;
+    rating_count: number;
+  }[];
 };
 
 const SERVICE_LABEL: Record<string, string> = {
   cleaning: "Home cleaning",
+  handyman: "Handyman",
 };
 
 export default function ProvidersPage() {
@@ -29,9 +36,22 @@ export default function ProvidersPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: eligible, error: eligibilityError } = await supabase.rpc("public_eligible_provider_ids");
+      const config = await fetch("/api/handyman/config")
+        .then((r) => r.json())
+        .catch(() => ({ enabled: false }));
+      const { data: ratings, error: ratingsError } = await supabase
+        .from("professional_service_ratings")
+        .select("provider_id,service,rating_avg,rating_count");
+      const visibleRatings = (ratings ?? []).filter(
+        (row) =>
+          visibleProfessionalServices([row.service], config.enabled === true)
+            .length,
+      );
+      const { data: eligible, error: eligibilityError } = await supabase.rpc(
+        "public_eligible_provider_ids",
+      );
       const eligibleIds = (eligible ?? []).map((row: { id: string }) => row.id);
-      if (eligibilityError || eligibleIds.length === 0) {
+      if (eligibilityError || ratingsError || eligibleIds.length === 0) {
         setList([]);
         setLoading(false);
         return;
@@ -39,7 +59,7 @@ export default function ProvidersPage() {
       const { data } = await supabase
         .from("providers")
         .select(
-          "id, display_name, bio, photo_url, years_experience, services, public_rating_avg, public_rating_count"
+          "id, display_name, bio, photo_url, years_experience, services, public_rating_avg, public_rating_count",
         )
         .eq("vetting_status", "approved")
         .eq("dbs_verified", true)
@@ -47,7 +67,22 @@ export default function ProvidersPage() {
         .eq("show_on_our_pros", true)
         .in("id", eligibleIds)
         .order("public_rating_avg", { ascending: false, nullsFirst: false });
-      setList(data ?? []);
+      setList(
+        (data ?? []).flatMap((p) => {
+          const serviceRatings = visibleRatings.filter(
+            (row) => row.provider_id === p.id,
+          );
+          return serviceRatings.length
+            ? [
+                {
+                  ...p,
+                  services: serviceRatings.map((row) => row.service),
+                  ratings: serviceRatings,
+                },
+              ]
+            : [];
+        }),
+      );
       setLoading(false);
     })();
   }, []);
@@ -64,8 +99,8 @@ export default function ProvidersPage() {
         <h1>The people who&apos;ll be in your home</h1>
         <p className="lede">
           Every professional shown here has completed our approval and DBS
-          review and is rated by the clients they&apos;ve worked for. We&apos;ll match
-          you with whoever&apos;s best placed for your booking.
+          review and is rated by the clients they&apos;ve worked for. We&apos;ll
+          match you with whoever&apos;s best placed for your booking.
         </p>
 
         {loading ? (
@@ -98,19 +133,25 @@ export default function ProvidersPage() {
                         ? ` · ${p.years_experience} yrs experience`
                         : ""}
                     </p>
-                    <p className="stars">
-                      {p.public_rating_avg ? (
-                        <>
-                          <span>
-                            {"★".repeat(Math.round(Number(p.public_rating_avg)))}
-                            {"☆".repeat(5 - Math.round(Number(p.public_rating_avg)))}
-                          </span>{" "}
-                          {Number(p.public_rating_avg).toFixed(1)} ({p.public_rating_count})
-                        </>
-                      ) : (
-                        <span className="new">Newly joined</span>
-                      )}
-                    </p>
+                    {p.ratings.map((row) => (
+                      <p className="stars" key={row.service}>
+                        {SERVICE_LABEL[row.service]}:{" "}
+                        {row.rating_count > 0 && row.rating_avg != null ? (
+                          <>
+                            <span>
+                              {"★".repeat(Math.round(Number(row.rating_avg)))}
+                              {"☆".repeat(
+                                5 - Math.round(Number(row.rating_avg)),
+                              )}
+                            </span>{" "}
+                            {Number(row.rating_avg).toFixed(1)} (
+                            {row.rating_count})
+                          </>
+                        ) : (
+                          <span className="new">Newly joined</span>
+                        )}
+                      </p>
+                    ))}
                   </div>
                 </div>
                 {p.bio && <p className="bio">{p.bio}</p>}
@@ -136,7 +177,7 @@ export default function ProvidersPage() {
         .wrap {
           min-height: 100vh;
           background: #fff;
-          color: #16202A;
+          color: #16202a;
           font-family: "Nunito", system-ui, sans-serif;
           padding: 0 20px 80px;
         }
@@ -159,7 +200,7 @@ export default function ProvidersPage() {
           font-family: "Nunito", system-ui, sans-serif;
           font-size: 19px;
           font-weight: 600;
-          color: #16202A;
+          color: #16202a;
           text-decoration: none;
           display: inline-block;
           margin-bottom: 26px;
@@ -169,7 +210,7 @@ export default function ProvidersPage() {
           letter-spacing: 0.14em;
           font-size: 12px;
           font-weight: 600;
-          color: #6D28D9;
+          color: #6d28d9;
           margin: 0 0 8px;
         }
         h1 {
@@ -177,11 +218,11 @@ export default function ProvidersPage() {
           font-weight: 900;
           font-size: clamp(30px, 4.6vw, 44px);
           line-height: 1.08;
-          color: #16202A;
+          color: #16202a;
           margin: 0 0 12px;
         }
         .lede {
-          color: #7A828C;
+          color: #7a828c;
           font-size: 17px;
           line-height: 1.6;
           max-width: 54ch;
@@ -189,12 +230,15 @@ export default function ProvidersPage() {
         }
         .grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+          grid-template-columns: repeat(
+            auto-fit,
+            minmax(min(100%, 320px), 1fr)
+          );
           gap: 18px;
         }
         .card {
           background: #fff;
-          border: 1px solid #EDEFF1;
+          border: 1px solid #edeff1;
           border-radius: 18px;
           padding: 24px 24px;
         }
@@ -214,8 +258,8 @@ export default function ProvidersPage() {
         .initials {
           display: grid;
           place-items: center;
-          background: #F4ECFE;
-          color: #16202A;
+          background: #f4ecfe;
+          color: #16202a;
           font-family: "Nunito", system-ui, sans-serif;
           font-size: 26px;
         }
@@ -223,29 +267,29 @@ export default function ProvidersPage() {
           font-family: "Nunito", system-ui, sans-serif;
           font-weight: 900;
           font-size: 21px;
-          color: #16202A;
+          color: #16202a;
           margin: 0 0 4px;
         }
         .meta {
-          color: #7A828C;
+          color: #7a828c;
           font-size: 13.5px;
           margin: 0 0 6px;
         }
         .stars {
           margin: 0;
           font-size: 13.5px;
-          color: #7A828C;
+          color: #7a828c;
         }
         .stars span {
-          color: #6D28D9;
+          color: #6d28d9;
           letter-spacing: 1px;
         }
         .stars .new {
-          color: #A9AFB7;
+          color: #a9afb7;
           letter-spacing: 0;
         }
         .bio {
-          color: #16202A;
+          color: #16202a;
           font-size: 14.5px;
           line-height: 1.6;
           margin: 16px 0 0;
@@ -255,7 +299,7 @@ export default function ProvidersPage() {
           align-items: center;
           gap: 6px;
           margin-top: 18px;
-          color: #6D28D9;
+          color: #6d28d9;
           font-size: 14px;
           font-weight: 800;
           text-decoration: none;
@@ -266,14 +310,14 @@ export default function ProvidersPage() {
         }
         .empty {
           background: #fff;
-          border: 1.5px dashed #E5E7EA;
+          border: 1.5px dashed #e5e7ea;
           border-radius: 14px;
           padding: 30px 24px;
           text-align: center;
-          color: #7A828C;
+          color: #7a828c;
         }
         .empty a {
-          color: #16202A;
+          color: #16202a;
           font-weight: 600;
         }
         .cta-row {
@@ -291,15 +335,15 @@ export default function ProvidersPage() {
           font-size: 15px;
         }
         .cta {
-          background: linear-gradient(100deg,#F5C542,#C86FC9 55%,#7B2FF7);
+          background: linear-gradient(100deg, #f5c542, #c86fc9 55%, #7b2ff7);
           color: #fff;
         }
         .ghost {
-          border: 1.5px solid #16202A;
-          color: #16202A;
+          border: 1.5px solid #16202a;
+          color: #16202a;
         }
         .muted {
-          color: #7A828C;
+          color: #7a828c;
         }
       `}</style>
     </main>

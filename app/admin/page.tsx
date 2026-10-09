@@ -5,7 +5,9 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import AdminButtons from "./AdminButtons";
-import VettingButtons from "./VettingButtons";
+import ServiceReview from "./ServiceReview";
+import { handymanEnabled } from "@/lib/handymanMarketplace";
+import { visibleProfessionalServices } from "@/lib/professionalServices";
 import ReviewList from "./ReviewList";
 import AdminNav from "./AdminNav";
 import { loadAdminReviews } from "@/lib/adminReviews";
@@ -13,7 +15,7 @@ import { developmentToolsEnabled } from "@/lib/developmentTools";
 
 async function count(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  table: string
+  table: string,
 ) {
   const { count: c } = await supabase
     .from(table)
@@ -68,11 +70,14 @@ export default async function AdminPage() {
   const { data: provRows } = await supabase
     .from("providers")
     .select(
-      "id, display_name, services, vetting_status, dbs_verified, rating_avg, rating_count, profile:profiles!providers_profile_id_fkey(email)"
+      "id, display_name, services, service_approvals, vetting_status, dbs_verified, rating_avg, rating_count, profile:profiles!providers_profile_id_fkey(email)",
     );
 
-  const pending = (provRows ?? []).filter(
-    (p) => p.vetting_status === "pending"
+  const pending = (provRows ?? []).filter((p) =>
+    visibleProfessionalServices(
+      Object.keys(p.service_approvals ?? {}),
+      handymanEnabled(),
+    ).some((service) => p.service_approvals[service] === "pending"),
   );
 
   const { reviews: recentReviews, error: reviewsError } =
@@ -100,12 +105,36 @@ export default async function AdminPage() {
           }}
         >
           {[
-            ["/admin/bookings", "Bookings & schedule", "View bookings and make audited time changes."],
-            ["/admin/customers", "Customers", "Contact details and booking history."],
-            ["/admin/cleaners", "Cleaners", "Approvals, availability and workload."],
-            ["/admin/deletion-requests", "Account requests", "Review and record account deletion requests."],
-            ["/admin/legal", "Legal content", "Edit the customer terms, privacy policy and professional agreement."],
-            ["/admin/review", "Reports", "Cases, payment blocks and reconciliation."],
+            [
+              "/admin/bookings",
+              "Bookings & schedule",
+              "View bookings and make audited time changes.",
+            ],
+            [
+              "/admin/customers",
+              "Customers",
+              "Contact details and booking history.",
+            ],
+            [
+              "/admin/cleaners",
+              "Cleaners",
+              "Approvals, availability and workload.",
+            ],
+            [
+              "/admin/deletion-requests",
+              "Account requests",
+              "Review and record account deletion requests.",
+            ],
+            [
+              "/admin/legal",
+              "Legal content",
+              "Edit the customer terms, privacy policy and professional agreement.",
+            ],
+            [
+              "/admin/review",
+              "Reports",
+              "Cases, payment blocks and reconciliation.",
+            ],
           ].map(([href, label, copy]) => (
             <Link
               key={href}
@@ -117,8 +146,18 @@ export default async function AdminPage() {
                 textDecoration: "none",
               }}
             >
-              <strong style={{ display: "block", fontSize: 15.5 }}>{label} →</strong>
-              <span style={{ display: "block", marginTop: 4, color: "#7A828C", fontSize: 12.5, lineHeight: 1.4 }}>
+              <strong style={{ display: "block", fontSize: 15.5 }}>
+                {label} →
+              </strong>
+              <span
+                style={{
+                  display: "block",
+                  marginTop: 4,
+                  color: "#7A828C",
+                  fontSize: 12.5,
+                  lineHeight: 1.4,
+                }}
+              >
                 {copy}
               </span>
             </Link>
@@ -211,12 +250,17 @@ export default async function AdminPage() {
                       {p.display_name || email}
                     </strong>
                     <div style={{ color: "#7A828C", fontSize: 13 }}>
-                      {email} · {(p.services ?? []).join(", ") || "no skills"}
+                      {email} ·{" "}
+                      {visibleProfessionalServices(
+                        p.services ?? [],
+                        handymanEnabled(),
+                      ).join(", ") || "no skills"}
                     </div>
                   </div>
-                  <VettingButtons
+                  <ServiceReview
                     id={p.id}
-                    dbsVerified={p.dbs_verified === true}
+                    approvals={p.service_approvals}
+                    handymanEnabled={handymanEnabled()}
                   />
                 </div>
               );
@@ -260,8 +304,12 @@ export default async function AdminPage() {
                         : ""}
                     </div>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#68717D" }}>
-                    {p.vetting_status === "approved" ? "Approved" : "Awaiting review"}
+                  <span
+                    style={{ fontSize: 12, fontWeight: 700, color: "#68717D" }}
+                  >
+                    {p.vetting_status === "approved"
+                      ? "Approved"
+                      : "Awaiting review"}
                   </span>
                 </div>
               );
@@ -277,11 +325,15 @@ export default async function AdminPage() {
               App activity covering cleaner and client reviews.
             </p>
           </div>
-          <Link href="/admin/reviews" style={showAllLink}>Show all →</Link>
+          <Link href="/admin/reviews" style={showAllLink}>
+            Show all →
+          </Link>
         </div>
         <div style={{ ...card, padding: "6px 20px", marginBottom: 34 }}>
           {reviewsError ? (
-            <p style={{ color: "#a52e47", padding: "14px 0" }}>{reviewsError}</p>
+            <p style={{ color: "#a52e47", padding: "14px 0" }}>
+              {reviewsError}
+            </p>
           ) : (
             <ReviewList reviews={recentReviews} compact />
           )}
@@ -347,8 +399,23 @@ const sectionTitle: React.CSSProperties = {
   color: "#16202A",
   margin: "0 0 14px",
 };
-const sectionHeading: React.CSSProperties = { display: "flex", alignItems: "end", justifyContent: "space-between", gap: 14, margin: "0 0 14px", flexWrap: "wrap" };
-const showAllLink: React.CSSProperties = { borderRadius: 999, padding: "8px 14px", background: "#f4ecfe", color: "#6d28d9", fontSize: 12.5, fontWeight: 900, textDecoration: "none" };
+const sectionHeading: React.CSSProperties = {
+  display: "flex",
+  alignItems: "end",
+  justifyContent: "space-between",
+  gap: 14,
+  margin: "0 0 14px",
+  flexWrap: "wrap",
+};
+const showAllLink: React.CSSProperties = {
+  borderRadius: 999,
+  padding: "8px 14px",
+  background: "#f4ecfe",
+  color: "#6d28d9",
+  fontSize: 12.5,
+  fontWeight: 900,
+  textDecoration: "none",
+};
 const btn: React.CSSProperties = {
   display: "inline-block",
   background: "#16202A",

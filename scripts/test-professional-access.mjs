@@ -26,6 +26,11 @@ async function load(path, mocks = {}) {
     module,
     exports: module.exports,
     require: (id) => {
+      if (
+        id === "@/lib/professionalPortal" ||
+        id === "@/lib/professionalEarnings"
+      )
+        return {};
       if (id === "@/lib/professionalServices") return services;
       if (id === "@/lib/handymanMarketplace")
         return {

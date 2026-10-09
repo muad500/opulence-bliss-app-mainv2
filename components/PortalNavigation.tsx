@@ -4,14 +4,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowLeftRight, Bell, BriefcaseBusiness, CalendarDays, ChevronLeft,
-  ChevronRight, CircleHelp, House, LogOut, Menu, Plus,
-  UserRound, Wallet, X,
+  ArrowLeftRight,
+  Bell,
+  BriefcaseBusiness,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  CircleHelp,
+  House,
+  LogOut,
+  Menu,
+  Plus,
+  UserRound,
+  Wallet,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import styles from "./PortalNavigation.module.css";
-import AccountModeSwitch from './AccountModeSwitch';
+import AccountModeSwitch from "./AccountModeSwitch";
 
 type NavItem = {
   href: string;
@@ -40,16 +51,29 @@ type Props = {
 const supabase = createClient();
 
 export default function PortalNavigation({
-  mode, name, email, rating, ratingCount = 0, registered = false,
-  approved = false, hasCurrentJob = false, hasProfessionalAccount = false,
-  professionalApproved = false, applicationStatus = "Application under review",
+  mode,
+  name,
+  email,
+  rating,
+  ratingCount = 0,
+  registered = false,
+  approved = false,
+  hasCurrentJob = false,
+  hasProfessionalAccount = false,
+  professionalApproved = false,
+  applicationStatus = "Application under review",
 }: Props) {
   const path = usePathname() ?? "";
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [unread, setUnread] = useState(0);
-  const [handyman,setHandyman]=useState(false);
-  useEffect(()=>{void fetch("/api/handyman/config").then(r=>r.json()).then(d=>setHandyman(d.enabled===true)).catch(()=>undefined);},[]);
+  const [handyman, setHandyman] = useState(false);
+  useEffect(() => {
+    void fetch("/api/handyman/config")
+      .then((r) => r.json())
+      .then((d) => setHandyman(d.enabled === true))
+      .catch(() => undefined);
+  }, []);
   const [signingOut, setSigningOut] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLButtonElement>(null);
@@ -57,27 +81,112 @@ export default function PortalNavigation({
   const professional = mode === "professional";
   const items: NavItem[] = professional
     ? [
-        ...(hasCurrentJob && approved ? [{ href: "/worker/current", label: "Current job", mobileLabel: "Now", icon: BriefcaseBusiness, bottom: true }] : []),
-        ...(!approved && registered ? [{ href: "/worker/application", label: "My application", mobileLabel: "Application", icon: UserRound, bottom: true }] : []),
-        { href: "/worker", label: "Jobs & offers", mobileLabel: "Jobs", icon: House, exact: true, bottom: true, locked: !approved },
-        { href: "/worker/availability", label: "Availability", mobileLabel: "Hours", icon: CalendarDays, bottom: true, locked: !approved },
-        { href: "/worker/earnings", label: "Earnings & payouts", mobileLabel: "Earnings", icon: Wallet, bottom: !hasCurrentJob, locked: !approved },
-        { href: "/worker/profile", label: "My profile", mobileLabel: "Profile", icon: UserRound, bottom: !hasCurrentJob, locked: !registered },
-        { href: "/worker/updates", label: "Updates", mobileLabel: "Updates", icon: Bell, locked: !approved },
+        ...(!approved && registered
+          ? [
+              {
+                href: "/worker/application",
+                label: "My application",
+                mobileLabel: "Application",
+                icon: UserRound,
+                bottom: true,
+              },
+            ]
+          : []),
+        {
+          href: "/worker",
+          label: "Today",
+          mobileLabel: "Today",
+          icon: House,
+          exact: true,
+          bottom: true,
+          locked: !approved,
+        },
+        {
+          href: "/worker/jobs",
+          label: "Jobs",
+          mobileLabel: "Jobs",
+          icon: BriefcaseBusiness,
+          bottom: true,
+          locked: !approved,
+        },
+        {
+          href: "/worker/availability",
+          label: "Availability",
+          mobileLabel: "Hours",
+          icon: CalendarDays,
+          bottom: true,
+          locked: !approved,
+        },
+        {
+          href: "/worker/earnings",
+          label: "Earnings & payouts",
+          mobileLabel: "Earnings",
+          icon: Wallet,
+          bottom: true,
+          locked: !approved,
+        },
+        {
+          href: "/worker/profile",
+          label: "My profile",
+          mobileLabel: "Profile",
+          icon: UserRound,
+          bottom: !hasCurrentJob,
+          locked: !registered,
+        },
+        {
+          href: "/worker/updates",
+          label: "Updates",
+          mobileLabel: "Updates",
+          icon: Bell,
+          locked: !approved,
+        },
       ]
     : [
-        { href: "/account", label: "My bookings", mobileLabel: "Bookings", icon: CalendarDays, exact: true, bottom: true },
-        { href: "/account/profile", label: "My profile", mobileLabel: "Profile", icon: UserRound, bottom: true },
-        { href: "/account/updates", label: "Updates", mobileLabel: "Updates", icon: Bell, bottom: true },
+        {
+          href: "/account",
+          label: "My bookings",
+          mobileLabel: "Bookings",
+          icon: CalendarDays,
+          exact: true,
+          bottom: true,
+        },
+        {
+          href: "/account/profile",
+          label: "My profile",
+          mobileLabel: "Profile",
+          icon: UserRound,
+          bottom: true,
+        },
+        {
+          href: "/account/updates",
+          label: "Updates",
+          mobileLabel: "Updates",
+          icon: Bell,
+          bottom: true,
+        },
       ];
 
-  if(handyman)items.push({href:"/handyman/jobs",label:"Handyman jobs",mobileLabel:"Trade jobs",icon:BriefcaseBusiness,locked:professional&&!approved});
+  if (handyman && !professional)
+    items.push({
+      href: "/account/handyman",
+      label: "Handyman bookings",
+      mobileLabel: "Handyman",
+      icon: BriefcaseBusiness,
+    });
 
   useEffect(() => {
-    try { setCollapsed(localStorage.getItem(`opulence-${mode}-nav`) === "collapsed"); } catch { /* storage may be disabled */ }
+    try {
+      setCollapsed(
+        localStorage.getItem(`opulence-${mode}-nav`) === "collapsed",
+      );
+    } catch {
+      /* storage may be disabled */
+    }
   }, [mode]);
 
-  useEffect(() => { setDrawerOpen(false); }, [path]);
+  useEffect(() => {
+    setDrawerOpen(false);
+  }, [path]);
 
   useEffect(() => {
     if (!drawerOpen) return;
@@ -108,22 +217,45 @@ export default function PortalNavigation({
   useEffect(() => {
     let active = true;
     async function countUnread() {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user || !active) return;
-      const { count } = await supabase.from("notifications")
-        .select("*", { count: "exact", head: true }).eq("user_id", user.id).eq("read", false);
+      const { count } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("read", false);
       if (active) setUnread(count ?? 0);
     }
     void countUnread();
     const timer = window.setInterval(countUnread, 30000);
-    return () => { active = false; window.clearInterval(timer); };
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
-  const isActive = (item: NavItem) => item.exact ? path === item.href : path.startsWith(item.href);
+  const isActive = (item: NavItem) =>
+    item.exact ? path === item.href : path.startsWith(item.href);
   const first = (name || email || "O").trim().charAt(0).toUpperCase();
-  const switchHref = professional ? "/account" : hasProfessionalAccount ? "/worker/application" : "/provider/join";
-  const switchLabel = professional ? "Client account" : hasProfessionalAccount ? "My application" : "Apply as a professional";
-  const status = professional ? !registered ? "Not applied" : approved ? "Approved" : applicationStatus : "Client account";
+  const switchHref = professional
+    ? "/account"
+    : hasProfessionalAccount
+      ? "/worker/application"
+      : "/provider/join";
+  const switchLabel = professional
+    ? "Client account"
+    : hasProfessionalAccount
+      ? "My application"
+      : "Apply as a professional";
+  const status = professional
+    ? !registered
+      ? "Not applied"
+      : approved
+        ? "Approved"
+        : applicationStatus
+    : "Client account";
 
   async function signOut() {
     if (signingOut) return;
@@ -136,67 +268,288 @@ export default function PortalNavigation({
     return items.map((item) => {
       const Icon = item.icon;
       const className = `${styles.navLink} ${isActive(item) ? styles.active : ""} ${item.locked ? styles.locked : ""}`;
-      const contents = <><Icon size={19} strokeWidth={2} aria-hidden="true" /><span className={styles.navLabel}>{item.label}</span>{item.href.endsWith("/updates") && unread > 0 && <span className={styles.badge}>{unread > 99 ? "99+" : unread}</span>}</>;
-      return item.locked ? <span className={className} key={item.href} aria-disabled="true" title="Locked until your professional application is approved">{contents}</span> :
-        <Link key={item.href} href={item.href} className={className} aria-current={isActive(item) ? "page" : undefined} title={!inDrawer && collapsed ? item.label : undefined} onClick={() => setDrawerOpen(false)}>{contents}</Link>;
+      const contents = (
+        <>
+          <Icon size={19} strokeWidth={2} aria-hidden="true" />
+          <span className={styles.navLabel}>{item.label}</span>
+          {item.href.endsWith("/updates") && unread > 0 && (
+            <span className={styles.badge}>{unread > 99 ? "99+" : unread}</span>
+          )}
+        </>
+      );
+      return item.locked ? (
+        <span
+          className={className}
+          key={item.href}
+          aria-disabled="true"
+          title="Locked until your professional application is approved"
+        >
+          {contents}
+        </span>
+      ) : (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={className}
+          aria-current={isActive(item) ? "page" : undefined}
+          title={!inDrawer && collapsed ? item.label : undefined}
+          onClick={() => setDrawerOpen(false)}
+        >
+          {contents}
+        </Link>
+      );
     });
   }
 
   function renderFooter() {
-    return <div className={styles.footer}>
-      {professional || hasProfessionalAccount ? <AccountModeSwitch mode={mode} professionalApproved={professional ? approved : professionalApproved} hasProfessionalAccount={professional ? registered : hasProfessionalAccount} /> : <Link href={switchHref} className={styles.switchLink} aria-label={switchLabel} onClick={() => setDrawerOpen(false)}><ArrowLeftRight size={18} aria-hidden="true" /><span>{switchLabel}</span></Link>}
-      <Link href="/faq" className={styles.quietLink} aria-label="Help and FAQ" onClick={() => setDrawerOpen(false)}><CircleHelp size={18} aria-hidden="true" /><span>Help & FAQ</span></Link>
-      <button type="button" className={styles.quietLink} aria-label={signingOut ? "Signing out" : "Sign out"} onClick={() => void signOut()} disabled={signingOut}><LogOut size={18} aria-hidden="true" /><span>{signingOut ? "Signing out…" : "Sign out"}</span></button>
-    </div>;
+    return (
+      <div className={styles.footer}>
+        {professional || hasProfessionalAccount ? (
+          <AccountModeSwitch
+            mode={mode}
+            professionalApproved={
+              professional ? approved : professionalApproved
+            }
+            hasProfessionalAccount={
+              professional ? registered : hasProfessionalAccount
+            }
+          />
+        ) : (
+          <Link
+            href={switchHref}
+            className={styles.switchLink}
+            aria-label={switchLabel}
+            onClick={() => setDrawerOpen(false)}
+          >
+            <ArrowLeftRight size={18} aria-hidden="true" />
+            <span>{switchLabel}</span>
+          </Link>
+        )}
+        <Link
+          href="/faq"
+          className={styles.quietLink}
+          aria-label="Help and FAQ"
+          onClick={() => setDrawerOpen(false)}
+        >
+          <CircleHelp size={18} aria-hidden="true" />
+          <span>Help & FAQ</span>
+        </Link>
+        <button
+          type="button"
+          className={styles.quietLink}
+          aria-label={signingOut ? "Signing out" : "Sign out"}
+          onClick={() => void signOut()}
+          disabled={signingOut}
+        >
+          <LogOut size={18} aria-hidden="true" />
+          <span>{signingOut ? "Signing out…" : "Sign out"}</span>
+        </button>
+      </div>
+    );
   }
 
-  return <>
-    <aside className={`${styles.desktop} ${collapsed ? styles.collapsed : ""}`} aria-label={`${professional ? "Professional" : "Client"} portal navigation`}>
-      <div className={styles.brandRow}>
-        <Link href="/" className={styles.brand} aria-label="Opulence Bliss home">opulence<span>bliss</span></Link>
-        <button type="button" className={styles.collapseButton} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} onClick={() => {
-          const next = !collapsed;
-          setCollapsed(next);
-          try { localStorage.setItem(`opulence-${mode}-nav`, next ? "collapsed" : "expanded"); } catch { /* storage may be disabled */ }
-        }}>{collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}</button>
-      </div>
-      <div className={styles.identity}><div className={styles.avatar}>{first}</div><div className={styles.identityText}><strong>{name || "Your account"}</strong><span>{email || (rating ? `${rating.toFixed(1)} ★ · ${ratingCount} reviews` : "Your professional space")}</span></div></div>
-      <span className={`${styles.status} ${professional && !approved ? styles.waiting : ""}`}>{status}</span>
-      <p className={styles.sectionName}>{professional ? "Professional workspace" : "My account"}</p>
-      <nav className={styles.links} aria-label="Portal pages">{renderItems()}</nav>
-      {!professional && <Link href="/book" className={styles.action} aria-label="Book a service"><Plus size={18} aria-hidden="true" /><span>Book a service</span></Link>}
-      {professional && !registered && <Link href="/provider/join" className={styles.action} aria-label="Join as a professional"><Plus size={18} aria-hidden="true" /><span>Join as a professional</span></Link>}
-      {renderFooter()}
-    </aside>
-
-    <div className={styles.mobileTop}>
-      <Link href="/" className={styles.mobileBrand}>opulence<span>bliss</span></Link>
-      <div className={styles.topActions}>
-        <span className={styles.mobileContext}>{professional ? "Professional" : "Client"}</span>
-        <button ref={menuRef} type="button" className={styles.menuButton} aria-label="Open account menu" aria-expanded={drawerOpen} aria-controls="portal-mobile-drawer" onClick={() => setDrawerOpen(true)}><Menu size={21} /></button>
-      </div>
-    </div>
-
-    <nav className={styles.mobileTabs} aria-label="Quick portal navigation">
-      {items.filter((item) => item.bottom && !item.locked).slice(0, 4).map((item) => {
-        const Icon = item.icon;
-        return <Link key={item.href} href={item.href} className={`${styles.mobileTab} ${isActive(item) ? styles.mobileActive : ""}`} aria-current={isActive(item) ? "page" : undefined}><Icon size={21} strokeWidth={2} aria-hidden="true" /><span>{item.mobileLabel}</span></Link>;
-      })}
-      <button type="button" className={`${styles.mobileTab} ${styles.moreTab}`} onClick={() => setDrawerOpen(true)} aria-label="More account pages"><Menu size={21} /><span>More</span></button>
-    </nav>
-
-    {drawerOpen && <div className={styles.drawerLayer}>
-      <button type="button" className={styles.backdrop} aria-label="Close account menu" onClick={() => setDrawerOpen(false)} />
-      <aside id="portal-mobile-drawer" role="dialog" aria-modal="true" aria-label="Account menu" className={styles.drawer}>
-        <div className={styles.drawerHead}><div><span className={styles.drawerEyebrow}>{professional ? "Professional workspace" : "Client account"}</span><strong>{name || "Your account"}</strong></div><button ref={closeRef} type="button" className={styles.closeButton} aria-label="Close account menu" onClick={() => { setDrawerOpen(false); menuRef.current?.focus(); }}><X size={21} /></button></div>
-        <div className={styles.drawerScroll}>
-          <div className={styles.drawerIdentity}><div className={styles.avatar}>{first}</div><div><strong>{name || "Your account"}</strong><span>{email || status}</span></div></div>
-          <nav className={styles.links} aria-label="All portal pages">{renderItems(true)}</nav>
-          {!professional && <Link href="/book" className={styles.action} onClick={() => setDrawerOpen(false)}><Plus size={18} /><span>Book a service</span></Link>}
-          {professional && !registered && <Link href="/provider/join" className={styles.action} onClick={() => setDrawerOpen(false)}><Plus size={18} /><span>Join as a professional</span></Link>}
-          {renderFooter()}
+  return (
+    <>
+      <aside
+        className={`${styles.desktop} ${collapsed ? styles.collapsed : ""}`}
+        aria-label={`${professional ? "Professional" : "Client"} portal navigation`}
+      >
+        <div className={styles.brandRow}>
+          <Link
+            href="/"
+            className={styles.brand}
+            aria-label="Opulence Bliss home"
+          >
+            opulence<span>bliss</span>
+          </Link>
+          <button
+            type="button"
+            className={styles.collapseButton}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={() => {
+              const next = !collapsed;
+              setCollapsed(next);
+              try {
+                localStorage.setItem(
+                  `opulence-${mode}-nav`,
+                  next ? "collapsed" : "expanded",
+                );
+              } catch {
+                /* storage may be disabled */
+              }
+            }}
+          >
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
         </div>
+        <div className={styles.identity}>
+          <div className={styles.avatar}>{first}</div>
+          <div className={styles.identityText}>
+            <strong>{name || "Your account"}</strong>
+            <span>
+              {email ||
+                (rating
+                  ? `${rating.toFixed(1)} ★ · ${ratingCount} reviews`
+                  : "Your professional space")}
+            </span>
+          </div>
+        </div>
+        <span
+          className={`${styles.status} ${professional && !approved ? styles.waiting : ""}`}
+        >
+          {status}
+        </span>
+        <p className={styles.sectionName}>
+          {professional ? "Professional workspace" : "My account"}
+        </p>
+        <nav className={styles.links} aria-label="Portal pages">
+          {renderItems()}
+        </nav>
+        {!professional && (
+          <Link
+            href="/book"
+            className={styles.action}
+            aria-label="Book a service"
+          >
+            <Plus size={18} aria-hidden="true" />
+            <span>Book a service</span>
+          </Link>
+        )}
+        {professional && !registered && (
+          <Link
+            href="/provider/join"
+            className={styles.action}
+            aria-label="Join as a professional"
+          >
+            <Plus size={18} aria-hidden="true" />
+            <span>Join as a professional</span>
+          </Link>
+        )}
+        {renderFooter()}
       </aside>
-    </div>}
-  </>;
+
+      <div className={styles.mobileTop}>
+        <Link href="/" className={styles.mobileBrand}>
+          opulence<span>bliss</span>
+        </Link>
+        <div className={styles.topActions}>
+          <span className={styles.mobileContext}>
+            {professional ? "Professional" : "Client"}
+          </span>
+          <button
+            ref={menuRef}
+            type="button"
+            className={styles.menuButton}
+            aria-label="Open account menu"
+            aria-expanded={drawerOpen}
+            aria-controls="portal-mobile-drawer"
+            onClick={() => setDrawerOpen(true)}
+          >
+            <Menu size={21} />
+          </button>
+        </div>
+      </div>
+
+      <nav className={styles.mobileTabs} aria-label="Quick portal navigation">
+        {items
+          .filter((item) => item.bottom && !item.locked)
+          .slice(0, 4)
+          .map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`${styles.mobileTab} ${isActive(item) ? styles.mobileActive : ""}`}
+                aria-current={isActive(item) ? "page" : undefined}
+              >
+                <Icon size={21} strokeWidth={2} aria-hidden="true" />
+                <span>{item.mobileLabel}</span>
+              </Link>
+            );
+          })}
+        <button
+          type="button"
+          className={`${styles.mobileTab} ${styles.moreTab}`}
+          onClick={() => setDrawerOpen(true)}
+          aria-label="More account pages"
+        >
+          <Menu size={21} />
+          <span>More</span>
+        </button>
+      </nav>
+
+      {drawerOpen && (
+        <div className={styles.drawerLayer}>
+          <button
+            type="button"
+            className={styles.backdrop}
+            aria-label="Close account menu"
+            onClick={() => setDrawerOpen(false)}
+          />
+          <aside
+            id="portal-mobile-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Account menu"
+            className={styles.drawer}
+          >
+            <div className={styles.drawerHead}>
+              <div>
+                <span className={styles.drawerEyebrow}>
+                  {professional ? "Professional workspace" : "Client account"}
+                </span>
+                <strong>{name || "Your account"}</strong>
+              </div>
+              <button
+                ref={closeRef}
+                type="button"
+                className={styles.closeButton}
+                aria-label="Close account menu"
+                onClick={() => {
+                  setDrawerOpen(false);
+                  menuRef.current?.focus();
+                }}
+              >
+                <X size={21} />
+              </button>
+            </div>
+            <div className={styles.drawerScroll}>
+              <div className={styles.drawerIdentity}>
+                <div className={styles.avatar}>{first}</div>
+                <div>
+                  <strong>{name || "Your account"}</strong>
+                  <span>{email || status}</span>
+                </div>
+              </div>
+              <nav className={styles.links} aria-label="All portal pages">
+                {renderItems(true)}
+              </nav>
+              {!professional && (
+                <Link
+                  href="/book"
+                  className={styles.action}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  <Plus size={18} />
+                  <span>Book a service</span>
+                </Link>
+              )}
+              {professional && !registered && (
+                <Link
+                  href="/provider/join"
+                  className={styles.action}
+                  onClick={() => setDrawerOpen(false)}
+                >
+                  <Plus size={18} />
+                  <span>Join as a professional</span>
+                </Link>
+              )}
+              {renderFooter()}
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
+  );
 }

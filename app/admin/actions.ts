@@ -286,21 +286,8 @@ export async function setProviderDbsStatus(
   revalidatePath("/providers");
 }
 
-export async function rejectProvider(id: string) {
-  const s = await requireAdmin();
-  const { data, error } = await s
-    .from("providers")
-    .update({ vetting_status: "rejected" })
-    .eq("id", id)
-    .eq("vetting_status", "pending")
-    .select("id")
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) return;
-  revalidatePath("/admin");
-  revalidatePath("/admin/cleaners");
-  revalidatePath(`/admin/cleaners/${id}`);
-  revalidatePath("/worker");
+export async function rejectProvider(id: string, reason: string) {
+  return reviewProfessionalService(id, "cleaning", "rejected", reason);
 }
 
 export async function setProviderSuspension(

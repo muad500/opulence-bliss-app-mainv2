@@ -56,3 +56,15 @@ export function selectedProfessionalServices(
     return null;
   return [...new Set(value)] as ProfessionalService[];
 }
+
+export function professionalJobFilter(
+  value: string | undefined,
+  handymanEnabled: boolean,
+): "all" | "cleaning" | "handyman" | null {
+  const filter = value ?? "all";
+  return filter === "all" ||
+    filter === "cleaning" ||
+    (filter === "handyman" && handymanEnabled)
+    ? filter
+    : null;
+}

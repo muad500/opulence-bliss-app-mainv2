@@ -204,8 +204,7 @@ export default async function AdminCleanersPage() {
                       </Link>
                     </div>
                   </div>
-                  {provider.vetting_status === "approved" ||
-                  (pending && !provider.is_suspended) ? (
+                  {!provider.is_suspended ? (
                     <div className="admin-cleaner-actions" style={cardActions}>
                       {provider.vetting_status === "approved" ? (
                         <>
