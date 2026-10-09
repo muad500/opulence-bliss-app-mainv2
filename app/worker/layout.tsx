@@ -6,7 +6,10 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import PortalLiveSync from "@/components/PortalLiveSync";
 import PortalNav from "./PortalNav";
-import { professionalStatusLabel } from "@/lib/professionalAccess";
+import {
+  canUseProfessionalTools,
+  professionalStatusLabel,
+} from "@/lib/professionalAccess";
 
 export default async function WorkerLayout({
   children,
@@ -51,9 +54,7 @@ export default async function WorkerLayout({
         <div style={gateCard}>
           <div style={{ fontSize: 38 }}>🧹</div>
           <h1 style={gateTitle}>Your admin tools are elsewhere</h1>
-          <p style={gateBody}>
-            Use the control panel to manage the service.
-          </p>
+          <p style={gateBody}>Use the control panel to manage the service.</p>
           <a href="/admin" style={btn}>
             Open control panel
           </a>
@@ -70,7 +71,7 @@ export default async function WorkerLayout({
   const { data: prov } = await supabase
     .from("providers")
     .select(
-      "id, display_name, vetting_status, rating_avg, rating_count, is_suspended",
+      "id, display_name, vetting_status, rating_avg, rating_count, is_suspended, service_approvals",
     )
     .eq("profile_id", user.id)
     .maybeSingle();
@@ -87,7 +88,7 @@ export default async function WorkerLayout({
   }
 
   const registered = !!prov;
-  const approved = prov?.vetting_status === "approved";
+  const approved = canUseProfessionalTools(prov);
   const suspensionResult = prov?.id
     ? await supabase
         .from("providers")
@@ -107,7 +108,9 @@ export default async function WorkerLayout({
         registered={registered}
         approved={approved && !suspended}
         hasCurrentJob={hasCurrentJob}
-        applicationStatus={professionalStatusLabel(prov ? { ...prov, is_suspended: suspended } : null)}
+        applicationStatus={professionalStatusLabel(
+          prov ? { ...prov, is_suspended: suspended } : null,
+        )}
       />
 
       <div className="portal-main" style={main}>

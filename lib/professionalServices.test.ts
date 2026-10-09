@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  professionalJobFilter,
   serviceApproved,
   selectedProfessionalServices,
   visibleProfessionalServices,
@@ -61,4 +62,12 @@ test("the disabled marketplace cannot be selected or displayed", () => {
     selectedProfessionalServices(["cleaning", "handyman"], false),
     null,
   );
+});
+
+test("job filters reject unknown or disabled services", () => {
+  assert.equal(professionalJobFilter(undefined, true), "all");
+  assert.equal(professionalJobFilter("cleaning", false), "cleaning");
+  assert.equal(professionalJobFilter("handyman", true), "handyman");
+  assert.equal(professionalJobFilter("handyman", false), null);
+  assert.equal(professionalJobFilter("unknown", true), null);
 });

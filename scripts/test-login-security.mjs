@@ -431,7 +431,7 @@ test("production admin pages omit development tools even for an administrator", 
     "./AdminButtons": {
       default: () => assert.fail("production must not render reset tools"),
     },
-    "./VettingButtons": { default: component },
+    "./ServiceReview": { default: component },
     "./ReviewList": { default: component },
     "./AdminNav": { default: component },
     "../AdminNav": { default: component },

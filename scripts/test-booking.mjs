@@ -25,6 +25,7 @@ const modules = [
   "payoutDestination",
   "professionalAccess",
   "professionalServices",
+  "professionalEarnings",
   "providerCoverage",
   "providerDbs",
   "providerOnboarding",
@@ -79,6 +80,11 @@ try {
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-professional-access.mjs"],
+    { stdio: "inherit" },
+  );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-professional-portal.mjs"],
     { stdio: "inherit" },
   );
 } finally {

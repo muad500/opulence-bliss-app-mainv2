@@ -470,17 +470,15 @@ export async function POST(req: NextRequest) {
         { error: "Could not save your personal details." },
         { status: 503 },
       );
-    await admin
-      .from("account_legal_acceptances")
-      .upsert(
-        {
-          user_id: userId,
-          document_slug: "professional-partner-agreement",
-          version: professionalAgreementVersion,
-          accepted_at: acceptedAt,
-        },
-        { onConflict: "user_id,document_slug,version" },
-      );
+    await admin.from("account_legal_acceptances").upsert(
+      {
+        user_id: userId,
+        document_slug: "professional-partner-agreement",
+        version: professionalAgreementVersion,
+        accepted_at: acceptedAt,
+      },
+      { onConflict: "user_id,document_slug,version" },
+    );
 
     // 3. Provider record — work access begins after the admin approves it.
     const { data: prov, error: provErr } = await admin

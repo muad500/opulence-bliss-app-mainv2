@@ -4,6 +4,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { SignedOut } from "@/app/account/page";
+import { handymanEnabled } from "@/lib/handymanMarketplace";
+import { handymanEarnings } from "@/lib/professionalEarnings";
+import {
+  allHandymanEarnings,
+  privatePortalClient,
+} from "@/lib/professionalPortal";
 import { earningsPeriodTotals } from "@/lib/earningsPeriod";
 import PayoutScheduleForm from "./PayoutScheduleForm";
 
@@ -38,11 +44,21 @@ function svc(p: Pay) {
   return pk?.name ?? "Service";
 }
 
-async function allEarningsRows(client: SupabaseClient, table: string, fields: string, providerId: string) {
+async function allEarningsRows(
+  client: SupabaseClient,
+  table: string,
+  fields: string,
+  providerId: string,
+) {
   const rows: unknown[] = [];
   for (let from = 0; ; from += 500) {
-    const { data, error } = await client.from(table).select(fields).eq("bookings.provider_id", providerId)
-      .order("created_at", { ascending: false }).order("id").range(from, from + 499);
+    const { data, error } = await client
+      .from(table)
+      .select(fields)
+      .eq("bookings.provider_id", providerId)
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + 499);
     if (error) throw error;
     rows.push(...(data ?? []));
     if (!data || data.length < 500) return rows;
@@ -68,20 +84,43 @@ export default async function EarningsPage() {
   let payoutData: unknown[];
   try {
     [paysData, payoutData] = await Promise.all([
-      allEarningsRows(supabase, "payments", "id,booking_id,gross_amount,split_breakdown,status,kind,created_at,bookings!inner(provider_id,scheduled_at,status,packages(name))", prov.id),
-      allEarningsRows(supabase, "payouts", "id,booking_id,amount,status,note,created_at,bookings!inner(provider_id,scheduled_at,status,packages(name))", prov.id),
+      allEarningsRows(
+        supabase,
+        "payments",
+        "id,booking_id,gross_amount,split_breakdown,status,kind,created_at,bookings!inner(provider_id,scheduled_at,status,packages(name))",
+        prov.id,
+      ),
+      allEarningsRows(
+        supabase,
+        "payouts",
+        "id,booking_id,amount,status,note,created_at,bookings!inner(provider_id,scheduled_at,status,packages(name))",
+        prov.id,
+      ),
     ]);
   } catch {
-    return <main style={wrap}><h1 style={h1}>My earnings</h1><p>Earnings could not be loaded. Please try again.</p></main>;
+    return (
+      <main style={wrap}>
+        <h1 style={h1}>My earnings</h1>
+        <p>Earnings could not be loaded. Please try again.</p>
+      </main>
+    );
   }
 
   const { data: invoiceData } = await supabase
     .from("provider_job_invoices")
-    .select("id, invoice_number, issued_at, payout_amount, status, service_name")
+    .select(
+      "id, invoice_number, issued_at, payout_amount, status, service_name",
+    )
     .eq("provider_id", prov.id)
     .order("issued_at", { ascending: false })
     .limit(12);
 
+  const handyman = handymanEarnings(
+    handymanEnabled()
+      ? await allHandymanEarnings(privatePortalClient(), prov.id)
+      : [],
+  );
+  const handymanPeriods = earningsPeriodTotals(handyman.periods);
   const pays = (paysData ?? []) as unknown as Pay[];
   const share = (p: Pay) => Number(p.split_breakdown?.provider ?? 0);
 
@@ -89,7 +128,9 @@ export default async function EarningsPage() {
   const tips = pays.filter((p) => p.kind === "tip" && p.status === "succeeded");
 
   const paid = jobs.filter((p) => p.status === "succeeded");
-  const held = jobs.filter((p) => ["created", "authorised", "capturing"].includes(p.status));
+  const held = jobs.filter((p) =>
+    ["created", "authorised", "capturing"].includes(p.status),
+  );
 
   // Membership visits, paid by transfer
   type Payout = {
@@ -104,23 +145,43 @@ export default async function EarningsPage() {
   const payouts = (payoutData ?? []) as unknown as Payout[];
   const payoutsPaid = payouts.filter((p) => p.status === "paid");
   const settledPayoutBookingIds = new Set(payoutsPaid.map((p) => p.booking_id));
-  const paidWithoutPayout = paid.filter((p) => !settledPayoutBookingIds.has(p.booking_id));
+  const paidWithoutPayout = paid.filter(
+    (p) => !settledPayoutBookingIds.has(p.booking_id),
+  );
 
   const earned =
     paidWithoutPayout.reduce((s, p) => s + share(p), 0) +
     payoutsPaid.reduce((s, p) => s + Number(p.amount ?? 0), 0);
   const payoutBookingIds = new Set(payouts.map((p) => p.booking_id));
   const pendingTotal =
-    held.filter((p) => !payoutBookingIds.has(p.booking_id)).reduce((s, p) => s + share(p), 0) +
+    held
+      .filter((p) => !payoutBookingIds.has(p.booking_id))
+      .reduce((s, p) => s + share(p), 0) +
     payouts
-      .filter((p) => ["not_ready", "pending", "processing", "held"].includes(p.status))
+      .filter((p) =>
+        ["not_ready", "pending", "processing", "held"].includes(p.status),
+      )
       .reduce((s, p) => s + Number(p.amount ?? 0), 0);
   const tipTotal = tips.reduce((s, p) => s + share(p), 0);
-  const visitCount = new Set([...paid, ...payoutsPaid].filter((p) => one<Bk>(p.bookings)?.status === "completed").map((p) => p.booking_id)).size;
+  const visitCount = new Set(
+    [...paid, ...payoutsPaid]
+      .filter((p) => one<Bk>(p.bookings)?.status === "completed")
+      .map((p) => p.booking_id),
+  ).size;
   const periods = earningsPeriodTotals([
-    ...paidWithoutPayout.filter((p) => one<Bk>(p.bookings)?.status === "completed").map((p) => ({ date: one<Bk>(p.bookings)?.scheduled_at ?? p.created_at, amount: share(p) })),
+    ...paidWithoutPayout
+      .filter((p) => one<Bk>(p.bookings)?.status === "completed")
+      .map((p) => ({
+        date: one<Bk>(p.bookings)?.scheduled_at ?? p.created_at,
+        amount: share(p),
+      })),
     ...tips.map((p) => ({ date: p.created_at, amount: share(p) })),
-    ...payoutsPaid.filter((p) => one<Bk>(p.bookings)?.status === "completed").map((p) => ({ date: one<Bk>(p.bookings)?.scheduled_at ?? p.created_at, amount: Number(p.amount ?? 0) })),
+    ...payoutsPaid
+      .filter((p) => one<Bk>(p.bookings)?.status === "completed")
+      .map((p) => ({
+        date: one<Bk>(p.bookings)?.scheduled_at ?? p.created_at,
+        amount: Number(p.amount ?? 0),
+      })),
   ]);
 
   // One combined list, newest first
@@ -134,9 +195,11 @@ export default async function EarningsPage() {
     note?: string | null;
     gross?: number;
   }[] = [
+    ...handyman.rows,
     ...pays.map((p) => ({
       key: `pay-${p.id}`,
-      service: p.kind === "tip" ? `Tip · ${svc(p)}` : svc(p),
+      service:
+        p.kind === "tip" ? `Cleaning tip · ${svc(p)}` : `Cleaning · ${svc(p)}`,
       when: one<Bk>(p.bookings)?.scheduled_at ?? null,
       label: `customer paid ${gbp(p.gross_amount)}`,
       amount: share(p),
@@ -150,7 +213,7 @@ export default async function EarningsPage() {
     })),
     ...payouts.map((p) => ({
       key: `out-${p.id}`,
-      service: `Visit payout · ${
+      service: `Cleaning visit payout · ${
         one<{ name: string }>(one<Bk>(p.bookings)?.packages ?? null)?.name ??
         "Service"
       }`,
@@ -170,18 +233,34 @@ export default async function EarningsPage() {
     <main style={wrap}>
       <link rel="stylesheet" href={FONTS} />
       <div style={{ maxWidth: 760 }}>
-        <h1 style={h1}>My status</h1>
+        <h1 style={h1}>Earnings</h1>
         <p style={{ color: "#7A828C", margin: "0 0 26px", fontWeight: 600 }}>
-          Where you stand — earnings, ratings and what&apos;s still to come.
+          Your payments, tips and settlement history, split by service.
         </p>
 
         <div className="worker-status-grid" style={statGrid}>
-          <Stat label="Payments recorded" value={gbp(earned + tipTotal)} big />
-          <Stat label="Settled earnings this week" value={gbp(periods.week)} />
-          <Stat label="Settled earnings this month" value={gbp(periods.month)} />
-          <Stat label="Awaiting settlement" value={gbp(pendingTotal)} />
+          <Stat
+            label="Payments recorded"
+            value={gbp(earned + tipTotal + handyman.settled)}
+            big
+          />
+          <Stat
+            label="Settled earnings this week"
+            value={gbp(periods.week + handymanPeriods.week)}
+          />
+          <Stat
+            label="Settled earnings this month"
+            value={gbp(periods.month + handymanPeriods.month)}
+          />
+          <Stat
+            label="Awaiting settlement"
+            value={gbp(pendingTotal + handyman.awaitingSettlement)}
+          />
           <Stat label="Tips received" value={gbp(tipTotal)} />
-          <Stat label="Visits completed" value={String(visitCount)} />
+          <Stat
+            label="Visits completed"
+            value={String(visitCount + handyman.paid.length)}
+          />
           <Stat
             label="Your rating"
             value={
@@ -192,26 +271,62 @@ export default async function EarningsPage() {
           />
         </div>
 
-        <p style={{ color: "#7A828C", fontSize: 13 }}>Week and month totals include settled completed visits, using the visit date in London time; tips use the recorded date. Captured visit payments and their payouts count once. These figures do not confirm arrival in your bank account.</p>
-        <p><a href="/api/account/earnings-statement" style={link}>Download earnings statement (CSV)</a></p>
+        <p style={{ color: "#7A828C", fontSize: 13 }}>
+          Week and month totals include settled completed visits, using the
+          visit date in London time; tips use the recorded date. Captured visit
+          payments and their payouts count once. These figures do not confirm
+          arrival in your bank account.
+        </p>
+        <p>
+          <a href="/api/account/earnings-statement" style={link}>
+            Download earnings statement (CSV)
+          </a>
+        </p>
+        <section style={card}>
+          <h2 style={sectionTitle}>By service</h2>
+          <p>
+            Cleaning — recorded payments: {gbp(earned + tipTotal)} · settled
+            this week: {gbp(periods.week)} · this month: {gbp(periods.month)}
+          </p>
+          {handymanEnabled() && (
+            <p>
+              Handyman — settled transfers: {gbp(handyman.settled)} · this week:{" "}
+              {gbp(handymanPeriods.week)} · this month:{" "}
+              {gbp(handymanPeriods.month)}. Materials and VAT pass through to
+              you.
+            </p>
+          )}
+        </section>
         <PayoutScheduleForm current={prov?.payout_schedule ?? "weekly"} />
 
         <h2 style={sectionTitle}>Job invoices</h2>
         {(invoiceData ?? []).length === 0 ? (
-          <div style={{ ...empty, marginBottom: 30 }}>Invoices appear automatically after completed jobs.</div>
+          <div style={{ ...empty, marginBottom: 30 }}>
+            Invoices appear automatically after completed jobs.
+          </div>
         ) : (
-          <div className="worker-payment-list" style={{ ...card, padding: "6px 22px", marginBottom: 30 }}>
+          <div
+            className="worker-payment-list"
+            style={{ ...card, padding: "6px 22px", marginBottom: 30 }}
+          >
             {(invoiceData ?? []).map((invoice) => (
               <div className="worker-payment-row" key={invoice.id} style={row}>
                 <div>
-                  <strong style={{ fontSize: 15 }}>{invoice.invoice_number}</strong>
+                  <strong style={{ fontSize: 15 }}>
+                    {invoice.invoice_number}
+                  </strong>
                   <div style={{ color: "#7A828C", fontSize: 13 }}>
-                    {invoice.service_name} · {new Date(invoice.issued_at).toLocaleDateString("en-GB")}
+                    {invoice.service_name} ·{" "}
+                    {new Date(invoice.issued_at).toLocaleDateString("en-GB")}
                   </div>
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <strong>{gbp(invoice.payout_amount)}</strong>
-                  <div><a href={`/worker/invoices/${invoice.id}`} style={link}>View invoice</a></div>
+                  <div>
+                    <a href={`/worker/invoices/${invoice.id}`} style={link}>
+                      View invoice
+                    </a>
+                  </div>
                 </div>
               </div>
             ))}
@@ -224,7 +339,10 @@ export default async function EarningsPage() {
             No earnings yet. Once you complete a visit it&apos;ll appear here.
           </div>
         ) : (
-          <div className="worker-payment-list" style={{ ...card, padding: "6px 22px" }}>
+          <div
+            className="worker-payment-list"
+            style={{ ...card, padding: "6px 22px" }}
+          >
             {rows.map((r) => (
               <div className="worker-payment-row" key={r.key} style={row}>
                 <div>
@@ -264,7 +382,10 @@ export default async function EarningsPage() {
           </div>
         )}
 
-        <p className="worker-status-links" style={{ marginTop: 28, display: "flex", gap: 18 }}>
+        <p
+          className="worker-status-links"
+          style={{ marginTop: 28, display: "flex", gap: 18 }}
+        >
           <a href="/worker" style={link}>
             ← My jobs
           </a>
@@ -290,7 +411,10 @@ function Stat({
   big?: boolean;
 }) {
   return (
-    <div className="worker-status-card" style={{ ...card, padding: "20px 22px" }}>
+    <div
+      className="worker-status-card"
+      style={{ ...card, padding: "20px 22px" }}
+    >
       <p
         className="worker-status-value"
         style={{
