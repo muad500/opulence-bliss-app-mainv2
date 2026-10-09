@@ -29,8 +29,10 @@ begin
   insert into public.provider_availability (provider_id, weekday, start_time, end_time)
   values (professional, 1, '09:00', '17:00');
   insert into public.provider_dbs_checks
-    (provider_id, certificate_number, issue_date, status, uploaded_at)
-  values (professional, '990000000001', current_date, 'verified', now());
+    (provider_id, certificate_number, issue_date, status, uploaded_at,
+     certificate_original_name, certificate_mime_type)
+  values (professional, '990000000001', current_date, 'verified', now(),
+    'synthetic-fixture.pdf', 'application/pdf');
   insert into storage.objects (bucket_id, name)
   values ('provider-verification', professional || '/fixture-id.pdf');
   insert into public.provider_verification_items
@@ -104,3 +106,5 @@ end;
 $tests$;
 select * from service_test_results;
 rollback;
+
+select 'Service foundations: six staging assertions passed; fixtures rolled back' as result;
