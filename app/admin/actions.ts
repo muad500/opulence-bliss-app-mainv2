@@ -8,7 +8,12 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { rescheduleBookingState } from "@/lib/bookingState";
 import { rotateBookingOffer } from "@/lib/offerRotation";
-import {dbsRecheckDate} from '@/lib/verificationRenewal';
+import { handymanEnabled } from "@/lib/handymanMarketplace";
+import {
+  isProfessionalService,
+  type ProfessionalService,
+} from "@/lib/professionalServices";
+import { dbsRecheckDate } from "@/lib/verificationRenewal";
 import { assertDevelopmentToolsEnabled } from "@/lib/developmentTools";
 
 const admin = createAdminClient(
@@ -45,70 +50,124 @@ function assertTestMode(tool: string) {
   assertDevelopmentToolsEnabled(process.env, tool);
 }
 
-async function approvalRequirements(id: string): Promise<string[]> {
+async function approvalRequirements(
+  id: string,
+  service: ProfessionalService = "cleaning",
+): Promise<string[]> {
   const [dbsResult, checksResult, providerResult] = await Promise.all([
     admin
-    .from("provider_dbs_checks")
-    .select("status, uploaded_at,issue_date")
-    .eq("provider_id", id)
-    .maybeSingle(),
+      .from("provider_dbs_checks")
+      .select("status, uploaded_at,issue_date")
+      .eq("provider_id", id)
+      .maybeSingle(),
     admin
-    .from("provider_verification_items")
-    .select("document_type,status,uploaded_at,document_storage_path,expires_at,next_check_at,gov_uk_checked_on,reference")
-    .eq("provider_id", id)
-    .in("document_type", ["right_to_work", "photo_id", "public_liability_insurance"]),
-    admin.from("providers").select("services").eq("id",id).single(),
+      .from("provider_verification_items")
+      .select(
+        "document_type,status,uploaded_at,document_storage_path,expires_at,next_check_at,gov_uk_checked_on,reference",
+      )
+      .eq("provider_id", id)
+      .in("document_type", [
+        "right_to_work",
+        "photo_id",
+        "public_liability_insurance",
+      ]),
+    admin.from("providers").select("services").eq("id", id).single(),
   ]);
-  if (dbsResult.error || checksResult.error || providerResult.error) throw new Error("Private verification records could not be loaded.");
+  if (dbsResult.error || checksResult.error || providerResult.error)
+    throw new Error("Private verification records could not be loaded.");
   const missing: string[] = [];
-  if (dbsResult.data?.status !== "verified" || !dbsResult.data.uploaded_at) missing.push("DBS certificate");
+  if (dbsResult.data?.status !== "verified" || !dbsResult.data.uploaded_at)
+    missing.push("DBS certificate");
   const today = new Date().toISOString().slice(0, 10);
-  if(dbsResult.data&&(dbsRecheckDate(dbsResult.data.issue_date)??'')<today)missing.push('annual DBS re-check');
-  for (const [type, label] of [["right_to_work", "right to work"], ["photo_id", "photo ID"]] as const) {
-    const check = checksResult.data?.find((item) => item.document_type === type);
-    if (!check || check.status !== "verified" || !check.uploaded_at || (!check.document_storage_path&&!(type==='right_to_work'&&check.reference&&/^[A-Z0-9]{9}$/.test(check.reference))) ||
-        (type==='right_to_work'&&!check.gov_uk_checked_on) || (check.expires_at && check.expires_at < today) || (check.next_check_at && check.next_check_at < today)) {
+  if (
+    dbsResult.data &&
+    (dbsRecheckDate(dbsResult.data.issue_date) ?? "") < today
+  )
+    missing.push("annual DBS re-check");
+  for (const [type, label] of [
+    ["right_to_work", "right to work"],
+    ["photo_id", "photo ID"],
+  ] as const) {
+    const check = checksResult.data?.find(
+      (item) => item.document_type === type,
+    );
+    if (
+      !check ||
+      check.status !== "verified" ||
+      !check.uploaded_at ||
+      (!check.document_storage_path &&
+        !(
+          type === "right_to_work" &&
+          check.reference &&
+          /^[A-Z0-9]{9}$/.test(check.reference)
+        )) ||
+      (type === "right_to_work" && !check.gov_uk_checked_on) ||
+      (check.expires_at && check.expires_at < today) ||
+      (check.next_check_at && check.next_check_at < today)
+    ) {
       missing.push(label);
     }
   }
-  if(providerResult.data?.services?.includes("handyman")){const insurance=checksResult.data?.find(x=>x.document_type==="public_liability_insurance");if(!insurance||insurance.status!=="verified"||!insurance.document_storage_path||!insurance.uploaded_at||!insurance.expires_at||insurance.expires_at<today)missing.push("current public liability insurance");}
+  if (service === "handyman") {
+    const insurance = checksResult.data?.find(
+      (x) => x.document_type === "public_liability_insurance",
+    );
+    if (
+      !insurance ||
+      insurance.status !== "verified" ||
+      !insurance.document_storage_path ||
+      !insurance.uploaded_at ||
+      !insurance.expires_at ||
+      insurance.expires_at < today
+    )
+      missing.push("current public liability insurance");
+  }
   return missing;
 }
 
-export async function getProviderApprovalRequirements(id: string): Promise<string[]> {
+export async function getProviderApprovalRequirements(
+  id: string,
+  service: ProfessionalService = "cleaning",
+): Promise<string[]> {
   await requireAdmin();
-  return approvalRequirements(id);
+  if (service === "handyman" && !handymanEnabled())
+    throw new Error("This service is not available.");
+  return approvalRequirements(id, service);
+}
+
+export async function reviewProfessionalService(
+  id: string,
+  service: ProfessionalService,
+  status: "approved" | "rejected" | "suspended" | "pending",
+  reason?: string,
+) {
+  const client = await requireAdmin();
+  if (
+    !isProfessionalService(service) ||
+    (service === "handyman" && !handymanEnabled())
+  )
+    throw new Error("This service is not available.");
+  if (status === "approved") {
+    const missing = await approvalRequirements(id, service);
+    if (missing.length)
+      throw new Error(
+        `Verify ${missing.join(", ")} before approving this service.`,
+      );
+  }
+  const { error } = await client.rpc("review_professional_service", {
+    p_provider: id,
+    p_service: service,
+    p_status: status,
+    p_reason: reason?.trim() || null,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/cleaners");
+  revalidatePath(`/admin/cleaners/${id}`);
+  revalidatePath("/worker", "layout");
 }
 
 export async function approveProvider(id: string) {
-  const s = await requireAdmin();
-  const missing = await approvalRequirements(id);
-  if (missing.length) {
-    throw new Error(`Verify ${missing.join(", ")} before approving this professional.`);
-  }
-  const { data: p, error } = await s
-    .from("providers")
-    .update({ vetting_status: "approved" })
-    .eq("id", id)
-    .eq("vetting_status", "pending")
-    .select("profile_id")
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!p) return;
-
-  // Let them know only when a pending application was actually approved.
-  if (p?.profile_id) {
-    await s.from("notifications").insert({
-      user_id: p.profile_id,
-      title: "You're approved",
-      body: "Your provider account has been approved. Jobs will start coming through.",
-      href: "/worker",
-    });
-  }
-  revalidatePath("/admin");
-  revalidatePath("/admin/cleaners");
-  revalidatePath(`/admin/cleaners/${id}`);
-  revalidatePath("/worker");
+  await reviewProfessionalService(id, "cleaning", "approved");
 }
 
 export async function setProviderDbsStatus(
@@ -136,7 +195,9 @@ export async function setProviderDbsStatus(
     // The copy is deleted once verified, so it can only be verified again
     // from a fresh upload.
     if (!check.certificate_storage_path) {
-      throw new Error("The certificate copy was deleted after an earlier review. Ask the professional to upload it again.");
+      throw new Error(
+        "The certificate copy was deleted after an earlier review. Ask the professional to upload it again.",
+      );
     }
     const parts = check.certificate_storage_path.split("/");
     const fileName = parts.pop();
@@ -150,7 +211,10 @@ export async function setProviderDbsStatus(
     }
   }
 
-  const reviewNote = String(note ?? "").trim().slice(0, 500) || null;
+  const reviewNote =
+    String(note ?? "")
+      .trim()
+      .slice(0, 500) || null;
   if (status === "failed" && !reviewNote) {
     throw new Error("Record a reason when a DBS check fails.");
   }
@@ -176,13 +240,23 @@ export async function setProviderDbsStatus(
       .from("provider-dbs")
       .remove([check.certificate_storage_path]);
     if (removeError) {
-      console.error(`Could not delete the DBS certificate copy for ${id}:`, removeError);
+      console.error(
+        `Could not delete the DBS certificate copy for ${id}:`,
+        removeError,
+      );
     } else {
       const { error: clearError } = await admin
         .from("provider_dbs_checks")
-        .update({ certificate_storage_path: null, certificate_deleted_at: new Date().toISOString() })
+        .update({
+          certificate_storage_path: null,
+          certificate_deleted_at: new Date().toISOString(),
+        })
         .eq("provider_id", id);
-      if (clearError) console.error(`Deleted the DBS copy for ${id} but could not record it:`, clearError);
+      if (clearError)
+        console.error(
+          `Deleted the DBS copy for ${id} but could not record it:`,
+          clearError,
+        );
     }
   }
 
@@ -194,7 +268,10 @@ export async function setProviderDbsStatus(
   if (provider?.profile_id) {
     await admin.from("notifications").insert({
       user_id: provider.profile_id,
-      title: status === "verified" ? "DBS certificate verified" : "DBS certificate needs attention",
+      title:
+        status === "verified"
+          ? "DBS certificate verified"
+          : "DBS certificate needs attention",
       body:
         status === "verified"
           ? "Your DBS certificate has been verified. Your application can now be approved."
@@ -241,7 +318,8 @@ export async function setProviderSuspension(
   if (error) throw new Error(error.message);
 
   const affected =
-    (data as { affected_booking_ids?: string[] } | null)?.affected_booking_ids ?? [];
+    (data as { affected_booking_ids?: string[] } | null)
+      ?.affected_booking_ids ?? [];
   if (suspended) {
     await Promise.allSettled(
       affected.map((bookingId) => rotateBookingOffer(admin, bookingId)),
@@ -266,7 +344,9 @@ export async function setProviderDirectoryVisibility(
       .maybeSingle();
     if (providerError) throw new Error(providerError.message);
     if (!provider?.dbs_verified) {
-      throw new Error("Verify the DBS certificate before showing this professional publicly.");
+      throw new Error(
+        "Verify the DBS certificate before showing this professional publicly.",
+      );
     }
   }
   const { error } = await s.rpc("admin_set_provider_directory_visibility", {

@@ -41,13 +41,18 @@ export default async function AccountLayout({
     );
   const { data: provider } = await supabase
     .from("providers")
-    .select("id,vetting_status,is_suspended")
+    .select("id,vetting_status,is_suspended,service_approvals")
     .eq("profile_id", user.id)
     .maybeSingle();
   return (
     <div className="portal-shell account-shell" style={shell}>
       <PortalLiveSync userId={user.id} />
-      <ClientNav name={prof?.full_name ?? ""} email={user.email ?? ""} hasProfessionalAccount={!!provider} professionalApproved={canUseProfessionalTools(provider)} />
+      <ClientNav
+        name={prof?.full_name ?? ""}
+        email={user.email ?? ""}
+        hasProfessionalAccount={!!provider}
+        professionalApproved={canUseProfessionalTools(provider)}
+      />
       <div className="portal-main" style={main}>
         {children}
       </div>

@@ -14,13 +14,18 @@ export async function GET(request: NextRequest) {
   let next = safeNext(url.searchParams.get("next"));
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login?error=google-callback", url.origin));
+    return NextResponse.redirect(
+      new URL("/login?error=google-callback", url.origin),
+    );
   }
 
   const supabase = await createClient();
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+  const { error: exchangeError } =
+    await supabase.auth.exchangeCodeForSession(code);
   if (exchangeError) {
-    return NextResponse.redirect(new URL("/login?error=google-callback", url.origin));
+    return NextResponse.redirect(
+      new URL("/login?error=google-callback", url.origin),
+    );
   }
 
   const {
@@ -28,7 +33,9 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user?.email) {
     await supabase.auth.signOut();
-    return NextResponse.redirect(new URL("/login?error=google-account", url.origin));
+    return NextResponse.redirect(
+      new URL("/login?error=google-account", url.origin),
+    );
   }
 
   const admin = createAdminClient(
@@ -43,15 +50,29 @@ export async function GET(request: NextRequest) {
 
   if (existing?.role === "admin") {
     await supabase.auth.signOut();
-    return NextResponse.redirect(new URL("/login?error=wrong-account", url.origin));
+    return NextResponse.redirect(
+      new URL("/login?error=wrong-account", url.origin),
+    );
   }
 
-  if(next==='/account'){
-    const [details,professional]=await Promise.all([
-      admin.from('account_profile_details').select('last_account_mode').eq('user_id',user.id).maybeSingle(),
-      admin.from('providers').select('id,vetting_status,is_suspended').eq('profile_id',user.id).maybeSingle(),
+  if (next === "/account") {
+    const [details, professional] = await Promise.all([
+      admin
+        .from("account_profile_details")
+        .select("last_account_mode")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      admin
+        .from("providers")
+        .select("id,vetting_status,is_suspended,service_approvals")
+        .eq("profile_id", user.id)
+        .maybeSingle(),
     ]);
-    if(canUseProfessionalTools(professional.data)&&details.data?.last_account_mode==='professional')next='/worker';
+    if (
+      canUseProfessionalTools(professional.data) &&
+      details.data?.last_account_mode === "professional"
+    )
+      next = "/worker";
   }
 
   if (existing && user.user_metadata?.legal_accepted === true) {
@@ -105,11 +126,14 @@ export async function GET(request: NextRequest) {
       legal_accepted_at: acceptedAt,
     },
   });
-  const { error: consentError } = await admin.rpc("record_oauth_signup_consent", {
-    p_user_id: user.id,
-    p_legal_version: termsVersion,
-    p_accepted_at: acceptedAt,
-  });
+  const { error: consentError } = await admin.rpc(
+    "record_oauth_signup_consent",
+    {
+      p_user_id: user.id,
+      p_legal_version: termsVersion,
+      p_accepted_at: acceptedAt,
+    },
+  );
   if (consentError) {
     await supabase.auth.signOut();
     return NextResponse.redirect(new URL("/login?error=consent", url.origin));

@@ -2,22 +2,46 @@ import "server-only";
 import type Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { isCleaning, validCleaningDuration } from "@/lib/cleaningBooking";
-import { appointmentFitsWindow, APPOINTMENT_WINDOW_MESSAGE } from "@/lib/appointmentWindow";
+import {
+  appointmentFitsWindow,
+  APPOINTMENT_WINDOW_MESSAGE,
+} from "@/lib/appointmentWindow";
 import { rotateBookingOffer } from "@/lib/offerRotation";
 import { providerIdsWithinSavedCoverage } from "@/lib/providerCoverage";
 import { normaliseOptionalBookingTimes } from "@/lib/bookingTimeChoices";
-import { allocateRegularPayment, isRegularVisitCount, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
+import {
+  allocateRegularPayment,
+  isRegularVisitCount,
+  regularVisitSlots,
+  type RegularFrequency,
+} from "@/lib/regularBooking";
 import { bookingPolicyError, isBookingFrequency } from "@/lib/bookingPolicy";
 
-const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+const admin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
 
 /** Used by both the browser return and the verified Stripe webhook. */
-export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session, pi: Stripe.PaymentIntent) {
+export async function finalizeCustomerCheckout(
+  session: Stripe.Checkout.Session,
+  pi: Stripe.PaymentIntent,
+) {
   const customerId = session.client_reference_id;
-  if (!customerId || pi.metadata.customer_id !== customerId || pi.metadata.kind !== "booking" ||
-      !["requires_capture", "succeeded"].includes(pi.status)) throw new Error("Invalid customer checkout.");
-  const { data: customer, error: customerError } = await admin.from("profiles").select("email, role").eq("id", customerId).single();
-  if (customerError || !customer || customer.role === "admin") throw new Error("Customer account not found.");
+  if (
+    !customerId ||
+    pi.metadata.customer_id !== customerId ||
+    pi.metadata.kind !== "booking" ||
+    !["requires_capture", "succeeded"].includes(pi.status)
+  )
+    throw new Error("Invalid customer checkout.");
+  const { data: customer, error: customerError } = await admin
+    .from("profiles")
+    .select("email, role")
+    .eq("id", customerId)
+    .single();
+  if (customerError || !customer || customer.role === "admin")
+    throw new Error("Customer account not found.");
   const m = pi.metadata ?? {};
   const packageId = m.package_id || null;
   const postcode = m.postcode || null;
@@ -25,9 +49,11 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   const regular = m.upfront_regular === "1";
   const { data: stagedChoicesData } = await admin
     .from("booking_checkout_time_choices")
-    .select(regular
-      ? "preferred_scheduled_at, optional_scheduled_at, regular_scheduled_at, household_notes"
-      : "preferred_scheduled_at, optional_scheduled_at, household_notes")
+    .select(
+      regular
+        ? "preferred_scheduled_at, optional_scheduled_at, regular_scheduled_at, household_notes"
+        : "preferred_scheduled_at, optional_scheduled_at, household_notes",
+    )
     .eq("checkout_session_id", session.id)
     .eq("customer_id", customerId)
     .maybeSingle();
@@ -54,8 +80,14 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   if (!serviceAddress || !isBookingFrequency(frequency)) {
     throw new Error("Invalid booking address or frequency.");
   }
-  if (!pkgRow || bookingPolicyError(m.package ?? pkgRow.name, frequency) || regular !== (frequency !== "one_time")) {
-    throw new Error("This checkout does not match the cleaning booking policy.");
+  if (
+    !pkgRow ||
+    bookingPolicyError(m.package ?? pkgRow.name, frequency) ||
+    regular !== (frequency !== "one_time")
+  ) {
+    throw new Error(
+      "This checkout does not match the cleaning booking policy.",
+    );
   }
   if (!slot || !appointmentFitsWindow(slot, minutes)) {
     throw new Error(APPOINTMENT_WINDOW_MESSAGE);
@@ -63,7 +95,8 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   let optionalSlots: string[];
   try {
     optionalSlots = normaliseOptionalBookingTimes(
-      stagedChoices?.optional_scheduled_at ?? JSON.parse(m.optional_slots || "[]"),
+      stagedChoices?.optional_scheduled_at ??
+        JSON.parse(m.optional_slots || "[]"),
       slot,
       minutes,
       null,
@@ -71,38 +104,68 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   } catch {
     throw new Error("Invalid optional booking times.");
   }
-  if (regular && optionalSlots.length > 0) throw new Error("Regular visits cannot use optional times.");
+  if (regular && optionalSlots.length > 0)
+    throw new Error("Regular visits cannot use optional times.");
   let regularSlots: string[] = [];
   let regularAmounts: ReturnType<typeof allocateRegularPayment> = [];
   if (regular) {
-    if (pi.status !== "succeeded" || pi.amount_received !== pi.amount || pi.capture_method !== "automatic") {
+    if (
+      pi.status !== "succeeded" ||
+      pi.amount_received !== pi.amount ||
+      pi.capture_method !== "automatic"
+    ) {
       throw new Error("Regular upfront visits require a completed payment.");
     }
     const visitCount = Number(m.regular_visit_count);
-    if (!isRegularVisitCount(visitCount)) throw new Error("Invalid number of regular visits.");
-    regularSlots = regularVisitSlots(slot, frequency as RegularFrequency, minutes, session.created * 1000, visitCount);
+    if (!isRegularVisitCount(visitCount))
+      throw new Error("Invalid number of regular visits.");
+    regularSlots = regularVisitSlots(
+      slot,
+      frequency as RegularFrequency,
+      minutes,
+      session.created * 1000,
+      visitCount,
+    );
     const staged = stagedChoices?.regular_scheduled_at ?? [];
-    if (staged.length !== regularSlots.length ||
-        staged.some((value: string, index: number) => new Date(value).getTime() !== new Date(regularSlots[index]).getTime())) {
+    if (
+      staged.length !== regularSlots.length ||
+      staged.some(
+        (value: string, index: number) =>
+          new Date(value).getTime() !== new Date(regularSlots[index]).getTime(),
+      )
+    ) {
       throw new Error("Regular visit dates were not saved with this checkout.");
     }
     const perVisitGross = Number(m.per_visit_gross);
     const discount = Number(m.discount);
     const platform = Number(m.platform_margin);
-    if (!Number.isInteger(perVisitGross) || !Number.isInteger(discount) ||
-        discount < 0 || pi.amount !== perVisitGross * regularSlots.length - discount) {
+    if (
+      !Number.isInteger(perVisitGross) ||
+      !Number.isInteger(discount) ||
+      discount < 0 ||
+      pi.amount !== perVisitGross * regularSlots.length - discount
+    ) {
       throw new Error("Regular checkout amount does not match its schedule.");
     }
-    regularAmounts = allocateRegularPayment(pi.amount, platform, regularSlots.length);
+    regularAmounts = allocateRegularPayment(
+      pi.amount,
+      platform,
+      regularSlots.length,
+    );
   }
-  const platformMarginPence = pi.application_fee_amount ?? Number(m.platform_margin);
-  if (!Number.isInteger(platformMarginPence) || platformMarginPence < 0 ||
-      platformMarginPence >= pi.amount ||
-      (!regular && Number(m.provider_amount) !== pi.amount - platformMarginPence)) {
+  const platformMarginPence =
+    pi.application_fee_amount ?? Number(m.platform_margin);
+  if (
+    !Number.isInteger(platformMarginPence) ||
+    platformMarginPence < 0 ||
+    platformMarginPence >= pi.amount ||
+    (!regular && Number(m.provider_amount) !== pi.amount - platformMarginPence)
+  ) {
     throw new Error("Booking payment allocation is invalid.");
   }
   const compact = (postcode ?? "").toUpperCase().replace(/\s+/g, "");
-  const district = compact.length > 4 ? compact.slice(0, compact.length - 3) : compact;
+  const district =
+    compact.length > 4 ? compact.slice(0, compact.length - 3) : compact;
 
   const { data: allAreas } = await admin
     .from("service_areas")
@@ -128,13 +191,16 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
       .select("id, profile_id")
       .in("id", candidateIds)
       .eq("vetting_status", "approved")
+      .eq("service_approvals->>cleaning", "approved")
       .eq("dbs_verified", true)
       .eq("is_suspended", false);
     if (serviceType) query = query.contains("services", [serviceType]);
     const { data } = await query;
     // A professional who books as a customer must never be offered, assigned or
     // paid for their own booking. The database enforces this too.
-    matched = (data ?? []).filter((provider) => provider.profile_id !== customerId);
+    matched = (data ?? []).filter(
+      (provider) => provider.profile_id !== customerId,
+    );
   }
 
   // Both database functions lock the checkout reference. The six inserts and
@@ -175,9 +241,10 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
         p_amount: pi.amount / 100,
         p_platform: platformMarginPence / 100,
         p_email: customer?.email ?? null,
-        p_payment_status: pi.status === "succeeded" ? "succeeded" : "authorised",
+        p_payment_status:
+          pi.status === "succeeded" ? "succeeded" : "authorised",
       });
-  const bookingIds = regular ? saved as string[] : [saved as string];
+  const bookingIds = regular ? (saved as string[]) : [saved as string];
   if (bookingError || !bookingIds?.length || bookingIds.some((id) => !id)) {
     throw bookingError ?? new Error("Booking insert failed");
   }
@@ -191,12 +258,18 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
       .update({ early_start_requested_at: m.early_start_requested_at })
       .in("id", bookingIds);
     if (earlyStartError) {
-      console.error(`Could not record the early-start request on ${bookingIds.join(", ")}:`, earlyStartError);
+      console.error(
+        `Could not record the early-start request on ${bookingIds.join(", ")}:`,
+        earlyStartError,
+      );
     }
   }
 
   if (!regular) {
-    await admin.from("booking_checkout_time_choices").delete().eq("checkout_session_id", session.id);
+    await admin
+      .from("booking_checkout_time_choices")
+      .delete()
+      .eq("checkout_session_id", session.id);
   }
 
   // A paid booking is confirmed as soon as the transaction above commits.
@@ -204,23 +277,35 @@ export async function finalizeCustomerCheckout(session: Stripe.Checkout.Session,
   // a false checkout failure. The webhook or an operations retry can run it again.
   try {
     if (matched.length) {
-      const coveredIds = new Set(await providerIdsWithinSavedCoverage(
-        admin, matched.map((provider) => provider.id), postcode,
-      ));
+      const coveredIds = new Set(
+        await providerIdsWithinSavedCoverage(
+          admin,
+          matched.map((provider) => provider.id),
+          postcode,
+        ),
+      );
       matched = matched.filter((provider) => coveredIds.has(provider.id));
     }
     const preferred = m.preferred_provider_id;
-    matched.sort((a, b) => Number(b.id === preferred) - Number(a.id === preferred));
+    matched.sort(
+      (a, b) => Number(b.id === preferred) - Number(a.id === preferred),
+    );
     for (const bookingId of bookingIds) {
-      const { error: queueError } = await admin.rpc("system_initialize_booking_offer_queue", {
-        p_booking_id: bookingId,
-        p_provider_ids: matched.map((provider) => provider.id),
-      });
+      const { error: queueError } = await admin.rpc(
+        "system_initialize_booking_offer_queue",
+        {
+          p_booking_id: bookingId,
+          p_provider_ids: matched.map((provider) => provider.id),
+        },
+      );
       if (queueError) throw queueError;
       await rotateBookingOffer(admin, bookingId);
     }
   } catch (matchingError) {
-    console.error(`Bookings ${bookingIds.join(", ")} were saved, but provider matching needs a retry:`, matchingError);
+    console.error(
+      `Bookings ${bookingIds.join(", ")} were saved, but provider matching needs a retry:`,
+      matchingError,
+    );
   }
 
   return bookingIds[0];

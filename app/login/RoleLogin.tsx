@@ -47,7 +47,9 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
   useEffect(() => {
     const reason = new URLSearchParams(window.location.search).get("error");
     if (reason === "wrong-account") {
-      setErr("This account needs administrator sign-in. Please use the admin page.");
+      setErr(
+        "This account needs administrator sign-in. Please use the admin page.",
+      );
     } else if (reason) {
       setErr("Google sign-in could not be completed. Please try again.");
     }
@@ -76,14 +78,19 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
 
     if (!profile || profile.role === "admin") {
       await supabase.auth.signOut();
-      setErr("This account cannot use this sign-in page. Please contact support if you need help.");
+      setErr(
+        "This account cannot use this sign-in page. Please contact support if you need help.",
+      );
       setBusy(false);
       return;
     }
 
     if (mode === "provider") {
-      const { data: provider } = await supabase.from("providers")
-        .select("id").eq("profile_id", data.user.id).maybeSingle();
+      const { data: provider } = await supabase
+        .from("providers")
+        .select("id")
+        .eq("profile_id", data.user.id)
+        .maybeSingle();
       if (!provider) {
         window.location.href = "/provider/join";
         return;
@@ -91,10 +98,24 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
     }
 
     const next = new URLSearchParams(window.location.search).get("next");
-    const {data:details}=await supabase.from('account_profile_details').select('last_account_mode').eq('user_id',data.user.id).maybeSingle();
-    const {data:professional}=await supabase.from('providers').select('id,vetting_status,is_suspended').eq('profile_id',data.user.id).maybeSingle();
-    const destination=mode==='client'&&canUseProfessionalTools(professional)&&details?.last_account_mode==='professional'?'/worker':content.destination;
-    window.location.href = next?.startsWith("/") && !next.startsWith("//") ? next : destination;
+    const { data: details } = await supabase
+      .from("account_profile_details")
+      .select("last_account_mode")
+      .eq("user_id", data.user.id)
+      .maybeSingle();
+    const { data: professional } = await supabase
+      .from("providers")
+      .select("id,vetting_status,is_suspended,service_approvals")
+      .eq("profile_id", data.user.id)
+      .maybeSingle();
+    const destination =
+      mode === "client" &&
+      canUseProfessionalTools(professional) &&
+      details?.last_account_mode === "professional"
+        ? "/worker"
+        : content.destination;
+    window.location.href =
+      next?.startsWith("/") && !next.startsWith("//") ? next : destination;
   }
 
   function submit() {
@@ -118,11 +139,17 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
               onError={(message) => setErr(message || null)}
             />
             <p className="google-terms">
-              By continuing, you agree to our <Link href="/legal/terms">Terms</Link>,{" "}
+              By continuing, you agree to our{" "}
+              <Link href="/legal/terms">Terms</Link>,{" "}
               <Link href="/legal/privacy">Privacy Policy</Link> and{" "}
-              <Link href="/legal/cancellation-refund">Cancellation &amp; Refund Policy</Link>.
+              <Link href="/legal/cancellation-refund">
+                Cancellation &amp; Refund Policy
+              </Link>
+              .
             </p>
-            <div className="divider"><span>or use email</span></div>
+            <div className="divider">
+              <span>or use email</span>
+            </div>
           </>
         )}
 
@@ -147,7 +174,12 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
           autoComplete="current-password"
         />
 
-        <button className="submit" type="button" onClick={submit} disabled={busy}>
+        <button
+          className="submit"
+          type="button"
+          onClick={submit}
+          disabled={busy}
+        >
           {busy ? "Signing in…" : content.button}
         </button>
 
@@ -159,7 +191,8 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
         </div>
 
         <p className="join">
-          {content.signupText} <a href={content.signupHref}>{content.signupLabel}</a>
+          {content.signupText}{" "}
+          <a href={content.signupHref}>{content.signupLabel}</a>
         </p>
 
         <Link className="home" href="/">
@@ -178,12 +211,20 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
         }
         .login-shell.client {
           background:
-            radial-gradient(circle at 12% 10%, rgba(245, 197, 66, 0.2), transparent 28%),
+            radial-gradient(
+              circle at 12% 10%,
+              rgba(245, 197, 66, 0.2),
+              transparent 28%
+            ),
             linear-gradient(145deg, #fffdf8, #fbf7ff);
         }
         .login-shell.provider {
           background:
-            radial-gradient(circle at 85% 12%, rgba(200, 111, 201, 0.2), transparent 32%),
+            radial-gradient(
+              circle at 85% 12%,
+              rgba(200, 111, 201, 0.2),
+              transparent 32%
+            ),
             linear-gradient(145deg, #f8f4ff, #eee7fb);
         }
         .login-card {
@@ -259,7 +300,10 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
           line-height: 1.4;
           text-align: center;
         }
-        .google-terms :global(a) { color: #6d28d9; font-weight: 800; }
+        .google-terms :global(a) {
+          color: #6d28d9;
+          font-weight: 800;
+        }
         .divider {
           display: flex;
           align-items: center;
@@ -270,7 +314,13 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
           font-weight: 800;
           text-transform: uppercase;
         }
-        .divider::before, .divider::after { content: ""; flex: 1; height: 1px; background: #e7e9ed; }
+        .divider::before,
+        .divider::after {
+          content: "";
+          flex: 1;
+          height: 1px;
+          background: #e7e9ed;
+        }
         label {
           display: block;
           margin: 0 0 6px;

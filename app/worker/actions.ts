@@ -3,6 +3,7 @@
 // Worker job actions. Save at: app/worker/actions.ts
 // (If your server client lives under utils/, change the import.)
 
+import { serviceApproved } from "@/lib/professionalServices";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import Stripe from "stripe";
@@ -14,7 +15,10 @@ import {
 import { sendEmail } from "@/lib/email";
 import { rotateBookingOffer } from "@/lib/offerRotation";
 import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
-import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
+import {
+  captureBookingPayment,
+  LegacyDestinationCaptureError,
+} from "@/lib/legacyDestinationCapture";
 import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
 import { developmentToolsEnabled } from "@/lib/developmentTools";
 import {
@@ -149,13 +153,20 @@ export async function acceptJob(id: string, selectedSlot: string) {
 
   const { data: me } = await supabase
     .from("providers")
-    .select("id, is_suspended, vetting_status")
+    .select("id, is_suspended, vetting_status, service_approvals")
     .eq("profile_id", user.id)
     .maybeSingle();
   if (!me) return { error: "Not a provider" };
-  if (me.vetting_status !== "approved") return { error: "Your professional application must be approved before accepting jobs." };
+  if (!serviceApproved(me, "cleaning"))
+    return {
+      error:
+        "Your professional application must be approved before accepting jobs.",
+    };
   if (me.is_suspended) {
-    return { error: "Your provider account is suspended, so you cannot accept new jobs." };
+    return {
+      error:
+        "Your provider account is suspended, so you cannot accept new jobs.",
+    };
   }
 
   const { error: acceptanceError } = await supabase.rpc(
@@ -240,7 +251,8 @@ export async function checkInJob(
   // Shortcuts require an explicitly enabled test environment. Production
   // always enforces the visit window and location, even with a test key.
   const testShortcuts = developmentToolsEnabled(process.env);
-  const allowEarly = process.env.ALLOW_EARLY_CHECKIN === "true" && testShortcuts;
+  const allowEarly =
+    process.env.ALLOW_EARLY_CHECKIN === "true" && testShortcuts;
 
   if (ctx.scheduledAt && !allowEarly && !(force && testShortcuts)) {
     const start = new Date(ctx.scheduledAt);
@@ -492,7 +504,8 @@ export async function checkOutJob(id: string) {
         p_priority: "high",
         p_blocks_payment: false,
         p_blocks_payout: true,
-        p_notes: cause instanceof Error ? cause.message : "Prepaid transfer failed",
+        p_notes:
+          cause instanceof Error ? cause.message : "Prepaid transfer failed",
         p_created_by: null,
       });
     }
@@ -565,9 +578,13 @@ export async function checkOutJob(id: string) {
               reason: "Provider payout account is not configured",
             });
             await admin.rpc("open_review_case", {
-              p_booking_id: id, p_category: "payout_failure", p_priority: "high",
-              p_blocks_payment: false, p_blocks_payout: true,
-              p_notes: "Provider payout account is not configured", p_created_by: null,
+              p_booking_id: id,
+              p_category: "payout_failure",
+              p_priority: "high",
+              p_blocks_payment: false,
+              p_blocks_payout: true,
+              p_notes: "Provider payout account is not configured",
+              p_created_by: null,
             });
           } else {
             await systemTransitionPayout(admin, payoutId, "processing");
@@ -733,9 +750,13 @@ export async function checkOutJob(id: string) {
       } catch (cause) {
         console.error(`One-off visit ${id} payout needs review:`, cause);
         await admin.rpc("open_review_case", {
-          p_booking_id: id, p_category: "payout_failure", p_priority: "high",
-          p_blocks_payment: false, p_blocks_payout: true,
-          p_notes: cause instanceof Error ? cause.message : "One-off transfer failed",
+          p_booking_id: id,
+          p_category: "payout_failure",
+          p_priority: "high",
+          p_blocks_payment: false,
+          p_blocks_payout: true,
+          p_notes:
+            cause instanceof Error ? cause.message : "One-off transfer failed",
           p_created_by: null,
         });
       }
@@ -752,9 +773,9 @@ export async function checkOutJob(id: string) {
       ? `${service} — all done. This visit is covered by your membership.`
       : bk?.regular_series_id
         ? `${service} — all done. This visit was paid for with your regular booking.`
-      : paymentSettled
-        ? `${service} — all done. Your card has now been charged.`
-        : `${service} — all done. We are checking the payment and you do not need to retry anything.`,
+        : paymentSettled
+          ? `${service} — all done. Your card has now been charged.`
+          : `${service} — all done. We are checking the payment and you do not need to retry anything.`,
     "/account",
   );
   await sendEmail({
@@ -769,10 +790,10 @@ export async function checkOutJob(id: string) {
       : bk?.regular_series_id
         ? `<p>Your <strong>${service}</strong> is complete and was already paid for as part of your regular booking.</p>
            <p>If you have a moment, we'd love a quick rating for your provider.</p>`
-      : paymentSettled
-        ? `<p>Your <strong>${service}</strong> is complete and your card has now been charged.</p>
+        : paymentSettled
+          ? `<p>Your <strong>${service}</strong> is complete and your card has now been charged.</p>
            <p>If you have a moment, we'd love a quick rating for your provider.</p>`
-        : `<p>Your <strong>${service}</strong> is complete, but its payment needs a manual check.</p>
+          : `<p>Your <strong>${service}</strong> is complete, but its payment needs a manual check.</p>
            <p>You do not need to pay or retry anything. The team will review it.</p>`,
     cta: { text: "Rate your visit", url: "/account" },
   });
