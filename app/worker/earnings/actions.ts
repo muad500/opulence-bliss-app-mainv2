@@ -24,18 +24,30 @@ export async function savePayoutSchedule(
   }
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return { ok: false, message: "Please sign in again." };
 
   const { data: provider } = await admin
     .from("providers")
-    .select("id, stripe_account_id, is_suspended, vetting_status")
+    .select(
+      "id, stripe_account_id, is_suspended, vetting_status, service_approvals",
+    )
     .eq("profile_id", user.id)
     .maybeSingle();
   if (!provider) return { ok: false, message: "Provider account not found." };
-  if (!canUseProfessionalTools(provider)) return { ok: false, message: "Payout settings unlock after your professional application is approved." };
+  if (!canUseProfessionalTools(provider))
+    return {
+      ok: false,
+      message:
+        "Payout settings unlock after your professional application is approved.",
+    };
   if (provider.is_suspended) {
-    return { ok: false, message: "Payment settings cannot change while the account is suspended." };
+    return {
+      ok: false,
+      message: "Payment settings cannot change while the account is suspended.",
+    };
   }
 
   try {

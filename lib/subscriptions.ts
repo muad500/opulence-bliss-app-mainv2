@@ -9,7 +9,7 @@ import { providerIdsWithinSavedCoverage } from "@/lib/providerCoverage";
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 /** Work out who gets what from one monthly payment. */
@@ -49,7 +49,7 @@ export async function generateBookings(subId: string, cycleStart: Date) {
   const { data: sub } = await admin
     .from("subscriptions")
     .select(
-      "id, customer_id, package_id, postcode, preferred_weekday, preferred_hour, paused_until, packages(name, visits_per_month, duration_minutes, service_type)"
+      "id, customer_id, package_id, postcode, preferred_weekday, preferred_hour, paused_until, packages(name, visits_per_month, duration_minutes, service_type)",
     )
     .eq("id", subId)
     .maybeSingle();
@@ -111,6 +111,7 @@ export async function generateBookings(subId: string, cycleStart: Date) {
         .select("id, profile_id")
         .in("id", ids)
         .eq("vetting_status", "approved")
+        .eq("service_approvals->>cleaning", "approved")
         .eq("dbs_verified", true)
         .eq("is_suspended", false)
         .contains("services", ["cleaning"]);
@@ -120,12 +121,19 @@ export async function generateBookings(subId: string, cycleStart: Date) {
 
   if (provs.length) {
     try {
-      const coveredIds = new Set(await providerIdsWithinSavedCoverage(
-        admin, provs.map((provider) => provider.id), sub.postcode,
-      ));
+      const coveredIds = new Set(
+        await providerIdsWithinSavedCoverage(
+          admin,
+          provs.map((provider) => provider.id),
+          sub.postcode,
+        ),
+      );
       provs = provs.filter((provider) => coveredIds.has(provider.id));
     } catch (error) {
-      console.error("Could not check professional coverage for subscription visits:", error);
+      console.error(
+        "Could not check professional coverage for subscription visits:",
+        error,
+      );
       provs = [];
     }
   }
@@ -155,7 +163,7 @@ export async function generateBookings(subId: string, cycleStart: Date) {
         provider_payout: payout,
         membership_fee_deducted: deduct,
         offer_expires_at: new Date(
-          at.getTime() - 2 * 60 * 60 * 1000
+          at.getTime() - 2 * 60 * 60 * 1000,
         ).toISOString(),
       })
       .select("id")
@@ -185,7 +193,7 @@ export async function upsertSubscription(
     ref: string;
     periodStart?: string | null;
     periodEnd?: string | null;
-  }
+  },
 ) {
   const m = stripeSub.metadata ?? {};
   const periodEnd = (stripeSub as { current_period_end?: number })
@@ -310,7 +318,9 @@ export function subscriptionIdFromInvoice(invoice: unknown): string | null {
     lines?: {
       data?: Array<{
         parent?: {
-          subscription_item_details?: { subscription?: string | { id: string } };
+          subscription_item_details?: {
+            subscription?: string | { id: string };
+          };
         };
         subscription?: string | { id: string };
       }>;
@@ -318,12 +328,14 @@ export function subscriptionIdFromInvoice(invoice: unknown): string | null {
   };
 
   const pick = (v: unknown) =>
-    typeof v === "string" ? v : (v as { id?: string })?.id ?? null;
+    typeof v === "string" ? v : ((v as { id?: string })?.id ?? null);
 
   return (
     pick(inv.subscription) ??
     pick(inv.parent?.subscription_details?.subscription) ??
-    pick(inv.lines?.data?.[0]?.parent?.subscription_item_details?.subscription) ??
+    pick(
+      inv.lines?.data?.[0]?.parent?.subscription_item_details?.subscription,
+    ) ??
     pick(inv.lines?.data?.[0]?.subscription) ??
     null
   );

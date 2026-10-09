@@ -11,8 +11,8 @@ import { Fragment, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LogOut, Menu, UserRound, X } from "lucide-react";
-import AccountModeSwitch from './AccountModeSwitch';
-import { canUseProfessionalTools } from '@/lib/professionalAccess';
+import AccountModeSwitch from "./AccountModeSwitch";
+import { canUseProfessionalTools } from "@/lib/professionalAccess";
 
 const supabase = createClient();
 
@@ -25,8 +25,16 @@ type NavLink = { href: string; label: string; match: string[] };
 // The same links for everyone, signed in or not. Anything role-specific
 // lives inside the portal, reached via "My account".
 const NAV: NavLink[] = [
-  { href: "/services/cleaning", label: "Cleaning", match: ["/services/cleaning"] },
-  { href: "/services/handyman", label: "Handyman", match: ["/services/handyman"] },
+  {
+    href: "/services/cleaning",
+    label: "Cleaning",
+    match: ["/services/cleaning"],
+  },
+  {
+    href: "/services/handyman",
+    label: "Handyman",
+    match: ["/services/handyman"],
+  },
   { href: "/providers", label: "Our pros", match: ["/providers"] },
   { href: "/provider", label: "Jobs", match: ["/provider"] },
 ];
@@ -40,7 +48,9 @@ export default function SiteHeader() {
   const [unread, setUnread] = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [accountMode,setAccountMode]=useState<'client'|'professional'>('client');
+  const [accountMode, setAccountMode] = useState<"client" | "professional">(
+    "client",
+  );
 
   useEffect(() => {
     setMobileOpen(false);
@@ -112,13 +122,26 @@ export default function SiteHeader() {
         if (!alive) return;
         setRole(p?.role ?? "customer");
 
-        const { data: provider } = await supabase.from("providers")
-          .select("id,vetting_status,is_suspended").eq("profile_id", user.id).maybeSingle();
+        const { data: provider } = await supabase
+          .from("providers")
+          .select("id,vetting_status,is_suspended,service_approvals")
+          .eq("profile_id", user.id)
+          .maybeSingle();
         if (!alive) return;
         setHasProfessionalAccount(!!provider);
         setProfessionalApproved(canUseProfessionalTools(provider));
-        const {data:details}=await supabase.from('account_profile_details').select('last_account_mode').eq('user_id',user.id).maybeSingle();
-        if(alive)setAccountMode(canUseProfessionalTools(provider)&&details?.last_account_mode==='professional'?'professional':'client');
+        const { data: details } = await supabase
+          .from("account_profile_details")
+          .select("last_account_mode")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (alive)
+          setAccountMode(
+            canUseProfessionalTools(provider) &&
+              details?.last_account_mode === "professional"
+              ? "professional"
+              : "client",
+          );
 
         const { count } = await supabase
           .from("notifications")
@@ -132,12 +155,12 @@ export default function SiteHeader() {
     load();
     const { data: sub } = supabase.auth.onAuthStateChange(() => load());
     const timer = setInterval(load, 30000);
-    window.addEventListener('opulence-account-mode',load);
+    window.addEventListener("opulence-account-mode", load);
     return () => {
       alive = false;
       clearInterval(timer);
       sub.subscription.unsubscribe();
-      window.removeEventListener('opulence-account-mode',load);
+      window.removeEventListener("opulence-account-mode", load);
     };
   }, []);
 
@@ -152,7 +175,14 @@ export default function SiteHeader() {
     }
   }
 
-  const accountHref = role === "admin" ? "/admin" : role ? accountMode==='professional'?'/worker':"/account" : "/login";
+  const accountHref =
+    role === "admin"
+      ? "/admin"
+      : role
+        ? accountMode === "professional"
+          ? "/worker"
+          : "/account"
+        : "/login";
 
   // The provider and admin portals have their own chrome.
   if (
@@ -207,7 +237,13 @@ export default function SiteHeader() {
               </span>
             )}
           </Link>
-          {role&&role!=='admin'&&hasProfessionalAccount&&<AccountModeSwitch mode={accountMode} professionalApproved={professionalApproved} hasProfessionalAccount={hasProfessionalAccount}/>}
+          {role && role !== "admin" && hasProfessionalAccount && (
+            <AccountModeSwitch
+              mode={accountMode}
+              professionalApproved={professionalApproved}
+              hasProfessionalAccount={hasProfessionalAccount}
+            />
+          )}
         </div>
 
         <div className="mobile-primary">
@@ -221,7 +257,9 @@ export default function SiteHeader() {
             <button
               type="button"
               className="mobile-profile-button"
-              aria-label={role ? "Open account menu" : "Open login and sign-up menu"}
+              aria-label={
+                role ? "Open account menu" : "Open login and sign-up menu"
+              }
               aria-expanded={profileOpen}
               aria-controls="mobile-profile-menu"
               onClick={() => {
@@ -242,8 +280,21 @@ export default function SiteHeader() {
                 {role ? (
                   <>
                     <p>Your account</p>
-                    <Link href={accountHref}>{role === "admin" ? "Admin dashboard" : "My account"}</Link>
-                    {role !== "admin" && (hasProfessionalAccount?<AccountModeSwitch mode={accountMode} professionalApproved={professionalApproved} hasProfessionalAccount={hasProfessionalAccount}/>:<Link href="/provider/join">Apply as a professional</Link>)}
+                    <Link href={accountHref}>
+                      {role === "admin" ? "Admin dashboard" : "My account"}
+                    </Link>
+                    {role !== "admin" &&
+                      (hasProfessionalAccount ? (
+                        <AccountModeSwitch
+                          mode={accountMode}
+                          professionalApproved={professionalApproved}
+                          hasProfessionalAccount={hasProfessionalAccount}
+                        />
+                      ) : (
+                        <Link href="/provider/join">
+                          Apply as a professional
+                        </Link>
+                      ))}
                     <button
                       type="button"
                       className="mobile-signout"
@@ -337,7 +388,11 @@ export default function SiteHeader() {
             aria-label="Close menu"
             onClick={() => setMobileOpen(false)}
           />
-          <aside id="mobile-site-menu" className="mobile-drawer" aria-label="Site menu">
+          <aside
+            id="mobile-site-menu"
+            className="mobile-drawer"
+            aria-label="Site menu"
+          >
             <div className="mobile-drawer-head">
               <strong>
                 opulence<span>bliss</span>
@@ -367,8 +422,26 @@ export default function SiteHeader() {
             </nav>
 
             <div className="mobile-account-actions">
-              <Link href={accountHref}>{role ? "Client account" : "Sign in"}</Link>
-              {role && role !== "admin" && <Link href={professionalApproved ? "/worker" : hasProfessionalAccount ? "/worker/application" : "/provider/join"}>{professionalApproved ? "My jobs" : hasProfessionalAccount ? "My application" : "Apply as a professional"}</Link>}
+              <Link href={accountHref}>
+                {role ? "Client account" : "Sign in"}
+              </Link>
+              {role && role !== "admin" && (
+                <Link
+                  href={
+                    professionalApproved
+                      ? "/worker"
+                      : hasProfessionalAccount
+                        ? "/worker/application"
+                        : "/provider/join"
+                  }
+                >
+                  {professionalApproved
+                    ? "My jobs"
+                    : hasProfessionalAccount
+                      ? "My application"
+                      : "Apply as a professional"}
+                </Link>
+              )}
               {!role && <Link href="/provider">Sign in as a pro</Link>}
             </div>
           </aside>

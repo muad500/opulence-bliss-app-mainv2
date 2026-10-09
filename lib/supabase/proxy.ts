@@ -24,9 +24,9 @@ export async function updateSession(request: NextRequest) {
     "/worker",
     "/notifications",
   ];
-  const publicPath = request.nextUrl.pathname === "/staff/login" || PUBLIC.some((p) =>
-    request.nextUrl.pathname.startsWith(p)
-  );
+  const publicPath =
+    request.nextUrl.pathname === "/staff/login" ||
+    PUBLIC.some((p) => request.nextUrl.pathname.startsWith(p));
   // If the env vars are not set, skip proxy check. You can remove this
   // once you setup the project.
   if (!hasEnvVars) {
@@ -68,18 +68,34 @@ export async function updateSession(request: NextRequest) {
   const user = data?.claims;
 
   // Check direct URLs and RSC navigation, while keeping evidence submission open.
-  if (request.nextUrl.pathname === "/worker" || request.nextUrl.pathname.startsWith("/worker/")) {
+  if (
+    request.nextUrl.pathname === "/worker" ||
+    request.nextUrl.pathname.startsWith("/worker/")
+  ) {
     let destination: string | null = null;
     if (!user?.sub) destination = "/provider/login";
     else {
-      const { data: provider } = await supabase.from("providers").select("id,vetting_status,is_suspended").eq("profile_id", user.sub).maybeSingle();
+      const { data: provider } = await supabase
+        .from("providers")
+        .select("id,vetting_status,is_suspended,service_approvals")
+        .eq("profile_id", user.sub)
+        .maybeSingle();
       if (!provider) destination = "/provider/join";
-      else if (!canUseProfessionalTools(provider) && !["/worker/application", "/worker/profile"].includes(request.nextUrl.pathname)) destination = "/worker/application";
+      else if (
+        !canUseProfessionalTools(provider) &&
+        !["/worker/application", "/worker/profile"].includes(
+          request.nextUrl.pathname,
+        )
+      )
+        destination = "/worker/application";
     }
     if (destination) {
-      const url = request.nextUrl.clone(); url.pathname = destination; url.search = "";
+      const url = request.nextUrl.clone();
+      url.pathname = destination;
+      url.search = "";
       const response = NextResponse.redirect(url);
-      for (const cookie of supabaseResponse.cookies.getAll()) response.cookies.set(cookie);
+      for (const cookie of supabaseResponse.cookies.getAll())
+        response.cookies.set(cookie);
       return response;
     }
   }
