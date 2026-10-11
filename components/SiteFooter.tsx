@@ -99,6 +99,7 @@ export default function SiteFooter() {
             Registered in {COMPANY.registeredIn}, company number {COMPANY.number}.
             {COMPANY.registeredOffice ? ` Registered office: ${COMPANY.registeredOffice}.` : ""}
           </p>
+          <p>ICO registration number: {COMPANY.icoRegistrationNumber}</p>
         </div>
         <div className={styles.legal}>
           {TERMS_URL && (

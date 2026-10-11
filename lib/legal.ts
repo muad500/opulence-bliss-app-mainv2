@@ -26,6 +26,7 @@ export const LEGAL_VERSIONS: Record<string, string> = {
 export const COMPANY = {
   name: "Opulence Bliss Ltd",
   number: "15894675",
+  icoRegistrationNumber: "ZC264981",
   registeredIn: "England and Wales",
   registeredOffice:
     process.env.NEXT_PUBLIC_REGISTERED_OFFICE?.trim() ||
