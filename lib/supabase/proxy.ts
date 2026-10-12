@@ -26,6 +26,12 @@ export async function updateSession(request: NextRequest) {
   ];
   const publicPath =
     request.nextUrl.pathname === "/staff/login" ||
+    [
+      "/manifest.webmanifest",
+      "/.well-known/assetlinks.json",
+      "/app-worker.js",
+      "/offline.html",
+    ].includes(request.nextUrl.pathname) ||
     PUBLIC.some((p) => request.nextUrl.pathname.startsWith(p));
   // If the env vars are not set, skip proxy check. You can remove this
   // once you setup the project.

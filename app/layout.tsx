@@ -12,6 +12,7 @@ import Toaster from "@/components/Toaster";
 import RatingGate from "@/components/RatingGate";
 import SupportChat from "@/components/SupportChat";
 import EnvironmentBanner from "@/components/EnvironmentBanner";
+import MobileAppSupport from "@/components/MobileAppSupport";
 
 // Self-hosted by Next, so no extra request to Google and no flash of
 // unstyled text. Components ask for "Nunito" by name and get this.
@@ -23,6 +24,13 @@ const nunito = Nunito({
 });
 
 export const metadata: Metadata = {
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "Opulence Bliss",
+    statusBarStyle: "default",
+  },
+  icons: { apple: "/icons/app-192.png" },
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
   ),
@@ -38,6 +46,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#6d28d9",
 };
 
 export default function RootLayout({
@@ -52,6 +61,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body>
+        <MobileAppSupport />
         <EnvironmentBanner />
         <TopBar />
         <SiteHeader />

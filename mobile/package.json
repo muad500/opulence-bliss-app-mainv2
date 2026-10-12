@@ -1,0 +1,12 @@
+{
+  "name": "opulence-bliss-android",
+  "private": true,
+  "scripts": {
+    "generate": "node generate-android.mjs",
+    "build": "node build-android.mjs",
+    "install:device": "cd android && bubblewrap install"
+  },
+  "dependencies": {
+    "@bubblewrap/cli": "1.27.0"
+  }
+}
