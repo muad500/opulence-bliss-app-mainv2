@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="worker-jobs" android:enabled="true" android:icon="@drawable/shortcut_0" android:shortcutShortLabel="@string/shortcut_short_name_0" android:shortcutLongLabel="@string/shortcut_name_0">
+        <intent android:action="android.intent.action.MAIN" android:targetPackage="com.opulencebliss.worker" android:targetClass="com.opulencebliss.app.LauncherActivity" android:data="https://www.opulencebliss.com/mobile/worker?screen=jobs" />
+        <categories android:name="android.intent.category.LAUNCHER" />
+    </shortcut>
+    <shortcut android:shortcutId="worker-hours" android:enabled="true" android:icon="@drawable/shortcut_0" android:shortcutShortLabel="@string/shortcut_short_name_1" android:shortcutLongLabel="@string/shortcut_name_1">
+        <intent android:action="android.intent.action.MAIN" android:targetPackage="com.opulencebliss.worker" android:targetClass="com.opulencebliss.app.LauncherActivity" android:data="https://www.opulencebliss.com/mobile/worker?screen=hours" />
+        <categories android:name="android.intent.category.LAUNCHER" />
+    </shortcut>
+    <shortcut android:shortcutId="worker-earnings" android:enabled="true" android:icon="@drawable/shortcut_0" android:shortcutShortLabel="@string/shortcut_short_name_2" android:shortcutLongLabel="@string/shortcut_name_2">
+        <intent android:action="android.intent.action.MAIN" android:targetPackage="com.opulencebliss.worker" android:targetClass="com.opulencebliss.app.LauncherActivity" android:data="https://www.opulencebliss.com/mobile/worker?screen=earnings" />
+        <categories android:name="android.intent.category.LAUNCHER" />
+    </shortcut>
+</shortcuts>

@@ -59,7 +59,7 @@ const columns: Array<{
 
 export default function SiteFooter() {
   return (
-    <footer className={styles.footer}>
+    <footer data-website-footer className={styles.footer}>
       <div className={styles.glow} aria-hidden="true" />
       <div className={styles.inner}>
         <section className={styles.lead} aria-labelledby="footer-heading">
@@ -99,6 +99,7 @@ export default function SiteFooter() {
             Registered in {COMPANY.registeredIn}, company number {COMPANY.number}.
             {COMPANY.registeredOffice ? ` Registered office: ${COMPANY.registeredOffice}.` : ""}
           </p>
+          <p>ICO registration number: {COMPANY.icoRegistrationNumber}</p>
         </div>
         <div className={styles.legal}>
           {TERMS_URL && (

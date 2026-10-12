@@ -1,0 +1,130 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--ob-surface, #fff);
+  border-bottom: 1px solid var(--ob-border, #e8e3ef);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(12px + env(safe-area-inset-top)) 18px 12px;
+  min-height: 62px;
+  box-sizing: border-box;
+}
+.header > div {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.header strong {
+  font-size: 14px;
+}
+.brand {
+  font-size: 20px;
+  letter-spacing: -1px;
+  font-weight: 900;
+  text-decoration: none;
+  color: var(--ob-text);
+}
+.brand span {
+  color: var(--ob-purple);
+}
+.brand small {
+  font-size: 9px;
+  letter-spacing: 1px;
+  margin-left: 6px;
+  background: #16202a;
+  color: white;
+  padding: 3px 5px;
+  border-radius: 5px;
+}
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--ob-surface-soft);
+  color: var(--ob-purple);
+  flex-shrink: 0;
+}
+.tabs {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 7px 8px calc(7px + env(safe-area-inset-bottom));
+  background: var(--ob-surface, #fff);
+  border-top: 1px solid var(--ob-border);
+  box-shadow: 0 -4px 20px #16202a08;
+}
+.tabs a,
+.tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 52px;
+  text-decoration: none;
+  color: var(--ob-muted);
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 14px;
+}
+.tabs button {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+}
+.tabs button small {
+  font-size: 8px;
+}
+.tabs a[aria-current="page"] {
+  color: var(--ob-purple);
+  background: var(--ob-purple-soft);
+}
+.keyboard {
+  display: none;
+}
+.tools {
+  display: flex;
+  overflow-x: auto;
+  gap: 8px;
+  padding: 12px 16px;
+}
+.tools a,
+.tools button {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  white-space: nowrap;
+  padding: 10px 12px;
+  border: 1px solid var(--ob-border);
+  background: var(--ob-surface);
+  color: var(--ob-purple);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+@media (min-width: 720px) {
+  .header,
+  .tools {
+    padding-left: max(18px, calc((100vw - 700px) / 2));
+    padding-right: max(18px, calc((100vw - 700px) / 2));
+  }
+  .tabs {
+    max-width: 700px;
+    margin: auto;
+    border-radius: 22px 22px 0 0;
+  }
+}

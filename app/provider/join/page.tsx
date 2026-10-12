@@ -583,7 +583,7 @@ export default function ProviderJoinPage() {
   const monthlyEstimate = estimateProviderMonthlyEarnings(weeklyHours);
 
   return (
-    <main className="wrap">
+    <main className="wrap" data-app-application>
       <div className="grid">
         {/* ---- Page introduction ---- */}
         <section className="pitch">
@@ -1652,7 +1652,7 @@ export default function ProviderJoinPage() {
           </div>
         </section>
 
-        <section className="benefits" aria-label="Why work with Opulence Bliss">
+        <section className="benefits" aria-label="Why work with Opulence Bliss" data-website-marketing>
           <article className="perks">
             <h2>Your earnings could be</h2>
             <ul>

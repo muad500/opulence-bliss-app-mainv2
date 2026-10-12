@@ -89,7 +89,7 @@ const DOCS: { title: string; content: string }[] = [
   {
     title: "How to prepare for a visit",
     content:
-      "Someone needs to be able to let the cleaner in, or you can provide clear access instructions. Cleaners bring the products and equipment needed for the booked service. You can add requests such as access instructions, pets, delicate surfaces and priority rooms in the requests box when you book.",
+      "Provide safe access, working water and electricity, and a vacuum cleaner unless the cleaner is booked to bring equipment. The client provides products and equipment, or books the cleaner brings supplies option for an extra fee. Clear valuables, cash, documents and fragile items. Tell us in advance about pets, allergies, delicate surfaces and areas not to be cleaned.",
   },
   {
     title: "Becoming a provider",

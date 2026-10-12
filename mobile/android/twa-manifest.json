@@ -1,0 +1,52 @@
+{
+  "packageId": "com.opulencebliss.app",
+  "host": "www.opulencebliss.com",
+  "name": "Opulence Bliss",
+  "launcherName": "Opulence Bliss",
+  "display": "standalone",
+  "startUrl": "/mobile/customer",
+  "themeColor": "#6d28d9",
+  "themeColorDark": "#6d28d9",
+  "navigationColor": "#ffffff",
+  "navigationColorDark": "#16202a",
+  "navigationDividerColor": "#ffffff",
+  "navigationDividerColorDark": "#16202a",
+  "backgroundColor": "#ffffff",
+  "enableNotifications": false,
+  "enableSiteSettingsShortcut": true,
+  "splashScreenFadeOutDuration": 250,
+  "appVersion": "1.1.0",
+  "appVersionCode": 2,
+  "minSdkVersion": 24,
+  "orientation": "default",
+  "iconUrl": "https://www.opulencebliss.com/icons/app-512.png",
+  "maskableIconUrl": "https://www.opulencebliss.com/icons/app-maskable-512.png",
+  "webManifestUrl": "https://www.opulencebliss.com/mobile/customer/manifest.webmanifest",
+  "fullScopeUrl": "https://www.opulencebliss.com/",
+  "fallbackType": "customtabs",
+  "signingKey": {
+    "path": "./opulence-bliss.jks",
+    "alias": "opulence-bliss"
+  },
+  "fingerprints": [
+    {
+      "name": "Android release",
+      "value": "EE:B1:12:D5:D2:05:A6:2B:C5:F3:C8:84:AC:E7:B0:E2:18:42:CA:F4:16:36:B5:BA:E7:BA:90:69:1B:AE:3C:BF"
+    }
+  ],
+  "additionalTrustedOrigins": [],
+  "shortcuts": [
+    {
+      "name": "Book a clean",
+      "shortName": "Book",
+      "url": "/mobile/customer?screen=book",
+      "chosenIconUrl": "https://www.opulencebliss.com/icons/app-192.png"
+    },
+    {
+      "name": "My bookings",
+      "shortName": "Bookings",
+      "url": "/mobile/customer?screen=bookings",
+      "chosenIconUrl": "https://www.opulencebliss.com/icons/app-192.png"
+    }
+  ]
+}

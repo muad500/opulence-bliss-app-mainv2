@@ -46,7 +46,6 @@ export default async function AccountLayout({
     .maybeSingle();
   return (
     <div className="portal-shell account-shell" style={shell}>
-      <PortalLiveSync userId={user.id} />
       <ClientNav
         name={prof?.full_name ?? ""}
         email={user.email ?? ""}
@@ -54,6 +53,7 @@ export default async function AccountLayout({
         professionalApproved={canUseProfessionalTools(provider)}
       />
       <div className="portal-main" style={main}>
+        <PortalLiveSync userId={user.id} />
         {children}
       </div>
     </div>

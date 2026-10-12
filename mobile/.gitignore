@@ -1,0 +1,9 @@
+**/.gradle/
+**/build/
+**/local.properties
+**/node_modules/
+**/*.apk
+**/*.aab
+**/*.jks
+**/*.keystore
+**/signing.json

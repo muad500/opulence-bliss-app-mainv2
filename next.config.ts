@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       {
+        source: "/",
+        has: [{ type: "host", value: "admin.opulencebliss.com" }],
+        destination: "/staff/login",
+        permanent: false,
+      },
+      {
         source: "/services/massage",
         destination: "/services/cleaning",
         permanent: true,

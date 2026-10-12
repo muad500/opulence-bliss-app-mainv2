@@ -1,6 +1,7 @@
 "use client";
 
 import SessionCountdown from "@/components/SessionCountdown";
+import CleaningPackageScope from "@/components/CleaningPackageScope";
 import { useEffect, useState } from "react";
 import { formatUkPhone } from "@/lib/ukPhone";
 import {
@@ -468,6 +469,8 @@ export default function WorkerJobWorkspace({
             </div>
           )}
         </section>
+
+        <CleaningPackageScope packageName={job.service} />
 
         <div className="detail-grid">
           <section className="next-card">

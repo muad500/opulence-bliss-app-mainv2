@@ -71,7 +71,7 @@ export default async function WorkerLayout({
   const { data: prov } = await supabase
     .from("providers")
     .select(
-      "id, display_name, vetting_status, rating_avg, rating_count, is_suspended, service_approvals",
+      "id, display_name, vetting_status, rating_avg, rating_count, is_suspended, suspension_reason, service_approvals",
     )
     .eq("profile_id", user.id)
     .maybeSingle();
@@ -89,18 +89,10 @@ export default async function WorkerLayout({
 
   const registered = !!prov;
   const approved = canUseProfessionalTools(prov);
-  const suspensionResult = prov?.id
-    ? await supabase
-        .from("providers")
-        .select("suspension_reason")
-        .eq("id", prov.id)
-        .maybeSingle()
-    : { data: null };
   const suspended = prov?.is_suspended !== false;
 
   return (
     <div className="portal-shell worker-shell" style={shell}>
-      <PortalLiveSync userId={user.id} />
       <PortalNav
         name={prov?.display_name ?? prof?.full_name ?? user.email ?? "Provider"}
         rating={prov?.rating_avg ? Number(prov.rating_avg) : null}
@@ -114,6 +106,7 @@ export default async function WorkerLayout({
       />
 
       <div className="portal-main" style={main}>
+        <PortalLiveSync userId={user.id} />
         {/* One honest banner at the top of the portal */}
         {!registered && (
           <Banner
@@ -144,8 +137,8 @@ export default async function WorkerLayout({
             tone="warn"
             title="Your provider account is suspended"
             body={`You cannot accept new jobs while the team reviews your account.${
-              suspensionResult.data?.suspension_reason
-                ? ` Reason: ${suspensionResult.data.suspension_reason}`
+              prov?.suspension_reason
+                ? ` Reason: ${prov.suspension_reason}`
                 : ""
             }`}
           />

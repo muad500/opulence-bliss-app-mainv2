@@ -3,7 +3,7 @@
 // Job actions — changes with the job's stage.
 // Save at: app/worker/JobActions.tsx
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
@@ -17,6 +17,10 @@ import {
 import JobExceptions from "./JobExceptions";
 import ReviewVisibilityChoice from "@/components/ReviewVisibilityChoice";
 import type { ReviewVisibility } from "@/lib/reviewVisibility";
+import { requestPortalRefresh } from "@/lib/portalUpdates";
+
+const UPDATE_ERROR =
+  "Could not confirm the update. Refresh the job status before trying again.";
 
 const green: React.CSSProperties = {
   background: "#16202A",
@@ -70,6 +74,26 @@ export default function JobActions({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [note, setNote] = useState<string | null>(null);
+  const actionRunning = useRef(false);
+  const [actionLabel, setActionLabel] = useState("");
+  const perform = (label: string, action: () => Promise<void>) => {
+    if (actionRunning.current) return;
+    actionRunning.current = true;
+    setActionLabel(label);
+    setNote(null);
+    start(async () => {
+      try {
+        await action();
+        requestPortalRefresh();
+        router.refresh();
+      } catch {
+        setNote(UPDATE_ERROR);
+      } finally {
+        actionRunning.current = false;
+        setActionLabel("");
+      }
+    });
+  };
   const preferredTime = preferredScheduledAt ?? scheduledAt;
   const availableTimes = [
     preferredTime,
@@ -156,18 +180,18 @@ export default function JobActions({
         >
           <button
             onClick={() =>
-              start(async () => {
+              perform("Declining…", async () => {
                 await declineJob(id);
               })
             }
             disabled={pending}
             style={dim(ghost)}
           >
-            Decline
+            {pending && actionLabel === "Declining…" ? actionLabel : "Decline"}
           </button>
           <button
             onClick={() =>
-              start(async () => {
+              perform("Accepting…", async () => {
                 const r = await acceptJob(id, selectedSlot);
                 if (r?.taken) {
                   setNote("Someone else took this job first.");
@@ -179,7 +203,11 @@ export default function JobActions({
             disabled={pending}
             style={dim(compact ? apricot : green)}
           >
-            {pending ? "…" : compact ? "Accept booking" : "Accept"}
+            {pending && actionLabel === "Accepting…"
+              ? actionLabel
+              : compact
+                ? "Accept booking"
+                : "Accept"}
           </button>
         </div>
         {note && (
@@ -220,14 +248,10 @@ export default function JobActions({
       <div style={{ marginTop: compact ? 0 : 16 }}>
         <button
           onClick={() =>
-            start(async () => {
-              const r = await checkOutJob(id);
+            perform("Finishing…", async () => {
+              await checkOutJob(id);
               setNote(
-                r?.earned
-                  ? `Job complete — the customer has been charged and £${r.earned.toFixed(
-                      2,
-                    )} is on its way to you.`
-                  : "Job complete — the customer has been charged.",
+                "Visit updated. Check the latest payment and payout status on this job.",
               );
               router.replace(`/worker/job/${id}`);
               router.refresh();
@@ -307,7 +331,11 @@ export function CheckInControl({
   label?: string;
   panelTargetId?: string;
 }) {
+  const router = useRouter();
   const [pending, start] = useTransition();
+  const [locating, setLocating] = useState(false);
+  const running = useRef(false);
+  const busy = pending || locating;
   const [note, setNote] = useState<string | null>(null);
   const [otpStep, setOtpStep] = useState(false);
   const [otp, setOtp] = useState("");
@@ -323,32 +351,49 @@ export function CheckInControl({
     );
   }, [panelTargetId]);
 
-  const run = (lat?: number | null, lng?: number | null, force = false) =>
+  const run = (lat?: number | null, lng?: number | null, force = false) => {
+    setLocating(false);
     start(async () => {
-      const result = await checkInJob(id, lat, lng, force);
-      setNote(result?.reason ?? null);
-      setOtpStep(
-        Boolean(result && "otpRequired" in result && result.otpRequired),
-      );
-      setBlocked(
-        result?.blocked && "canForce" in result && result.canForce
-          ? { lat: lat ?? null, lng: lng ?? null }
-          : null,
-      );
+      try {
+        const result = await checkInJob(id, lat, lng, force);
+        setNote(result?.reason ?? null);
+        setOtpStep(
+          Boolean(result && "otpRequired" in result && result.otpRequired),
+        );
+        setBlocked(
+          result?.blocked && "canForce" in result && result.canForce
+            ? { lat: lat ?? null, lng: lng ?? null }
+            : null,
+        );
+        requestPortalRefresh();
+        router.refresh();
+      } catch {
+        setNote(UPDATE_ERROR);
+      } finally {
+        running.current = false;
+      }
     });
+  };
 
   const locate = (force = false) => {
+    if (running.current) return;
+    running.current = true;
+    setLocating(true);
     setNote(null);
     if (!navigator.geolocation) {
       run(null, null, force);
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (position) =>
-        run(position.coords.latitude, position.coords.longitude, force),
-      () => run(null, null, force),
-      { enableHighAccuracy: true, timeout: 8000 },
-    );
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (position) =>
+          run(position.coords.latitude, position.coords.longitude, force),
+        () => run(null, null, force),
+        { enableHighAccuracy: true, timeout: 8000 },
+      );
+    } catch {
+      run(null, null, force);
+    }
   };
 
   const good =
@@ -408,20 +453,33 @@ export function CheckInControl({
             <button
               type="button"
               className="worker-checkin-button"
-              disabled={pending || otp.length !== 6}
-              onClick={() =>
+              disabled={busy || otp.length !== 6}
+              onClick={() => {
+                if (running.current) return;
+                running.current = true;
                 start(async () => {
-                  const result = await verifyCheckInOtp(id, otp);
-                  setNote(result.reason);
-                  if (result.ok) setOtpStep(false);
-                })
-              }
+                  try {
+                    const result = await verifyCheckInOtp(id, otp);
+                    setNote(result.reason);
+                    if (result.ok) {
+                      setOtpStep(false);
+                      requestPortalRefresh();
+                      router.refresh();
+                    }
+                  } catch {
+                    setNote(UPDATE_ERROR);
+                  } finally {
+                    running.current = false;
+                  }
+                });
+              }}
             >
-              {pending ? "Checking…" : "Confirm code"}
+              {busy ? "Confirming code…" : "Confirm code"}
             </button>
           </div>
           <button
             type="button"
+            disabled={busy}
             onClick={() => {
               setOtpStep(false);
               setOtp("");
@@ -467,8 +525,12 @@ export function CheckInControl({
       {blocked && (
         <button
           type="button"
-          onClick={() => run(blocked.lat, blocked.lng, true)}
-          disabled={pending}
+          onClick={() => {
+            if (running.current) return;
+            running.current = true;
+            run(blocked.lat, blocked.lng, true);
+          }}
+          disabled={busy}
           style={{
             ...ghost,
             marginTop: 8,
@@ -493,9 +555,14 @@ export function CheckInControl({
               : "worker-checkin-button"
           }
           onClick={() => locate()}
-          disabled={pending}
+          disabled={busy}
+          aria-busy={busy}
         >
-          {pending ? "Checking location…" : label}
+          {locating
+            ? "Finding your location…"
+            : pending
+              ? "Checking in…"
+              : label}
         </button>
       )}
       {panelTarget ? createPortal(feedback, panelTarget) : feedback}
@@ -517,8 +584,7 @@ function RateClientBox({
   const [open, setOpen] = useState(false);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
-  const [visibility, setVisibility] =
-    useState<ReviewVisibility>("public");
+  const [visibility, setVisibility] = useState<ReviewVisibility>("public");
   const [done, setDone] = useState<string | null>(null);
 
   if (submittedPrivately) {

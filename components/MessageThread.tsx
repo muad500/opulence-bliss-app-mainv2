@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Send, ShieldAlert } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import LoadingState from "./LoadingState";
 import {
   attachmentMimeType,
   normalizeMessageAttachments,
@@ -17,7 +18,9 @@ const GRAD = "linear-gradient(100deg,#F5C542,#C86FC9 55%,#7B2FF7)";
 const PURPLE = "#6D28D9";
 
 type Msg = {
-  booking_message_attachments: MessageAttachment[];
+  booking_message_attachments: (MessageAttachment & {
+    previewPending?: boolean;
+  })[];
   id: number;
   sender_id: string;
   sender_role: "customer" | "provider" | "admin";
@@ -32,7 +35,10 @@ type RawMsg = Omit<Msg, "booking_message_attachments"> & {
 
 function withTimeout<T>(request: T, message: string, timeoutMs = 15_000) {
   return new Promise<Awaited<T>>((resolve, reject) => {
-    const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    const timer = window.setTimeout(
+      () => reject(new Error(message)),
+      timeoutMs,
+    );
     Promise.resolve(request).then(
       (value) => {
         window.clearTimeout(timer);
@@ -63,7 +69,12 @@ const QUICK: Record<"customer" | "provider", string[]> = {
 
 const DIALOG_QUICK: Record<"customer" | "provider", string[]> = {
   customer: ["See you soon!", "Thanks!", "Sounds good!"],
-  provider: ["Running late?", "On my way", "I'm outside", "All finished — thank you"],
+  provider: [
+    "Running late?",
+    "On my way",
+    "I'm outside",
+    "All finished — thank you",
+  ],
 };
 
 function when(iso: string) {
@@ -106,25 +117,34 @@ export default function MessageThread({
   const endRef = useRef<HTMLDivElement>(null);
   const loadVersion = useRef(0);
   const sending = useRef(false);
+  const loadingRequests = useRef(0);
+  const previews = useRef(new Map<string, { url: string; expires: number }>());
+  const previewUser = useRef<string | null>(null);
 
   const load = useCallback(async () => {
     const version = ++loadVersion.current;
+    loadingRequests.current++;
     try {
       const auth = await withTimeout(
         supabase.auth.getSession(),
         "The conversation took too long to connect. Please try again.",
       );
+      if (version !== loadVersion.current) return false;
       if (auth.error) throw auth.error;
       const user = auth.data.session?.user;
       if (!user) {
         setMe(null);
+        setMessages([]);
+        previews.current.clear();
         throw new Error("Please sign in again to use booking messages.");
       }
 
       const result = await withTimeout(
         supabase
           .from("booking_messages")
-          .select("id, sender_id, sender_role, body, created_at, read_at, booking_message_attachments(path, name, mime_type)")
+          .select(
+            "id, sender_id, sender_role, body, created_at, read_at, booking_message_attachments(path, name, mime_type)",
+          )
           .eq("booking_id", bookingId)
           .order("created_at", { ascending: true }),
         "The conversation took too long to load. Please try again.",
@@ -132,29 +152,62 @@ export default function MessageThread({
       if (result.error) throw result.error;
 
       const rawMessages = (result.data ?? []) as unknown as RawMsg[];
-      const hydrated = await Promise.all(rawMessages.map(async (message) => ({
-        ...message,
-        booking_message_attachments: await Promise.all(
-          normalizeMessageAttachments(message.booking_message_attachments).map(async (file) => {
-            try {
-              const signed = await withTimeout(
-                supabase.storage.from("booking-attachments").createSignedUrl(file.path, 3600),
-                "Attachment preview timed out.",
-                8_000,
-              );
-              return { ...file, signedUrl: signed.data?.signedUrl };
-            } catch {
-              return file;
-            }
-          }),
-        ),
-      })));
-
       if (version !== loadVersion.current) return false;
+      if (previewUser.current !== user.id) previews.current.clear();
+      previewUser.current = user.id;
+      const ready = rawMessages.map((message) => ({
+        ...message,
+        booking_message_attachments: normalizeMessageAttachments(
+          message.booking_message_attachments,
+        ).map((file) => {
+          const cached = previews.current.get(file.path);
+          return {
+            ...file,
+            signedUrl:
+              cached && cached.expires > Date.now() ? cached.url : undefined,
+            previewPending: true,
+          };
+        }),
+      }));
       setMe(user.id);
-      setMessages(hydrated);
+      setMessages(ready);
       setLoaded(true);
       setLoadError(null);
+
+      // Message text is ready now. Private photo previews load independently.
+      void Promise.all(
+        ready.map(async (message) => ({
+          ...message,
+          booking_message_attachments: await Promise.all(
+            message.booking_message_attachments.map(async (file) => {
+              if (file.signedUrl) return { ...file, previewPending: false };
+              try {
+                const signed = await withTimeout(
+                  supabase.storage
+                    .from("booking-attachments")
+                    .createSignedUrl(file.path, 3600),
+                  "Attachment preview timed out.",
+                  8_000,
+                );
+                if (version === loadVersion.current && signed.data?.signedUrl)
+                  previews.current.set(file.path, {
+                    url: signed.data.signedUrl,
+                    expires: Date.now() + 50 * 60_000,
+                  });
+                return {
+                  ...file,
+                  signedUrl: signed.data?.signedUrl,
+                  previewPending: false,
+                };
+              } catch {
+                return { ...file, previewPending: false };
+              }
+            }),
+          ),
+        })),
+      ).then((hydrated) => {
+        if (version === loadVersion.current) setMessages(hydrated);
+      });
 
       if (
         (bare || !minimized) &&
@@ -178,6 +231,8 @@ export default function MessageThread({
           : "The conversation could not be loaded. Please try again.",
       );
       return false;
+    } finally {
+      loadingRequests.current--;
     }
   }, [bare, bookingId, minimized]);
 
@@ -200,17 +255,21 @@ export default function MessageThread({
       });
 
     // Recovery path for a sleeping tab or a temporarily dropped socket.
-    const timer = setInterval(() => void load(), 30_000);
-    const refresh = () => void load();
     const refreshWhenVisible = () => {
-      if (document.visibilityState === "visible") void load();
+      if (document.visibilityState === "visible" && navigator.onLine)
+        void load();
     };
-    window.addEventListener("focus", refresh);
+    const timer = setInterval(() => {
+      if (loadingRequests.current === 0) refreshWhenVisible();
+    }, 10_000);
+    window.addEventListener("focus", refreshWhenVisible);
+    window.addEventListener("online", refreshWhenVisible);
     document.addEventListener("visibilitychange", refreshWhenVisible);
     return () => {
       loadVersion.current += 1;
       clearInterval(timer);
-      window.removeEventListener("focus", refresh);
+      window.removeEventListener("focus", refreshWhenVisible);
+      window.removeEventListener("online", refreshWhenVisible);
       document.removeEventListener("visibilitychange", refreshWhenVisible);
       void supabase.removeChannel(channel);
     };
@@ -235,13 +294,28 @@ export default function MessageThread({
     let uploadedPath: string | null = null;
     try {
       if (attachment) {
-        const extensions: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+        const extensions: Record<string, string> = {
+          "image/jpeg": "jpg",
+          "image/png": "png",
+          "image/webp": "webp",
+        };
         const mimeType = attachmentMimeType(attachment);
         const extension = mimeType ? extensions[mimeType] : null;
-        if (!mimeType || !extension || attachment.size <= 0 || attachment.size > 10 * 1024 * 1024) throw new Error("Choose a JPG, PNG or WebP photo up to 10 MB.");
+        if (
+          !mimeType ||
+          !extension ||
+          attachment.size <= 0 ||
+          attachment.size > 10 * 1024 * 1024
+        )
+          throw new Error("Choose a JPG, PNG or WebP photo up to 10 MB.");
         uploadedPath = `${bookingId}/${me}/${crypto.randomUUID()}.${extension}`;
         const { error: uploadError } = await withTimeout(
-          supabase.storage.from("booking-attachments").upload(uploadedPath, attachment, { contentType: mimeType, upsert: false }),
+          supabase.storage
+            .from("booking-attachments")
+            .upload(uploadedPath, attachment, {
+              contentType: mimeType,
+              upsert: false,
+            }),
           "The file upload took too long. Please try again.",
           30_000,
         );
@@ -249,8 +323,16 @@ export default function MessageThread({
       }
       const { data: sendResult, error: sendError } = await withTimeout(
         uploadedPath
-          ? supabase.rpc("send_booking_attachment", { p_booking_id: bookingId, p_body: trimmed || "Shared an attachment", p_path: uploadedPath, p_name: attachment!.name.slice(0, 160) })
-          : supabase.rpc("send_booking_message", { p_booking_id: bookingId, p_body: trimmed }),
+          ? supabase.rpc("send_booking_attachment", {
+              p_booking_id: bookingId,
+              p_body: trimmed || "Shared an attachment",
+              p_path: uploadedPath,
+              p_name: attachment!.name.slice(0, 160),
+            })
+          : supabase.rpc("send_booking_message", {
+              p_booking_id: bookingId,
+              p_body: trimmed,
+            }),
         "Sending took too long. Please try again.",
       );
       if (sendError) throw sendError;
@@ -268,13 +350,21 @@ export default function MessageThread({
       if (fileRef.current) fileRef.current.value = "";
       const refreshed = await load();
       if (!refreshed) {
-        setError("Message sent, but the conversation could not refresh. Reopen it to see the message.");
+        setError(
+          "Message sent, but the conversation could not refresh. Reopen it to see the message.",
+        );
       }
     } catch (failure) {
       if (uploadedPath) {
-        void supabase.storage.from("booking-attachments").remove([uploadedPath]);
+        void supabase.storage
+          .from("booking-attachments")
+          .remove([uploadedPath]);
       }
-      setError(failure instanceof Error ? failure.message : "The message could not be sent. Please try again.");
+      setError(
+        failure instanceof Error
+          ? failure.message
+          : "The message could not be sent. Please try again.",
+      );
     } finally {
       sending.current = false;
       setBusy(false);
@@ -287,7 +377,7 @@ export default function MessageThread({
   ).length;
 
   return (
-    <section style={bare ? bareCard : card}>
+    <section id="messages" style={bare ? bareCard : card}>
       {!bare && (
         <div style={{ ...head, marginBottom: minimized ? 0 : 12 }}>
           <div style={{ minWidth: 0 }}>
@@ -318,11 +408,15 @@ export default function MessageThread({
             aria-live="polite"
           >
             {!loaded ? (
-              <p style={muted}>Loading…</p>
+              <LoadingState title="Connecting your messages…" compact />
             ) : loadError && messages.length === 0 ? (
               <div style={{ textAlign: "center", padding: "14px 0" }}>
                 <p style={{ ...muted, padding: 0 }}>{loadError}</p>
-                <button type="button" onClick={() => void load()} style={retryButton}>
+                <button
+                  type="button"
+                  onClick={() => void load()}
+                  style={retryButton}
+                >
                   Try loading again
                 </button>
               </div>
@@ -369,16 +463,45 @@ export default function MessageThread({
                     >
                       {fromAdmin && <span style={badge}>Opulence Bliss</span>}
                       <span style={{ display: "block" }}>{message.body}</span>
-                      {(message.booking_message_attachments ?? []).map((file) => file.signedUrl ? (
-                        <a key={file.path} href={file.signedUrl} target="_blank" rel="noopener noreferrer" style={{ display: "block", marginTop: 8, color: "inherit", textDecoration: "underline" }}>
-                          {file.mime_type.startsWith("image/") && (
-                            // Private, short-lived Storage URLs cannot use the public image optimizer.
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={file.signedUrl} alt={file.name} loading="lazy" style={{ maxWidth: "100%", maxHeight: 220, borderRadius: 8 }} />
-                          )}
-                          {file.name}
-                        </a>
-                      ) : <span key={file.path}>Attachment unavailable. Reopen the conversation to retry.</span> )}
+                      {(message.booking_message_attachments ?? []).map(
+                        (file) =>
+                          file.signedUrl ? (
+                            <a
+                              key={file.path}
+                              href={file.signedUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                display: "block",
+                                marginTop: 8,
+                                color: "inherit",
+                                textDecoration: "underline",
+                              }}
+                            >
+                              {file.mime_type.startsWith("image/") && (
+                                // Private, short-lived Storage URLs cannot use the public image optimizer.
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={file.signedUrl}
+                                  alt={file.name}
+                                  loading="lazy"
+                                  style={{
+                                    maxWidth: "100%",
+                                    maxHeight: 220,
+                                    borderRadius: 8,
+                                  }}
+                                />
+                              )}
+                              {file.name}
+                            </a>
+                          ) : (
+                            <span key={file.path}>
+                              {file.previewPending
+                                ? "Loading photo…"
+                                : "Attachment unavailable. Reopen the conversation to retry."}
+                            </span>
+                          ),
+                      )}
                       <span
                         style={{
                           ...stamp,
@@ -416,7 +539,10 @@ export default function MessageThread({
                     style={reply === "Running late?" ? lateChip : chip}
                     disabled={busy || !loaded || !me}
                     onClick={() => {
-                      if (viewerRole === "provider" && reply === "Running late?") {
+                      if (
+                        viewerRole === "provider" &&
+                        reply === "Running late?"
+                      ) {
                         window.dispatchEvent(
                           new CustomEvent("opulence:report-delay", {
                             detail: { bookingId },
@@ -432,32 +558,68 @@ export default function MessageThread({
                 ))}
               </div>
 
-              <label style={{ display: "block", margin: "10px 0", fontSize: 13 }}>
-                Add a photo (JPG, PNG or WebP, up to 10 MB). Please only share photos related to your booking or the cleaning.
-                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || !loaded || !me}
+              <label
+                style={{ display: "block", margin: "10px 0", fontSize: 13 }}
+              >
+                Add a photo (JPG, PNG or WebP, up to 10 MB). Please only share
+                photos related to your booking or the cleaning.
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  disabled={busy || !loaded || !me}
                   onChange={(event) => {
                     const file = event.target.files?.[0] ?? null;
-                    if (file && (!attachmentMimeType(file) || file.size <= 0 || file.size > 10 * 1024 * 1024)) {
-                      setError("Choose a JPG, PNG or WebP photo up to 10 MB."); event.target.value = ""; setAttachment(null); return;
+                    if (
+                      file &&
+                      (!attachmentMimeType(file) ||
+                        file.size <= 0 ||
+                        file.size > 10 * 1024 * 1024)
+                    ) {
+                      setError("Choose a JPG, PNG or WebP photo up to 10 MB.");
+                      event.target.value = "";
+                      setAttachment(null);
+                      return;
                     }
-                    setError(null); setAttachment(file);
-                  }} />
+                    setError(null);
+                    setAttachment(file);
+                  }}
+                />
               </label>
-              {attachment && <button type="button" disabled={busy} onClick={() => { setAttachment(null); if (fileRef.current) fileRef.current.value = ""; }}>Remove {attachment.name}</button>}
+              {attachment && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setAttachment(null);
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
+                >
+                  Remove {attachment.name}
+                </button>
+              )}
               <p style={moderationNotice}>
-                <ShieldAlert size={15} aria-hidden="true" /> Messages are checked for hate speech, threats and abusive language.
+                <ShieldAlert size={15} aria-hidden="true" /> Messages are
+                checked for hate speech, threats and abusive language.
               </p>
               <div style={composer}>
                 <input
                   value={body}
                   onChange={(event) => setBody(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === "Enter" && !event.nativeEvent.isComposing) {
+                    if (
+                      event.key === "Enter" &&
+                      !event.nativeEvent.isComposing
+                    ) {
                       event.preventDefault();
                       void send(body);
                     }
                   }}
-                  placeholder={!loaded || !me ? "Connecting to messages…" : `Message ${other}…`}
+                  placeholder={
+                    !loaded || !me
+                      ? "Connecting to messages…"
+                      : `Message ${other}…`
+                  }
                   aria-label="Your message"
                   disabled={busy || !loaded || !me}
                   maxLength={2000}
@@ -466,13 +628,18 @@ export default function MessageThread({
                 <button
                   type="button"
                   onClick={() => void send(body)}
-                  disabled={busy || !loaded || !me || (!body.trim() && !attachment)}
+                  disabled={
+                    busy || !loaded || !me || (!body.trim() && !attachment)
+                  }
                   style={{
                     ...sendBtn,
                     ...(bare
                       ? { width: 46, height: 46, padding: 0, borderRadius: 999 }
                       : {}),
-                    opacity: busy || !loaded || !me || (!body.trim() && !attachment) ? 0.45 : 1,
+                    opacity:
+                      busy || !loaded || !me || (!body.trim() && !attachment)
+                        ? 0.45
+                        : 1,
                   }}
                   aria-label="Send message"
                 >
@@ -486,7 +653,11 @@ export default function MessageThread({
           {loadError && messages.length > 0 && (
             <p style={errStyle}>
               {loadError}{" "}
-              <button type="button" onClick={() => void load()} style={inlineRetryButton}>
+              <button
+                type="button"
+                onClick={() => void load()}
+                style={inlineRetryButton}
+              >
                 Refresh
               </button>
             </p>

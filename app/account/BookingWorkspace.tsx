@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import SessionCountdown from "@/components/SessionCountdown";
+import CleaningPackageScope from "@/components/CleaningPackageScope";
 import { useEffect, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import {
@@ -494,6 +495,8 @@ export default function BookingWorkspace({
             providerName={booking.provider.name}
           />
         )}
+
+        <CleaningPackageScope packageName={booking.service} />
 
         <div className="detail-grid">
           <section className="next-card">

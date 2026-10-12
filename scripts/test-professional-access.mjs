@@ -26,6 +26,13 @@ async function load(path, mocks = {}) {
     module,
     exports: module.exports,
     require: (id) => {
+      if (id.endsWith("MobileExperience"))
+        return { useAppAudience: () => null };
+      if (id === "@/lib/mobileExperience")
+        return {
+          appEntry: () => "/mobile/customer",
+          appPathAllowed: () => true,
+        };
       if (
         id === "@/lib/professionalPortal" ||
         id === "@/lib/professionalEarnings"

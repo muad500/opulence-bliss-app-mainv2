@@ -1,0 +1,100 @@
+.loading {
+  width: min(960px, 100%);
+  margin: 0 auto;
+  padding: 32px 22px;
+  box-sizing: border-box;
+  color: var(--ob-text, #16202a);
+  font-family: var(--font-nunito), system-ui, sans-serif;
+}
+.compact {
+  width: 100%;
+  padding: 16px 0;
+}
+.heading {
+  display: flex;
+  gap: 13px;
+  align-items: center;
+}
+.heading strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 850;
+}
+.heading p {
+  margin: 4px 0 0;
+  color: var(--ob-muted, #6b7280);
+  font-size: 13px;
+}
+.spinner {
+  width: 23px;
+  height: 23px;
+  flex: 0 0 auto;
+  border: 3px solid var(--ob-border, #e4e7eb);
+  border-top-color: var(--ob-purple, #6d28d9);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+.skeleton {
+  margin-top: 26px;
+}
+.line,
+.shortLine,
+.cards > div {
+  background: linear-gradient(
+    100deg,
+    var(--ob-surface-soft, #f2f4f7) 20%,
+    var(--ob-surface, #fff) 45%,
+    var(--ob-surface-soft, #f2f4f7) 70%
+  );
+  background-size: 240% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: 12px;
+}
+.line {
+  height: 24px;
+  max-width: 320px;
+}
+.shortLine {
+  height: 14px;
+  max-width: 220px;
+  margin-top: 12px;
+}
+.cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+.cards > div {
+  min-height: 170px;
+  border: 1px solid var(--ob-border, #e4e7eb);
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@media (max-width: 540px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+  .cards > div {
+    min-height: 130px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner,
+  .line,
+  .shortLine,
+  .cards > div {
+    animation: none;
+  }
+}
