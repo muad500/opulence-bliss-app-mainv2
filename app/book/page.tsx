@@ -15,6 +15,8 @@ import { isStoredUkPhone, isValidUkPhone } from "@/lib/ukPhone";
 import { EARLY_START_REQUEST_TEXT, startsWithinCancellationPeriod } from "@/lib/cancellationPeriod";
 import { assistantBookingHandoff, type AssistantPackage } from "@/lib/assistantBooking";
 import { CANCELLATION_REFUND_URL } from "@/lib/legal";
+import CleaningPackageScope from "@/components/CleaningPackageScope";
+import { cleaningPackageScope } from "@/lib/cleaningScope";
 
 const supabase = createClient();
 
@@ -687,9 +689,9 @@ export default function BookPage() {
                   <div>
                     <span>Selected session</span>
                     <strong>{selected.name}</strong>
-                    <p>{selected.description ?? "Professional home cleaning tailored to this visit."}</p>
+                    <p>{cleaningPackageScope(selected.name)?.purpose ?? selected.description ?? "Professional home cleaning tailored to this visit."}</p>
                   </div>
-                  {(selected.inclusions?.length || selected.good_to_know?.length) && (
+                  {!cleaningPackageScope(selected.name) && (selected.inclusions?.length || selected.good_to_know?.length) && (
                     <ul>
                       {[...(selected.inclusions ?? []), ...(selected.good_to_know ?? [])]
                         .slice(0, 4)
@@ -698,6 +700,7 @@ export default function BookPage() {
                   )}
                 </div>
               )}
+              {selected && <CleaningPackageScope key={selected.id} packageName={selected.name} />}
 
               <button
                 className="next"
@@ -825,9 +828,9 @@ export default function BookPage() {
                 </div>
                 {home && (
                   <div className="homeSuggestion">
-                    <span>Suggested starting point: <strong>{duration(recommendedCleaningMinutesForHome(home))}</strong>. Your cleaner will see these home details.</span>
+                    <span>Suggested starting point: <strong>{duration(recommendedCleaningMinutesForHome(home, selected.name))}</strong>. Time depends on your property and agreed tasks. Your cleaner will see these home details.</span>
                     <button type="button" onClick={() => {
-                      setCleaningMinutes(recommendedCleaningMinutesForHome(home));
+                      setCleaningMinutes(recommendedCleaningMinutesForHome(home, selected.name));
                       setPromoInfo(null);
                       setSlot(null);
                       setOptionalSlots([]);
@@ -990,6 +993,7 @@ export default function BookPage() {
               )}
 
               <p>{frequencyLabel(frequency)} · {duration(minutes)}{preferredCleaner ? ` · Requested cleaner: ${previousCleaners.find((p) => p.provider_id === preferredCleaner)?.display_name ?? "Previous cleaner"}` : ""}</p>
+              <CleaningPackageScope packageName={selected.name} />
               {policyError && (
                 <>
                   <p className="flash no" role="alert">{policyError}</p>

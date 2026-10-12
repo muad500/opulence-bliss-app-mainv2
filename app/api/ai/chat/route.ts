@@ -20,6 +20,7 @@ import { getRescheduleWindow } from "@/lib/bookingState";
 import { getVisitStatus } from "@/lib/visitStatus";
 import { assistantServices, assistantCoverage, assistantSlots, prepareAssistantBooking } from "@/lib/assistantBookingServer";
 import { assistantHistory, relevantAssistantFaqs, ASSISTANT_GUIDANCE } from "@/lib/assistantKnowledge";
+import { CLEANING_SERVICE_RULES } from "@/lib/cleaningScope";
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -1093,6 +1094,7 @@ export async function POST(req: NextRequest) {
     const knowledge = JSON.stringify({
       faqs: faqResult.error ? [] : relevantAssistantFaqs(faqResult.data ?? [], question),
       services,
+      cleaning_service_rules: CLEANING_SERVICE_RULES,
       sources: ["/faq", "/services/cleaning"],
       faq_status: faqResult.error ? "Unavailable: do not guess policy answers." : "Current published FAQs",
     });

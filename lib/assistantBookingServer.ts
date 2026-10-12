@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cleaningPackageScope } from "./cleaningScope";
 import {
   compareCleaningSessions,
   cleaningHourlyRatePence,
@@ -24,6 +25,7 @@ export async function assistantServices(db: SupabaseClient) {
     .sort(compareCleaningSessions)
     .map((pkg) => ({
       ...pkg,
+      scope: cleaningPackageScope(pkg.name),
       hourly_rate_gbp: cleaningHourlyRatePence(pkg) / 100,
       pricing_note:
         "Hourly rate per cleaner. Choose 2–8 hours in half-hour steps; checkout confirms the final total.",

@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { compareCleaningSessions } from "@/lib/cleaningBooking";
+import CleaningPackageScope from "@/components/CleaningPackageScope";
+import { cleaningPackageScope, CLEANING_SUPPLIES_FAQ, CLEANING_LAUNDRY_FAQ } from "@/lib/cleaningScope";
 
 const supabase = createClient();
 
@@ -77,7 +79,7 @@ const COPY: Record<
     ticks: [
       "Approved, DBS-verified cleaners in your area",
       "One-off or regular cleaning",
-      "All products and equipment included",
+      "Your products and equipment, or a paid supplies option",
       "Book online 24/7 · visits finish by 8pm",
     ],
     proLink: "/provider/join",
@@ -103,7 +105,7 @@ const COPY: Record<
       },
       {
         q: "Can I add ironing or laundry?",
-        a: "Yes. This can be requested as an additional cleaning service. Please let us know when booking so we can allow enough time.",
+        a: CLEANING_LAUNDRY_FAQ,
       },
       {
         q: "Do you clean windows?",
@@ -111,7 +113,7 @@ const COPY: Record<
       },
       {
         q: "Do cleaners bring products and equipment?",
-        a: "This depends on the service and your booking. If you have preferred products or specific equipment, please let us know in advance. We will confirm what is required before the appointment.",
+        a: CLEANING_SUPPLIES_FAQ,
       },
       {
         q: "Can you clean homes with pets?",
@@ -485,10 +487,10 @@ export default function ServicePage() {
                         <p className="detail-price">
                           <span>{selected.name === "Essential Clean" ? "Six-visit minimum · paid upfront · price shown when you book" : "Two-hour minimum · price shown when you book"}</span>
                         </p>
-                        {selected.description && (
+                        {!cleaningPackageScope(selected.name) && selected.description && (
                           <p className="detail-desc">{selected.description}</p>
                         )}
-                        {selected.inclusions && selected.inclusions.length > 0 && (
+                        {!cleaningPackageScope(selected.name) && selected.inclusions && selected.inclusions.length > 0 && (
                           <>
                             <p className="detail-label">What&apos;s included</p>
                             <ul className="detail-list">
@@ -509,6 +511,7 @@ export default function ServicePage() {
                               </ul>
                             </>
                           )}
+                        <CleaningPackageScope key={selected.id} packageName={selected.name} expanded />
                       </div>
                       <a className="btn detail-cta" href={bookLink}>
                         Book this
