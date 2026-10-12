@@ -61,6 +61,13 @@ html[data-opulence-app] [data-app-application] {
 html[data-opulence-app] [data-app-application] h1 {
   font-size: 30px;
 }
+html[data-opulence-app] [data-app-service-catalogue] .mobile-service-cta,
+html[data-opulence-app] [data-app-service-catalogue] .composer input {
+  display: none !important;
+}
+html[data-opulence-app] [data-app-service-catalogue] .composer .btn {
+  display: inline-flex !important;
+}
 @media (min-width: 720px) {
   html[data-opulence-app] [data-app-content] {
     max-width: 720px;
