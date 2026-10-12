@@ -11,16 +11,16 @@ export function GET(request: Request) {
   }
 
   return Response.json(
-    [
-      {
+    [certificate.packageName, certificate.workerPackageName].map(
+      (packageName) => ({
         relation: ["delegate_permission/common.handle_all_urls"],
         target: {
           namespace: "android_app",
-          package_name: certificate.packageName,
+          package_name: packageName,
           sha256_cert_fingerprints: [certificate.sha256Fingerprint],
         },
-      },
-    ],
+      }),
+    ),
     { headers: { "Cache-Control": "public, max-age=3600" } },
   );
 }

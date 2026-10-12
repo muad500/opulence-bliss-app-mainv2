@@ -1,0 +1,104 @@
+.page {
+  padding: 22px 16px;
+  max-width: 660px;
+  margin: auto;
+  color: var(--ob-text);
+}
+.page > h1 {
+  font-size: 27px;
+  margin: 0 0 10px;
+}
+.page > p {
+  font-size: 15px;
+  color: var(--ob-muted);
+  line-height: 1.5;
+}
+.page > a {
+  display: block;
+  margin-top: 14px;
+  text-align: center;
+  color: var(--ob-purple);
+  font-weight: 900;
+}
+.signIn {
+  background: var(--ob-purple);
+  color: white !important;
+  padding: 15px;
+  border-radius: 16px;
+  text-decoration: none;
+}
+.identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 26px;
+}
+.identity > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 54px;
+  height: 54px;
+  border-radius: 18px;
+  background: var(--ob-purple-soft);
+  color: var(--ob-purple);
+  font-size: 23px;
+  font-weight: 900;
+}
+.identity > div {
+  min-width: 0;
+}
+.identity h1 {
+  font-size: 21px;
+  margin: 0 0 5px;
+  font-weight: 900;
+}
+.identity p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ob-muted);
+  overflow-wrap: anywhere;
+}
+.list {
+  border: 1px solid var(--ob-border);
+  border-radius: 22px;
+  overflow: hidden;
+  background: var(--ob-surface);
+}
+.list > a,
+.list > div {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px;
+  text-decoration: none;
+  color: var(--ob-purple);
+  min-height: 76px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--ob-border);
+}
+.list > a:last-child,
+.list > div:last-child {
+  border-bottom: 0;
+}
+.list svg {
+  flex-shrink: 0;
+}
+.list > * > div {
+  flex: 1;
+  min-width: 0;
+}
+.list strong {
+  display: block;
+  color: var(--ob-text);
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.list small {
+  display: block;
+  color: var(--ob-muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.locked {
+  opacity: 0.6;
+}

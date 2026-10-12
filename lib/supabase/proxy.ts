@@ -9,6 +9,7 @@ export async function updateSession(request: NextRequest) {
   });
   const PUBLIC = [
     "/api",
+    "/mobile",
     "/login",
     "/book",
     "/services",

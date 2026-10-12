@@ -25,7 +25,7 @@ const data = {
   name: "Opulence Bliss",
   launcherName: "Opulence Bliss",
   display: "standalone",
-  startUrl: "/",
+  startUrl: "/mobile/customer",
   themeColor: "#6d28d9",
   themeColorDark: "#6d28d9",
   navigationColor: "#ffffff",
@@ -36,13 +36,14 @@ const data = {
   enableNotifications: false,
   enableSiteSettingsShortcut: true,
   splashScreenFadeOutDuration: 250,
-  appVersion: "1.0.0",
-  appVersionCode: 1,
+  appVersion: "1.1.0",
+  appVersionCode: 2,
   minSdkVersion: 24,
   orientation: "default",
   iconUrl: "https://www.opulencebliss.com/icons/app-512.png",
   maskableIconUrl: "https://www.opulencebliss.com/icons/app-maskable-512.png",
-  webManifestUrl: "https://www.opulencebliss.com/manifest.webmanifest",
+  webManifestUrl:
+    "https://www.opulencebliss.com/mobile/customer/manifest.webmanifest",
   fullScopeUrl: "https://www.opulencebliss.com/",
   fallbackType: "customtabs",
   signingKey: { path: "./opulence-bliss.jks", alias: "opulence-bliss" },
@@ -54,19 +55,13 @@ const data = {
     {
       name: "Book a clean",
       shortName: "Book",
-      url: "/book",
+      url: "/mobile/customer?screen=book",
       chosenIconUrl: "https://www.opulencebliss.com/icons/app-192.png",
     },
     {
-      name: "My account",
-      shortName: "Account",
-      url: "/account",
-      chosenIconUrl: "https://www.opulencebliss.com/icons/app-192.png",
-    },
-    {
-      name: "My jobs",
-      shortName: "Jobs",
-      url: "/worker",
+      name: "My bookings",
+      shortName: "Bookings",
+      url: "/mobile/customer?screen=bookings",
       chosenIconUrl: "https://www.opulencebliss.com/icons/app-192.png",
     },
   ],
@@ -171,6 +166,7 @@ try {
     new URL("./android/twa-manifest.json", import.meta.url),
     JSON.stringify(data, null, 2) + "\n",
   );
+  await import("./configure-flavors.mjs");
   console.log("Android project generated for https://www.opulencebliss.com.");
 } finally {
   server.closeIdleConnections();

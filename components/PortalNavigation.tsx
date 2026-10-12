@@ -350,7 +350,7 @@ export default function PortalNavigation({
 
   return (
     <>
-      <aside
+      <aside data-website-nav
         className={`${styles.desktop} ${collapsed ? styles.collapsed : ""}`}
         aria-label={`${professional ? "Professional" : "Client"} portal navigation`}
       >
@@ -428,7 +428,7 @@ export default function PortalNavigation({
         {renderFooter()}
       </aside>
 
-      <div className={styles.mobileTop}>
+      <div data-website-nav className={styles.mobileTop}>
         <Link href="/" className={styles.mobileBrand}>
           opulence<span>bliss</span>
         </Link>
@@ -450,7 +450,7 @@ export default function PortalNavigation({
         </div>
       </div>
 
-      <nav className={styles.mobileTabs} aria-label="Quick portal navigation">
+      <nav data-website-nav className={styles.mobileTabs} aria-label="Quick portal navigation">
         {items
           .filter((item) => item.bottom && !item.locked)
           .slice(0, 4)
@@ -487,7 +487,7 @@ export default function PortalNavigation({
             aria-label="Close account menu"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside
+          <aside data-website-nav
             id="portal-mobile-drawer"
             role="dialog"
             aria-modal="true"

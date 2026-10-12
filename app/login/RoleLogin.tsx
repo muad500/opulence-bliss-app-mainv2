@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useAppAudience } from "@/components/MobileExperience";
+import { appEntry, appPathAllowed } from "@/lib/mobileExperience";
 import GoogleAuthButton from "@/components/GoogleAuthButton";
 import { canUseProfessionalTools } from "@/lib/professionalAccess";
 
@@ -19,7 +21,7 @@ const COPY = {
     switchText: "Are you an Opulence Bliss professional?",
     switchLabel: "Sign in as a pro",
     switchHref: "/provider/login",
-    signupText: "New client?",
+    signupText: "New here?",
     signupLabel: "Sign up",
     signupHref: "/auth/sign-up",
   },
@@ -38,6 +40,7 @@ const COPY = {
 } as const;
 
 export default function RoleLogin({ mode }: { mode: Mode }) {
+  const audience = useAppAudience();
   const content = COPY[mode];
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -114,8 +117,15 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
       details?.last_account_mode === "professional"
         ? "/worker"
         : content.destination;
-    window.location.href =
-      next?.startsWith("/") && !next.startsWith("//") ? next : destination;
+    window.location.href = audience
+      ? next?.startsWith("/") &&
+        !next.startsWith("//") &&
+        appPathAllowed(audience, next.split("?")[0])
+        ? next
+        : appEntry(audience, audience === "customer" ? "bookings" : undefined)
+      : next?.startsWith("/") && !next.startsWith("//")
+        ? next
+        : destination;
   }
 
   function submit() {
@@ -136,6 +146,7 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
           <>
             <GoogleAuthButton
               label="Continue with Google"
+              next={audience ? appEntry(audience, "bookings") : undefined}
               onError={(message) => setErr(message || null)}
             />
             <p className="google-terms">
@@ -185,7 +196,7 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
 
         {err && <p className="error">{err}</p>}
 
-        <div className="switch-role">
+        <div data-mobile-switch className="switch-role">
           <span>{content.switchText}</span>
           <a href={content.switchHref}>{content.switchLabel} →</a>
         </div>
@@ -196,7 +207,7 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
         </p>
 
         <Link className="home" href="/">
-          ← Back to website
+          {audience ? "Back to home" : "← Back to website"}
         </Link>
       </section>
 

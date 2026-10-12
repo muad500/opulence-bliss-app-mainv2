@@ -59,7 +59,7 @@ const columns: Array<{
 
 export default function SiteFooter() {
   return (
-    <footer className={styles.footer}>
+    <footer data-website-footer className={styles.footer}>
       <div className={styles.glow} aria-hidden="true" />
       <div className={styles.inner}>
         <section className={styles.lead} aria-labelledby="footer-heading">

@@ -133,6 +133,13 @@ async function load(file, mocks = {}, globals = {}) {
     Date,
     ...globals,
     require: (id) => {
+      if (id.endsWith("MobileExperience"))
+        return { useAppAudience: () => null };
+      if (id === "@/lib/mobileExperience")
+        return {
+          appEntry: () => "/mobile/customer",
+          appPathAllowed: () => true,
+        };
       const mock = mocks[id];
       if (mock) return "default" in mock ? { __esModule: true, ...mock } : mock;
       if (id.endsWith(".module.css")) return { __esModule: true, default: {} };

@@ -1,0 +1,67 @@
+html[data-opulence-app] {
+  overscroll-behavior-y: none;
+  scroll-padding-top: 82px;
+  scroll-padding-bottom: 90px;
+}
+html[data-opulence-app] body {
+  background: var(--ob-page);
+  padding-bottom: calc(82px + env(safe-area-inset-bottom));
+  -webkit-tap-highlight-color: transparent;
+}
+html[data-opulence-app] [data-website-header],
+html[data-opulence-app] [data-website-footer],
+html[data-opulence-app] [data-website-nav],
+html[data-opulence-app] [data-mobile-switch],
+html[data-opulence-app] [data-work-recruitment],
+html[data-opulence-app] .site {
+  display: none !important;
+}
+html[data-opulence-app] .portal-shell {
+  display: block;
+  min-height: 0 !important;
+}
+html[data-opulence-app] .portal-main {
+  padding: 16px 14px 32px !important;
+}
+html[data-opulence-app] .login-shell,
+html[data-opulence-app] .signup-shell {
+  min-height: 0 !important;
+  padding: 20px 14px !important;
+  background: transparent !important;
+}
+html[data-opulence-app] .login-card,
+html[data-opulence-app] .signup-card {
+  box-shadow: none !important;
+  padding: 24px 20px !important;
+  border-radius: 20px !important;
+}
+html[data-opulence-app] button,
+html[data-opulence-app] input,
+html[data-opulence-app] select {
+  touch-action: manipulation;
+}
+html[data-opulence-app] input,
+html[data-opulence-app] select,
+html[data-opulence-app] textarea {
+  font-size: 16px !important;
+}
+html[data-opulence-app="customer"] a[href^="/provider"],
+html[data-opulence-app="customer"] a[href^="/worker"] {
+  display: none !important;
+}
+html[data-opulence-app] aside[aria-label="Account at a glance"] {
+  display: none;
+}
+@media (min-width: 720px) {
+  html[data-opulence-app] [data-app-content] {
+    max-width: 720px;
+    margin: auto;
+  }
+}
+html[data-opulence-app="worker"] [data-app-chat] {
+  display: none;
+}
+html[data-opulence-app="worker"] a[href^="/account"],
+html[data-opulence-app="worker"] a[href="/login"] {
+  display: none !important;
+}

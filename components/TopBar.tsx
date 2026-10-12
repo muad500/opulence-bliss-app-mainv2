@@ -70,7 +70,7 @@ export default function TopBar() {
     role === "admin" ? "Admin" : role === "provider" ? "Provider" : "Signed in";
 
   return (
-    <div className="strip">
+    <div data-website-header className="strip">
       <span>
         {label} · <strong>{email}</strong>
       </span>

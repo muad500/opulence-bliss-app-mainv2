@@ -29,6 +29,13 @@ async function load(relativePath, mocks, env = process.env) {
       module,
       exports: module.exports,
       require: (id) => {
+        if (id.endsWith("MobileExperience"))
+          return { useAppAudience: () => null };
+        if (id === "@/lib/mobileExperience")
+          return {
+            appEntry: () => "/mobile/customer",
+            appPathAllowed: () => true,
+          };
         if (id === "@/lib/professionalServices") return services;
         if (id === "@/lib/handymanMarketplace")
           return {

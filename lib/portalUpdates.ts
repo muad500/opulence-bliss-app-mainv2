@@ -2,7 +2,9 @@ export const PORTAL_DATA_UPDATED = "opulence:portal-updated";
 export const PORTAL_REFRESH_REQUESTED = "opulence:refresh";
 
 export function portalRefreshInterval(path: string) {
-  return path === "/account" ||
+  return path === "/mobile/customer" ||
+    path === "/mobile/worker" ||
+    path === "/account" ||
     path === "/worker" ||
     path.startsWith("/account/visit/") ||
     path.startsWith("/worker/job/") ||

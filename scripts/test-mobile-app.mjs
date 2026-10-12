@@ -51,19 +51,41 @@ test("Android association matches the signing certificate and excludes the admin
   }
 });
 
-test("app manifest keeps professional access behind the existing worker gate", async () => {
-  const { default: manifest } = await loadModule("app/manifest.ts");
-  const app = manifest();
-  assert.equal(app.start_url, "/");
-  assert.equal(app.display, "standalone");
-  assert.equal(
-    app.shortcuts.find((shortcut) => shortcut.name === "My jobs").url,
-    "/worker",
+test("customer and worker manifests have independent launches and no cross-role shortcuts", async () => {
+  const experience = await loadModule("lib/mobileExperience.ts");
+  const { mobileManifest } = await loadModule("lib/mobileManifest.ts", {
+    "./mobileExperience": experience,
+  });
+  const { default: manifest } = await loadModule("app/manifest.ts", {
+    "@/lib/mobileManifest": { mobileManifest },
+  });
+  const customer = manifest(),
+    worker = mobileManifest("worker");
+  assert.equal(customer.start_url, "/mobile/customer");
+  assert.equal(worker.start_url, "/mobile/worker");
+  assert.equal(customer.display, "standalone");
+  assert.doesNotMatch(
+    JSON.stringify(customer),
+    /My jobs|professional jobs|worker|client account/i,
   );
-  assert.equal(
-    app.shortcuts.some((shortcut) => shortcut.url.startsWith("/admin")),
-    false,
+  assert.doesNotMatch(
+    JSON.stringify(worker.shortcuts),
+    /Book a clean|bookings/i,
   );
+  assert.notEqual(customer.id, worker.id);
+  assert.equal(
+    worker.shortcuts.find((item) => item.name === "My jobs").url,
+    "/mobile/worker?screen=jobs",
+  );
+  assert.equal(experience.appPathAllowed("customer", "/worker/jobs"), false);
+  assert.equal(experience.appPathAllowed("customer", "/provider/join"), false);
+  assert.equal(experience.appPathAllowed("worker", "/book"), false);
+  assert.equal(
+    experience.appPathAllowed("worker", "/worker/application"),
+    true,
+  );
+  assert.equal(experience.appScreen("customer", "jobs"), null);
+  assert.equal(experience.appScreen("worker", "book"), null);
 });
 
 test("offline support never caches private pages, API responses or payment requests", async () => {

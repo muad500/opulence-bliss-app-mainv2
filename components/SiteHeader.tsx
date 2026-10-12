@@ -208,7 +208,7 @@ export default function SiteHeader() {
     return null;
 
   return (
-    <header style={wrap}>
+    <header data-website-header style={wrap}>
       {/* ---------- row 1 ---------- */}
       <div className="site-header-bar" style={bar}>
         <Link href="/" className="site-logo" style={logo}>

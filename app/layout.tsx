@@ -5,7 +5,9 @@
 import type { Metadata, Viewport } from "next";
 import { Nunito } from "next/font/google";
 import "./globals.css";
+import "./mobile-app.css";
 
+import MobileExperience from "@/components/MobileExperience";
 import TopBar from "@/components/TopBar";
 import SiteHeader from "@/components/SiteHeader";
 import Toaster from "@/components/Toaster";
@@ -61,14 +63,24 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body>
-        <MobileAppSupport />
-        <EnvironmentBanner />
-        <TopBar />
-        <SiteHeader />
-        {children}
-        <Toaster />
-        <RatingGate />
-        <SupportChat />
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              'try{var p=location.pathname,m=p.startsWith("/mobile/customer")?"customer":p.startsWith("/mobile/worker")?"worker":sessionStorage.getItem("opulence-app-audience");if(m==="customer"||m==="worker")document.documentElement.dataset.opulenceApp=m;}catch{}',
+          }}
+        />
+        <MobileExperience>
+          <MobileAppSupport />
+          <EnvironmentBanner />
+          <TopBar />
+          <SiteHeader />
+          {children}
+          <Toaster />
+          <RatingGate />
+          <div data-app-chat>
+            <SupportChat />
+          </div>
+        </MobileExperience>
       </body>
     </html>
   );

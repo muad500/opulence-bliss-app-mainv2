@@ -377,7 +377,7 @@ export default function MessageThread({
   ).length;
 
   return (
-    <section style={bare ? bareCard : card}>
+    <section id="messages" style={bare ? bareCard : card}>
       {!bare && (
         <div style={{ ...head, marginBottom: minimized ? 0 : 12 }}>
           <div style={{ minWidth: 0 }}>

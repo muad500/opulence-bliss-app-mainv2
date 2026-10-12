@@ -1,13 +1,13 @@
 # Opulence Bliss Android
 
-Android application ID: `com.opulencebliss.app`. Version: `1.0.0` (code `1`).
-Requires Android 7 or later and a browser supporting Trusted Web Activities.
+Two separately installable Android apps use the same secure booking backend:
 
-The app launches `https://www.opulencebliss.com` using Android Browser Helper.
-Google sign-in and Stripe Checkout use browser tabs and the existing website
-sessions. It contains no payment keys, Supabase service keys or embedded passwords.
-External origins, including Google, Stripe and the staff subdomain, remain browser
-tabs with their addresses visible. The app does not bypass professional approval.
+- **Opulence Bliss**: `com.opulencebliss.app`, version 1.1.0 (code 2), starts at `/mobile/customer`. Home, Bookings, Inbox and Account. Customer sign-up has no professional recruitment or role switch.
+- **Opulence Bliss Pro**: `com.opulencebliss.worker`, version 1.0.0 (code 1), starts at `/mobile/worker`. Today, Jobs, Inbox and Account, with availability, earnings and application details. Job tools remain protected by server approval checks.
+
+The customer package and signing certificate are retained so it updates the first APK. The Pro app has a distinct launcher name, icon, shortcuts and verified link path, so both apps can be installed together. The apps do not change the user's shared website account or stored account mode.
+
+Both use Android Browser Helper and dedicated app screens with touch navigation, safe-area spacing and keyboard-aware bottom tabs. They are web-backed apps, not a native offline booking engine. Google sign-in and Stripe Checkout still use secure browser flows. App presentation is scoped to the current app tab; a normal new website tab retains the website menus. No payment keys, service-role keys or passwords are embedded in either app.
 
 ## Build
 
@@ -30,7 +30,7 @@ The local `signing.json` has the signing password and alias; the keystore is
 and hand them to the client through a secure method before production ownership
 handover. The public fingerprint is in `android/signing-certificate.json`.
 
-`https://www.opulencebliss.com/.well-known/assetlinks.json` must return that
+`https://www.opulencebliss.com/.well-known/assetlinks.json` must return both package identities with that
 fingerprint without redirecting. It deliberately returns 404 on the admin host.
 If Google Play App Signing uses a different certificate, add its app-signing
 fingerprint to the website association before Play testing. Do not substitute the
@@ -52,7 +52,7 @@ OAuth client or extra API keys are required by this browser-based app.
 - Install the APK, verify the launch is full screen and the icon is legible.
 - Test Back, rotation, keyboard, photo/file uploads and location permissions.
 - Sign in with email and Google; sign out and sign in again.
-- Check client bookings and an approved professional's jobs/account mode.
+- Check bookings in the customer app and approved jobs in the Pro app. Confirm neither exposes an account-mode switch.
 - Verify pending applicants cannot enter job tools.
 - Check offline screens do not claim that a booking or payment succeeded.
 - Exercise Stripe card authentication and payment returns on a separate staging
