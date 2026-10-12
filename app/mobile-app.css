@@ -13,6 +13,7 @@ html[data-opulence-app] [data-website-footer],
 html[data-opulence-app] [data-website-nav],
 html[data-opulence-app] [data-mobile-switch],
 html[data-opulence-app] [data-work-recruitment],
+html[data-opulence-app] [data-website-marketing],
 html[data-opulence-app] .site {
   display: none !important;
 }
@@ -51,6 +52,14 @@ html[data-opulence-app="customer"] a[href^="/worker"] {
 }
 html[data-opulence-app] aside[aria-label="Account at a glance"] {
   display: none;
+}
+html[data-opulence-app] [data-app-application] {
+  min-height: 0;
+  background: transparent;
+  padding-bottom: 24px;
+}
+html[data-opulence-app] [data-app-application] h1 {
+  font-size: 30px;
 }
 @media (min-width: 720px) {
   html[data-opulence-app] [data-app-content] {

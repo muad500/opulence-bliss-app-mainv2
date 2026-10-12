@@ -31,18 +31,25 @@ export default function MobileAppChrome({
   const router = useRouter();
   const [keyboard, setKeyboard] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [signedIn, setSignedIn] = useState(false);
+  const [signOutError, setSignOutError] = useState("");
   const [canWork, setCanWork] = useState(false);
   useEffect(() => {
-    if (audience !== "worker") return;
     let alive = true;
     const load = () => {
       void fetch("/api/mobile/context", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((data) => {
-          if (alive) setCanWork(data?.canWork === true);
+          if (alive) {
+            setSignedIn(data?.signedIn === true);
+            setCanWork(data?.canWork === true);
+          }
         })
         .catch(() => {
-          if (alive) setCanWork(false);
+          if (alive) {
+            setSignedIn(false);
+            setCanWork(false);
+          }
         });
     };
     load();
@@ -53,7 +60,7 @@ export default function MobileAppChrome({
       window.removeEventListener("opulence:portal-updated", load);
       window.removeEventListener("focus", load);
     };
-  }, [audience]);
+  }, [audience, path]);
   const tabs = appTabs(audience);
   const current =
     (path.startsWith("/account/profile") || path.startsWith("/worker/profile")
@@ -72,16 +79,18 @@ export default function MobileAppChrome({
     ? "Sign in"
     : path.includes("sign-up")
       ? "Create account"
-      : path.includes("/book") && !path.startsWith("/account")
-        ? "Book a clean"
-        : path.includes("/availability")
-          ? "Availability"
-          : path.includes("/earnings")
-            ? "Earnings"
-            : path.includes("/application")
-              ? "Your application"
-              : (current?.label ??
-                (audience === "customer" ? "Your visit" : "Your job"));
+      : path === "/provider/join"
+        ? "Apply to join"
+        : path.includes("/book") && !path.startsWith("/account")
+          ? "Book a clean"
+          : path.includes("/availability")
+            ? "Availability"
+            : path.includes("/earnings")
+              ? "Earnings"
+              : path.includes("/application")
+                ? "Your application"
+                : (current?.label ??
+                  (audience === "customer" ? "Your visit" : "Your job"));
   useEffect(() => {
     const viewport = window.visualViewport;
     let baselineHeight = viewport?.height ?? window.innerHeight;
@@ -127,13 +136,18 @@ export default function MobileAppChrome({
   async function signOut() {
     if (signingOut) return;
     setSigningOut(true);
+    setSignOutError("");
     try {
       const { error } = await createClient().auth.signOut();
       if (error) throw error;
+      setSignedIn(false);
+      setCanWork(false);
       router.replace(appEntry(audience));
       router.refresh();
+      setSigningOut(false);
     } catch {
       setSigningOut(false);
+      setSignOutError("We couldn't sign you out. Please try again.");
     }
   }
   return (
@@ -160,22 +174,24 @@ export default function MobileAppChrome({
           <CircleHelp size={22} />
         </Link>
       </header>
-      {(path.endsWith("/profile") ||
-        (path.startsWith("/mobile/") && path.endsWith("/account"))) && (
-        <div className={styles.tools}>
-          {audience === "worker" && canWork && (
-            <>
-              <Link href="/worker/availability">Availability</Link>
-              <Link href="/worker/earnings">Earnings</Link>
-              <Link href="/worker/application">Application</Link>
-            </>
-          )}
-          <button onClick={() => void signOut()} disabled={signingOut}>
-            <LogOut size={16} />
-            {signingOut ? "Signing out…" : "Sign out"}
-          </button>
-        </div>
-      )}
+      {signedIn &&
+        (path.endsWith("/profile") ||
+          (path.startsWith("/mobile/") && path.endsWith("/account"))) && (
+          <div className={styles.tools}>
+            {audience === "worker" && canWork && (
+              <>
+                <Link href="/worker/availability">Availability</Link>
+                <Link href="/worker/earnings">Earnings</Link>
+                <Link href="/worker/application">Application</Link>
+              </>
+            )}
+            <button onClick={() => void signOut()} disabled={signingOut}>
+              <LogOut size={16} />
+              {signingOut ? "Signing out…" : "Sign out"}
+            </button>
+            {signOutError && <p role="alert">{signOutError}</p>}
+          </div>
+        )}
       <nav
         aria-label={
           audience === "customer" ? "App navigation" : "Work app navigation"

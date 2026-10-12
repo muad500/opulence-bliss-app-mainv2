@@ -108,7 +108,7 @@ test("worker app chrome locks job tools while approval is unresolved", async () 
   assert.match(html, /disabled/);
   assert.doesNotMatch(
     html,
-    /href="\/worker\/earnings"|href="\/worker\/availability"|Book a clean|Account mode/,
+    /href="\/worker\/earnings"|href="\/worker\/availability"|Book a clean|Account mode|Sign out/,
   );
 });
 

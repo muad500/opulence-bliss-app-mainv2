@@ -144,7 +144,7 @@ export default async function AccountMenu({
         {
           label: "Privacy & security",
           detail: "Download your data or request deletion",
-          href: "/account/profile#security",
+          href: "/account/profile#privacy",
           icon: ShieldCheck,
         },
         {
