@@ -312,11 +312,6 @@ export default function ServicePage() {
 
   return (
     <div className="page">
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap"
-      />
-
       {/* ---------- HERO ---------- */}
       <header className="hero">
         <div className="inner hero-grid">
@@ -662,7 +657,7 @@ export default function ServicePage() {
           --line: #EDEFF1;
           background: var(--cream);
           color: var(--ink);
-          font-family: "Nunito", system-ui, sans-serif;
+          font-family: var(--font-nunito), system-ui, sans-serif;
           padding-bottom: 40px;
         }
         .inner {
@@ -673,7 +668,7 @@ export default function ServicePage() {
         h1,
         h2,
         h3 {
-          font-family: "Nunito", system-ui, sans-serif;
+          font-family: var(--font-nunito), system-ui, sans-serif;
           font-weight: 900;
           color: var(--green);
         }
@@ -694,7 +689,7 @@ export default function ServicePage() {
           border-bottom: 1px solid var(--line);
         }
         .logo {
-          font-family: "Nunito", system-ui, sans-serif;
+          font-family: var(--font-nunito), system-ui, sans-serif;
           font-size: 23px;
           font-weight: 600;
           color: var(--green);
@@ -769,7 +764,7 @@ export default function ServicePage() {
           text-decoration: underline;
         }
         .tagline {
-          font-family: "Nunito", system-ui, sans-serif;
+          font-family: var(--font-nunito), system-ui, sans-serif;
           font-size: 19px;
           color: var(--green);
           margin: 0 0 20px;
@@ -970,7 +965,7 @@ export default function ServicePage() {
         }
         .lovecard strong {
           display: block;
-          font-family: "Nunito", system-ui, sans-serif;
+          font-family: var(--font-nunito), system-ui, sans-serif;
           font-size: 19px;
           color: var(--green);
           margin-bottom: 6px;
