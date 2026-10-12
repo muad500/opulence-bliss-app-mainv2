@@ -296,12 +296,15 @@ export default function ServicePage() {
       if (e.key === "Escape") closeSheet();
     };
     const prevOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
     document.body.classList.add("service-sheet-open");
     document.addEventListener("keydown", onKey);
     sheetRef.current?.focus();
     return () => {
       document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
       document.body.classList.remove("service-sheet-open");
       document.removeEventListener("keydown", onKey);
     };
@@ -1492,7 +1495,7 @@ export default function ServicePage() {
           .sheet-backdrop {
             position: fixed;
             inset: 0;
-            z-index: 80;
+            z-index: 120;
             display: block;
             background: rgba(22, 32, 42, 0.45);
             animation: sheet-fade 0.18s ease-out;
@@ -1502,16 +1505,17 @@ export default function ServicePage() {
             min-height: 0;
           }
           .detail-body {
-            flex: none;
-            overflow: visible;
+            flex: 1 1 auto;
+            min-height: 0;
+            overflow-y: auto;
           }
           .detail {
             position: fixed;
             inset: auto 0 0 0;
-            z-index: 81;
+            z-index: 121;
             max-height: 84vh;
             max-height: 84dvh;
-            overflow-y: auto;
+            overflow: hidden;
             -webkit-overflow-scrolling: touch;
             padding: 12px 18px calc(22px + env(safe-area-inset-bottom));
             border: 0;
@@ -1526,6 +1530,7 @@ export default function ServicePage() {
           }
           .detail-grip {
             display: block;
+            flex-shrink: 0;
             width: 42px;
             height: 4px;
             margin: 0 auto 14px;
