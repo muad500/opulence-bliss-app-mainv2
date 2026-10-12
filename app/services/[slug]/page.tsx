@@ -311,7 +311,7 @@ export default function ServicePage() {
   }, [isNarrow, selected, closeSheet]);
 
   return (
-    <div className="page">
+    <div className="page" data-app-service-catalogue>
       {/* ---------- HERO ---------- */}
       <header className="hero">
         <div className="inner hero-grid">
@@ -511,7 +511,7 @@ export default function ServicePage() {
                           )}
                         <CleaningPackageScope key={selected.id} packageName={selected.name} expanded />
                       </div>
-                      <a className="btn detail-cta" href={bookLink}>
+                      <a className="btn detail-cta" href={`${bookLink}&service=${encodeURIComponent(selected.id)}`}>
                         Book this
                       </a>
                     </div>
