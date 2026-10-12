@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-
 /* eslint-disable @next/next/no-html-link-for-pages */
 
 // SETUP: code "app/page.tsx"
@@ -153,23 +151,23 @@ export default function Home() {
                 onChange={(e) => setPostcode(e.target.value)}
                 aria-label="Postcode"
               />
-              <Link className="btn" href={bookLink}>
+              <a className="btn" href={bookLink}>
                 Book my cleaning
-              </Link>
+              </a>
             </div>
             <a className="btn mobile-book" href="#services">
               Book a service
             </a>
             <p className="micro">Simple pay per visit booking down there</p>
-            <Link className="hero-quote" href="/services/handyman">
+            <a className="hero-quote" href="/services/handyman">
               Need something repaired or installed? Request a handyman quote →
-            </Link>
+            </a>
           </div>
         </header>
 
         {/* ---------- SERVICE BANDS ---------- */}
         <section className="bands" id="services">
-          <Link
+          <a
             className="band clean"
             href="/services/cleaning#cleaning-services"
           >
@@ -181,9 +179,9 @@ export default function Home() {
             <span className="service-icon" aria-hidden="true">
               <Sparkles strokeWidth={1.4} />
             </span>
-          </Link>
+          </a>
 
-          <Link className="band handyman" href="/services/handyman">
+          <a className="band handyman" href="/services/handyman">
             <div>
               <h2>Handyman</h2>
               <p>repairs, assembly and home maintenance</p>
@@ -192,7 +190,7 @@ export default function Home() {
             <span className="service-icon" aria-hidden="true">
               <Hammer strokeWidth={1.4} />
             </span>
-          </Link>
+          </a>
         </section>
       </div>
 
@@ -277,7 +275,7 @@ export default function Home() {
               ))}
             </div>
             <p className="center all-reviews">
-              <Link href="/reviews">Read all reviews</Link>
+              <a href="/reviews">Read all reviews</a>
             </p>
           </div>
         </section>
@@ -289,9 +287,9 @@ export default function Home() {
         <p>
           Choose a cleaning time that suits you; we&apos;ll find your cleaner.
         </p>
-        <Link className="btn light" href="/book">
+        <a className="btn light" href="/book">
           Book a service
-        </Link>
+        </a>
       </section>
 
       <SiteFooter />
