@@ -12,6 +12,7 @@ import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LogOut, Menu, UserRound, X } from "lucide-react";
 import AccountModeSwitch from "./AccountModeSwitch";
+import { PORTAL_REFRESH_REQUESTED } from "@/lib/portalUpdates";
 import { canUseProfessionalTools } from "@/lib/professionalAccess";
 
 const supabase = createClient();
@@ -103,64 +104,78 @@ export default function SiteHeader() {
 
   useEffect(() => {
     let alive = true;
+    let version = 0;
+    let authTimer: ReturnType<typeof setTimeout> | undefined;
     async function load() {
+      const current = ++version;
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      if (!alive) return;
+      if (!alive || current !== version) return;
       if (!user) {
         setRole(null);
         setHasProfessionalAccount(false);
         setProfessionalApproved(false);
         setUnread(0);
       } else {
-        const { data: p } = await supabase
-          .from("profiles")
-          .select("role")
-          .eq("id", user.id)
-          .maybeSingle();
-        if (!alive) return;
+        const [{ data: p }, { data: provider }, { data: details }, { count }] =
+          await Promise.all([
+            supabase
+              .from("profiles")
+              .select("role")
+              .eq("id", user.id)
+              .maybeSingle(),
+            supabase
+              .from("providers")
+              .select("id,vetting_status,is_suspended,service_approvals")
+              .eq("profile_id", user.id)
+              .maybeSingle(),
+            supabase
+              .from("account_profile_details")
+              .select("last_account_mode")
+              .eq("user_id", user.id)
+              .maybeSingle(),
+            supabase
+              .from("notifications")
+              .select("*", { count: "exact", head: true })
+              .eq("user_id", user.id)
+              .eq("read", false),
+          ]);
+        if (!alive || current !== version) return;
         setRole(p?.role ?? "customer");
-
-        const { data: provider } = await supabase
-          .from("providers")
-          .select("id,vetting_status,is_suspended,service_approvals")
-          .eq("profile_id", user.id)
-          .maybeSingle();
-        if (!alive) return;
         setHasProfessionalAccount(!!provider);
         setProfessionalApproved(canUseProfessionalTools(provider));
-        const { data: details } = await supabase
-          .from("account_profile_details")
-          .select("last_account_mode")
-          .eq("user_id", user.id)
-          .maybeSingle();
-        if (alive)
-          setAccountMode(
-            canUseProfessionalTools(provider) &&
-              details?.last_account_mode === "professional"
-              ? "professional"
-              : "client",
-          );
-
-        const { count } = await supabase
-          .from("notifications")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("read", false);
-        if (!alive) return;
+        setAccountMode(
+          canUseProfessionalTools(provider) &&
+            details?.last_account_mode === "professional"
+            ? "professional"
+            : "client",
+        );
         setUnread(count ?? 0);
       }
     }
     load();
-    const { data: sub } = supabase.auth.onAuthStateChange(() => load());
-    const timer = setInterval(load, 30000);
+    // Do not wait on getUser inside Supabase's auth notification lock.
+    const { data: sub } = supabase.auth.onAuthStateChange(() => {
+      clearTimeout(authTimer);
+      authTimer = setTimeout(() => {
+        if (alive) void load();
+      }, 0);
+    });
+    const refreshVisible = () => {
+      if (document.visibilityState === "visible" && navigator.onLine)
+        void load();
+    };
+    const timer = setInterval(refreshVisible, 30000);
+    window.addEventListener(PORTAL_REFRESH_REQUESTED, refreshVisible);
     window.addEventListener("opulence-account-mode", load);
     return () => {
       alive = false;
+      clearTimeout(authTimer);
       clearInterval(timer);
       sub.subscription.unsubscribe();
       window.removeEventListener("opulence-account-mode", load);
+      window.removeEventListener(PORTAL_REFRESH_REQUESTED, refreshVisible);
     };
   }, []);
 

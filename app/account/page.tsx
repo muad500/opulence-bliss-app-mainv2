@@ -128,21 +128,35 @@ export default async function AccountPage() {
 
   if (me?.role === "admin") return <WrongArea role="admin" />;
 
-  const { data: rowsData } = await supabase
-    .from("bookings")
-    .select(
-      "id, scheduled_at, status, address, package_id, subscription_id, household_notes, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers(display_name, photo_url, years_experience, vetting_status, dbs_verified, public_rating_avg, public_rating_count), check_ins(arrived_at, left_at)",
-    )
-    .order("scheduled_at", { ascending: false });
+  // These reads share the authenticated client but do not depend on each other.
+  const [
+    { data: rowsData },
+    { data: packageOptionsData },
+    { data: reviewData },
+    { data: submissionData },
+    { data: paymentData },
+  ] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select(
+        "id, scheduled_at, status, address, package_id, subscription_id, household_notes, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers(display_name, photo_url, years_experience, vetting_status, dbs_verified, public_rating_avg, public_rating_count), check_ins(arrived_at, left_at)",
+      )
+      .order("scheduled_at", { ascending: false }),
+    supabase
+      .from("packages")
+      .select("id, name, price, duration_minutes, service_type")
+      .eq("active", true)
+      .eq("billing_type", "per_visit")
+      .order("price"),
+    supabase
+      .from("reviews")
+      .select("booking_id, rating, comment, reviewer, visibility"),
+    supabase.rpc("my_review_submission_states"),
+    supabase.from("payments").select("booking_id, gross_amount, status, kind"),
+  ]);
 
   const rows = (rowsData ?? []) as unknown as Row[];
 
-  const { data: packageOptionsData } = await supabase
-    .from("packages")
-    .select("id, name, price, duration_minutes, service_type")
-    .eq("active", true)
-    .eq("billing_type", "per_visit")
-    .order("price");
   const serviceOptions: BookingServiceOption[] = (packageOptionsData ?? []).map(
     (item) => ({
       id: item.id,
@@ -153,20 +167,21 @@ export default async function AccountPage() {
     }),
   );
 
-  const { data: reviewData } = await supabase
-    .from("reviews")
-    .select("booking_id, rating, comment, reviewer, visibility");
-  const { data: submissionData } = await supabase.rpc(
-    "my_review_submission_states",
-  );
   const clientSubmissionMap = new Map(
     (submissionData ?? [])
       .filter((review) => review.reviewer === "client")
-      .map((review) => [review.booking_id as string, review.visibility as string]),
+      .map((review) => [
+        review.booking_id as string,
+        review.visibility as string,
+      ]),
   );
   const clientReviewMap = new Map<
     string,
-    { rating: number; comment: string | null; visibility?: "public" | "private" }
+    {
+      rating: number;
+      comment: string | null;
+      visibility?: "public" | "private";
+    }
   >();
   const providerReviewMap = new Map<
     string,
@@ -187,9 +202,6 @@ export default async function AccountPage() {
     }
   }
 
-  const { data: paymentData } = await supabase
-    .from("payments")
-    .select("booking_id, gross_amount, status, kind");
   const paymentMap = new Map(
     (paymentData ?? [])
       .filter((p) => p.booking_id && p.kind !== "tip")
@@ -237,17 +249,17 @@ export default async function AccountPage() {
         ? `£${amount.toFixed(2)} refunded`
         : payment?.status === "partially_refunded"
           ? "Partly refunded"
-        : payment?.status === "cancelled"
-          ? "Hold released"
-          : payment?.status === "capture_failed"
-            ? "Payment issue"
-            : payment?.status === "succeeded"
-              ? `£${amount.toFixed(2)} paid`
-              : payment?.status === "authorised"
-                ? `£${amount.toFixed(2)} held`
-                : amount > 0
-                  ? `£${amount.toFixed(2)}`
-                  : "Included";
+          : payment?.status === "cancelled"
+            ? "Hold released"
+            : payment?.status === "capture_failed"
+              ? "Payment issue"
+              : payment?.status === "succeeded"
+                ? `£${amount.toFixed(2)} paid`
+                : payment?.status === "authorised"
+                  ? `£${amount.toFixed(2)} held`
+                  : amount > 0
+                    ? `£${amount.toFixed(2)}`
+                    : "Included";
     return {
       id: r.id,
       packageId: r.package_id ?? "",
@@ -368,10 +380,8 @@ export default async function AccountPage() {
                         : payment?.status === "succeeded"
                           ? "Paid"
                           : "Payment recorded",
-                      customerName:
-                        me?.full_name ?? user.email ?? "Customer",
-                      professionalName:
-                        prv?.display_name ?? "Professional",
+                      customerName: me?.full_name ?? user.email ?? "Customer",
+                      professionalName: prv?.display_name ?? "Professional",
                       serviceName: pkg?.name ?? "Service",
                       address: b.address,
                       propertySizeSqm:

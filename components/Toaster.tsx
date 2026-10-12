@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { requestPortalRefresh } from "@/lib/portalUpdates";
 const supabase = createClient();
 type Toast = {
   id: string;
@@ -14,39 +15,71 @@ export default function Toaster() {
   const seen = useRef<Set<string>>(new Set());
   useEffect(() => {
     let alive = true;
+    let polling = false;
+    let identity: string | null = null;
+    let generation = 0;
+    const expiryTimers = new Set<ReturnType<typeof setTimeout>>();
     async function poll() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user || !alive) return;
-      const { data } = await supabase
-        .from("notifications")
-        .select("id,title,body,href,created_at")
-        .eq("user_id", user.id)
-        .eq("read", false)
-        .gt("created_at", since.current)
-        .order("created_at", { ascending: true })
-        .limit(3);
-      if (!data?.length || !alive) return;
-      const fresh = data.filter((n) => !seen.current.has(n.id));
-      if (!fresh.length) return;
-      fresh.forEach((n) => seen.current.add(n.id));
-      setToasts((t) => [
-        ...t,
-        ...fresh.map((n) => ({
-          id: n.id,
-          title: n.title,
-          body: n.body,
-          href: n.href,
-        })),
-      ]);
-      fresh.forEach((n) =>
-        setTimeout(
-          () => setToasts((t) => t.filter((x) => x.id !== n.id)),
-          8000,
-        ),
-      );
+      if (
+        polling ||
+        document.visibilityState !== "visible" ||
+        !navigator.onLine
+      )
+        return;
+      polling = true;
+      const version = generation;
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user || !alive || version !== generation) return;
+        identity = user.id;
+        const { data } = await supabase
+          .from("notifications")
+          .select("id,title,body,href,created_at")
+          .eq("user_id", user.id)
+          .eq("read", false)
+          .gt("created_at", since.current)
+          .order("created_at", { ascending: false })
+          .limit(20);
+        if (!data?.length || !alive || version !== generation) return;
+        const fresh = data.filter((n) => !seen.current.has(n.id)).reverse();
+        if (!fresh.length) return;
+        fresh.forEach((n) => seen.current.add(n.id));
+        setToasts((t) => [
+          ...t,
+          ...fresh.map((n) => ({
+            id: n.id,
+            title: n.title,
+            body: n.body,
+            href: n.href,
+          })),
+        ]);
+        requestPortalRefresh();
+        fresh.forEach((n) => {
+          const timer = setTimeout(() => {
+            expiryTimers.delete(timer);
+            if (alive) setToasts((t) => t.filter((x) => x.id !== n.id));
+          }, 8000);
+          expiryTimers.add(timer);
+        });
+      } catch {
+        /* The realtime channel and next visible poll recover transient errors. */
+      } finally {
+        polling = false;
+      }
     }
+    const { data: auth } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        const next = session?.user.id ?? null;
+        if (next === identity) return;
+        identity = next;
+        generation++;
+        since.current = new Date().toISOString();
+        seen.current.clear();
+        setToasts([]);
+      },
+    );
     const onNotification = () => void poll();
     window.addEventListener("opulence:notification", onNotification);
     poll();
@@ -54,6 +87,8 @@ export default function Toaster() {
     return () => {
       alive = false;
       clearInterval(timer);
+      auth.subscription.unsubscribe();
+      expiryTimers.forEach(clearTimeout);
       window.removeEventListener("opulence:notification", onNotification);
     };
   }, []);

@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 /* eslint-disable @next/next/no-html-link-for-pages */
 
 // SETUP: code "app/page.tsx"
@@ -12,8 +14,21 @@ import { createClient } from "@/lib/supabase/client";
 import SiteFooter from "@/components/SiteFooter";
 
 type HomeQuote =
-  | { id: string; rating: number; comment: string | null; source: "booking"; professional: string }
-  | { id: string; rating: number; comment: string; source: "testimonial"; customerName: string; location: string | null };
+  | {
+      id: string;
+      rating: number;
+      comment: string | null;
+      source: "booking";
+      professional: string;
+    }
+  | {
+      id: string;
+      rating: number;
+      comment: string;
+      source: "testimonial";
+      customerName: string;
+      location: string | null;
+    };
 
 export default function Home() {
   const firstScreen = useRef<HTMLDivElement>(null);
@@ -21,7 +36,10 @@ export default function Home() {
     const intro = firstScreen.current;
     if (!intro) return;
     const measureNavigation = () => {
-      const offset = Math.max(0, intro.getBoundingClientRect().top + window.scrollY);
+      const offset = Math.max(
+        0,
+        intro.getBoundingClientRect().top + window.scrollY,
+      );
       intro.style.setProperty("--home-navigation-height", `${offset}px`);
     };
     measureNavigation();
@@ -55,26 +73,36 @@ export default function Home() {
         .order("sort_order", { ascending: true })
         .order("reviewed_at", { ascending: false });
       if (managed?.length) {
-        setQuotes(managed.map((review) => ({
-          id: review.id,
-          rating: review.rating,
-          comment: review.comment,
-          source: "testimonial" as const,
-          customerName: review.customer_name,
-          location: review.location,
-        })));
+        setQuotes(
+          managed.map((review) => ({
+            id: review.id,
+            rating: review.rating,
+            comment: review.comment,
+            source: "testimonial" as const,
+            customerName: review.customer_name,
+            location: review.location,
+          })),
+        );
         return;
       }
-      const { data: featured } = await supabase.rpc("homepage_review_highlights_feed");
+      const { data: featured } = await supabase.rpc(
+        "homepage_review_highlights_feed",
+      );
       const selected = (featured ?? []) as {
         id: string;
         rating: number;
         comment: string | null;
         recipient_name: string;
       }[];
-      const { data } = selected.length === 0
-        ? await supabase.rpc("public_reviews_feed", { p_limit: 100 })
-        : { data: selected.map((row) => ({ ...row, recipient_type: "professional" })) };
+      const { data } =
+        selected.length === 0
+          ? await supabase.rpc("public_reviews_feed", { p_limit: 100 })
+          : {
+              data: selected.map((row) => ({
+                ...row,
+                recipient_type: "professional",
+              })),
+            };
       const rows = (data ?? []) as {
         id: string;
         rating: number;
@@ -105,67 +133,80 @@ export default function Home() {
   return (
     <div className="site">
       <div className="first-screen" ref={firstScreen}>
-      {/* ---------- HERO ---------- */}
-      <header className="hero">
-        <div className="hero-inner">
-          <h1>
-            Your home,
-            <br />taken care of
-          </h1>
-          <p className="lede">
-            Vetted cleaners and trusted handymen across London. Book a clean or
-            request a tailored quote for work around your home.
-          </p>
+        {/* ---------- HERO ---------- */}
+        <header className="hero">
+          <div className="hero-inner">
+            <h1>
+              Your home,
+              <br />
+              taken care of
+            </h1>
+            <p className="lede">
+              Vetted cleaners and trusted handymen across London. Book a clean
+              or request a tailored quote for work around your home.
+            </p>
 
-          <div className="composer">
-            <input
-              placeholder="Enter your postcode"
-              value={postcode}
-              onChange={(e) => setPostcode(e.target.value)}
-              aria-label="Postcode"
-            />
-            <a className="btn" href={bookLink}>
-              Book my cleaning
+            <div className="composer">
+              <input
+                placeholder="Enter your postcode"
+                value={postcode}
+                onChange={(e) => setPostcode(e.target.value)}
+                aria-label="Postcode"
+              />
+              <Link className="btn" href={bookLink}>
+                Book my cleaning
+              </Link>
+            </div>
+            <a className="btn mobile-book" href="#services">
+              Book a service
             </a>
+            <p className="micro">Simple pay per visit booking down there</p>
+            <Link className="hero-quote" href="/services/handyman">
+              Need something repaired or installed? Request a handyman quote →
+            </Link>
           </div>
-          <a className="btn mobile-book" href="#services">
-            Book a service
-          </a>
-          <p className="micro">Simple pay per visit booking down there</p>
-          <a className="hero-quote" href="/services/handyman">
-            Need something repaired or installed? Request a handyman quote →
-          </a>
-        </div>
-      </header>
+        </header>
 
-      {/* ---------- SERVICE BANDS ---------- */}
-      <section className="bands" id="services">
-        <a className="band clean" href="/services/cleaning#cleaning-services">
-          <div>
-            <h2>Cleaning</h2>
-            <p>and ironing, at home</p>
-            <span className="from">Book a cleaning visit</span>
-          </div>
-          <span className="service-icon" aria-hidden="true"><Sparkles strokeWidth={1.4} /></span>
-        </a>
+        {/* ---------- SERVICE BANDS ---------- */}
+        <section className="bands" id="services">
+          <Link
+            className="band clean"
+            href="/services/cleaning#cleaning-services"
+          >
+            <div>
+              <h2>Cleaning</h2>
+              <p>and ironing, at home</p>
+              <span className="from">Book a cleaning visit</span>
+            </div>
+            <span className="service-icon" aria-hidden="true">
+              <Sparkles strokeWidth={1.4} />
+            </span>
+          </Link>
 
-        <a className="band handyman" href="/services/handyman">
-          <div>
-            <h2>Handyman</h2>
-            <p>repairs, assembly and home maintenance</p>
-            <span className="from">Request a tailored quote</span>
-          </div>
-          <span className="service-icon" aria-hidden="true"><Hammer strokeWidth={1.4} /></span>
-        </a>
-      </section>
-
+          <Link className="band handyman" href="/services/handyman">
+            <div>
+              <h2>Handyman</h2>
+              <p>repairs, assembly and home maintenance</p>
+              <span className="from">Request a tailored quote</span>
+            </div>
+            <span className="service-icon" aria-hidden="true">
+              <Hammer strokeWidth={1.4} />
+            </span>
+          </Link>
+        </section>
       </div>
 
       {/* ---------- TRUST ---------- */}
       <section className="strip">
         {[
-          ["Vetted cleaners", "Every approved cleaner is vetted before taking bookings"],
-          ["Clear before you commit", "See the cleaning price or approve a handyman quote"],
+          [
+            "Vetted cleaners",
+            "Every approved cleaner is vetted before taking bookings",
+          ],
+          [
+            "Clear before you commit",
+            "See the cleaning price or approve a handyman quote",
+          ],
           ["Your regular pro", "Ask for them again next time"],
           ["Book in 2 hours", "Same-day booking available"],
         ].map(([t, s]) => (
@@ -185,7 +226,10 @@ export default function Home() {
             {[
               ["Choose a service", "Book cleaning or request handyman help."],
               ["Tell us what you need", "Add your address and job details."],
-              ["Pick a suitable time", "Choose a cleaning time, then confirm your booking or approve a handyman quote."],
+              [
+                "Pick a suitable time",
+                "Choose a cleaning time, then confirm your booking or approve a handyman quote.",
+              ],
               ["Your pro arrives", "They check in and take care of the work."],
             ].map(([t, s], i) => (
               <li key={t}>
@@ -211,19 +255,29 @@ export default function Home() {
               {quotes.map((quote) => (
                 <blockquote key={quote.id}>
                   <strong className="quote-name">
-                    {quote.source === "testimonial" ? quote.customerName : "Customer"}
+                    {quote.source === "testimonial"
+                      ? quote.customerName
+                      : "Customer"}
                   </strong>
-                  <span className="quote-stars" aria-label={`${quote.rating} out of 5`}>
+                  <span
+                    className="quote-stars"
+                    aria-label={`${quote.rating} out of 5`}
+                  >
                     {"\u2605".repeat(quote.rating)}
                     {"\u2606".repeat(5 - quote.rating)}
                   </span>
-                  <p>{quote.comment || "Rating shared without a written comment."}</p>
-                  {quote.source === "testimonial" && quote.location && <footer>{quote.location}</footer>}
+                  <p>
+                    {quote.comment ||
+                      "Rating shared without a written comment."}
+                  </p>
+                  {quote.source === "testimonial" && quote.location && (
+                    <footer>{quote.location}</footer>
+                  )}
                 </blockquote>
               ))}
             </div>
             <p className="center all-reviews">
-              <a href="/reviews">Read all reviews</a>
+              <Link href="/reviews">Read all reviews</Link>
             </p>
           </div>
         </section>
@@ -232,10 +286,12 @@ export default function Home() {
       {/* ---------- CTA ---------- */}
       <section className="cta-band">
         <h2>Ready to hand it over?</h2>
-        <p>Choose a cleaning time that suits you; we&apos;ll find your cleaner.</p>
-        <a className="btn light" href="/book">
+        <p>
+          Choose a cleaning time that suits you; we&apos;ll find your cleaner.
+        </p>
+        <Link className="btn light" href="/book">
           Book a service
-        </a>
+        </Link>
       </section>
 
       <SiteFooter />
@@ -350,7 +406,14 @@ export default function Home() {
           position: relative;
           isolation: isolate;
           overflow: hidden;
-          background: linear-gradient(90deg, rgba(19, 16, 22, 0.86) 0%, rgba(26, 19, 27, 0.72) 37%, rgba(24, 16, 22, 0.16) 78%), url("/hero-home.webp") center / cover no-repeat;
+          background:
+            linear-gradient(
+              90deg,
+              rgba(19, 16, 22, 0.86) 0%,
+              rgba(26, 19, 27, 0.72) 37%,
+              rgba(24, 16, 22, 0.16) 78%
+            ),
+            url("/hero-home.webp") center / cover no-repeat;
           padding: clamp(24px, 4svh, 44px) 28px;
         }
         .hero-inner {
@@ -399,7 +462,7 @@ export default function Home() {
           min-width: 0;
         }
         .btn {
-          background: linear-gradient(100deg,#F5C542,#C86FC9 55%,#7B2FF7);
+          background: linear-gradient(100deg, #f5c542, #c86fc9 55%, #7b2ff7);
           color: #fff;
           text-decoration: none;
           border-radius: 999px;
@@ -409,7 +472,9 @@ export default function Home() {
           white-space: nowrap;
           display: inline-block;
           box-shadow: 0 7px 18px rgba(72, 28, 142, 0.2);
-          transition: transform 0.18s ease, filter 0.18s ease;
+          transition:
+            transform 0.18s ease,
+            filter 0.18s ease;
         }
         .btn:hover {
           filter: brightness(1.06);
@@ -461,7 +526,9 @@ export default function Home() {
           border: 1px solid var(--line);
           border-radius: 22px;
           text-decoration: none;
-          transition: transform 0.18s ease, box-shadow 0.18s ease;
+          transition:
+            transform 0.18s ease,
+            box-shadow 0.18s ease;
           box-shadow: 0 9px 26px var(--ob-shadow-soft);
         }
         .band > div {
@@ -508,10 +575,24 @@ export default function Home() {
           height: 100%;
         }
         .band.clean {
-          background: linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)), linear-gradient(145deg, #7b2ff7 0%, #a33ea6 55%, #f5c542 140%);
+          background:
+            linear-gradient(
+              to top,
+              rgba(12, 10, 24, 0.72),
+              rgba(12, 10, 24, 0.34) 46%,
+              rgba(12, 10, 24, 0.08)
+            ),
+            linear-gradient(145deg, #7b2ff7 0%, #a33ea6 55%, #f5c542 140%);
         }
         .band.handyman {
-          background: linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)), linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%);
+          background:
+            linear-gradient(
+              to top,
+              rgba(12, 10, 24, 0.72),
+              rgba(12, 10, 24, 0.34) 46%,
+              rgba(12, 10, 24, 0.08)
+            ),
+            linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%);
         }
 
         /* TRUST STRIP */
@@ -548,7 +629,11 @@ export default function Home() {
 
         /* BANDS / SECTIONS */
         .band-alt {
-          background: color-mix(in srgb, var(--ob-surface-soft) 74%, transparent);
+          background: color-mix(
+            in srgb,
+            var(--ob-surface-soft) 74%,
+            transparent
+          );
           padding: 78px 28px;
           margin-top: 0;
         }
@@ -747,16 +832,38 @@ export default function Home() {
           }
         }
         @media (max-height: 800px) and (min-width: 701px) {
-          .hero { padding-top: 20px; padding-bottom: 20px; }
-          h1 { font-size: 48px; margin-bottom: 12px; }
-          .lede { font-size: 16px; line-height: 1.45; margin-bottom: 16px; }
+          .hero {
+            padding-top: 20px;
+            padding-bottom: 20px;
+          }
+          h1 {
+            font-size: 48px;
+            margin-bottom: 12px;
+          }
+          .lede {
+            font-size: 16px;
+            line-height: 1.45;
+            margin-bottom: 16px;
+          }
         }
         @media (max-width: 700px) and (max-height: 600px) {
-          .first-screen { grid-template-rows: minmax(min-content, 1fr) auto; }
-          .hero { padding: 12px 16px; }
-          .hero h1 { margin-bottom: 8px; }
-          .lede { font-size: 13px; margin-bottom: 8px; }
-          .band { min-height: 132px; padding-block: 12px; }
+          .first-screen {
+            grid-template-rows: minmax(min-content, 1fr) auto;
+          }
+          .hero {
+            padding: 12px 16px;
+          }
+          .hero h1 {
+            margin-bottom: 8px;
+          }
+          .lede {
+            font-size: 13px;
+            margin-bottom: 8px;
+          }
+          .band {
+            min-height: 132px;
+            padding-block: 12px;
+          }
         }
       `}</style>
     </div>

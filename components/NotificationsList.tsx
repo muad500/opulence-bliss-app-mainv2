@@ -4,8 +4,11 @@
 //
 // One list, used inside both the customer and provider portals.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import LoadingState from "./LoadingState";
+import { PORTAL_DATA_UPDATED, requestPortalRefresh } from "@/lib/portalUpdates";
+import Link from "next/link";
 
 const supabase = createClient();
 
@@ -38,55 +41,114 @@ function ago(iso: string) {
 export default function NotificationsList() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
+  const [marking, setMarking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const version = useRef(0);
+  const markingRef = useRef(false);
 
-  async function load() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
+  const load = useCallback(async () => {
+    const current = ++version.current;
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (current !== version.current) return;
+      if (!user) {
+        setNotes([]);
+        setLoading(false);
+        return;
+      }
+      const { data, error: failure } = await supabase
+        .from("notifications")
+        .select("id, title, body, href, read, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (current !== version.current) return;
+      if (failure) throw failure;
+      setNotes((data ?? []) as Note[]);
+      setError(null);
+    } catch {
+      if (current === version.current)
+        setError("Updates could not be loaded. Please try again.");
+    } finally {
+      if (current === version.current) setLoading(false);
     }
-    const { data } = await supabase
-      .from("notifications")
-      .select("id, title, body, href, read, created_at")
-      .order("created_at", { ascending: false })
-      .limit(50);
-    setNotes((data ?? []) as Note[]);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    load();
   }, []);
 
+  useEffect(() => {
+    void load();
+    const refresh = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    window.addEventListener(PORTAL_DATA_UPDATED, refresh);
+    window.addEventListener("opulence:notification", refresh);
+    window.addEventListener("online", refresh);
+    return () => {
+      // This is a request counter, not a DOM ref: invalidate all pending reads.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      version.current++;
+      window.removeEventListener(PORTAL_DATA_UPDATED, refresh);
+      window.removeEventListener("opulence:notification", refresh);
+      window.removeEventListener("online", refresh);
+    };
+  }, [load]);
+
   async function markAll() {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase
-      .from("notifications")
-      .update({ read: true })
-      .eq("user_id", user.id)
-      .eq("read", false);
-    load();
+    if (markingRef.current) return;
+    markingRef.current = true;
+    setMarking(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error: failure } = await supabase
+        .from("notifications")
+        .update({ read: true })
+        .eq("user_id", user.id)
+        .eq("read", false);
+      if (failure) throw failure;
+      await load();
+      requestPortalRefresh();
+    } catch {
+      setError("Could not mark updates as read. Please try again.");
+    } finally {
+      markingRef.current = false;
+      setMarking(false);
+    }
   }
 
   const unread = notes.filter((n) => !n.read).length;
 
   if (loading) {
-    return <p style={muted}>Loading…</p>;
+    return <LoadingState title="Loading your updates…" compact />;
   }
+
+  const feedback = error ? (
+    <p role="alert" style={muted}>
+      {error}{" "}
+      <button onClick={() => void load()} style={markBtn}>
+        Try again
+      </button>
+    </p>
+  ) : null;
 
   if (notes.length === 0) {
     return (
       <div style={empty}>
+        {feedback}
         <span style={{ fontSize: 34 }}>✦</span>
         <strong style={{ fontSize: 17, fontWeight: 900, marginTop: 8 }}>
           Nothing yet
         </strong>
-        <p style={{ margin: "5px 0 0", color: "var(--ob-muted)", fontWeight: 600 }}>
+        <p
+          style={{
+            margin: "5px 0 0",
+            color: "var(--ob-muted)",
+            fontWeight: 600,
+          }}
+        >
           Updates about your bookings will appear here.
         </p>
       </div>
@@ -95,13 +157,19 @@ export default function NotificationsList() {
 
   return (
     <>
+      {feedback}
       <div style={topRow}>
         <span style={muted}>
           {unread > 0 ? `${unread} unread` : "All caught up"}
         </span>
         {unread > 0 && (
-          <button style={markBtn} onClick={markAll}>
-            Mark all as read
+          <button
+            style={markBtn}
+            onClick={markAll}
+            disabled={marking}
+            aria-busy={marking}
+          >
+            {marking ? "Marking as read…" : "Mark all as read"}
           </button>
         )}
       </div>
@@ -129,9 +197,9 @@ export default function NotificationsList() {
           };
 
           return n.href ? (
-            <a key={n.id} href={n.href} style={style}>
+            <Link key={n.id} href={n.href} style={style}>
               {inner}
-            </a>
+            </Link>
           ) : (
             <div key={n.id} style={style}>
               {inner}
