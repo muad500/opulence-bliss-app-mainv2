@@ -81,16 +81,20 @@ export default function MobileAppChrome({
       ? "Create account"
       : path === "/provider/join"
         ? "Apply to join"
-        : path.includes("/book") && !path.startsWith("/account")
-          ? "Book a clean"
-          : path.includes("/availability")
-            ? "Availability"
-            : path.includes("/earnings")
-              ? "Earnings"
-              : path.includes("/application")
-                ? "Your application"
-                : (current?.label ??
-                  (audience === "customer" ? "Your visit" : "Your job"));
+        : path === "/services/cleaning"
+          ? "Cleaning services"
+          : path === "/services/handyman"
+            ? "Repairs & assembly"
+            : path.includes("/book") && !path.startsWith("/account")
+              ? "Book a clean"
+              : path.includes("/availability")
+                ? "Availability"
+                : path.includes("/earnings")
+                  ? "Earnings"
+                  : path.includes("/application")
+                    ? "Your application"
+                    : (current?.label ??
+                      (audience === "customer" ? "Your visit" : "Your job"));
   useEffect(() => {
     const viewport = window.visualViewport;
     let baselineHeight = viewport?.height ?? window.innerHeight;
