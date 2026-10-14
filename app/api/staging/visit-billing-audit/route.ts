@@ -7,6 +7,7 @@ import { createVisitBilling } from "@/lib/visitBillingServer";
 import { regularVisitSlots } from "@/lib/regularBooking";
 import { cleaningSeriesQuote } from "@/lib/cleaningExtras";
 import { visitLineItems } from "@/lib/visitLineItems";
+import { stagingCancellationFixture } from "@/lib/stagingVisitBillingFixtures";
 
 export const maxDuration = 60;
 function checked<T>(result: { data: T; error: { message: string } | null }) {
@@ -97,6 +98,10 @@ export async function POST(request: NextRequest) {
       ].includes(name),
       "Unknown fixed audit case.",
     );
+    // Validate the real cancellation band before creating customers or money.
+    const cancellationFixture = name.startsWith("cancellation_")
+      ? stagingCancellationFixture(name)
+      : null;
     const email = `billing-audit-${runId}@example.invalid`;
     const createdResponse = await admin.auth.admin.createUser({
       email,
@@ -141,8 +146,9 @@ export async function POST(request: NextRequest) {
         .single(),
     );
     assert(pkg, "Required cleaning package is missing.");
-    const first = new Date(Date.now() + 7 * 86_400_000);
-    first.setUTCHours(10, 0, 0, 0);
+    const first =
+      cancellationFixture?.scheduledAt ?? new Date(Date.now() + 7 * 86_400_000);
+    if (!cancellationFixture) first.setUTCHours(10, 0, 0, 0);
     const slots = regular
       ? regularVisitSlots(first.toISOString(), "weekly", 120, Date.now(), 6)
       : [first.toISOString()];
@@ -511,37 +517,13 @@ export async function POST(request: NextRequest) {
         "No-match refund was partial.",
       );
     }
-    if (name.startsWith("cancellation_")) {
-      const hours =
-        name === "cancellation_full"
-          ? 72
-          : name === "cancellation_75"
-            ? 36
-            : name === "cancellation_50"
-              ? 18
-              : 1;
-      // Policy bands are covered by deterministic unit tests. API fixtures
-      // use a valid daytime date when the current clock permits each band.
-      const target = new Date(Date.now() + hours * 3_600_000);
-      const londonHour = Number(
-        new Intl.DateTimeFormat("en-GB", {
-          timeZone: "Europe/London",
-          hour: "numeric",
-          hourCycle: "h23",
-        }).format(target),
-      );
-      assert(
-        londonHour >= 8 && londonHour <= 17,
-        "This clock time cannot create the requested daytime cancellation-band fixture. Use deterministic tests or retry at a suitable time.",
-      );
-      checked(
-        await admin
-          .from("bookings")
-          .update({ scheduled_at: target.toISOString() })
-          .eq("id", id),
-      );
+    if (cancellationFixture) {
       const result = await engine.cancel(id, user);
       assert(result.status === "succeeded", "Cancellation adjustment failed.");
+      assert(
+        result.policy.refundPercent === cancellationFixture.refundPercent,
+        "The real cancellation clock crossed into a different refund band.",
+      );
       details = await engine.load(id, user);
       assert(
         details.charges[0].refunded_pence === result.policy.refundPence,
