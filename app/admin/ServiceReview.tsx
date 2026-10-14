@@ -28,7 +28,7 @@ export default function ServiceReview({
       {visibleProfessionalServices(Object.keys(approvals), handymanEnabled).map(
         (service) => (
           <ServiceDecision
-            key={service}
+            key={service === "handyman" ? "Property maintenance" : "Cleaning"}
             id={id}
             service={service as ProfessionalService}
             status={approvals[service as ProfessionalService]!}

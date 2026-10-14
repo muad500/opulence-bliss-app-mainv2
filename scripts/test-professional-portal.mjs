@@ -85,10 +85,13 @@ test("All, Cleaning and Handyman filters render their own work and keep pending 
       await Page({ searchParams: Promise.resolve({ service: filter }) }),
     );
     assert.equal(html.includes("Cleaning offers"), filter !== "handyman");
-    assert.equal(html.includes("Handyman jobs"), filter !== "cleaning");
+    assert.equal(
+      html.includes("Property maintenance jobs"),
+      filter !== "cleaning",
+    );
     assert.equal(reads, filter === "cleaning" ? 0 : 1);
     if (filter !== "cleaning")
-      assert.match(html, /Handyman approval is pending/);
+      assert.match(html, /Property maintenance approval is pending/);
   }
 });
 

@@ -1,0 +1,40 @@
+.links {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  padding: 20px 16px;
+}
+.links a,
+.nextdoor {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-weight: 800;
+  font-size: 13px;
+  color: #63309b;
+  text-decoration: none;
+  min-height: 44px;
+}
+.links a:hover {
+  color: #9b42c3;
+}
+.links a:focus-visible {
+  outline: 2px solid #7b2ff7;
+  outline-offset: 5px;
+  border-radius: 4px;
+}
+.nextdoor {
+  color: #6b7280;
+}
+.nextdoor small {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+}
+.nextdoorIcon {
+  font-size: 30px;
+  color: #288b42;
+  line-height: 1;
+}

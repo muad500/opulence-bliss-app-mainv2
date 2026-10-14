@@ -8,7 +8,7 @@ import { visibleProfessionalServices } from "@/lib/professionalServices";
 
 const SERVICE_LABEL: Record<string, string> = {
   cleaning: "Home cleaning",
-  handyman: "Handyman",
+  handyman: "Property maintenance",
 };
 
 const PROVIDER_ID =
@@ -215,7 +215,7 @@ export default async function PublicProviderPage({
 
           {rates.length > 0 && (
             <section className={styles.section}>
-              <h2>Listed handyman rates</h2>
+              <h2>Property maintenance tasks</h2>
               <ul className={styles.rateList}>
                 {rates.map((rate) => (
                   <li key={rate.task_name}>
@@ -224,16 +224,12 @@ export default async function PublicProviderPage({
                     >
                       {rate.task_name}
                     </Link>
-                    <strong>
-                      £{(Number(rate.hourly_rate_pence) / 100).toFixed(2)}/hr
-                    </strong>
                   </li>
                 ))}
               </ul>
               <p className={styles.rateNote}>
-                Select a task to request a quote at this professional&apos;s
-                listed rate. Final hours and costs are confirmed before work
-                begins.
+                Select a task to request a tailored quote. The scope and cost
+                are confirmed before work begins.
               </p>
             </section>
           )}

@@ -33,16 +33,16 @@ export default function ComingSoonPage() {
         <p className={styles.eyebrow}>Coming soon</p>
         <h1>More than cleaning, soon</h1>
         <p className={styles.lede}>
-          Cleaning and handyman services are live today. These are the services
-          we are building next. Nothing here is bookable yet, so tell us which
-          one you want first and we will start with that.
+          Cleaning and property maintenance services are live today. These are
+          the services we are building next. Nothing here is bookable yet, so
+          tell us which one you want first and we will start with that.
         </p>
         <div className={styles.liveLinks}>
           <Link href="/services/cleaning" className={styles.liveLink}>
             Book cleaning →
           </Link>
           <Link href="/services/handyman" className={styles.liveLink}>
-            Request a handyman quote →
+            Request a property maintenance quote →
           </Link>
         </div>
       </header>

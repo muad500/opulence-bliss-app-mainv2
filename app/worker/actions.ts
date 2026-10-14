@@ -490,6 +490,14 @@ export async function checkOutJob(id: string) {
 
   let earned = 0;
   let paymentSettled = Boolean(bk?.subscription_id || bk?.regular_series_id);
+  const { data: perVisitBilling } = await admin
+    .from("booking_visit_billing")
+    .select("rate_confirmed,status")
+    .eq("booking_id", id)
+    .maybeSingle();
+  const payRatePending = Boolean(
+    perVisitBilling && !perVisitBilling.rate_confirmed,
+  );
 
   if (bk?.regular_series_id) {
     try {
@@ -774,7 +782,9 @@ export async function checkOutJob(id: string) {
       : bk?.regular_series_id
         ? `${service} — all done. This visit was paid for with your regular booking.`
         : paymentSettled
-          ? `${service} — all done. Your card has now been charged.`
+          ? perVisitBilling
+            ? `${service} — all done. Your visit was already paid.`
+            : `${service} — all done. Your card has now been charged.`
           : `${service} — all done. We are checking the payment and you do not need to retry anything.`,
     "/account",
   );
@@ -791,7 +801,7 @@ export async function checkOutJob(id: string) {
         ? `<p>Your <strong>${service}</strong> is complete and was already paid for as part of your regular booking.</p>
            <p>If you have a moment, we'd love a quick rating for your provider.</p>`
         : paymentSettled
-          ? `<p>Your <strong>${service}</strong> is complete and your card has now been charged.</p>
+          ? `<p>Your <strong>${service}</strong> is complete and ${perVisitBilling ? "its payment was already settled" : "your card has now been charged"}.</p>
            <p>If you have a moment, we'd love a quick rating for your provider.</p>`
           : `<p>Your <strong>${service}</strong> is complete, but its payment needs a manual check.</p>
            <p>You do not need to pay or retry anything. The team will review it.</p>`,
@@ -803,7 +813,7 @@ export async function checkOutJob(id: string) {
   revalidatePath(`/worker/job/${id}`);
   revalidatePath("/worker/earnings");
   revalidatePath("/account");
-  return { earned };
+  return { earned, payRatePending };
 }
 export async function markAllRead() {
   const supabase = await createClient();

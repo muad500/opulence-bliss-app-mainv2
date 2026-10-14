@@ -140,8 +140,9 @@ export default function Home() {
               taken care of
             </h1>
             <p className="lede">
-              Vetted cleaners and trusted handymen across London. Book a clean
-              or request a tailored quote for work around your home.
+              Vetted cleaners and trusted property maintenance professionals
+              across London. Book a clean or request a tailored quote for work
+              around your home.
             </p>
 
             <div className="composer">
@@ -160,17 +161,15 @@ export default function Home() {
             </a>
             <p className="micro">Simple pay per visit booking down there</p>
             <a className="hero-quote" href="/services/handyman">
-              Need something repaired or installed? Request a handyman quote →
+              Need something repaired or installed? Request a property
+              maintenance quote →
             </a>
           </div>
         </header>
 
         {/* ---------- SERVICE BANDS ---------- */}
         <section className="bands" id="services">
-          <a
-            className="band clean"
-            href="/services/cleaning#cleaning-services"
-          >
+          <a className="band clean" href="/services/cleaning#cleaning-services">
             <div>
               <h2>Cleaning</h2>
               <p>and ironing, at home</p>
@@ -181,9 +180,9 @@ export default function Home() {
             </span>
           </a>
 
-          <a className="band handyman" href="/services/handyman">
+          <a className="band property maintenance" href="/services/handyman">
             <div>
-              <h2>Handyman</h2>
+              <h2>Property maintenance</h2>
               <p>repairs, assembly and home maintenance</p>
               <span className="from">Request a tailored quote</span>
             </div>
@@ -203,7 +202,7 @@ export default function Home() {
           ],
           [
             "Clear before you commit",
-            "See the cleaning price or approve a handyman quote",
+            "See the cleaning price or approve a property maintenance quote",
           ],
           ["Your regular pro", "Ask for them again next time"],
           ["Book in 2 hours", "Same-day booking available"],
@@ -222,11 +221,14 @@ export default function Home() {
           <h2 className="center big">Four steps, then it just happens</h2>
           <ol className="steps">
             {[
-              ["Choose a service", "Book cleaning or request handyman help."],
+              [
+                "Choose a service",
+                "Book cleaning or request property maintenance help.",
+              ],
               ["Tell us what you need", "Add your address and job details."],
               [
                 "Pick a suitable time",
-                "Choose a cleaning time, then confirm your booking or approve a handyman quote.",
+                "Choose a cleaning time, then confirm your booking or approve a property maintenance quote.",
               ],
               ["Your pro arrives", "They check in and take care of the work."],
             ].map(([t, s], i) => (
@@ -292,6 +294,11 @@ export default function Home() {
         </a>
       </section>
 
+      <p style={{ textAlign: "center", padding: "20px" }}>
+        <a data-earn-with-us href="/provider/join">
+          Earn with us →
+        </a>
+      </p>
       <SiteFooter />
 
       <style jsx>{`
@@ -396,7 +403,10 @@ export default function Home() {
           height: calc(100svh - var(--home-navigation-height, 100px));
           min-height: min-content;
           display: grid;
-          grid-template-rows: minmax(min-content, 13fr) minmax(min-content, 7fr);
+          grid-template-rows: minmax(min-content, 13fr) minmax(
+              min-content,
+              7fr
+            );
         }
         .hero {
           display: flex;
@@ -582,7 +592,7 @@ export default function Home() {
             ),
             linear-gradient(145deg, #7b2ff7 0%, #a33ea6 55%, #f5c542 140%);
         }
-        .band.handyman {
+        .band.property maintenance {
           background:
             linear-gradient(
               to top,

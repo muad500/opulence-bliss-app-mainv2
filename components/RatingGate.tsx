@@ -237,9 +237,9 @@ export default function RatingGate() {
             </p>
             <form onSubmit={(event) => { event.preventDefault(); void tip(Number(customTip)); }} style={{ margin: "14px 0", display: "grid", gap: 8 }}>
               <label htmlFor="rating-tip">Your tip (£)</label>
-              <input id="rating-tip" type="number" inputMode="decimal" min="0.30" step="0.01" required value={customTip} onChange={(event) => setCustomTip(event.target.value)} placeholder="Enter any amount" disabled={busy} />
-              <button type="submit" disabled={busy || !Number.isFinite(Number(customTip)) || Number(customTip) < 0.30}>Continue with your tip</button>
-              <small>Card payments start at £0.30.</small>
+              <input id="rating-tip" type="number" inputMode="decimal" min="3.00" step="0.01" required value={customTip} onChange={(event) => setCustomTip(event.target.value)} placeholder="Enter any amount" disabled={busy} />
+              <button type="submit" disabled={busy || !Number.isFinite(Number(customTip)) || Number(customTip) < 3.00}>Continue with your tip</button>
+              <small>Tips start at £3 and go to your cleaner in full.</small>
             </form>
             <div className="tips">
               {[3, 5, 10].map((n) => (

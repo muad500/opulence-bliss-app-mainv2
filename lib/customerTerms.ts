@@ -12,7 +12,7 @@ export const CUSTOMER_TERMS_HTML = String.raw`
       <p>Welcome to Opulence Bliss Ltd.</p>
       <p>These Terms and Conditions govern the provision and arrangement of home services by Opulence Bliss Ltd (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) for customers (&quot;you&quot;, &quot;your&quot;).</p>
       <p>Opulence Bliss provides and arranges a range of services designed to help customers care for, maintain and improve their homes and other agreed properties.</p>
-      <p>Our services may include cleaning, handyman services, home maintenance, minor repairs, home improvement tasks and other services that we specifically agree to provide or arrange.</p>
+      <p>Our services may include cleaning, property maintenance services, home maintenance, minor repairs, home improvement tasks and other services that we specifically agree to provide or arrange.</p>
       <p>Our aim is to connect customers with reliable, professional and appropriately skilled self-employed service professionals while providing an outstanding customer experience built on trust, transparency, professionalism and respect.</p>
       <p>We also aim to create positive opportunities for the independent professionals who work within the Opulence Bliss community.</p>
       <p>By requesting, booking or using our services, you agree to be bound by these Terms and Conditions.</p>
@@ -22,11 +22,11 @@ export const CUSTOMER_TERMS_HTML = String.raw`
       <p><strong>Booking</strong> means a request for one or more Home Services submitted to Opulence Bliss Ltd.</p>
       <p><strong>Booking Confirmation</strong> means written confirmation from Opulence Bliss Ltd that your requested service has been accepted and arranged.</p>
       <p><strong>Customer</strong> means the individual, household, landlord, tenant, business or organisation requesting or receiving Home Services.</p>
-      <p><strong>Home Services</strong> means the services provided or arranged by Opulence Bliss Ltd for customers, including Cleaning Services, Handyman Services, Home Maintenance Services and other services specifically agreed between the parties.</p>
+      <p><strong>Home Services</strong> means the services provided or arranged by Opulence Bliss Ltd for customers, including Cleaning Services, Property maintenance Services, Home Maintenance Services and other services specifically agreed between the parties.</p>
       <p><strong>Service</strong> means a particular Home Service included within a confirmed booking.</p>
       <p><strong>Service Professional</strong> means an independent self-employed professional engaged, introduced or arranged by Opulence Bliss Ltd to provide an agreed Service.</p>
       <p><strong>Cleaner</strong> means a Service Professional providing Cleaning Services.</p>
-      <p><strong>Handyman</strong> means a Service Professional providing Handyman Services.</p>
+      <p><strong>Property maintenance</strong> means a Service Professional providing Property maintenance Services.</p>
       <p><strong>Maintenance Professional</strong> means a Service Professional providing Home Maintenance Services.</p>
       <p><strong>Property</strong> means the home, premises, building, garden, office or other location where the agreed Service is to be provided.</p>
       <p><strong>Booking Details</strong> means the information agreed in relation to a booking, including the Service, Property, date, time, estimated duration, price and any additional requirements.</p>
@@ -61,7 +61,7 @@ export const CUSTOMER_TERMS_HTML = String.raw`
         <li>Office Cleaning</li>
         <li>After Builders Cleaning</li>
         <li>Other agreed cleaning services</li>
-        <li>Handyman Services</li>
+        <li>Property maintenance Services</li>
         <li>Furniture assembly</li>
         <li>Flat-pack assembly</li>
         <li>Hanging and mounting items</li>
@@ -69,8 +69,8 @@ export const CUSTOMER_TERMS_HTML = String.raw`
         <li>Minor repairs</li>
         <li>Minor household fixes</li>
         <li>Door and cabinet adjustments</li>
-        <li>General handyman tasks</li>
-        <li>Other agreed handyman services</li>
+        <li>General property maintenance tasks</li>
+        <li>Other agreed property maintenance services</li>
         <li>Home Maintenance Services</li>
         <li>General property maintenance</li>
         <li>Minor maintenance tasks</li>
@@ -294,8 +294,8 @@ export const CUSTOMER_TERMS_HTML = String.raw`
       </ul>
       <p>Unless otherwise agreed, customers may be required to provide general cleaning products and equipment reasonably necessary for the Service.</p>
       <p>Where Opulence Bliss has agreed to provide cleaning products or equipment, this will be confirmed as part of the Booking Details.</p>
-      <h2>16. Handyman and Home Maintenance Services</h2>
-      <p>Where a booking includes Handyman or Home Maintenance Services, the work will be carried out according to the specific scope agreed with the Customer.</p>
+      <h2>16. Property maintenance and Home Maintenance Services</h2>
+      <p>Where a booking includes Property maintenance or Home Maintenance Services, the work will be carried out according to the specific scope agreed with the Customer.</p>
       <p>Examples may include:</p>
       <ul>
         <li>Furniture assembly</li>
@@ -309,7 +309,7 @@ export const CUSTOMER_TERMS_HTML = String.raw`
         <li>General property upkeep</li>
         <li>Other agreed minor home improvement tasks</li>
       </ul>
-      <p>Handyman and maintenance work can involve circumstances that are not visible or known when a booking is made.</p>
+      <p>Property maintenance and maintenance work can involve circumstances that are not visible or known when a booking is made.</p>
       <p>For example, a Service Professional may discover:</p>
       <ul>
         <li>Damaged materials</li>
@@ -357,7 +357,7 @@ export const CUSTOMER_TERMS_HTML = String.raw`
         <li>Specialist installations</li>
         <li>Other regulated or technically complex work</li>
       </ul>
-      <p>The fact that a task appears minor does not necessarily mean that it can legally or safely be carried out as general handyman work.</p>
+      <p>The fact that a task appears minor does not necessarily mean that it can legally or safely be carried out as general property maintenance work.</p>
       <p>Where we believe a requested task requires a specialist professional, we may:</p>
       <ul>
         <li>Decline the work</li>
@@ -417,7 +417,7 @@ export const CUSTOMER_TERMS_HTML = String.raw`
         <li>Previous cleaning methods</li>
         <li>The condition of fixtures and fittings</li>
       </ul>
-      <p>For Handyman and Home Maintenance Services, results may be affected by:</p>
+      <p>For Property maintenance and Home Maintenance Services, results may be affected by:</p>
       <ul>
         <li>The condition of existing materials</li>
         <li>Age and quality of fixtures or fittings</li>
@@ -435,4 +435,3 @@ export const CUSTOMER_TERMS_HTML = String.raw`
       <p>Where a Customer supplies a product, fixture, fitting, component or other Material, Opulence Bliss cannot guarantee the quality, compatibility, suitability or performance of that item.</p>
       <p>Customers should raise concerns about the quality or workmanship of a Service as soon as reasonably possible so that we have an opportunity to investigate and, where appropriate, arrange a reasonable resolution.</p>
     `;
-

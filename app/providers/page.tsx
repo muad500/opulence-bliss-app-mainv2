@@ -27,7 +27,7 @@ type P = {
 
 const SERVICE_LABEL: Record<string, string> = {
   cleaning: "Home cleaning",
-  handyman: "Handyman",
+  handyman: "Property maintenance",
 };
 
 export default function ProvidersPage() {

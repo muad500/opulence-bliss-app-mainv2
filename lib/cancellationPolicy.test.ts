@@ -12,7 +12,7 @@ function hoursFromNow(hours: number) {
 }
 
 test("more than 48 hours receives a full refund", () => {
-  for (const hours of [48.001, 72]) {
+  for (const hours of [48, 48.001, 72]) {
     const policy = calculateCancellationPolicy(hoursFromNow(hours), 93.15, NOW);
     assert.equal(policy.tier, "full");
     assert.equal(policy.refundPercent, 100);
@@ -22,7 +22,7 @@ test("more than 48 hours receives a full refund", () => {
 });
 
 test("24 through 48 hours receives a 75% refund", () => {
-  for (const hours of [24, 36, 48]) {
+  for (const hours of [24, 36, 47.999]) {
     const policy = calculateCancellationPolicy(hoursFromNow(hours), 93.15, NOW);
     assert.equal(policy.tier, "three_quarter");
     assert.equal(policy.refundPercent, 75);

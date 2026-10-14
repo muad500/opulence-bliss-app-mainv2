@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       maxTravelDistance,
       weeklyAvailability,
       skills,
-      handymanRates,
+      maintenanceTasks,
       coveragePostcodes,
       homePostcode,
       areaIds,
@@ -93,20 +93,13 @@ export async function POST(req: NextRequest) {
     const handymanSelected = selectedServices.includes("handyman");
     if (
       handymanSelected &&
-      (!handymanRates ||
-        typeof handymanRates !== "object" ||
-        Array.isArray(handymanRates) ||
-        !Object.keys(handymanRates).length ||
-        Object.entries(handymanRates).some(
-          ([task, amount]) =>
-            !validHandymanTask(task) ||
-            !Number.isInteger(amount) ||
-            Number(amount) < 100 ||
-            Number(amount) > 100000,
-        ))
+      (!Array.isArray(maintenanceTasks) ||
+        !maintenanceTasks.length ||
+        maintenanceTasks.length > 6 ||
+        maintenanceTasks.some((task) => !validHandymanTask(task)))
     )
       return NextResponse.json(
-        { error: "Select at least one handyman task and a valid hourly rate." },
+        { error: "Choose at least one available property maintenance task." },
         { status: 400 },
       );
     if (
@@ -578,6 +571,9 @@ export async function POST(req: NextRequest) {
           home_postcode: homePostcode || null,
           coverage_postcodes: handymanSelected ? coveragePostcodes : [],
           availability_configured: true,
+          maintenance_tasks: handymanSelected
+            ? [...new Set(maintenanceTasks)]
+            : [],
         },
         { onConflict: "provider_id" },
       );
@@ -586,22 +582,6 @@ export async function POST(req: NextRequest) {
         { error: "Could not save shared work settings." },
         { status: 503 },
       );
-    if (handymanSelected) {
-      const { error: ratesError } = await admin
-        .from("provider_task_rates")
-        .insert(
-          Object.entries(handymanRates).map(([task, amount]) => ({
-            provider_id: prov.id,
-            task_name: task,
-            hourly_rate_pence: amount,
-          })),
-        );
-      if (ratesError)
-        return NextResponse.json(
-          { error: "Could not save your handyman tasks." },
-          { status: 503 },
-        );
-    }
     // 5. Coverage areas.
     await admin.from("provider_service_areas").insert(
       (areaIds as string[]).map((id) => ({

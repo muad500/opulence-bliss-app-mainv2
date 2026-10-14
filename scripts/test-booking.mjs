@@ -17,6 +17,11 @@ const modules = [
   "cancellationPeriod",
   "cancellationPolicy",
   "cleaningBooking",
+  "cleaningExtras",
+  "visitBillingPolicy",
+  "visitLineItems",
+  "visitAdjustments",
+  "quotePhotos",
   "cleaningHome",
   "earningsPeriod",
   "handymanEstimate",
@@ -67,6 +72,14 @@ try {
       env: { ...process.env, NODE_PATH: join(process.cwd(), "node_modules") },
     },
   );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-cleaning-checkout.mjs"],
+    { stdio: "inherit" },
+  );
+  execFileSync(process.execPath, ["--test", "scripts/test-visit-billing.mjs"], {
+    stdio: "inherit",
+  });
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-handyman-payment-recovery.mjs"],

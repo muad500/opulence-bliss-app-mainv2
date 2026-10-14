@@ -25,6 +25,9 @@ import MessageThread from "@/components/MessageThread";
 import type { VisitStatus } from "@/lib/visitStatus";
 import { calculateCancellationPolicy } from "@/lib/cancellationPolicy";
 import { cancelBooking } from "./actions";
+import VisitBillingPanel, {
+  type VisitBillingDetails,
+} from "./VisitBillingPanel";
 
 export type ClientBookingWorkspaceData = {
   id: string;
@@ -126,7 +129,7 @@ function stageFor(booking: ClientBookingWorkspaceData) {
   return 0;
 }
 
-function nextSteps(booking: ClientBookingWorkspaceData) {
+function nextSteps(booking: ClientBookingWorkspaceData, perVisit = false) {
   const end = endTime(
     booking.status === "in_progress" && booking.arrivedAt
       ? booking.arrivedAt
@@ -135,8 +138,7 @@ function nextSteps(booking: ClientBookingWorkspaceData) {
   );
   const arrival = booking.delayMinutes
     ? new Date(
-        new Date(booking.scheduledAt).getTime() +
-          booking.delayMinutes * 60_000,
+        new Date(booking.scheduledAt).getTime() + booking.delayMinutes * 60_000,
       ).toISOString()
     : booking.scheduledAt;
   if (booking.status === "completed") {
@@ -154,9 +156,19 @@ function nextSteps(booking: ClientBookingWorkspaceData) {
         "Your provider is taking care of it now.",
         booking.arrivedAt,
       ],
-      ["Expected finish", "Based on check-in time and the cleaning duration you chose.", end],
+      [
+        "Expected finish",
+        "Based on check-in time and the cleaning duration you chose.",
+        end,
+      ],
       ["Check-out", "You will see the recorded finish time.", null],
-      ["Payment", "Your card is charged after the visit finishes.", null],
+      [
+        "Payment",
+        perVisit
+          ? "This visit has already been paid."
+          : "Your card is charged after the visit finishes.",
+        null,
+      ],
     ];
   }
   if (["offered", "declined"].includes(booking.status)) {
@@ -166,13 +178,15 @@ function nextSteps(booking: ClientBookingWorkspaceData) {
         "We are matching the right professional.",
         null,
       ],
-      [
-        "Arriving",
-        "Your professional will message before arrival.",
-        arrival,
-      ],
+      ["Arriving", "Your professional will message before arrival.", arrival],
       ["Visit in progress", "They check in when they reach the address.", null],
-      ["Visit complete", "Payment is handled after check-out.", end],
+      [
+        "Visit complete",
+        perVisit
+          ? "Your cleaner completes the visit checklist."
+          : "Payment is handled after check-out.",
+        end,
+      ],
     ];
   }
   return [
@@ -217,6 +231,9 @@ export default function BookingWorkspace({
   const [reason, setReason] = useState("");
   const [otherReason, setOtherReason] = useState("");
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [visitBilling, setVisitBilling] = useState<VisitBillingDetails | null>(
+    null,
+  );
   const [pending, startTransition] = useTransition();
 
   const modalOpen = chatOpen || cancelOpen;
@@ -255,8 +272,7 @@ export default function BookingWorkspace({
   );
   const updatedArrival = booking.delayMinutes
     ? new Date(
-        new Date(booking.scheduledAt).getTime() +
-          booking.delayMinutes * 60_000,
+        new Date(booking.scheduledAt).getTime() + booking.delayMinutes * 60_000,
       ).toISOString()
     : null;
   const bookingRef = `#BKG-${booking.id.slice(0, 8).toUpperCase()}`;
@@ -275,7 +291,9 @@ export default function BookingWorkspace({
   ];
   const cancellationPolicy = calculateCancellationPolicy(
     booking.scheduledAt,
-    booking.paymentAmount ?? 0,
+    visitBilling?.model === "per_visit"
+      ? visitBilling.paidPence / 100
+      : (booking.paymentAmount ?? 0),
   );
 
   function closeDialogs() {
@@ -350,7 +368,12 @@ export default function BookingWorkspace({
           )}
         </div>
 
-      <SessionCountdown bookingId={booking.id} status={booking.status} startedAt={booking.arrivedAt} durationMinutes={booking.durationMinutes} />
+        <SessionCountdown
+          bookingId={booking.id}
+          status={booking.status}
+          startedAt={booking.arrivedAt}
+          durationMinutes={booking.durationMinutes}
+        />
         <BookingProgress
           status={booking.status}
           stage={stage}
@@ -358,7 +381,9 @@ export default function BookingWorkspace({
           details={timelineDetails}
         />
 
-        {booking.propertySizeSqm && <p>Property size: {Number(booking.propertySizeSqm).toFixed(1)} m²</p>}
+        {booking.propertySizeSqm && (
+          <p>Property size: {Number(booking.propertySizeSqm).toFixed(1)} m²</p>
+        )}
         <div className="summary-grid">
           <SummaryCard tone="sky" icon={<MapPin size={22} />} label="Location">
             <strong>{booking.address ?? "Address saved"}</strong>
@@ -384,10 +409,29 @@ export default function BookingWorkspace({
             icon={<CreditCard size={22} />}
             label="Payment"
           >
-            <strong>{booking.paymentLabel}</strong>
-            <b>{money(booking.paymentAmount)}</b>
+            <strong>
+              {visitBilling?.model === "per_visit"
+                ? visitBilling.processing
+                  ? "Processing"
+                  : visitBilling.status === "paid"
+                    ? "Paid"
+                    : visitBilling.status === "cancelled"
+                      ? "Cancelled"
+                      : "Payment scheduled"
+                : booking.paymentLabel}
+            </strong>
+            <b>
+              {money(
+                visitBilling?.model === "per_visit"
+                  ? visitBilling.paidPence / 100
+                  : booking.paymentAmount,
+              )}
+            </b>
             <small>
-              <Info size={14} /> {booking.paymentExplanation}
+              <Info size={14} />{" "}
+              {visitBilling?.model === "per_visit"
+                ? "Each visit is charged separately. The first is paid at checkout; later visits 48 hours before."
+                : booking.paymentExplanation}
             </small>
           </SummaryCard>
         </div>
@@ -502,18 +546,20 @@ export default function BookingWorkspace({
           <section className="next-card">
             <h2>What happens next?</h2>
             <ol>
-              {nextSteps(booking).map(([title, description, at], index) => (
-                <li key={title}>
-                  <span className="step-icon">
-                    {index === 3 ? <Star size={16} /> : <Clock3 size={16} />}
-                  </span>
-                  <div>
-                    <strong>{title}</strong>
-                    {at && <b>{compactDateTime(at)}</b>}
-                    <p>{description}</p>
-                  </div>
-                </li>
-              ))}
+              {nextSteps(booking, visitBilling?.model === "per_visit").map(
+                ([title, description, at], index) => (
+                  <li key={title}>
+                    <span className="step-icon">
+                      {index === 3 ? <Star size={16} /> : <Clock3 size={16} />}
+                    </span>
+                    <div>
+                      <strong>{title}</strong>
+                      {at && <b>{compactDateTime(at)}</b>}
+                      <p>{description}</p>
+                    </div>
+                  </li>
+                ),
+              )}
             </ol>
           </section>
 
@@ -563,6 +609,7 @@ export default function BookingWorkspace({
           </div>
         </div>
 
+        <VisitBillingPanel bookingId={booking.id} onLoaded={setVisitBilling} />
         {children && (
           <section className="additional-actions">{children}</section>
         )}
@@ -735,13 +782,18 @@ export default function BookingWorkspace({
             </p>
             {cancelError && <p className="cancel-error">{cancelError}</p>}
             <div className="cancel-buttons">
+              {canModify && modifyControl && (
+                <div onClick={closeDialogs}>
+                  Change instead of cancel {modifyControl}
+                </div>
+              )}
               <button className="keep" onClick={closeDialogs}>
                 Keep booking
               </button>
               <button
                 className="confirm-cancel"
                 onClick={confirmCancellation}
-                disabled={pending}
+                disabled={pending || !visitBilling || visitBilling.processing}
               >
                 {pending ? "Cancelling…" : "Yes, cancel booking"}
               </button>

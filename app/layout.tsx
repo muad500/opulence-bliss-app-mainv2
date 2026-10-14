@@ -7,6 +7,7 @@ import { Nunito } from "next/font/google";
 import "./globals.css";
 import "./mobile-app.css";
 
+import SocialLinks from "@/components/SocialLinks";
 import MobileExperience from "@/components/MobileExperience";
 import TopBar from "@/components/TopBar";
 import SiteHeader from "@/components/SiteHeader";
@@ -75,6 +76,9 @@ export default function RootLayout({
           <TopBar />
           <SiteHeader />
           {children}
+          <footer data-social-footer>
+            <SocialLinks />
+          </footer>
           <Toaster />
           <RatingGate />
           <div data-app-chat>

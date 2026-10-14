@@ -62,7 +62,8 @@ export async function allHandymanEarnings(
       .order("scheduled_at", { ascending: false })
       .order("id")
       .range(offset, offset + 499);
-    if (error) throw new Error("Handyman earnings could not be loaded.");
+    if (error)
+      throw new Error("Property maintenance earnings could not be loaded.");
     rows.push(...((data ?? []) as HandymanEarning[]));
     if (!data || data.length < 500) return rows;
   }

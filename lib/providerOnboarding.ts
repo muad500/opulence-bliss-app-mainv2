@@ -9,7 +9,7 @@ export const PROVIDER_RESIDENT_STATUSES = [
   "Student Visa",
 ] as const;
 
-export const PROVIDER_ESTIMATED_HOURLY_EARNINGS = 18;
+export const PROVIDER_ESTIMATED_HOURLY_EARNINGS = 15;
 export const PROVIDER_MAX_WEEKLY_HOURS = 40;
 const AVERAGE_WEEKS_PER_MONTH = 4;
 
@@ -88,21 +88,30 @@ export function isProviderResidentStatus(value: unknown) {
 }
 
 export function isOptionalUtrNumber(value: unknown) {
-  return value == null || (typeof value === "string" && (!value.trim() || /^\d{10}$/.test(value.trim())));
+  return (
+    value == null ||
+    (typeof value === "string" &&
+      (!value.trim() || /^\d{10}$/.test(value.trim())))
+  );
 }
 
 // This gates self-service applications, not an administrator's evidence review.
 // Student permission normally prohibits self-employment (Appendix Student
 // ST 26.5). Any ST 26.8 exception must be checked manually before applying.
-export function providerApplicationEligibilityError(residentStatus: unknown, rightToWork: unknown): string | null {
-  if (!isProviderResidentStatus(residentStatus)) return "Select your resident status in the UK.";
+export function providerApplicationEligibilityError(
+  residentStatus: unknown,
+  rightToWork: unknown,
+): string | null {
+  if (!isProviderResidentStatus(residentStatus))
+    return "Select your resident status in the UK.";
   if (residentStatus === "Student Visa") {
     return "A Student visa normally does not permit self-employed work. You cannot continue with this application. If you have exceptional permission, contact support for a manual review.";
   }
   if (residentStatus === "Asylum Seeker") {
     return "Asylum-seeker permission to work does not normally permit self-employment. Contact support for a manual review of your permission before applying.";
   }
-  if (rightToWork !== true) return "You must have permission to work on a self-employed basis in the UK before applying. Contact support if you need help checking your permission.";
+  if (rightToWork !== true)
+    return "You must have permission to work on a self-employed basis in the UK before applying. Contact support if you need help checking your permission.";
   return null;
 }
 

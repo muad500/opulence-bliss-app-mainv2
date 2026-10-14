@@ -45,6 +45,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 # local secrets
+.local-secrets/
 .env
 .env.local
 .env.*.local

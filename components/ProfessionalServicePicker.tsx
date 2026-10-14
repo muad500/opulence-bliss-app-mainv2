@@ -32,7 +32,7 @@ export default function ProfessionalServicePicker({
       <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
         {services.map((service) => (
           <label
-            key={service}
+            key={service === "handyman" ? "Property maintenance" : "Cleaning"}
             style={{
               display: "flex",
               gap: 8,

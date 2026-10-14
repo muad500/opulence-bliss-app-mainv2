@@ -59,6 +59,7 @@ type Profile = {
     services: string[];
     equipmentProvided: boolean;
     handymanRates: Record<string, number>;
+    maintenanceTasks: string[];
     ratingAvg: number | null;
     ratingCount: number;
   };
@@ -278,7 +279,7 @@ export default function WorkerProfilePage() {
               yearsExperience: p.publicProfile.yearsExperience,
               equipmentProvided: p.publicProfile.equipmentProvided,
               ...(p.publicProfile.services.includes("handyman")
-                ? { handymanRates: p.publicProfile.handymanRates }
+                ? { maintenanceTasks: p.publicProfile.maintenanceTasks }
                 : {}),
             }
           : section === "work"
@@ -694,38 +695,39 @@ export default function WorkerProfilePage() {
                 handymanEnabled={p.marketplaceEnabled}
                 onAdded={refresh}
               />
-              {p.publicProfile.services.includes("handyman") && (
-                <div className={styles.rateBox}>
-                  <h3>Handyman hourly rates</h3>
-                  <p>
-                    Set your own rate for each task. These do not automatically
-                    change existing customer quotes.
-                  </p>
-                  <div className={styles.grid}>
+              {p.marketplaceEnabled &&
+                p.publicProfile.services.includes("handyman") && (
+                  <fieldset>
+                    <legend>Property maintenance tasks</legend>
+                    <p>Each job is quoted before work begins.</p>
                     {TASKS.map((task) => (
-                      <Field label={task} key={task}>
-                        <span className={styles.moneyInput}>
-                          £ / hr{" "}
-                          <input
-                            type="number"
-                            min="0"
-                            max="500"
-                            value={p.publicProfile.handymanRates[task] ?? ""}
-                            onChange={(e) =>
-                              edit("publicProfile", {
-                                handymanRates: {
-                                  ...p.publicProfile.handymanRates,
-                                  [task]: Number(e.target.value),
-                                },
-                              })
-                            }
-                          />
-                        </span>
-                      </Field>
+                      <label
+                        key={task}
+                        style={{ display: "flex", gap: 10, padding: 8 }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={(
+                            p.publicProfile.maintenanceTasks ?? []
+                          ).includes(task)}
+                          onChange={(event) =>
+                            edit("publicProfile", {
+                              maintenanceTasks: event.target.checked
+                                ? [
+                                    ...(p.publicProfile.maintenanceTasks ?? []),
+                                    task,
+                                  ]
+                                : (
+                                    p.publicProfile.maintenanceTasks ?? []
+                                  ).filter((value) => value !== task),
+                            })
+                          }
+                        />
+                        {task}
+                      </label>
                     ))}
-                  </div>
-                </div>
-              )}
+                  </fieldset>
+                )}
               {saveButton("publicProfile", () => void save("publicProfile"))}
               {message("publicProfile")}
             </Section>
