@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
             id: string;
             created_at: string;
             gross_amount?: number;
-            split_breakdown?: { provider?: number };
+            split_breakdown?: { provider?: number; pay_rate_pending?: boolean };
             amount?: number;
             kind?: string;
             status: string;
@@ -47,12 +47,16 @@ export async function GET(request: NextRequest) {
                 ? "Tip"
                 : "Visit payment"
               : "Payout",
-            Number(
-              table === "payments"
-                ? (row.split_breakdown?.provider ?? 0)
-                : (row.amount ?? 0),
-            ).toFixed(2),
-            row.status,
+            row.split_breakdown?.pay_rate_pending
+              ? ""
+              : Number(
+                  table === "payments"
+                    ? (row.split_breakdown?.provider ?? 0)
+                    : (row.amount ?? 0),
+                ).toFixed(2),
+            row.split_breakdown?.pay_rate_pending
+              ? "Pay rate awaiting confirmation"
+              : row.status,
           ]);
         }
         if (!data || data.length < 500) break;
@@ -65,7 +69,7 @@ export async function GET(request: NextRequest) {
         rows.push([
           row.when,
           row.key,
-          "Handyman",
+          "Property maintenance",
           row.label,
           row.amount.toFixed(2),
           row.state,

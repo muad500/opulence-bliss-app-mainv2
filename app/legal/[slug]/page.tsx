@@ -36,9 +36,12 @@ const loadDocument = cache(async (slug: string) => {
     if (!row?.content_html) return fallback;
     return {
       slug,
-      title: row.title,
+      title: row.title.replace(/Handyman/gi, "Property maintenance"),
       audience: row.audience,
-      contentHtml: sanitizeLegalHtml(row.content_html),
+      contentHtml: sanitizeLegalHtml(row.content_html).replace(
+        />[^<]+</g,
+        (text) => text.replace(/Handyman/gi, "Property maintenance"),
+      ),
       version: row.version,
       updatedAt: row.updated_at,
     } satisfies LegalDocument;
@@ -54,7 +57,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const document = await loadDocument(slug);
-  return { title: document ? `${document.title} · Opulence Bliss` : "Legal · Opulence Bliss" };
+  return {
+    title: document
+      ? `${document.title} · Opulence Bliss`
+      : "Legal · Opulence Bliss",
+  };
 }
 
 export default async function LegalDocumentPage({

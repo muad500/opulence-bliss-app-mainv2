@@ -156,7 +156,9 @@ export default function HandymanJobDetail({
         >
           ← My jobs
         </Link>
-        {portal === "customer" && <Link href="/handyman">Book a handyman</Link>}
+        {portal === "customer" && (
+          <Link href="/handyman">Book a property maintenance</Link>
+        )}
         <Link
           href={
             portal === "professional" ? "/worker/profile" : "/account/profile"
@@ -193,10 +195,7 @@ export default function HandymanJobDetail({
               {j.address}, {j.postcode}
             </p>
             <p className={styles.muted}>{j.description}</p>
-            <p>
-              {money(j.hourly_rate_pence)}/hr{j.vat_bps ? " + VAT" : ""} ·
-              one-hour minimum
-            </p>
+
             <strong>
               {j.status === "completed"
                 ? "Paid: " + money(j.bill?.gross ?? 0)
@@ -401,7 +400,7 @@ export default function HandymanJobDetail({
                 {!customer && (
                   <>
                     <div>
-                      <span>Platform share (20% of net labour)</span>
+                      <span>Platform fee</span>
                       <strong>{money(bill.platform)}</strong>
                     </div>
                     <div>

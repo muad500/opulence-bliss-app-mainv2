@@ -33,7 +33,7 @@ export default function JobExceptions({
   const [pending, start] = useTransition();
 
   const scheduled = new Date(scheduledAt).getTime();
-  const noAccessFrom = scheduled + 15 * 60_000;
+  const noAccessFrom = scheduled + 30 * 60_000;
 
   useEffect(() => {
     if (now >= noAccessFrom) return;
@@ -166,7 +166,7 @@ export default function JobExceptions({
                 value={reason}
                 maxLength={1000}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="What happened? e.g. rang the bell and called twice, no answer after 15 minutes"
+                placeholder="What happened? e.g. rang the bell and called twice, no answer after 30 minutes"
               />
               <button
                 className="go"

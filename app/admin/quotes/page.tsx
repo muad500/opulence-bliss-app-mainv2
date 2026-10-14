@@ -1,9 +1,12 @@
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { QUOTE_PHOTO_BUCKET } from "@/lib/quotePhotos";
 import AdminNav from "../AdminNav";
 import { requireAdminPage } from "@/lib/adminSession";
 import { updateHandymanQuote } from "./actions";
 
 type Quote = {
   id: string;
+  photos: { path: string; name: string; url?: string }[];
   reference: string;
   full_name: string;
   email: string;
@@ -27,46 +30,136 @@ export default async function AdminQuotesPage() {
   const { supabase, user } = await requireAdminPage();
   const { data, error } = await supabase
     .from("handyman_quote_requests")
-    .select("id, reference, full_name, email, phone, address, postcode, task_type, description, preferred_date, preferred_time, status, admin_notes, created_at, preferred_provider_id, quoted_hourly_rate_pence, estimated_hours, estimate_total_pence")
+    .select(
+      "photos, id, reference, full_name, email, phone, address, postcode, task_type, description, preferred_date, preferred_time, status, admin_notes, created_at, preferred_provider_id, quoted_hourly_rate_pence, estimated_hours, estimate_total_pence",
+    )
     .order("created_at", { ascending: false });
   const quotes = (data ?? []) as Quote[];
+  const storage = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  ).storage.from(QUOTE_PHOTO_BUCKET);
+  for (const quote of quotes)
+    for (const photo of quote.photos ?? []) {
+      const signed = await storage.createSignedUrl(photo.path, 300);
+      photo.url = signed.data?.signedUrl;
+    }
 
   return (
     <main className="page">
       <AdminNav email={user.email ?? "Admin"} />
       <div className="inner">
-        <p className="eyebrow">Handyman</p>
+        <p className="eyebrow">Property maintenance</p>
         <h1>Quotation requests</h1>
-        <p className="lede">Review the work requested, contact the customer and record the quotation stage.</p>
+        <p className="lede">
+          Review the work requested, contact the customer and record the
+          quotation stage.
+        </p>
 
-        {error ? <p className="error">{error.message}</p> : quotes.length === 0 ? (
-          <section className="empty">No handyman quotation requests yet.</section>
+        {error ? (
+          <p className="error">{error.message}</p>
+        ) : quotes.length === 0 ? (
+          <section className="empty">
+            No property maintenance quotation requests yet.
+          </section>
         ) : (
           <section className="list">
             {quotes.map((quote) => (
               <article className="card" key={quote.id}>
                 <div className="head">
-                  <div><span>{quote.reference}</span><h2>{quote.task_type}</h2></div>
-                  <strong className={`status ${quote.status}`}>{quote.status}</strong>
+                  <div>
+                    <span>{quote.reference}</span>
+                    <h2>{quote.task_type}</h2>
+                  </div>
+                  <strong className={`status ${quote.status}`}>
+                    {quote.status}
+                  </strong>
                 </div>
                 <div className="facts">
-                  <p><b>Customer</b>{quote.full_name}</p>
-                  <p><b>Contact</b><a href={`mailto:${quote.email}`}>{quote.email}</a><br /><a href={`tel:${quote.phone}`}>{quote.phone}</a></p>
-                  <p><b>Address</b>{quote.address}<br />{quote.postcode}</p>
-                  <p><b>Preferred</b>{quote.preferred_date ?? "Flexible"}{quote.preferred_time ? ` · ${quote.preferred_time}` : ""}</p>
+                  <p>
+                    <b>Customer</b>
+                    {quote.full_name}
+                  </p>
+                  <p>
+                    <b>Contact</b>
+                    <a href={`mailto:${quote.email}`}>{quote.email}</a>
+                    <br />
+                    <a href={`tel:${quote.phone}`}>{quote.phone}</a>
+                  </p>
+                  <p>
+                    <b>Address</b>
+                    {quote.address}
+                    <br />
+                    {quote.postcode}
+                  </p>
+                  <p>
+                    <b>Preferred</b>
+                    {quote.preferred_date ?? "Flexible"}
+                    {quote.preferred_time ? ` · ${quote.preferred_time}` : ""}
+                  </p>
                 </div>
-                {quote.preferred_provider_id && <p><a href={`/admin/cleaners/${quote.preferred_provider_id}`}>Requested professional →</a> · £{((quote.quoted_hourly_rate_pence ?? 0) / 100).toFixed(2)}/hr · {quote.estimated_hours} hours · estimate £{((quote.estimate_total_pence ?? 0) / 100).toFixed(2)}</p>}
-                <div className="description"><b>Job details</b><p>{quote.description}</p></div>
+                {quote.preferred_provider_id && (
+                  <p>
+                    <a href={`/admin/cleaners/${quote.preferred_provider_id}`}>
+                      Requested professional →
+                    </a>
+                  </p>
+                )}
+                {(quote.photos ?? []).length > 0 && (
+                  <nav aria-label="Quote photos">
+                    {quote.photos.map((photo) =>
+                      photo.url ? (
+                        <a
+                          key={photo.path}
+                          href={photo.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: "inline-block",
+                            margin: "8px 16px 8px 0",
+                          }}
+                        >
+                          {photo.name} ↗
+                        </a>
+                      ) : (
+                        <span key={photo.path}>Photo unavailable</span>
+                      ),
+                    )}
+                  </nav>
+                )}
+                <div className="description">
+                  <b>Job details</b>
+                  <p>{quote.description}</p>
+                </div>
                 <form action={updateHandymanQuote.bind(null, quote.id)}>
-                  <label>Status<select name="status" defaultValue={quote.status}>
-                    <option value="new">New</option><option value="reviewing">Reviewing</option>
-                    <option value="quoted">Quoted</option><option value="accepted">Accepted</option>
-                    <option value="declined">Declined</option><option value="closed">Closed</option>
-                  </select></label>
-                  <label className="notes">Admin notes<textarea name="adminNotes" rows={3} defaultValue={quote.admin_notes ?? ""} /></label>
+                  <label>
+                    Status
+                    <select name="status" defaultValue={quote.status}>
+                      <option value="new">New</option>
+                      <option value="reviewing">Reviewing</option>
+                      <option value="quoted">Quoted</option>
+                      <option value="accepted">Accepted</option>
+                      <option value="declined">Declined</option>
+                      <option value="closed">Closed</option>
+                    </select>
+                  </label>
+                  <label className="notes">
+                    Admin notes
+                    <textarea
+                      name="adminNotes"
+                      rows={3}
+                      defaultValue={quote.admin_notes ?? ""}
+                    />
+                  </label>
                   <button type="submit">Save quote status</button>
                 </form>
-                <small>Received {new Date(quote.created_at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</small>
+                <small>
+                  Received{" "}
+                  {new Date(quote.created_at).toLocaleString("en-GB", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </small>
               </article>
             ))}
           </section>

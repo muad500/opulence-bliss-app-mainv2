@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { FormEvent, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { handymanEstimatePence } from "@/lib/handymanEstimate";
 
 const supabase = createClient();
 
@@ -27,12 +26,36 @@ type CustomerProfile = {
 type QuoteAccess = "loading" | "signed_out" | "customer" | "wrong_role";
 
 const TASKS = [
-  { name: "Mounting and hanging", note: "Pictures, mirrors, shelves and TVs", icon: Drill },
-  { name: "Furniture assembly", note: "Flat-pack furniture and installations", icon: Armchair },
-  { name: "Minor repairs", note: "Everyday fixes and small maintenance jobs", icon: Hammer },
-  { name: "Curtains and blinds", note: "Rails, blinds and curtain installation", icon: Wrench },
-  { name: "Furniture moving", note: "Help repositioning furniture at home", icon: Move },
-  { name: "Minor decorating", note: "Small touch-ups and minor decorating", icon: PaintRoller },
+  {
+    name: "Mounting and hanging",
+    note: "Pictures, mirrors, shelves and TVs",
+    icon: Drill,
+  },
+  {
+    name: "Furniture assembly",
+    note: "Flat-pack furniture assembly",
+    icon: Armchair,
+  },
+  {
+    name: "Minor repairs",
+    note: "Everyday fixes and small maintenance jobs",
+    icon: Hammer,
+  },
+  {
+    name: "Curtains and blinds",
+    note: "Rails, blinds and curtains",
+    icon: Wrench,
+  },
+  {
+    name: "Furniture moving",
+    note: "Help repositioning furniture at home",
+    icon: Move,
+  },
+  {
+    name: "Minor decorating",
+    note: "Small touch-ups and minor decorating",
+    icon: PaintRoller,
+  },
 ] as const;
 
 const TASK_OPTIONS = [
@@ -42,12 +65,16 @@ const TASK_OPTIONS = [
 
 export default function HandymanPage() {
   const [taskType, setTaskType] = useState("");
-  const [quoteProfessional, setQuoteProfessional] = useState<{ id: string; displayName: string; rates: { task_name: string; hourly_rate_pence: number }[] } | null>(null);
+  const [quoteProfessional, setQuoteProfessional] = useState<{
+    id: string;
+    displayName: string;
+    rates: { task_name: string; hourly_rate_pence: number }[];
+  } | null>(null);
   const [professionalLoading, setProfessionalLoading] = useState(false);
-  const [requestedProfessionalError, setRequestedProfessionalError] = useState<string | null>(null);
-  const [estimatedHours, setEstimatedHours] = useState(2);
-  const selectedRate = quoteProfessional?.rates.find((rate) => rate.task_name === taskType);
-  const estimate = selectedRate ? handymanEstimatePence(selectedRate.hourly_rate_pence, estimatedHours) : null;
+  const [requestedProfessionalError, setRequestedProfessionalError] = useState<
+    string | null
+  >(null);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const provider = params.get("provider");
@@ -55,14 +82,29 @@ export default function HandymanPage() {
     void (async () => {
       setProfessionalLoading(true);
       try {
-        const response = await fetch(`/api/providers/${encodeURIComponent(provider)}/quote-options`);
+        const response = await fetch(
+          `/api/providers/${encodeURIComponent(provider)}/quote-options`,
+        );
         const info = await response.json();
-        if (!response.ok) throw new Error(info.error ?? "This professional is unavailable.");
+        if (!response.ok)
+          throw new Error(info.error ?? "This professional is unavailable.");
         setQuoteProfessional(info);
         const task = params.get("task");
-        if (info.rates.some((rate: { task_name: string }) => rate.task_name === task)) setTaskType(task!);
-      } catch (cause) { setRequestedProfessionalError(cause instanceof Error ? cause.message : "Could not load this professional."); }
-      finally { setProfessionalLoading(false); }
+        if (
+          info.rates.some(
+            (rate: { task_name: string }) => rate.task_name === task,
+          )
+        )
+          setTaskType(task!);
+      } catch (cause) {
+        setRequestedProfessionalError(
+          cause instanceof Error
+            ? cause.message
+            : "Could not load this professional.",
+        );
+      } finally {
+        setProfessionalLoading(false);
+      }
     })();
   }, []);
   const [busy, setBusy] = useState(false);
@@ -116,9 +158,14 @@ export default function HandymanPage() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (professionalLoading) { setError("Please wait while the professional’s rates load."); return; }
-    if (requestedProfessionalError) { setError(requestedProfessionalError); return; }
-    if (quoteProfessional && !selectedRate) { setError("Choose a task with a listed rate for this professional."); return; }
+    if (professionalLoading) {
+      setError("Please wait while the professional loads.");
+      return;
+    }
+    if (requestedProfessionalError) {
+      setError(requestedProfessionalError);
+      return;
+    }
     if (quoteAccess !== "customer") {
       setError("Sign in with a customer account before requesting a quote.");
       return;
@@ -128,31 +175,25 @@ export default function HandymanPage() {
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
 
+    if (quoteProfessional)
+      form.set("preferredProviderId", quoteProfessional.id);
     try {
       const response = await fetch("/api/handyman-quote", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          fullName: form.get("fullName"),
-          email: form.get("email"),
-          phone: form.get("phone"),
-          address: form.get("address"),
-          postcode: form.get("postcode"),
-          taskType: form.get("taskType"),
-          preferredProviderId: quoteProfessional?.id, estimatedHours: quoteProfessional ? estimatedHours : undefined, expectedHourlyRatePence: selectedRate?.hourly_rate_pence,
-          description: form.get("description"),
-          preferredDate: form.get("preferredDate"),
-          preferredTime: form.get("preferredTime"),
-          consentAccepted: form.get("consentAccepted") === "on",
-        }),
+        body: form,
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error ?? "Could not send your quote request.");
+      if (!response.ok)
+        throw new Error(data.error ?? "Could not send your quote request.");
       setReference(data.reference);
       formElement.reset();
       setTaskType("");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not send your quote request.");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : "Could not send your quote request.",
+      );
     } finally {
       setBusy(false);
     }
@@ -163,19 +204,25 @@ export default function HandymanPage() {
       <header className="hero">
         <div className="inner heroGrid">
           <div>
-            <p className="eyebrow">Handyman services across London</p>
-            <h1>Tell us what needs doing. We&apos;ll arrange the right quote.</h1>
-            <p className="lede">
-              Repairs, assembly, mounting, minor decorating and practical help around
-              your home from trusted professionals.
+            <p className="eyebrow">
+              Property maintenance services across London
             </p>
-            <a className="primary" href="#quote">Request a quote</a>
+            <h1>
+              Tell us what needs doing. We&apos;ll arrange the right quote.
+            </h1>
+            <p className="lede">
+              Repairs, assembly, mounting, minor decorating and practical help
+              around your home from trusted professionals.
+            </p>
+            <a className="primary" href="#quote">
+              Request a quote
+            </a>
           </div>
           <div className="heroVisual">
             <div className="heroPhoto">
               <Image
                 src="/handyman-hero.webp"
-                alt="Handyman preparing tools for work in a home"
+                alt="Property maintenance professional preparing tools for work in a home"
                 fill
                 priority
                 sizes="(max-width: 900px) 100vw, 560px"
@@ -194,14 +241,21 @@ export default function HandymanPage() {
         </div>
       </header>
 
-      <nav className="mobileCta mobile-service-cta" aria-label="Handyman quick actions">
-        <a className="mobileCtaServices" href="#handyman-services">See our services</a>
-        <a className="mobileCtaQuote" href="#quote">Request a quote</a>
+      <nav
+        className="mobileCta mobile-service-cta"
+        aria-label="Property maintenance quick actions"
+      >
+        <a className="mobileCtaServices" href="#handyman-services">
+          See our services
+        </a>
+        <a className="mobileCtaQuote" href="#quote">
+          Request a quote
+        </a>
       </nav>
 
       <section className="inner services" aria-labelledby="handyman-services">
         <p className="eyebrow">What we can help with</p>
-        <h2 id="handyman-services">Handyman services</h2>
+        <h2 id="handyman-services">Property maintenance services</h2>
         <div className="taskGrid">
           {TASKS.map(({ name, note, icon: Icon }) => (
             <button
@@ -210,7 +264,9 @@ export default function HandymanPage() {
               className={taskType === name ? "task selected" : "task"}
               onClick={() => {
                 setTaskType(name);
-                document.getElementById("quote")?.scrollIntoView({ behavior: "smooth" });
+                document
+                  .getElementById("quote")
+                  ?.scrollIntoView({ behavior: "smooth" });
               }}
             >
               <Icon size={23} strokeWidth={1.8} />
@@ -228,9 +284,10 @@ export default function HandymanPage() {
           <div className="inner faqGrid">
             <div>
               <p className="eyebrow">Before you request a quote</p>
-              <h2 id="handyman-faqs">Handyman questions</h2>
+              <h2 id="handyman-faqs">Property maintenance questions</h2>
               <p className="faqIntro">
-                Useful details about jobs, materials, assembly and specialist work.
+                Useful details about jobs, materials, assembly and specialist
+                work.
               </p>
             </div>
             <div className="faqList">
@@ -249,15 +306,21 @@ export default function HandymanPage() {
         <div className="inner quoteGrid">
           <div className="quoteIntro">
             <p className="eyebrow">Tailored quotation</p>
-            <h2>Request your handyman quote</h2>
+            <h2>Request your property maintenance quote</h2>
             <p>
               Describe the task and your preferred timing. The team will review
               the scope and contact you before confirming the work.
             </p>
             <ol>
-              <li><span>1</span> Send the job details</li>
-              <li><span>2</span> We review the scope</li>
-              <li><span>3</span> Receive and approve your quote</li>
+              <li>
+                <span>1</span> Send the job details
+              </li>
+              <li>
+                <span>2</span> We review the scope
+              </li>
+              <li>
+                <span>3</span> Receive and approve your quote
+              </li>
             </ol>
           </div>
 
@@ -272,12 +335,18 @@ export default function HandymanPage() {
               <span className="gateMark">✓</span>
               <h2>Sign in to request a quote</h2>
               <p>
-                Handyman quotations are available to registered Opulence Bliss
-                customers so every request stays linked to the correct account.
+                Property maintenance quotations are available to registered
+                Opulence Bliss customers so every request stays linked to the
+                correct account.
               </p>
               <div className="gateActions">
-                <Link href="/login?next=%2Fservices%2Fhandyman%23quote">Sign in</Link>
-                <Link className="secondary" href="/auth/sign-up?next=%2Fservices%2Fhandyman%23quote">
+                <Link href="/login?next=%2Fservices%2Fhandyman%23quote">
+                  Sign in
+                </Link>
+                <Link
+                  className="secondary"
+                  href="/auth/sign-up?next=%2Fservices%2Fhandyman%23quote"
+                >
                   Create an account
                 </Link>
               </div>
@@ -288,9 +357,13 @@ export default function HandymanPage() {
               <h2>A customer account is required</h2>
               <p>
                 This quotation form cannot be submitted from a professional or
-                administrator account. Sign in with your customer account instead.
+                administrator account. Sign in with your customer account
+                instead.
               </p>
-              <Link className="gateSingle" href="/login?next=%2Fservices%2Fhandyman%23quote">
+              <Link
+                className="gateSingle"
+                href="/login?next=%2Fservices%2Fhandyman%23quote"
+              >
                 Go to customer sign in
               </Link>
             </div>
@@ -298,21 +371,69 @@ export default function HandymanPage() {
             <div className="success" role="status">
               <span>✓</span>
               <h2>Quote request received</h2>
-              <p>Your reference is <strong>{reference}</strong>.</p>
-              <p>We&apos;ll contact you after the job details have been reviewed.</p>
-              <button type="button" onClick={() => setReference(null)}>Send another request</button>
+              <p>
+                Your reference is <strong>{reference}</strong>.
+              </p>
+              <p>
+                We&apos;ll contact you after the job details have been reviewed.
+              </p>
+              <button type="button" onClick={() => setReference(null)}>
+                Send another request
+              </button>
             </div>
           ) : (
             <form className="quoteForm" onSubmit={submit}>
               <div className="two">
-                <label>Full name<input name="fullName" autoComplete="name" defaultValue={customer?.full_name ?? ""} required /></label>
-                <label>Email<input name="email" type="email" autoComplete="email" defaultValue={customer?.email ?? ""} required /></label>
+                <label>
+                  Full name
+                  <input
+                    name="fullName"
+                    autoComplete="name"
+                    defaultValue={customer?.full_name ?? ""}
+                    required
+                  />
+                </label>
+                <label>
+                  Email
+                  <input
+                    name="email"
+                    type="email"
+                    autoComplete="email"
+                    defaultValue={customer?.email ?? ""}
+                    required
+                  />
+                </label>
               </div>
               <div className="two">
-                <label>Phone<input name="phone" type="tel" autoComplete="tel" defaultValue={customer?.phone ?? ""} required /></label>
-                <label>Postcode<input name="postcode" autoComplete="postal-code" defaultValue={customer?.postcode ?? ""} required /></label>
+                <label>
+                  Phone
+                  <input
+                    name="phone"
+                    type="tel"
+                    autoComplete="tel"
+                    defaultValue={customer?.phone ?? ""}
+                    required
+                  />
+                </label>
+                <label>
+                  Postcode
+                  <input
+                    name="postcode"
+                    autoComplete="postal-code"
+                    defaultValue={customer?.postcode ?? ""}
+                    required
+                  />
+                </label>
               </div>
-              <label>Service address<input name="address" autoComplete="street-address" defaultValue={customer?.address ?? ""} required /></label>
+              <label>
+                Service address
+                <input
+                  name="address"
+                  autoComplete="street-address"
+                  defaultValue={customer?.address ?? ""}
+                  required
+                />
+              </label>
               <label>
                 What do you need help with?
                 <select
@@ -322,13 +443,39 @@ export default function HandymanPage() {
                   required
                 >
                   <option value="">Choose a task</option>
-                  {(quoteProfessional ? quoteProfessional.rates.map((rate) => ({ value: rate.task_name, label: `${rate.task_name} — £${(rate.hourly_rate_pence / 100).toFixed(2)}/hr` })) : TASK_OPTIONS).map((task) => (
-                    <option key={task.value} value={task.value}>{task.label}</option>
+                  {(quoteProfessional
+                    ? quoteProfessional.rates.map((rate) => ({
+                        value: rate.task_name,
+                        label: rate.task_name,
+                      }))
+                    : TASK_OPTIONS
+                  ).map((task) => (
+                    <option key={task.value} value={task.value}>
+                      {task.label}
+                    </option>
                   ))}
                 </select>
               </label>
-              {requestedProfessionalError && <p role="alert">{requestedProfessionalError} <Link href="/services/handyman#quote" onClick={() => { setRequestedProfessionalError(null); setQuoteProfessional(null); }}>Request a quote without choosing a professional</Link></p>}
-              {quoteProfessional && <div className="quoteEstimate"><strong>Requested professional: {quoteProfessional.displayName}</strong><label>Estimated hours<input type="number" min="0.5" max="16" step="0.5" value={estimatedHours} onChange={(event) => setEstimatedHours(Number(event.target.value))} required /></label>{estimate !== null && <p>Estimated labour: £{(estimate / 100).toFixed(2)}. Materials and final hours are confirmed in your quote. No payment is taken here.</p>}</div>}
+              {requestedProfessionalError && (
+                <p role="alert">
+                  {requestedProfessionalError}{" "}
+                  <Link
+                    href="/services/handyman#quote"
+                    onClick={() => {
+                      setRequestedProfessionalError(null);
+                      setQuoteProfessional(null);
+                    }}
+                  >
+                    Request a quote without choosing a professional
+                  </Link>
+                </p>
+              )}
+              {quoteProfessional && (
+                <p>
+                  Requested professional: {quoteProfessional.displayName}. We
+                  will confirm a tailored quote before any work begins.
+                </p>
+              )}
               <label>
                 Describe the work
                 <textarea
@@ -339,8 +486,28 @@ export default function HandymanPage() {
                   required
                 />
               </label>
+              <label>
+                Job photos (optional)
+                <input
+                  name="photos"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                />
+                <small>
+                  Up to 3 photos, 1 MB each. Photos are private and used to
+                  assess your quote.
+                </small>
+              </label>
               <div className="two">
-                <label>Preferred date (optional)<input name="preferredDate" type="date" min={new Date().toISOString().slice(0, 10)} /></label>
+                <label>
+                  Preferred date (optional)
+                  <input
+                    name="preferredDate"
+                    type="date"
+                    min={new Date().toISOString().slice(0, 10)}
+                  />
+                </label>
                 <label>
                   Preferred time (optional)
                   <select name="preferredTime" defaultValue="">
@@ -354,197 +521,671 @@ export default function HandymanPage() {
               <label className="consent">
                 <input name="consentAccepted" type="checkbox" required />
                 <span>
-                  I have read and accept the <Link href="/legal/handyman-terms">Handyman Services Terms</Link>,{" "}
-                  <Link href="/legal/terms">Terms &amp; Conditions</Link>,{" "}
+                  I have read and accept the{" "}
+                  <Link href="/legal/handyman-terms">
+                    Property maintenance Services Terms
+                  </Link>
+                  , <Link href="/legal/terms">Terms &amp; Conditions</Link>,{" "}
                   <Link href="/legal/privacy">Privacy Policy</Link> and{" "}
-                  <Link href="/legal/cancellation-refund">Cancellation &amp; Refund Policy</Link>.
+                  <Link href="/legal/cancellation-refund">
+                    Cancellation &amp; Refund Policy
+                  </Link>
+                  .
                 </span>
               </label>
-              {error && <p className="error" role="alert">{error}</p>}
+              {error && (
+                <p className="error" role="alert">
+                  {error}
+                </p>
+              )}
               <button className="submit" type="submit" disabled={busy}>
                 {busy ? "Sending request…" : "Send quote request"}
               </button>
-              <p className="finePrint">No payment is taken when you request a quote.</p>
+              <p className="finePrint">
+                No payment is taken when you request a quote.
+              </p>
             </form>
           )}
         </div>
       </section>
 
       <style jsx>{`
-        .page { color:#16202a; font-family:"Nunito",system-ui,sans-serif; }
-        .inner { width:min(1120px,calc(100% - 40px)); margin:0 auto; }
-        .hero { overflow:hidden; padding:72px 0; background:linear-gradient(120deg,#fff5d8 0%,#f8eaf8 52%,#eee7ff 100%); }
-        .heroGrid { display:grid; grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:40px; align-items:center; }
-        .eyebrow { margin:0 0 9px; color:#6d28d9; font-size:12px; font-weight:900; letter-spacing:.13em; text-transform:uppercase; }
-        h1 { max-width:780px; margin:0 0 18px; font-size:clamp(38px,6vw,66px); font-weight:900; letter-spacing:-.035em; line-height:1.02; }
-        h2 { margin:0 0 16px; font-size:clamp(28px,4vw,40px); font-weight:900; line-height:1.1; }
-        .lede { max-width:650px; margin:0 0 26px; color:#58616d; font-size:18px; line-height:1.6; }
-        .primary,.submit { display:inline-flex; justify-content:center; padding:14px 24px; border:0; border-radius:999px; background:linear-gradient(100deg,#f5c542,#c86fc9 55%,#7b2ff7); color:#fff; box-shadow:0 9px 24px rgba(109,40,217,.2); font:inherit; font-weight:900; text-decoration:none; cursor:pointer; }
-        .heroVisual { display:grid; gap:14px; }
-        .heroPhoto { position:relative; overflow:hidden; aspect-ratio:4/3; border-radius:24px; box-shadow:0 18px 48px rgba(76,29,149,.14); }
-        .heroCard { display:grid; gap:7px; padding:20px 22px; border:1px solid rgba(109,40,217,.17); border-radius:20px; background:rgba(255,255,255,.78); box-shadow:0 18px 48px rgba(76,29,149,.12); }
-        .heroCard svg { color:#6d28d9; }
-        .heroCard strong { font-size:19px; }
-        .heroCard span { color:#68717d; line-height:1.55; }
-        .mobileCta { display:none; }
-        .services { padding-top:72px; padding-bottom:78px; }
-        #handyman-services { scroll-margin-top:90px; }
-        .taskGrid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:28px; }
-        .task { display:flex; align-items:flex-start; gap:13px; min-height:118px; padding:20px; border:1.5px solid #e8e3ef; border-radius:18px; background:linear-gradient(145deg,#fffaf0,#f8f0ff); color:#16202a; font:inherit; text-align:left; cursor:pointer; }
-        .task:nth-child(3n+2) { background:linear-gradient(145deg,#fff6f3,#f1ecff); }
-        .task:nth-child(3n) { background:linear-gradient(145deg,#faf2ff,#ece8ff); }
-        .quoteEstimate { display:grid; gap:12px; padding:16px; border:1px solid #e4daf8; border-radius:14px; background:#fbf9ff; overflow-wrap:anywhere; }
-        .quoteEstimate p { margin:0; font-size:13px; line-height:1.6; }
-        .task.selected { border-color:#6d28d9; box-shadow:0 0 0 3px rgba(109,40,217,.12); }
-        .task svg { flex:0 0 auto; color:#6d28d9; }
-        .task span { display:grid; gap:5px; }
-        .task strong { font-size:16px; font-weight:900; }
-        .task small { color:#68717d; font-size:13px; line-height:1.4; }
-        .faqBand { padding:72px 0; border-top:1px solid #eee9f3; background:linear-gradient(145deg,#fffdf8,#fff8fb 52%,#f6f0ff); }
-        .faqGrid { display:grid; grid-template-columns:minmax(230px,.62fr) minmax(0,1.38fr); gap:52px; align-items:start; }
-        .faqIntro { margin:0; color:#68717d; line-height:1.6; }
-        .faqList { display:grid; gap:10px; }
-        .faqList details { border:1px solid #e3deea; border-radius:15px; background:rgba(255,255,255,.9); }
-        .faqList summary { display:flex; align-items:center; justify-content:space-between; gap:15px; padding:18px 20px; font-weight:900; cursor:pointer; list-style:none; }
-        .faqList summary::-webkit-details-marker { display:none; }
-        .faqList summary::after { content:"+"; color:#6d28d9; font-size:23px; line-height:1; }
-        .faqList details[open] summary::after { content:"−"; }
-        .faqList details p { margin:0; padding:0 20px 19px; color:#68717d; line-height:1.65; white-space:pre-line; }
-        .quoteBand { padding:76px 0 88px; background:#f8f5fc; scroll-margin-top:24px; }
-        .quoteGrid { display:grid; grid-template-columns:minmax(250px,.72fr) minmax(0,1.28fr); gap:54px; align-items:start; }
-        .quoteIntro > p:not(.eyebrow) { color:#68717d; line-height:1.6; }
-        .quoteIntro ol { display:grid; gap:16px; margin:30px 0 0; padding:0; list-style:none; }
-        .quoteIntro li { display:flex; align-items:center; gap:11px; font-weight:800; }
-        .quoteIntro li span { display:grid; width:32px; height:32px; place-items:center; border-radius:50%; background:#ede4fb; color:#6d28d9; }
-        .quoteForm,.success,.accessGate { display:grid; gap:15px; padding:28px; border:1px solid #e6e0ec; border-radius:24px; background:#fff; box-shadow:0 16px 45px rgba(51,35,75,.09); }
-        .two { display:grid; grid-template-columns:1fr 1fr; gap:13px; }
-        label { display:grid; gap:7px; color:#3f4652; font-size:13px; font-weight:900; }
-        input,select,textarea { width:100%; box-sizing:border-box; min-height:46px; padding:11px 13px; border:1.5px solid #dde1e7; border-radius:12px; background:#fff; color:#16202a; font:inherit; font-size:16px; }
-        textarea { resize:vertical; line-height:1.5; }
-        input:focus-visible,select:focus-visible,textarea:focus-visible { outline:none; border-color:#6d28d9; box-shadow:0 0 0 3px rgba(109,40,217,.1); }
-        .consent { display:flex; align-items:flex-start; gap:10px; font-weight:700; line-height:1.45; }
-        .consent input { flex:0 0 auto; width:18px; min-height:18px; margin-top:2px; }
-        .consent a { color:#6d28d9; }
-        .submit { width:100%; font-size:16px; }
-        .submit:disabled { opacity:.65; cursor:wait; }
-        .error { margin:0; padding:12px 14px; border-radius:12px; background:#ffe9ed; color:#a92f47; font-weight:800; }
-        .finePrint { margin:-5px 0 0; color:#7a828c; font-size:12.5px; text-align:center; }
-        .success { justify-items:start; }
-        .success > span { display:grid; width:48px; height:48px; place-items:center; border-radius:50%; background:#e3f7ec; color:#138454; font-size:24px; font-weight:900; }
-        .success p { margin:0; color:#68717d; }
-        .success button { margin-top:8px; padding:11px 18px; border:1.5px solid #6d28d9; border-radius:999px; background:#fff; color:#6d28d9; font:inherit; font-weight:900; cursor:pointer; }
-        .accessGate { min-height:320px; align-content:center; justify-items:center; text-align:center; }
-        .accessGate h2 { margin:0; }
-        .accessGate p { max-width:520px; margin:0; color:#68717d; line-height:1.6; }
-        .gateMark { display:grid; width:50px; height:50px; place-items:center; border-radius:50%; background:#f2eafd; color:#6d28d9; font-size:18px; font-weight:900; }
-        .gateActions { display:flex; flex-wrap:wrap; justify-content:center; gap:9px; margin-top:5px; }
-        .gateActions a,.gateSingle { padding:11px 19px; border:1.5px solid #6d28d9; border-radius:999px; background:#6d28d9; color:#fff; font-weight:900; text-decoration:none; }
-        .gateActions a.secondary { background:#fff; color:#6d28d9; }
-        @media (max-width:900px) {
-          .page { padding-bottom:calc(84px + env(safe-area-inset-bottom)); }
-          .heroGrid { position:relative; display:block; isolation:isolate; padding-bottom:240px; }
-          .heroGrid > div:first-child { position:relative; z-index:1; max-width:680px; }
-          .heroVisual { position:absolute; inset:0; z-index:0; display:block; margin:0; pointer-events:none; }
+        .page {
+          color: #16202a;
+          font-family: "Nunito", system-ui, sans-serif;
+        }
+        .inner {
+          width: min(1120px, calc(100% - 40px));
+          margin: 0 auto;
+        }
+        .hero {
+          overflow: hidden;
+          padding: 72px 0;
+          background: linear-gradient(
+            120deg,
+            #fff5d8 0%,
+            #f8eaf8 52%,
+            #eee7ff 100%
+          );
+        }
+        .heroGrid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+          gap: 40px;
+          align-items: center;
+        }
+        .eyebrow {
+          margin: 0 0 9px;
+          color: #6d28d9;
+          font-size: 12px;
+          font-weight: 900;
+          letter-spacing: 0.13em;
+          text-transform: uppercase;
+        }
+        h1 {
+          max-width: 780px;
+          margin: 0 0 18px;
+          font-size: clamp(38px, 6vw, 66px);
+          font-weight: 900;
+          letter-spacing: -0.035em;
+          line-height: 1.02;
+        }
+        h2 {
+          margin: 0 0 16px;
+          font-size: clamp(28px, 4vw, 40px);
+          font-weight: 900;
+          line-height: 1.1;
+        }
+        .lede {
+          max-width: 650px;
+          margin: 0 0 26px;
+          color: #58616d;
+          font-size: 18px;
+          line-height: 1.6;
+        }
+        .primary,
+        .submit {
+          display: inline-flex;
+          justify-content: center;
+          padding: 14px 24px;
+          border: 0;
+          border-radius: 999px;
+          background: linear-gradient(100deg, #f5c542, #c86fc9 55%, #7b2ff7);
+          color: #fff;
+          box-shadow: 0 9px 24px rgba(109, 40, 217, 0.2);
+          font: inherit;
+          font-weight: 900;
+          text-decoration: none;
+          cursor: pointer;
+        }
+        .heroVisual {
+          display: grid;
+          gap: 14px;
+        }
+        .heroPhoto {
+          position: relative;
+          overflow: hidden;
+          aspect-ratio: 4/3;
+          border-radius: 24px;
+          box-shadow: 0 18px 48px rgba(76, 29, 149, 0.14);
+        }
+        .heroCard {
+          display: grid;
+          gap: 7px;
+          padding: 20px 22px;
+          border: 1px solid rgba(109, 40, 217, 0.17);
+          border-radius: 20px;
+          background: rgba(255, 255, 255, 0.78);
+          box-shadow: 0 18px 48px rgba(76, 29, 149, 0.12);
+        }
+        .heroCard svg {
+          color: #6d28d9;
+        }
+        .heroCard strong {
+          font-size: 19px;
+        }
+        .heroCard span {
+          color: #68717d;
+          line-height: 1.55;
+        }
+        .mobileCta {
+          display: none;
+        }
+        .services {
+          padding-top: 72px;
+          padding-bottom: 78px;
+        }
+        #property maintenance-services {
+          scroll-margin-top: 90px;
+        }
+        .taskGrid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 14px;
+          margin-top: 28px;
+        }
+        .task {
+          display: flex;
+          align-items: flex-start;
+          gap: 13px;
+          min-height: 118px;
+          padding: 20px;
+          border: 1.5px solid #e8e3ef;
+          border-radius: 18px;
+          background: linear-gradient(145deg, #fffaf0, #f8f0ff);
+          color: #16202a;
+          font: inherit;
+          text-align: left;
+          cursor: pointer;
+        }
+        .task:nth-child(3n + 2) {
+          background: linear-gradient(145deg, #fff6f3, #f1ecff);
+        }
+        .task:nth-child(3n) {
+          background: linear-gradient(145deg, #faf2ff, #ece8ff);
+        }
+        .quoteEstimate {
+          display: grid;
+          gap: 12px;
+          padding: 16px;
+          border: 1px solid #e4daf8;
+          border-radius: 14px;
+          background: #fbf9ff;
+          overflow-wrap: anywhere;
+        }
+        .quoteEstimate p {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.6;
+        }
+        .task.selected {
+          border-color: #6d28d9;
+          box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.12);
+        }
+        .task svg {
+          flex: 0 0 auto;
+          color: #6d28d9;
+        }
+        .task span {
+          display: grid;
+          gap: 5px;
+        }
+        .task strong {
+          font-size: 16px;
+          font-weight: 900;
+        }
+        .task small {
+          color: #68717d;
+          font-size: 13px;
+          line-height: 1.4;
+        }
+        .faqBand {
+          padding: 72px 0;
+          border-top: 1px solid #eee9f3;
+          background: linear-gradient(145deg, #fffdf8, #fff8fb 52%, #f6f0ff);
+        }
+        .faqGrid {
+          display: grid;
+          grid-template-columns: minmax(230px, 0.62fr) minmax(0, 1.38fr);
+          gap: 52px;
+          align-items: start;
+        }
+        .faqIntro {
+          margin: 0;
+          color: #68717d;
+          line-height: 1.6;
+        }
+        .faqList {
+          display: grid;
+          gap: 10px;
+        }
+        .faqList details {
+          border: 1px solid #e3deea;
+          border-radius: 15px;
+          background: rgba(255, 255, 255, 0.9);
+        }
+        .faqList summary {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 15px;
+          padding: 18px 20px;
+          font-weight: 900;
+          cursor: pointer;
+          list-style: none;
+        }
+        .faqList summary::-webkit-details-marker {
+          display: none;
+        }
+        .faqList summary::after {
+          content: "+";
+          color: #6d28d9;
+          font-size: 23px;
+          line-height: 1;
+        }
+        .faqList details[open] summary::after {
+          content: "−";
+        }
+        .faqList details p {
+          margin: 0;
+          padding: 0 20px 19px;
+          color: #68717d;
+          line-height: 1.65;
+          white-space: pre-line;
+        }
+        .quoteBand {
+          padding: 76px 0 88px;
+          background: #f8f5fc;
+          scroll-margin-top: 24px;
+        }
+        .quoteGrid {
+          display: grid;
+          grid-template-columns: minmax(250px, 0.72fr) minmax(0, 1.28fr);
+          gap: 54px;
+          align-items: start;
+        }
+        .quoteIntro > p:not(.eyebrow) {
+          color: #68717d;
+          line-height: 1.6;
+        }
+        .quoteIntro ol {
+          display: grid;
+          gap: 16px;
+          margin: 30px 0 0;
+          padding: 0;
+          list-style: none;
+        }
+        .quoteIntro li {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+          font-weight: 800;
+        }
+        .quoteIntro li span {
+          display: grid;
+          width: 32px;
+          height: 32px;
+          place-items: center;
+          border-radius: 50%;
+          background: #ede4fb;
+          color: #6d28d9;
+        }
+        .quoteForm,
+        .success,
+        .accessGate {
+          display: grid;
+          gap: 15px;
+          padding: 28px;
+          border: 1px solid #e6e0ec;
+          border-radius: 24px;
+          background: #fff;
+          box-shadow: 0 16px 45px rgba(51, 35, 75, 0.09);
+        }
+        .two {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 13px;
+        }
+        label {
+          display: grid;
+          gap: 7px;
+          color: #3f4652;
+          font-size: 13px;
+          font-weight: 900;
+        }
+        input,
+        select,
+        textarea {
+          width: 100%;
+          box-sizing: border-box;
+          min-height: 46px;
+          padding: 11px 13px;
+          border: 1.5px solid #dde1e7;
+          border-radius: 12px;
+          background: #fff;
+          color: #16202a;
+          font: inherit;
+          font-size: 16px;
+        }
+        textarea {
+          resize: vertical;
+          line-height: 1.5;
+        }
+        input:focus-visible,
+        select:focus-visible,
+        textarea:focus-visible {
+          outline: none;
+          border-color: #6d28d9;
+          box-shadow: 0 0 0 3px rgba(109, 40, 217, 0.1);
+        }
+        .consent {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          font-weight: 700;
+          line-height: 1.45;
+        }
+        .consent input {
+          flex: 0 0 auto;
+          width: 18px;
+          min-height: 18px;
+          margin-top: 2px;
+        }
+        .consent a {
+          color: #6d28d9;
+        }
+        .submit {
+          width: 100%;
+          font-size: 16px;
+        }
+        .submit:disabled {
+          opacity: 0.65;
+          cursor: wait;
+        }
+        .error {
+          margin: 0;
+          padding: 12px 14px;
+          border-radius: 12px;
+          background: #ffe9ed;
+          color: #a92f47;
+          font-weight: 800;
+        }
+        .finePrint {
+          margin: -5px 0 0;
+          color: #7a828c;
+          font-size: 12.5px;
+          text-align: center;
+        }
+        .success {
+          justify-items: start;
+        }
+        .success > span {
+          display: grid;
+          width: 48px;
+          height: 48px;
+          place-items: center;
+          border-radius: 50%;
+          background: #e3f7ec;
+          color: #138454;
+          font-size: 24px;
+          font-weight: 900;
+        }
+        .success p {
+          margin: 0;
+          color: #68717d;
+        }
+        .success button {
+          margin-top: 8px;
+          padding: 11px 18px;
+          border: 1.5px solid #6d28d9;
+          border-radius: 999px;
+          background: #fff;
+          color: #6d28d9;
+          font: inherit;
+          font-weight: 900;
+          cursor: pointer;
+        }
+        .accessGate {
+          min-height: 320px;
+          align-content: center;
+          justify-items: center;
+          text-align: center;
+        }
+        .accessGate h2 {
+          margin: 0;
+        }
+        .accessGate p {
+          max-width: 520px;
+          margin: 0;
+          color: #68717d;
+          line-height: 1.6;
+        }
+        .gateMark {
+          display: grid;
+          width: 50px;
+          height: 50px;
+          place-items: center;
+          border-radius: 50%;
+          background: #f2eafd;
+          color: #6d28d9;
+          font-size: 18px;
+          font-weight: 900;
+        }
+        .gateActions {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+          gap: 9px;
+          margin-top: 5px;
+        }
+        .gateActions a,
+        .gateSingle {
+          padding: 11px 19px;
+          border: 1.5px solid #6d28d9;
+          border-radius: 999px;
+          background: #6d28d9;
+          color: #fff;
+          font-weight: 900;
+          text-decoration: none;
+        }
+        .gateActions a.secondary {
+          background: #fff;
+          color: #6d28d9;
+        }
+        @media (max-width: 900px) {
+          .page {
+            padding-bottom: calc(84px + env(safe-area-inset-bottom));
+          }
+          .heroGrid {
+            position: relative;
+            display: block;
+            isolation: isolate;
+            padding-bottom: 240px;
+          }
+          .heroGrid > div:first-child {
+            position: relative;
+            z-index: 1;
+            max-width: 680px;
+          }
+          .heroVisual {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+            display: block;
+            margin: 0;
+            pointer-events: none;
+          }
           .heroPhoto {
-            position:absolute;
-            inset:-72px -20px -72px auto;
-            width:min(58%,480px);
-            height:auto;
-            aspect-ratio:auto;
-            border-radius:0;
-            box-shadow:none;
-            opacity:.72;
-            -webkit-mask-image:linear-gradient(to right,transparent,#000 45%);
-            mask-image:linear-gradient(to right,transparent,#000 45%);
+            position: absolute;
+            inset: -72px -20px -72px auto;
+            width: min(58%, 480px);
+            height: auto;
+            aspect-ratio: auto;
+            border-radius: 0;
+            box-shadow: none;
+            opacity: 0.72;
+            -webkit-mask-image: linear-gradient(
+              to right,
+              transparent,
+              #000 45%
+            );
+            mask-image: linear-gradient(to right, transparent, #000 45%);
           }
           .heroCard {
-            position:absolute;
-            right:0;
-            bottom:0;
-            z-index:1;
-            width:min(46%,460px);
-            padding:16px 18px;
-            background:rgba(255,255,255,.92);
+            position: absolute;
+            right: 0;
+            bottom: 0;
+            z-index: 1;
+            width: min(46%, 460px);
+            padding: 16px 18px;
+            background: rgba(255, 255, 255, 0.92);
           }
-          .hero .primary { display:none; }
+          .hero .primary {
+            display: none;
+          }
           .mobileCta {
-            position:fixed;
-            inset:auto 0 0;
-            z-index:50;
-            display:grid;
-            grid-template-columns:repeat(2,minmax(0,1fr));
-            gap:10px;
-            padding:10px max(16px,env(safe-area-inset-left)) calc(10px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-right));
-            border-top:1px solid rgba(109,40,217,.15);
-            background:rgba(255,255,255,.96);
-            box-shadow:0 -8px 28px rgba(22,32,42,.1);
-            backdrop-filter:blur(12px);
+            position: fixed;
+            inset: auto 0 0;
+            z-index: 50;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            padding: 10px max(16px, env(safe-area-inset-left))
+              calc(10px + env(safe-area-inset-bottom))
+              max(16px, env(safe-area-inset-right));
+            border-top: 1px solid rgba(109, 40, 217, 0.15);
+            background: rgba(255, 255, 255, 0.96);
+            box-shadow: 0 -8px 28px rgba(22, 32, 42, 0.1);
+            backdrop-filter: blur(12px);
           }
           .mobileCta a {
-            display:flex;
-            min-height:48px;
-            align-items:center;
-            justify-content:center;
-            padding:9px 10px;
-            border-radius:999px;
-            font-size:14px;
-            font-weight:900;
-            line-height:1.2;
-            text-align:center;
-            text-decoration:none;
+            display: flex;
+            min-height: 48px;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 10px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 900;
+            line-height: 1.2;
+            text-align: center;
+            text-decoration: none;
           }
-          .mobileCta a:focus-visible { outline:3px solid #6d28d9; outline-offset:2px; }
-          .mobileCtaServices { border:1.5px solid #6d28d9; color:#6d28d9; background:#fff; }
-          .mobileCtaQuote { color:#fff; background:linear-gradient(100deg,#f5c542,#c86fc9 55%,#7b2ff7); }
-          .quoteGrid,.faqGrid { grid-template-columns:1fr; }
+          .mobileCta a:focus-visible {
+            outline: 3px solid #6d28d9;
+            outline-offset: 2px;
+          }
+          .mobileCtaServices {
+            border: 1.5px solid #6d28d9;
+            color: #6d28d9;
+            background: #fff;
+          }
+          .mobileCtaQuote {
+            color: #fff;
+            background: linear-gradient(100deg, #f5c542, #c86fc9 55%, #7b2ff7);
+          }
+          .quoteGrid,
+          .faqGrid {
+            grid-template-columns: 1fr;
+          }
         }
-        @media (min-width:701px) and (max-width:900px) {
-          .heroGrid { padding-bottom:200px; }
-          .heroGrid > div:first-child { max-width:52%; }
-          .hero h1 { font-size:clamp(34px,4.8vw,44px); line-height:1.08; }
-          .hero .lede { font-size:16px; line-height:1.5; }
-          .heroCard { right:auto; left:0; width:min(52%,430px); }
-        }
-        @media (max-width:800px) { .taskGrid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-        @media (max-width:700px) {
-          .hero { padding:24px 0 36px; }
-          .heroGrid { display:flex; flex-direction:column; gap:22px; padding-bottom:0; }
-          .heroGrid > div:first-child { order:1; }
-          .heroVisual { position:relative; order:0; width:100%; height:230px; pointer-events:auto; }
-          .heroPhoto {
-            position:absolute;
-            inset:0;
-            width:100%;
-            height:100%;
-            border-radius:20px;
-            opacity:1;
-            -webkit-mask-image:none;
-            mask-image:none;
+        @media (min-width: 701px) and (max-width: 900px) {
+          .heroGrid {
+            padding-bottom: 200px;
+          }
+          .heroGrid > div:first-child {
+            max-width: 52%;
+          }
+          .hero h1 {
+            font-size: clamp(34px, 4.8vw, 44px);
+            line-height: 1.08;
+          }
+          .hero .lede {
+            font-size: 16px;
+            line-height: 1.5;
           }
           .heroCard {
-            right:12px;
-            bottom:12px;
-            left:12px;
-            width:auto;
-            gap:3px;
-            padding:10px 13px;
-            border-radius:14px;
-            background:rgba(255,255,255,.95);
-            box-shadow:0 6px 22px rgba(22,32,42,.13);
+            right: auto;
+            left: 0;
+            width: min(52%, 430px);
           }
-          .heroCard :global(svg) { display:none; }
-          .heroCard strong { font-size:14px; line-height:1.25; }
-          .heroCard span { font-size:12px; line-height:1.3; }
-          .hero .eyebrow { margin-bottom:8px; font-size:11px; line-height:1.35; }
-          .hero h1 { max-width:550px; margin-bottom:12px; font-size:clamp(30px,7.5vw,40px); line-height:1.08; }
-          .hero .lede { max-width:540px; margin:0; color:#4b5563; font-size:16px; line-height:1.5; }
         }
-        @media (max-width:560px) {
-          .inner { width:min(100% - 28px,1120px); }
-          .heroVisual { height:210px; }
-          .taskGrid,.two { grid-template-columns:1fr; }
-          .services,.quoteBand { padding-top:54px; padding-bottom:60px; }
-          .quoteForm,.success { padding:21px 17px; }
+        @media (max-width: 800px) {
+          .taskGrid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+        @media (max-width: 700px) {
+          .hero {
+            padding: 24px 0 36px;
+          }
+          .heroGrid {
+            display: flex;
+            flex-direction: column;
+            gap: 22px;
+            padding-bottom: 0;
+          }
+          .heroGrid > div:first-child {
+            order: 1;
+          }
+          .heroVisual {
+            position: relative;
+            order: 0;
+            width: 100%;
+            height: 230px;
+            pointer-events: auto;
+          }
+          .heroPhoto {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 20px;
+            opacity: 1;
+            -webkit-mask-image: none;
+            mask-image: none;
+          }
+          .heroCard {
+            right: 12px;
+            bottom: 12px;
+            left: 12px;
+            width: auto;
+            gap: 3px;
+            padding: 10px 13px;
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 6px 22px rgba(22, 32, 42, 0.13);
+          }
+          .heroCard :global(svg) {
+            display: none;
+          }
+          .heroCard strong {
+            font-size: 14px;
+            line-height: 1.25;
+          }
+          .heroCard span {
+            font-size: 12px;
+            line-height: 1.3;
+          }
+          .hero .eyebrow {
+            margin-bottom: 8px;
+            font-size: 11px;
+            line-height: 1.35;
+          }
+          .hero h1 {
+            max-width: 550px;
+            margin-bottom: 12px;
+            font-size: clamp(30px, 7.5vw, 40px);
+            line-height: 1.08;
+          }
+          .hero .lede {
+            max-width: 540px;
+            margin: 0;
+            color: #4b5563;
+            font-size: 16px;
+            line-height: 1.5;
+          }
+        }
+        @media (max-width: 560px) {
+          .inner {
+            width: min(100% - 28px, 1120px);
+          }
+          .heroVisual {
+            height: 210px;
+          }
+          .taskGrid,
+          .two {
+            grid-template-columns: 1fr;
+          }
+          .services,
+          .quoteBand {
+            padding-top: 54px;
+            padding-bottom: 60px;
+          }
+          .quoteForm,
+          .success {
+            padding: 21px 17px;
+          }
         }
       `}</style>
     </main>

@@ -10,6 +10,7 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { sendEmail } from "@/lib/email";
 import { refundUnfilledPrepaidVisit } from "@/lib/prepaidVisitRefund";
+import { createVisitBilling } from "@/lib/visitBillingServer";
 import {
   claimMoneyOperation,
   systemFinaliseMoneyOperation,
@@ -21,7 +22,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function GET(req: NextRequest) {
@@ -37,7 +38,9 @@ export async function GET(req: NextRequest) {
   // Still on offer, past the deadline, nobody claimed it.
   const { data: stale } = await admin
     .from("bookings")
-    .select("id, customer_id, customer_email, scheduled_at, regular_series_id, packages(name)")
+    .select(
+      "id, customer_id, customer_email, scheduled_at, regular_series_id, packages(name)",
+    )
     .eq("status", "offered")
     .is("provider_id", null)
     .lt("offer_expires_at", now)
@@ -46,6 +49,18 @@ export async function GET(req: NextRequest) {
   const expired: string[] = [];
 
   for (const b of stale ?? []) {
+    const { data: visitBilling } = await admin
+      .from("booking_visit_billing")
+      .select("booking_id,active_operation_id")
+      .eq("booking_id", b.id)
+      .maybeSingle();
+    if (visitBilling) {
+      if (!visitBilling.active_operation_id) {
+        await createVisitBilling(admin, stripe).cancel(b.id, null, true);
+        expired.push(b.id);
+      }
+      continue;
+    }
     const pkg = b.packages as { name: string } | { name: string }[] | null;
     const service =
       (Array.isArray(pkg) ? pkg[0]?.name : pkg?.name) ?? "your booking";
@@ -55,7 +70,7 @@ export async function GET(req: NextRequest) {
       admin,
       b.id,
       "cancelled",
-      "Offer expired with nobody accepting"
+      "Offer expired with nobody accepting",
     );
 
     // 2. Close the outstanding offers
@@ -80,8 +95,12 @@ export async function GET(req: NextRequest) {
         await refundUnfilledPrepaidVisit(b.id);
         financialMessage = `The prepaid amount for this visit (£${Number(pay?.gross_amount ?? 0).toFixed(2)}) has been refunded; your other booked visits remain unchanged.`;
       } catch (cause) {
-        financialMessage = "This visit's prepaid refund needs attention. Support has been notified; please do not pay again.";
-        console.error(`Could not refund unfilled prepaid visit ${b.id}:`, cause);
+        financialMessage =
+          "This visit's prepaid refund needs attention. Support has been notified; please do not pay again.";
+        console.error(
+          `Could not refund unfilled prepaid visit ${b.id}:`,
+          cause,
+        );
       }
     } else if (pay?.stripe_payment_ref && pay.status === "authorised") {
       const operationKey = `release:booking:${b.id}`;
@@ -97,7 +116,7 @@ export async function GET(req: NextRequest) {
           const intent = await stripe.paymentIntents.cancel(
             pay.stripe_payment_ref,
             {},
-            { idempotencyKey: operationKey }
+            { idempotencyKey: operationKey },
           );
           await systemFinaliseMoneyOperation(admin, op.id, "succeeded", {
             stripeObjectId: intent.id,

@@ -19,9 +19,9 @@ export async function POST(req: NextRequest) {
     const { bookingId, amount } = await req.json();
     const pence = Math.round(Number(amount) * 100);
 
-    if (!bookingId || !Number.isSafeInteger(pence) || pence < 30 || !/^\d+(\.\d{1,2})?$/.test(String(amount))) {
+    if (!bookingId || !Number.isSafeInteger(pence) || pence < 300 || !/^\d+(\.\d{1,2})?$/.test(String(amount))) {
       return NextResponse.json(
-        { error: "Enter a tip of at least £0.30, with up to two decimal places." },
+        { error: "Enter a tip of at least £3, with up to two decimal places." },
         { status: 400 }
       );
     }

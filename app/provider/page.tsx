@@ -15,7 +15,7 @@ import styles from "./page.module.css";
 export const metadata: Metadata = {
   title: "Become an Opulence Bliss partner",
   description:
-    "Apply to join our London network of self-employed cleaners and handymen, with more trades opening soon.",
+    "Apply to join our London network of self-employed cleaners and property maintenance professionals, with more trades opening soon.",
 };
 
 type Trade = {
@@ -45,7 +45,7 @@ const TRADES: Trade[] = [
   },
   {
     key: "maintenance",
-    role: "Handyman",
+    role: "Property maintenance professional",
     blurb: "Repairs, assembly, mounting and minor decorating.",
     icon: Hammer,
     tint: "linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%)",
@@ -97,6 +97,7 @@ export default function PartnerPage() {
           Work for yourself across London, choose your own hours and area, and
           let us bring you the customers. No joining fee.
         </p>
+        <p className={styles.lede}>Cleaning: average pay £15/hour before tax. Choose the hours that work for you.</p>
         <p className={styles.already}>
           Already a partner? <Link href="/provider/login">Sign in</Link>
         </p>
@@ -122,9 +123,7 @@ export default function PartnerPage() {
               <span className={styles.shade} aria-hidden="true" />
               <span className={styles.body}>
                 {!open && <span className={styles.flag}>Coming soon</span>}
-                <span className={styles.kicker}>
-                  Join as a
-                </span>
+                <span className={styles.kicker}>Join as a</span>
                 <span className={styles.role}>{role}</span>
                 <span className={styles.blurb}>{blurb}</span>
               </span>
@@ -149,10 +148,9 @@ export default function PartnerPage() {
       </ul>
 
       <p className={styles.foot}>
-        Cleaning applications are open. Contact our team to apply as a
-        Handyman. The
-        remaining trades follow as we launch them, and the order depends partly
-        on what customers vote for on our{" "}
+        Cleaning applications are open. Contact our team to apply as a Property
+        maintenance. The remaining trades follow as we launch them, and the
+        order depends partly on what customers vote for on our{" "}
         <Link href="/coming-soon">coming soon page</Link>.
       </p>
     </main>

@@ -123,6 +123,15 @@ export default async function EarningsPage() {
   const handymanPeriods = earningsPeriodTotals(handyman.periods);
   const pays = (paysData ?? []) as unknown as Pay[];
   const share = (p: Pay) => Number(p.split_breakdown?.provider ?? 0);
+  const awaitingPayRate = new Set(
+    pays
+      .filter(
+        (p) =>
+          (p.split_breakdown as Record<string, unknown> | null)
+            ?.pay_rate_pending === true,
+      )
+      .map((p) => p.booking_id),
+  ).size;
 
   const jobs = pays.filter((p) => p.kind !== "tip");
   const tips = pays.filter((p) => p.kind === "tip" && p.status === "succeeded");
@@ -288,10 +297,18 @@ export default async function EarningsPage() {
             Cleaning — recorded payments: {gbp(earned + tipTotal)} · settled
             this week: {gbp(periods.week)} · this month: {gbp(periods.month)}
           </p>
+          {awaitingPayRate > 0 && (
+            <p>
+              {awaitingPayRate} visit{awaitingPayRate === 1 ? "" : "s"} awaiting
+              confirmation of the cleaner pay rate. Their reserved funds are
+              excluded from earnings and payouts. Tips are paid separately in
+              full.
+            </p>
+          )}
           {handymanEnabled() && (
             <p>
-              Handyman — settled transfers: {gbp(handyman.settled)} · this week:{" "}
-              {gbp(handymanPeriods.week)} · this month:{" "}
+              Property maintenance — settled transfers: {gbp(handyman.settled)}{" "}
+              · this week: {gbp(handymanPeriods.week)} · this month:{" "}
               {gbp(handymanPeriods.month)}. Materials and VAT pass through to
               you.
             </p>

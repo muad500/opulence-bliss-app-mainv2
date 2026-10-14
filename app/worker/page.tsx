@@ -44,7 +44,7 @@ export default async function WorkerToday() {
     })),
     ...(handymanResult.data ?? []).map((job) => ({
       ...job,
-      service: "Handyman",
+      service: "Property maintenance",
       title: job.task_name,
       href: "/worker/jobs/handyman/" + job.id,
     })),

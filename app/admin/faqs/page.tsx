@@ -26,8 +26,8 @@ export default async function AdminFaqsPage() {
         <p className={styles.eyebrow}>Website content</p>
         <h1>Frequently asked questions</h1>
         <p className={styles.intro}>
-          Add, edit, reorder, publish or hide answers. Cleaning and Handyman
-          answers also appear on their matching service pages.
+          Add, edit, reorder, publish or hide answers. Cleaning and Property
+          maintenance answers also appear on their matching service pages.
         </p>
 
         {error && (
@@ -48,10 +48,14 @@ export default async function AdminFaqsPage() {
               <section className={styles.group} key={category}>
                 <div className={styles.groupHeading}>
                   <h2>{FAQ_CATEGORY_LABELS[category]}</h2>
-                  <span>{rows.length} {rows.length === 1 ? "question" : "questions"}</span>
+                  <span>
+                    {rows.length} {rows.length === 1 ? "question" : "questions"}
+                  </span>
                 </div>
                 {rows.length === 0 ? (
-                  <p className={styles.empty}>No questions in this section yet.</p>
+                  <p className={styles.empty}>
+                    No questions in this section yet.
+                  </p>
                 ) : (
                   <div className={styles.list}>
                     {rows.map((faq) => (
@@ -100,29 +104,54 @@ function FaqForm({
         </label>
         <label className={styles.order}>
           Order
-          <input name="sortOrder" type="number" defaultValue={faq?.sort_order ?? 0} />
+          <input
+            name="sortOrder"
+            type="number"
+            defaultValue={faq?.sort_order ?? 0}
+          />
         </label>
       </div>
       <label>
         Question
-        <input name="question" defaultValue={faq?.question ?? ""} maxLength={220} required />
+        <input
+          name="question"
+          defaultValue={faq?.question ?? ""}
+          maxLength={220}
+          required
+        />
       </label>
       <label>
         Answer
-        <textarea name="answer" defaultValue={faq?.answer ?? ""} rows={4} maxLength={5000} required />
+        <textarea
+          name="answer"
+          defaultValue={faq?.answer ?? ""}
+          rows={4}
+          maxLength={5000}
+          required
+        />
       </label>
       <div className={styles.actions}>
         <label className={styles.publish}>
-          <input name="published" type="checkbox" defaultChecked={faq?.published ?? true} />
+          <input
+            name="published"
+            type="checkbox"
+            defaultChecked={faq?.published ?? true}
+          />
           Published on website
         </label>
         <div className={styles.buttons}>
           {deleteAction && (
-            <button className={styles.delete} formAction={deleteAction} type="submit">
+            <button
+              className={styles.delete}
+              formAction={deleteAction}
+              type="submit"
+            >
               Delete
             </button>
           )}
-          <button className={styles.save} type="submit">{submitLabel}</button>
+          <button className={styles.save} type="submit">
+            {submitLabel}
+          </button>
         </div>
       </div>
     </form>

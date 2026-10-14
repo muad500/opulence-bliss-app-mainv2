@@ -81,3 +81,11 @@ html[data-opulence-app="worker"] a[href^="/account"],
 html[data-opulence-app="worker"] a[href="/login"] {
   display: none !important;
 }
+
+html[data-opulence-app="customer"] a[data-earn-with-us][href^="/provider"] {
+  display: flex !important;
+}
+html[data-opulence-app] [data-social-footer] {
+  padding-bottom: 18px;
+  background: #fff;
+}

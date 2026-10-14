@@ -494,18 +494,17 @@ export const CANCELLATION_REFUND_POLICY_HTML = `
   <p><strong>Happy Cleaners. Happier Homes.</strong></p>
 `;
 
-
 /** The client's Handyman Services Terms, with the company name and registered office corrected. */
 export const HANDYMAN_TERMS_HTML = `
   <p><strong>Effective Date:</strong> September 2026</p>
   <p><strong>Version:</strong> 1.0</p>
   <h2>1. About This Agreement</h2>
-  <p>These Handyman Services Terms and Conditions (“Terms”) apply to handyman, property maintenance, assembly, installation, repair and related services provided by Opulence Bliss Ltd (“Opulence”, “we”, “us” or “our”) to a customer (“Customer”, “you” or “your”).</p>
-  <p>By requesting, accepting or allowing Opulence to commence a Handyman Service, you agree to these Terms together with the specific quotation, booking confirmation, work description or other written agreement issued for your job.</p>
+  <p>These Property maintenance Services Terms and Conditions (“Terms”) apply to property maintenance, property maintenance, assembly, installation, repair and related services provided by Opulence Bliss Ltd (“Opulence”, “we”, “us” or “our”) to a customer (“Customer”, “you” or “your”).</p>
+  <p>By requesting, accepting or allowing Opulence to commence a Property maintenance Service, you agree to these Terms together with the specific quotation, booking confirmation, work description or other written agreement issued for your job.</p>
   <p>Where a quotation or booking confirmation contains specific terms that apply to your particular job, those terms will apply alongside these Terms. If there is a conflict, the specific written quotation will take precedence to the extent of that conflict.</p>
   <p>These Terms are intended to apply to customers in England and Wales and will be interpreted in accordance with applicable UK law.</p>
-  <h2>2. Our Handyman Services</h2>
-  <p>Opulence provides general handyman and property maintenance services, which may include, where agreed:</p>
+  <h2>2. Our Property maintenance Services</h2>
+  <p>Opulence provides general property maintenance and property maintenance services, which may include, where agreed:</p>
   <p>Furniture assembly</p>
   <p>Flat-pack assembly</p>
   <p>Shelving and storage installation</p>
@@ -522,7 +521,7 @@ export const HANDYMAN_TERMS_HTML = `
   <p>Basic property maintenance</p>
   <p>General household repairs</p>
   <p>Removal or replacement of minor fixtures</p>
-  <p>Other handyman services specifically agreed with the Customer.</p>
+  <p>Other property maintenance services specifically agreed with the Customer.</p>
   <p>The precise work to be completed will be described in the quotation, booking confirmation or agreed scope of works.</p>
   <p>Opulence is not required to undertake work that is outside the agreed scope unless additional work is agreed in accordance with these Terms.</p>
   <h2>3. Work We Do Not Normally Undertake</h2>
@@ -648,7 +647,7 @@ export const HANDYMAN_TERMS_HTML = `
   <p>The Customer should provide the weight and dimensions of items where relevant.</p>
   <h2>15. Electrical, Gas and Specialist Work</h2>
   <p>Opulence will only undertake electrical, gas, plumbing or other specialist work where the work is within the competence, authorisation and legal requirements applicable to the person carrying it out.</p>
-  <p>Where specialist certification or registration is legally required, Opulence will not represent that general handyman services satisfy that requirement.</p>
+  <p>Where specialist certification or registration is legally required, Opulence will not represent that general property maintenance services satisfy that requirement.</p>
   <p>Customers may be advised to appoint an appropriately qualified or registered specialist where required.</p>
   <h2>16. Health and Safety</h2>
   <p>Opulence reserves the right to stop or refuse work where the working environment presents a serious or unreasonable health and safety risk.</p>
@@ -830,7 +829,7 @@ export const HANDYMAN_TERMS_HTML = `
   <p>If Opulence does not immediately enforce a provision of these Terms, this does not mean that Opulence has permanently waived its right to enforce that provision later.</p>
   <h2>42. Entire Agreement</h2>
   <p>The agreement between Opulence and the Customer consists of:</p>
-  <p>These Handyman Services Terms;</p>
+  <p>These Property maintenance Services Terms;</p>
   <p>The applicable quotation or estimate;</p>
   <p>The booking confirmation;</p>
   <p>Any agreed scope of works; and</p>
@@ -848,5 +847,5 @@ export const HANDYMAN_TERMS_HTML = `
   <p>Call / SMS / WhatsApp: +44 7484 717935</p>
   <p>Email: opulencebliss@gmail.com</p>
   <h2>45. Customer Acknowledgement</h2>
-  <p>By accepting a quotation, confirming a booking, making payment or allowing Opulence to commence the agreed work, the Customer confirms that they have had an opportunity to read these Terms and understand that the applicable terms form part of the agreement for the Handyman Service.</p>
+  <p>By accepting a quotation, confirming a booking, making payment or allowing Opulence to commence the agreed work, the Customer confirms that they have had an opportunity to read these Terms and understand that the applicable terms form part of the agreement for the Property maintenance Service.</p>
 `;

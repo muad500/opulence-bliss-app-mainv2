@@ -33,7 +33,7 @@ const NAV: NavLink[] = [
   },
   {
     href: "/services/handyman",
-    label: "Handyman",
+    label: "Property maintenance",
     match: ["/services/handyman"],
   },
   { href: "/providers", label: "Our pros", match: ["/providers"] },
@@ -427,7 +427,9 @@ export default function SiteHeader() {
 
             <nav aria-label="Mobile main navigation" className="mobile-links">
               <Link href="/services/cleaning">Cleaning services</Link>
-              <Link href="/services/handyman">Handyman quotations</Link>
+              <Link href="/services/handyman">
+                Property maintenance quotations
+              </Link>
               <Link href="/coming-soon">Coming soon</Link>
               <Link href="/providers">Our professionals</Link>
               <Link href="/blog">Blog</Link>

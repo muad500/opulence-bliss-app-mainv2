@@ -123,12 +123,7 @@ export default function ProviderJoinPage() {
   const [homePostcode, setHomePostcode] = useState("");
   const cleaningSelected = skills.includes("cleaning");
   const handymanSelected = marketplaceEnabled && skills.includes("handyman");
-  const validRates =
-    !handymanSelected ||
-    (Object.keys(handymanRates).length > 0 &&
-      Object.values(handymanRates).every(
-        (rate) => Number(rate) >= 1 && Number(rate) <= 1000,
-      ));
+  const validRates = !handymanSelected || Object.keys(handymanRates).length > 0;
   useEffect(() => {
     let active = true;
     void fetch("/api/handyman/config", { cache: "no-store" })
@@ -341,9 +336,7 @@ export default function ProviderJoinPage() {
 
   function continueToWorkAreas() {
     if (!skills.length || !validRates) {
-      setErr(
-        "Choose a service and at least one valid hourly rate for handyman work.",
-      );
+      setErr("Choose a service and at least one property maintenance task.");
       return;
     }
     const years = Number(cleaningExperienceYears);
@@ -481,11 +474,7 @@ export default function ProviderJoinPage() {
             maxTravelDistance,
             weeklyAvailability,
             skills,
-            handymanRates: Object.fromEntries(
-              Object.entries(handymanRates)
-                .filter(([, rate]) => rate !== "")
-                .map(([task, rate]) => [task, Math.round(Number(rate) * 100)]),
-            ),
+            maintenanceTasks: Object.keys(handymanRates),
             coveragePostcodes: coveragePostcodes
               .split(",")
               .map((code) => code.trim().toUpperCase())
@@ -1293,10 +1282,10 @@ export default function ProviderJoinPage() {
                 )}
                 {handymanSelected && (
                   <fieldset className="multi-card">
-                    <legend>Handyman tasks and your hourly rates</legend>
+                    <legend>Property maintenance tasks</legend>
                     <p>
-                      Choose the tasks you offer. Rates are per hour before any
-                      applicable VAT.
+                      Choose the tasks you offer. Each job is assessed and
+                      quoted before work begins.
                     </p>
                     {HANDYMAN_TASKS.map((task) => (
                       <div key={task} style={{ marginBottom: 14 }}>
@@ -1322,24 +1311,6 @@ export default function ProviderJoinPage() {
                           />
                           {task}
                         </label>
-                        {task in handymanRates && (
-                          <label>
-                            £ per hour
-                            <input
-                              type="number"
-                              min="1"
-                              max="1000"
-                              step="0.01"
-                              value={handymanRates[task]}
-                              onChange={(event) =>
-                                setHandymanRates((old) => ({
-                                  ...old,
-                                  [task]: event.target.value,
-                                }))
-                              }
-                            />
-                          </label>
-                        )}
                       </div>
                     ))}
                   </fieldset>
@@ -1375,7 +1346,9 @@ export default function ProviderJoinPage() {
                 <div className="checks">
                   {skills.map((service) => (
                     <span className="chk on" key={service}>
-                      {service === "cleaning" ? "Home cleaning" : "Handyman"}
+                      {service === "cleaning"
+                        ? "Home cleaning"
+                        : "Property maintenance"}
                     </span>
                   ))}
                 </div>
@@ -1652,15 +1625,19 @@ export default function ProviderJoinPage() {
           </div>
         </section>
 
-        <section className="benefits" aria-label="Why work with Opulence Bliss" data-website-marketing>
+        <section
+          className="benefits"
+          aria-label="Why work with Opulence Bliss"
+          data-website-marketing
+        >
           <article className="perks">
             <h2>Your earnings could be</h2>
             <ul>
               <li>
-                <strong>£18–£22/hr</strong> before taxes
+                <strong>Average pay £15/hour</strong> before taxes
               </li>
               <li>
-                Up to <strong>£2,160/month</strong> for 30 hours per week
+                About <strong>£1,800/month</strong> for 30 hours per week
               </li>
               <li>
                 We connect you to <strong>new customers</strong> easily without

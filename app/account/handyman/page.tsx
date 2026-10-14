@@ -21,8 +21,8 @@ export default async function CustomerHandymanBookings() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <h1>Handyman bookings</h1>
-        <Link href="/handyman">Book a handyman →</Link>
+        <h1>Property maintenance bookings</h1>
+        <Link href="/handyman">Book a property maintenance →</Link>
       </header>
       <div className={styles.cards}>
         {jobs?.map((job) => (
@@ -46,7 +46,7 @@ export default async function CustomerHandymanBookings() {
         ))}
       </div>
       {!jobs?.length && (
-        <p className={styles.empty}>No handyman bookings yet.</p>
+        <p className={styles.empty}>No property maintenance bookings yet.</p>
       )}
     </main>
   );

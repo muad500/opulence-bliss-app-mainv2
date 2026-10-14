@@ -131,10 +131,16 @@ body {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(circle at 8% -10%, color-mix(in srgb, var(--ob-purple) 8%, transparent) 0, transparent 34rem),
+    radial-gradient(
+      circle at 8% -10%,
+      color-mix(in srgb, var(--ob-purple) 8%, transparent) 0,
+      transparent 34rem
+    ),
     var(--ob-page);
   color: var(--ob-text);
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 button,
@@ -297,7 +303,11 @@ select {
 
 .portal-shell {
   background:
-    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--ob-purple) 7%, transparent), transparent 28rem),
+    radial-gradient(
+      circle at 100% 0,
+      color-mix(in srgb, var(--ob-purple) 7%, transparent),
+      transparent 28rem
+    ),
     var(--ob-page) !important;
   color: var(--ob-text) !important;
 }
@@ -394,8 +404,16 @@ select {
 
 .dark body {
   background:
-    radial-gradient(circle at 8% -10%, rgba(123, 47, 247, 0.18) 0, transparent 34rem),
-    radial-gradient(circle at 92% 20%, rgba(200, 111, 201, 0.09) 0, transparent 28rem),
+    radial-gradient(
+      circle at 8% -10%,
+      rgba(123, 47, 247, 0.18) 0,
+      transparent 34rem
+    ),
+    radial-gradient(
+      circle at 92% 20%,
+      rgba(200, 111, 201, 0.09) 0,
+      transparent 28rem
+    ),
     var(--ob-page);
   color: var(--ob-text) !important;
 }
@@ -514,7 +532,11 @@ select {
 }
 
 .dark :where(.band-alt, .quotes-wrap, .reviews, .services, .faq, .also) {
-  background: color-mix(in srgb, var(--ob-surface) 42%, var(--ob-page)) !important;
+  background: color-mix(
+    in srgb,
+    var(--ob-surface) 42%,
+    var(--ob-page)
+  ) !important;
   border-color: var(--ob-border) !important;
 }
 
@@ -1162,4 +1184,9 @@ dd,
   body:has(.mobile-service-cta) .support-chat-panel {
     max-height: calc(100dvh - 108px - env(safe-area-inset-bottom)) !important;
   }
+}
+
+[data-social-footer] {
+  background: #f9f7fc;
+  border-top: 1px solid #eee6f8;
 }

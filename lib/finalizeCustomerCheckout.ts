@@ -1,4 +1,5 @@
 import "server-only";
+import { finalizePerVisitCheckout } from "./finalizePerVisitCheckout";
 import type Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { isCleaning, validCleaningDuration } from "@/lib/cleaningBooking";
@@ -17,6 +18,11 @@ import {
 } from "@/lib/regularBooking";
 import { bookingPolicyError, isBookingFrequency } from "@/lib/bookingPolicy";
 
+import {
+  allocateCleaningPayments,
+  cleaningSeriesQuote,
+} from "@/lib/cleaningExtras";
+
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -27,6 +33,7 @@ export async function finalizeCustomerCheckout(
   session: Stripe.Checkout.Session,
   pi: Stripe.PaymentIntent,
 ) {
+  if (pi.metadata.billing_model === "per_visit") return finalizePerVisitCheckout(session, pi);
   const customerId = session.client_reference_id;
   if (
     !customerId ||
@@ -51,8 +58,8 @@ export async function finalizeCustomerCheckout(
     .from("booking_checkout_time_choices")
     .select(
       regular
-        ? "preferred_scheduled_at, optional_scheduled_at, regular_scheduled_at, household_notes"
-        : "preferred_scheduled_at, optional_scheduled_at, household_notes",
+        ? "preferred_scheduled_at, optional_scheduled_at, regular_scheduled_at, household_notes, cleaning_extras"
+        : "preferred_scheduled_at, optional_scheduled_at, household_notes, cleaning_extras",
     )
     .eq("checkout_session_id", session.id)
     .eq("customer_id", customerId)
@@ -62,6 +69,16 @@ export async function finalizeCustomerCheckout(
     optional_scheduled_at: string[];
     regular_scheduled_at?: string[];
     household_notes?: string | null;
+    cleaning_extras?: {
+      baseMinutes: number;
+      addons: string[];
+      bringsProducts: boolean;
+      petsAtHome: boolean;
+      durationMinutes: number;
+      basePricePence: number;
+      grossPence: number;
+      notes: string;
+    }[];
   } | null;
   const request = stagedChoices?.household_notes ?? m.request ?? null;
   const slot = stagedChoices?.preferred_scheduled_at || m.slot || null;
@@ -69,11 +86,50 @@ export async function finalizeCustomerCheckout(
 
   const { data: pkgRow } = await admin
     .from("packages")
-    .select("name, service_type, duration_minutes")
+    .select("name, service_type, duration_minutes, price")
     .eq("id", packageId ?? "")
     .maybeSingle();
   const serviceType = pkgRow?.service_type ?? null;
+  const extras = stagedChoices?.cleaning_extras ?? [];
+  if (m.cleaning_extras_version === "1" && extras.length === 0) {
+    const { data: existing } = await admin
+      .from("bookings")
+      .select("id")
+      .eq("checkout_session_id", session.id)
+      .eq("customer_id", customerId)
+      .maybeSingle();
+    if (existing) return existing.id;
+    throw new Error("The booked add-ons were not saved with this checkout.");
+  }
   const minutes = Number(m.duration_minutes);
+  const baseMinutes = Number(m.base_duration_minutes || m.duration_minutes);
+  let verifiedExtras: ReturnType<typeof cleaningSeriesQuote> | null = null;
+  if (extras.length && pkgRow) {
+    verifiedExtras = cleaningSeriesQuote(
+      {
+        ...pkgRow,
+        price: extras[0].basePricePence / 100,
+        duration_minutes: baseMinutes,
+      },
+      baseMinutes,
+      [],
+      false,
+      regular ? Number(m.regular_visit_count) : 1,
+      extras,
+    );
+    if (
+      extras.some(
+        (item, index) =>
+          typeof item.petsAtHome !== "boolean" ||
+          item.durationMinutes !==
+            verifiedExtras!.quotes[index].durationMinutes ||
+          item.grossPence !== verifiedExtras!.quotes[index].totalPence,
+      ) ||
+      verifiedExtras.totalPence - Number(m.discount || 0) !== pi.amount ||
+      verifiedExtras.maxDurationMinutes !== minutes
+    )
+      throw new Error("Checkout add-ons do not match the authorised amount.");
+  }
   if (isCleaning(serviceType) && !validCleaningDuration(minutes)) {
     throw new Error("Invalid cleaning duration.");
   }
@@ -122,7 +178,7 @@ export async function finalizeCustomerCheckout(
     regularSlots = regularVisitSlots(
       slot,
       frequency as RegularFrequency,
-      minutes,
+      baseMinutes,
       session.created * 1000,
       visitCount,
     );
@@ -136,6 +192,14 @@ export async function finalizeCustomerCheckout(
     ) {
       throw new Error("Regular visit dates were not saved with this checkout.");
     }
+    if (
+      extras.length &&
+      regularSlots.some(
+        (value, index) =>
+          !appointmentFitsWindow(value, extras[index].durationMinutes),
+      )
+    )
+      throw new Error(APPOINTMENT_WINDOW_MESSAGE);
     const perVisitGross = Number(m.per_visit_gross);
     const discount = Number(m.discount);
     const platform = Number(m.platform_margin);
@@ -143,15 +207,23 @@ export async function finalizeCustomerCheckout(
       !Number.isInteger(perVisitGross) ||
       !Number.isInteger(discount) ||
       discount < 0 ||
-      pi.amount !== perVisitGross * regularSlots.length - discount
+      pi.amount !==
+        (verifiedExtras?.totalPence ?? perVisitGross * regularSlots.length) -
+          discount
     ) {
       throw new Error("Regular checkout amount does not match its schedule.");
     }
-    regularAmounts = allocateRegularPayment(
-      pi.amount,
-      platform,
-      regularSlots.length,
-    );
+    regularAmounts = verifiedExtras
+      ? allocateCleaningPayments(
+          verifiedExtras.quotes.map((visit) => visit.totalPence),
+          discount,
+        )
+      : allocateRegularPayment(pi.amount, platform, regularSlots.length);
+    if (
+      regularAmounts.reduce((sum, visit) => sum + visit.platformPence, 0) !==
+      platform
+    )
+      throw new Error("Visit allocations do not match the payment.");
   }
   const platformMarginPence =
     pi.application_fee_amount ?? Number(m.platform_margin);

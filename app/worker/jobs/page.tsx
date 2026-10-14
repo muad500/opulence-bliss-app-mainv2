@@ -51,10 +51,10 @@ export default async function ProfessionalJobs({
         ))}
       {enabled && filter !== "cleaning" && (
         <section className={styles.section}>
-          <h2>Handyman jobs</h2>
+          <h2>Property maintenance jobs</h2>
           {provider.service_approvals.handyman !== "approved" && (
             <p>
-              Handyman approval is{" "}
+              Property maintenance approval is{" "}
               {provider.service_approvals.handyman ?? "not requested"}. New
               bookings unlock after approval.{" "}
               <Link href="/worker/profile#services">
@@ -88,7 +88,7 @@ export default async function ProfessionalJobs({
               ))}
             </div>
           ) : (
-            <p className={styles.empty}>No handyman jobs yet.</p>
+            <p className={styles.empty}>No property maintenance jobs yet.</p>
           )}
         </section>
       )}

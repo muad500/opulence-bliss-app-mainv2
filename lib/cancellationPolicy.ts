@@ -52,7 +52,7 @@ export function calculateCancellationPolicy(
   const tier: CancellationPolicyTier =
     hoursUntilBooking <= 0 || sameDay
       ? "none"
-      : hoursUntilBooking > 48
+      : hoursUntilBooking >= 48
         ? "full"
         : hoursUntilBooking >= 24
           ? "three_quarter"
@@ -78,7 +78,7 @@ export function calculateCancellationPolicy(
         : "No refund";
   const explanation =
     tier === "full"
-      ? `This visit is more than 48 hours away. The full ${pounds(grossPence)} will be refunded or released.`
+      ? `This visit is at least 48 hours away. The full ${pounds(grossPence)} will be refunded or released.`
       : tier === "three_quarter"
         ? `This visit is between 24 and 48 hours away. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
         : tier === "half"

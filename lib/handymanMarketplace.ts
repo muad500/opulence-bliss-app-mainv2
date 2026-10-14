@@ -1,30 +1,30 @@
 export const HANDYMAN_TASKS = [
-  'Mounting and hanging',
-  'Furniture assembly',
-  'Minor repairs',
-  'Curtains and blinds',
-  'Furniture moving',
-  'Minor decorating'
+  "Mounting and hanging",
+  "Furniture assembly",
+  "Minor repairs",
+  "Curtains and blinds",
+  "Furniture moving",
+  "Minor decorating",
 ] as const;
 export function handymanEnabled(
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined> = process.env,
 ) {
-  return env.HANDYMAN_MARKETPLACE_ENABLED === 'true';
+  return env.HANDYMAN_MARKETPLACE_ENABLED === "true";
 }
 export function isHandymanMarketplacePath(path: string) {
-  return path === '/handyman' || path.startsWith('/handyman/');
+  return path === "/handyman" || path.startsWith("/handyman/");
 }
 export function validHandymanTask(
-  task: unknown
+  task: unknown,
 ): task is (typeof HANDYMAN_TASKS)[number] {
   return (
-    typeof task === 'string' &&
+    typeof task === "string" &&
     (HANDYMAN_TASKS as readonly string[]).includes(task)
   );
 }
 export function regulatedHandymanDescription(text: string) {
   return /\b(gas|boiler|electrical|electrics|wiring|rewir\w*|circuit\w*|socket\w*|consumer unit|asbestos|structural|load.bearing|plumbing installation)\b/i.test(
-    text
+    text,
   );
 }
 export type HandymanReview = {
@@ -46,8 +46,8 @@ export function handymanReviewSummary(reviews: HandymanReview[]) {
       .map(({ rating, comment, reviewed_at }) => ({
         rating,
         comment,
-        reviewed_at
-      }))
+        reviewed_at,
+      })),
   };
 }
 /** Rates are exclusive of VAT. Commission applies only to net labour. */
@@ -55,7 +55,7 @@ export function handymanBill(
   rate: number,
   minutes: number,
   vatBps: number,
-  materials: number
+  materials: number,
 ) {
   if (
     !Number.isInteger(rate) ||
@@ -69,7 +69,7 @@ export function handymanBill(
     materials < 0 ||
     materials > 500000
   )
-    throw new Error('Invalid handyman bill.');
+    throw new Error("Invalid property maintenance bill.");
   const billedMinutes = Math.max(60, minutes),
     labour = Math.round((rate * billedMinutes) / 60),
     vat = Math.round((labour * vatBps) / 10000),
@@ -82,6 +82,6 @@ export function handymanBill(
     materials,
     platform,
     gross,
-    provider: gross - platform
+    provider: gross - platform,
   };
 }

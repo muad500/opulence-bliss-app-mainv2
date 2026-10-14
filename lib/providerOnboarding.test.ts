@@ -25,9 +25,9 @@ test("professional availability accepts every whole hour from zero through forty
 
 test("the earnings simulation follows the selected weekly hours", () => {
   assert.equal(estimateProviderMonthlyEarnings(0), 0);
-  assert.equal(estimateProviderMonthlyEarnings(20), 1440);
-  assert.equal(estimateProviderMonthlyEarnings(30), 2160);
-  assert.equal(estimateProviderMonthlyEarnings(40), 2880);
+  assert.equal(estimateProviderMonthlyEarnings(20), 1200);
+  assert.equal(estimateProviderMonthlyEarnings(30), 1800);
+  assert.equal(estimateProviderMonthlyEarnings(40), 2400);
 });
 
 test("professional status only accepts the displayed UK resident options", () => {
@@ -47,12 +47,30 @@ test("UTR is optional but must contain ten digits when supplied", () => {
 });
 
 test("self-employment permission cannot be bypassed by agreeing to partner", () => {
-  assert.match(providerApplicationEligibilityError("Student Visa", true)!, /Student visa.*cannot continue/);
-  assert.match(providerApplicationEligibilityError("Asylum Seeker", true)!, /manual review/);
-  assert.match(providerApplicationEligibilityError("British or Irish citizen", false)!, /permission/);
+  assert.match(
+    providerApplicationEligibilityError("Student Visa", true)!,
+    /Student visa.*cannot continue/,
+  );
+  assert.match(
+    providerApplicationEligibilityError("Asylum Seeker", true)!,
+    /manual review/,
+  );
+  assert.match(
+    providerApplicationEligibilityError("British or Irish citizen", false)!,
+    /permission/,
+  );
   assert.match(providerApplicationEligibilityError("Tourist", true)!, /Select/);
-  assert.equal(providerApplicationEligibilityError("British or Irish citizen", true), null);
-  assert.equal(providerApplicationEligibilityError("Indefinite leave to remain / settled status", true), null);
+  assert.equal(
+    providerApplicationEligibilityError("British or Irish citizen", true),
+    null,
+  );
+  assert.equal(
+    providerApplicationEligibilityError(
+      "Indefinite leave to remain / settled status",
+      true,
+    ),
+    null,
+  );
   assert.equal(providerApplicationEligibilityError("Refugee", true), null);
 });
 
@@ -79,7 +97,10 @@ test("cleaning experience accepts the displayed experience choices", () => {
     true,
   );
   assert.equal(isProviderCleaningExperienceTypes([]), false);
-  assert.equal(isProviderCleaningExperienceTypes(["Window washing only"]), false);
+  assert.equal(
+    isProviderCleaningExperienceTypes(["Window washing only"]),
+    false,
+  );
 });
 
 test("travel distance only accepts an application option", () => {

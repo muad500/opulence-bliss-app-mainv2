@@ -7,12 +7,13 @@
 //   stripe listen --forward-to localhost:3000/api/stripe/webhook
 // Copy the whsec_... it prints into .env.local as STRIPE_WEBHOOK_SECRET.
 
-import {finalizeHandymanCheckout} from '@/lib/handymanServer';
+import { finalizeHandymanCheckout } from "@/lib/handymanServer";
 import { finalizeCustomerCheckout } from "@/lib/finalizeCustomerCheckout";
 import { finalizeTipCheckout } from "@/lib/finalizeTipCheckout";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
+import { createVisitBilling } from "@/lib/visitBillingServer";
 import {
   upsertSubscription,
   subscriptionIdFromInvoice,
@@ -23,7 +24,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 export async function POST(req: NextRequest) {
@@ -50,20 +51,62 @@ export async function POST(req: NextRequest) {
   console.log("Stripe webhook:", event.type);
 
   try {
+    // Retrieve current Stripe state: an old event must never restore stale
+    // scope, card preferences or a payment that has already been refunded.
+    if (
+      event.type === "payment_intent.succeeded" ||
+      event.type === "payment_intent.payment_failed"
+    ) {
+      const object = event.data.object as Stripe.PaymentIntent;
+      const intent = await stripe.paymentIntents.retrieve(object.id);
+      if (
+        intent.metadata.kind === "visit_charge" &&
+        intent.metadata.visit_operation
+      ) {
+        const { data: operation } = await admin
+          .from("booking_visit_money_operations")
+          .select("id,booking_id")
+          .eq("id", intent.metadata.visit_operation)
+          .maybeSingle();
+        if (!operation || operation.booking_id !== intent.metadata.booking_id)
+          throw new Error("Visit operation mismatch.");
+        await createVisitBilling(admin, stripe).run(operation.id);
+      }
+    }
+    if (event.type === "refund.updated") {
+      const refund = event.data.object as Stripe.Refund;
+      if (refund.metadata?.visit_operation)
+        await createVisitBilling(admin, stripe).run(
+          refund.metadata?.visit_operation,
+        );
+    }
     // ---- Subscription just started (fires right after Checkout) ----
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
 
-      if (session.mode === "payment" && session.client_reference_id && session.payment_intent) {
+      if (
+        session.mode === "payment" &&
+        session.client_reference_id &&
+        session.payment_intent
+      ) {
         try {
-          const paymentId = typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent.id;
+          const paymentId =
+            typeof session.payment_intent === "string"
+              ? session.payment_intent
+              : session.payment_intent.id;
           const payment = await stripe.paymentIntents.retrieve(paymentId);
-          if (payment.metadata.kind === "booking") await finalizeCustomerCheckout(session, payment);
-          if (payment.metadata.kind === "tip") await finalizeTipCheckout(session, payment);
-          if (payment.metadata.kind === "handyman") await finalizeHandymanCheckout(admin,stripe,session,payment);
+          if (payment.metadata.kind === "booking")
+            await finalizeCustomerCheckout(session, payment);
+          if (payment.metadata.kind === "tip")
+            await finalizeTipCheckout(session, payment);
+          if (payment.metadata.kind === "handyman")
+            await finalizeHandymanCheckout(admin, stripe, session, payment);
         } catch (failure) {
-          console.error("Booking webhook finalisation failed:", failure);
-          return NextResponse.json({ error: "Booking finalisation failed; retry required." }, { status: 500 });
+          console.error("Booking webhook finalisation failed; retry required.");
+          return NextResponse.json(
+            { error: "Booking finalisation failed; retry required." },
+            { status: 500 },
+          );
         }
       }
 
@@ -85,7 +128,9 @@ export async function POST(req: NextRequest) {
           amountPence: invoice?.amount_paid ?? session.amount_total ?? 0,
           ref: String(
             (invoice as (Stripe.Invoice & { payment_intent?: string }) | null)
-              ?.payment_intent ?? invoice?.id ?? session.id
+              ?.payment_intent ??
+              invoice?.id ??
+              session.id,
           ),
           ...(invoice ? invoicePeriod(invoice) : {}),
         });
@@ -107,7 +152,7 @@ export async function POST(req: NextRequest) {
       const result = await upsertSubscription(stripeSub, {
         amountPence: invoice.amount_paid ?? 0,
         ref: String(
-          (invoice as { payment_intent?: string }).payment_intent ?? invoice.id
+          (invoice as { payment_intent?: string }).payment_intent ?? invoice.id,
         ),
         ...invoicePeriod(invoice),
       });
@@ -137,8 +182,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ received: true });
   } catch (e) {
-    console.error("Webhook handling failed:", e);
-    // 200 so Stripe doesn't retry forever on a bug in our code.
-    return NextResponse.json({ received: true, error: true });
+    console.error("Webhook handling failed; retry required.");
+    return NextResponse.json(
+      { error: "Webhook reconciliation must retry." },
+      { status: 500 },
+    );
   }
 }

@@ -159,8 +159,13 @@ export default async function AdminCleanersPage() {
                     </div>
                     <p style={email}>{profile?.email ?? "No email"}</p>
                     <p style={meta}>
-                      {(provider.services ?? []).join(", ") ||
-                        "No services set"}
+                      {(provider.services ?? [])
+                        .map((service: string) =>
+                          service === "handyman"
+                            ? "Property maintenance"
+                            : service,
+                        )
+                        .join(", ") || "No services set"}
                       {provider.years_experience
                         ? ` · ${provider.years_experience}+ years experience`
                         : ""}
