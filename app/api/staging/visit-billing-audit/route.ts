@@ -66,6 +66,18 @@ export async function POST(request: NextRequest) {
           process.env.STRIPE_WEBHOOK_SECRET?.startsWith("whsec_"),
         connectedAccountAccessibleWithTestKey: true,
         perVisitEnabled: process.env.CLEANING_PAY_PER_VISIT_ENABLED === "true",
+        webhooks: (await stripe.webhookEndpoints.list({ limit: 100 })).data.map(
+          (endpoint) => {
+            const url = new URL(endpoint.url);
+            return {
+              id: endpoint.id,
+              host: url.hostname,
+              path: url.pathname,
+              mode: endpoint.livemode ? "live" : "test",
+              events: endpoint.enabled_events,
+            };
+          },
+        ),
       });
     assert(
       [
@@ -178,17 +190,15 @@ export async function POST(request: NextRequest) {
     );
     const sessionId = `cs_staging_audit_${runId}`;
     checked(
-      await admin
-        .from("booking_checkout_time_choices")
-        .insert({
-          checkout_session_id: sessionId,
-          customer_id: user,
-          preferred_scheduled_at: slots[0],
-          optional_scheduled_at: [],
-          regular_scheduled_at: regular ? slots : [],
-          household_notes: "Disposable staging billing audit",
-          cleaning_extras: plan,
-        }),
+      await admin.from("booking_checkout_time_choices").insert({
+        checkout_session_id: sessionId,
+        customer_id: user,
+        preferred_scheduled_at: slots[0],
+        optional_scheduled_at: [],
+        regular_scheduled_at: regular ? slots : [],
+        household_notes: "Disposable staging billing audit",
+        cleaning_extras: plan,
+      }),
     );
     fixtureIds = checked(
       await admin.rpc("finalize_per_visit_checkout", {
@@ -350,15 +360,13 @@ export async function POST(request: NextRequest) {
         );
         const deadlineSession = `cs_staging_deadline_${runId}`;
         checked(
-          await admin
-            .from("booking_checkout_time_choices")
-            .insert({
-              checkout_session_id: deadlineSession,
-              customer_id: user,
-              preferred_scheduled_at: target.toISOString(),
-              optional_scheduled_at: [],
-              cleaning_extras: [plan[1]],
-            }),
+          await admin.from("booking_checkout_time_choices").insert({
+            checkout_session_id: deadlineSession,
+            customer_id: user,
+            preferred_scheduled_at: target.toISOString(),
+            optional_scheduled_at: [],
+            cleaning_extras: [plan[1]],
+          }),
         );
         const deadline = checked(
           await admin
@@ -384,23 +392,21 @@ export async function POST(request: NextRequest) {
         assert(deadline, "Deadline fixture insert failed.");
         fixtureIds.push(deadline.id);
         checked(
-          await admin
-            .from("booking_visit_billing")
-            .insert({
-              booking_id: deadline.id,
-              customer_id: user,
-              stripe_customer_id: customer.id,
-              stripe_payment_method_id: card.id,
-              card_consent_at: new Date().toISOString(),
-              card_consent_version: "visit-billing-v1",
-              charge_due_at: new Date(
-                target.getTime() - 48 * 3_600_000,
-              ).toISOString(),
-              amount_pence: plan[1].netPence,
-              base_pence: plan[1].basePricePence,
-              line_items: plan[1].lineItems,
-              status: "failed",
-            }),
+          await admin.from("booking_visit_billing").insert({
+            booking_id: deadline.id,
+            customer_id: user,
+            stripe_customer_id: customer.id,
+            stripe_payment_method_id: card.id,
+            card_consent_at: new Date().toISOString(),
+            card_consent_version: "visit-billing-v1",
+            charge_due_at: new Date(
+              target.getTime() - 48 * 3_600_000,
+            ).toISOString(),
+            amount_pence: plan[1].netPence,
+            base_pence: plan[1].basePricePence,
+            line_items: plan[1].lineItems,
+            status: "failed",
+          }),
         );
         await engine.tick(20, [deadline.id]);
         details = await engine.load(deadline.id, user);

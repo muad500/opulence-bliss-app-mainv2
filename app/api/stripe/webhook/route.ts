@@ -51,6 +51,22 @@ export async function POST(req: NextRequest) {
   console.log("Stripe webhook:", event.type);
 
   try {
+    if (
+      event.type === "customer.updated" &&
+      event.data.previous_attributes &&
+      "invoice_settings" in event.data.previous_attributes
+    ) {
+      const customer = event.data.object as Stripe.Customer;
+      // The charge worker retrieves the CURRENT default card; a delayed
+      // event only brings the next retry forward, never restores an old card.
+      const { error } = await admin
+        .from("booking_visit_billing")
+        .update({ retry_after: new Date().toISOString() })
+        .eq("stripe_customer_id", customer.id)
+        .in("status", ["failed", "requires_action"])
+        .is("active_operation_id", null);
+      if (error) throw new Error("Saved-card retry could not be scheduled.");
+    }
     // Retrieve current Stripe state: an old event must never restore stale
     // scope, card preferences or a payment that has already been refunded.
     if (
