@@ -7,6 +7,7 @@
 // Landing page — two-level nav, hero, coloured service bands.
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Hammer, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import SiteFooter from "@/components/SiteFooter";
@@ -303,11 +304,42 @@ export default function Home() {
         </a>
       </section>
 
-      <p style={{ textAlign: "center", padding: "20px" }}>
-        <a data-earn-with-us href="/provider/join">
-          Earn with us →
-        </a>
-      </p>
+      <section className="earn-section" aria-labelledby="earn-title">
+        <div className="earn-inner">
+          <div className="earn-copy">
+            <p className="eyebrow">Your skills. New possibilities.</p>
+            <h2 id="earn-title">Earn with Us</h2>
+            <p className="earn-description">
+              Turn the work you love into your next opportunity. Join our
+              community of professionals and help make London homes feel their
+              best.
+            </p>
+            <div className="earn-benefits">
+              <span>Choose your availability</span>
+              <span>Put your skills to work</span>
+            </div>
+            <a
+              className="btn earn-button"
+              data-earn-with-us
+              href="/provider/join"
+            >
+              Become a professional <span aria-hidden="true">→</span>
+            </a>
+            <p className="earn-sign-in">
+              Already part of the team? <a href="/provider/login">Sign in</a>
+            </p>
+          </div>
+          <div className="earn-art">
+            <Image
+              src="/earn-with-us-people.webp"
+              alt="Three illustrated professionals smiling together, with a man recording himself and gold pound coins floating beside his phone."
+              width={1536}
+              height={1024}
+              sizes="(max-width: 700px) 100vw, (max-width: 1100px) 55vw, 620px"
+            />
+          </div>
+        </div>
+      </section>
       <SiteFooter />
 
       <style jsx>{`
@@ -446,7 +478,7 @@ export default function Home() {
           text-shadow: 0 2px 16px rgba(19, 16, 22, 0.55);
         }
         .hero-purple {
-          color: #c084fc;
+          color: #ad6dde;
         }
         .hero-gold {
           color: #f5c542;
@@ -766,6 +798,85 @@ export default function Home() {
           margin: 0 0 26px;
         }
 
+        /* EARN WITH US */
+        .earn-section {
+          background: linear-gradient(120deg, #fffaf0, #f3e4c8 66%, #eddbb6);
+          color: #30223b;
+          padding: clamp(36px, 6vw, 76px) 28px 0;
+          overflow: hidden;
+        }
+        .earn-inner {
+          max-width: 1160px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
+          align-items: center;
+          gap: 20px;
+        }
+        .earn-copy {
+          padding-bottom: clamp(36px, 6vw, 76px);
+          position: relative;
+          z-index: 1;
+        }
+        .earn-copy .eyebrow {
+          color: #78469a;
+          font-weight: 800;
+        }
+        .earn-copy h2 {
+          color: #442452;
+          font-size: clamp(34px, 4vw, 50px);
+          line-height: 1.1;
+          letter-spacing: -0.025em;
+          margin: 0 0 18px;
+        }
+        .earn-description {
+          max-width: 43ch;
+          color: #5f4e50;
+          font-size: 17px;
+          line-height: 1.65;
+          margin: 0 0 22px;
+        }
+        .earn-benefits {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px 18px;
+          margin-bottom: 26px;
+          color: #634576;
+          font-size: 13px;
+          font-weight: 800;
+        }
+        .earn-benefits span::before {
+          content: "✓";
+          margin-right: 7px;
+        }
+        .earn-button {
+          background: #70409b;
+          padding: 14px 24px;
+          white-space: normal;
+        }
+        .earn-button span {
+          margin-left: 10px;
+        }
+        .earn-sign-in {
+          margin: 18px 0 0;
+          color: #5f4e50;
+          font-size: 13px;
+        }
+        .earn-sign-in a {
+          color: #684088;
+          font-weight: 800;
+          text-underline-offset: 3px;
+        }
+        .earn-art {
+          align-self: end;
+          min-width: 0;
+        }
+        .earn-art :global(img) {
+          display: block;
+          width: 100%;
+          height: auto;
+        }
+
         /* RESPONSIVE */
         @media (max-width: 900px) {
           .strip,
@@ -824,8 +935,11 @@ export default function Home() {
           }
           .service-cards {
             gap: 10px;
+            align-items: center;
           }
           .band {
+            width: 100%;
+            height: min(100%, clamp(112px, 16svh, 136px));
             padding: 14px 12px;
             position: relative;
             align-items: center;
@@ -864,6 +978,30 @@ export default function Home() {
           .strip {
             margin-left: 16px;
             margin-right: 16px;
+          }
+          .earn-section {
+            padding: 40px 20px 0;
+          }
+          .earn-inner {
+            grid-template-columns: minmax(0, 1fr);
+            gap: 24px;
+            text-align: center;
+          }
+          .earn-copy {
+            padding-bottom: 0;
+          }
+          .earn-description {
+            margin-inline: auto;
+            font-size: 15px;
+          }
+          .earn-benefits {
+            justify-content: center;
+            gap: 10px 14px;
+          }
+          .earn-art {
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto;
           }
         }
         @media (max-height: 800px) and (min-width: 701px) {
