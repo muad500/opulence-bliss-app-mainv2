@@ -348,7 +348,7 @@ export default function ServicePage() {
                 aria-label="Postcode"
               />
               <a className="btn" href={bookLink}>
-                Book my cleaning
+                Book a service
               </a>
             </div>
 
@@ -400,7 +400,7 @@ export default function ServicePage() {
           See our services
         </a>
         <a className="mobile-cta-book" href={bookLink}>
-          Book my cleaning
+          Book a service
         </a>
       </nav>
 
@@ -590,7 +590,7 @@ export default function ServicePage() {
                     ? `${scoreCount} customer rating${scoreCount === 1 ? "" : "s"} for cleaning`
                     : "Customer feedback on cleaning"}
                 </p>
-                <a href="#cleaning-services">Book your cleaning</a>
+                <a href="#cleaning-services">Book a service</a>
               </aside>
 
               <div className="review-feed">

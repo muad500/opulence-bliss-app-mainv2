@@ -3,15 +3,22 @@
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { isValidUkPhone } from "@/lib/ukPhone";
 import ConsentCheckbox from "@/components/ConsentCheckbox";
 import { useAppAudience } from "./MobileExperience";
-import { appEntry } from "@/lib/mobileExperience";
+import { appEntry, appPathAllowed } from "@/lib/mobileExperience";
 import GoogleAuthButton from "@/components/GoogleAuthButton";
+import { authLink, safeAuthNext } from "@/lib/authReturn";
 
 export function SignUpForm() {
   const audience = useAppAudience();
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  useEffect(() => {
+    setReturnTo(
+      safeAuthNext(new URLSearchParams(window.location.search).get("next")),
+    );
+  }, []);
   const [salutation, setSalutation] = useState<"ms_mrs" | "mr" | "">("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -81,7 +88,7 @@ export function SignUpForm() {
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error ?? "Could not create your account.");
-      router.push("/auth/sign-up-success");
+      router.push(authLink("/auth/sign-up-success", returnTo));
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : "An error occurred");
     } finally {
@@ -104,7 +111,14 @@ export function SignUpForm() {
           />
           <GoogleAuthButton
             label="Sign up with Google"
-            next={audience ? appEntry(audience, "bookings") : undefined}
+            next={
+              returnTo &&
+              (!audience || appPathAllowed(audience, returnTo.split("?")[0]))
+                ? returnTo
+                : audience
+                  ? appEntry(audience, "bookings")
+                  : undefined
+            }
             disabled={!consentAccepted}
             onError={(message) => setError(message || null)}
           />
@@ -275,7 +289,8 @@ export function SignUpForm() {
         </form>
 
         <p className="account-link">
-          Already signed up? <Link href="/login">Log in here</Link>
+          Already signed up?{" "}
+          <Link href={authLink("/login", returnTo)}>Log in here</Link>
         </p>
         <p data-work-recruitment className="professional-link">
           Are you a professional?{" "}

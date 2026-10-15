@@ -126,7 +126,7 @@ export default function CleaningMenu() {
           <h2 id="cleaning-menu-title">Domestic cleaning near you</h2>
           <div className={styles.heroActions}>
             <DropdownMenuItem asChild className={styles.bookItem}>
-              <Link href="/book?type=clean">Book my cleaning</Link>
+              <Link href="/book?type=clean">Book a service</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild className={styles.proItem}>
               <Link href="/provider/join">

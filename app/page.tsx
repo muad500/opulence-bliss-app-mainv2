@@ -141,8 +141,7 @@ export default function Home() {
             </h1>
             <p className="lede">
               Vetted cleaners and trusted property maintenance professionals
-              across London. Book a clean or request a tailored quote for work
-              around your home.
+              across London. Book the help your home needs.
             </p>
 
             <div className="composer">
@@ -153,13 +152,13 @@ export default function Home() {
                 aria-label="Postcode"
               />
               <a className="btn" href={bookLink}>
-                Book my cleaning
+                Book a service
               </a>
             </div>
             <a className="btn mobile-book" href="#services">
               Book a service
             </a>
-            <p className="micro">Simple pay per visit booking down there</p>
+            <p className="micro">Simple pay-per-visit booking</p>
             <a className="hero-quote" href="/services/handyman">
               Need something repaired or installed? Request a property
               maintenance quote →
@@ -168,28 +167,40 @@ export default function Home() {
         </header>
 
         {/* ---------- SERVICE BANDS ---------- */}
-        <section className="bands" id="services">
-          <a className="band clean" href="/services/cleaning#cleaning-services">
-            <div>
-              <h2>Cleaning</h2>
-              <p>and ironing, at home</p>
-              <span className="from">Book a cleaning visit</span>
-            </div>
-            <span className="service-icon" aria-hidden="true">
-              <Sparkles strokeWidth={1.4} />
-            </span>
-          </a>
+        <section
+          className="bands"
+          id="services"
+          aria-labelledby="services-title"
+        >
+          <h2 className="services-title" id="services-title">
+            Our Services
+          </h2>
+          <div className="service-cards">
+            <a
+              className="band clean"
+              href="/services/cleaning#cleaning-services"
+            >
+              <div>
+                <h3>Cleaning</h3>
+                <p>and ironing, at home</p>
+                <span className="from">Book a service</span>
+              </div>
+              <span className="service-icon" aria-hidden="true">
+                <Sparkles strokeWidth={1.4} />
+              </span>
+            </a>
 
-          <a className="band property maintenance" href="/services/handyman">
-            <div>
-              <h2>Property maintenance</h2>
-              <p>repairs, assembly and home maintenance</p>
-              <span className="from">Request a tailored quote</span>
-            </div>
-            <span className="service-icon" aria-hidden="true">
-              <Hammer strokeWidth={1.4} />
-            </span>
-          </a>
+            <a className="band maintenance" href="/services/handyman">
+              <div>
+                <h3>Property maintenance</h3>
+                <p>repairs, assembly and home maintenance</p>
+                <span className="from">Request a tailored quote</span>
+              </div>
+              <span className="service-icon" aria-hidden="true">
+                <Hammer strokeWidth={1.4} />
+              </span>
+            </a>
+          </div>
         </section>
       </div>
 
@@ -401,12 +412,9 @@ export default function Home() {
         /* HERO */
         .first-screen {
           height: calc(100svh - var(--home-navigation-height, 100px));
-          min-height: min-content;
+          min-height: 0;
           display: grid;
-          grid-template-rows: minmax(min-content, 13fr) minmax(
-              min-content,
-              7fr
-            );
+          grid-template-rows: minmax(0, 3fr) minmax(0, 2fr);
         }
         .hero {
           display: flex;
@@ -422,7 +430,7 @@ export default function Home() {
               rgba(24, 16, 22, 0.16) 78%
             ),
             url("/hero-home.webp") center / cover no-repeat;
-          padding: clamp(24px, 4svh, 44px) 28px;
+          padding: clamp(18px, 3svh, 36px) 28px;
         }
         .hero-inner {
           width: 100%;
@@ -516,10 +524,23 @@ export default function Home() {
           box-sizing: border-box;
           max-width: 1080px;
           margin: 0 auto;
-          padding: 24px 28px 18px;
+          padding: clamp(12px, 2.5svh, 24px) 28px;
+          display: grid;
+          grid-template-rows: auto minmax(0, 1fr);
+          gap: 12px;
+          min-height: 0;
+        }
+        .services-title {
+          margin: 0;
+          font-size: clamp(22px, 2.5vw, 30px);
+          line-height: 1.1;
+          letter-spacing: -0.02em;
+        }
+        .service-cards {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 16px;
+          min-height: 0;
         }
         .band {
           box-sizing: border-box;
@@ -529,7 +550,7 @@ export default function Home() {
           display: flex;
           align-items: flex-end;
           justify-content: space-between;
-          min-height: 142px;
+          min-height: 0;
           padding: 22px 28px;
           border: 1px solid var(--line);
           border-radius: 22px;
@@ -547,8 +568,8 @@ export default function Home() {
           transform: translateY(-3px);
           box-shadow: 0 18px 46px var(--ob-shadow);
         }
-        .band h2 {
-          font-size: clamp(30px, 4.4vw, 46px);
+        .band h3 {
+          font-size: clamp(26px, 3.2vw, 42px);
           line-height: 1.15;
           margin: 0 0 4px;
           color: #fff;
@@ -592,13 +613,13 @@ export default function Home() {
             ),
             linear-gradient(145deg, #7b2ff7 0%, #a33ea6 55%, #f5c542 140%);
         }
-        .band.property maintenance {
+        .band.maintenance {
           background:
             linear-gradient(
               to top,
               rgba(12, 10, 24, 0.72),
               rgba(12, 10, 24, 0.34) 46%,
-              rgba(12, 10, 24, 0.08)
+              rgba(12, 10, 24, 0.38)
             ),
             linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%);
         }
@@ -773,7 +794,7 @@ export default function Home() {
             gap: 20px;
           }
           .hero {
-            padding: 22px 16px;
+            padding: 18px 16px;
             background-position: 62% center;
           }
           .hero h1 {
@@ -791,22 +812,27 @@ export default function Home() {
             display: none;
           }
           .bands {
-            padding: 18px 16px 8px;
+            padding: 14px 16px;
+            gap: 10px;
+          }
+          .services-title {
+            font-size: 22px;
+          }
+          .service-cards {
             gap: 10px;
           }
           .band {
-            min-height: 136px;
             padding: 14px 12px;
             position: relative;
-            align-items: flex-end;
+            align-items: flex-start;
           }
-          .band h2 {
+          .band h3 {
             font-size: clamp(20px, 5.4vw, 28px);
           }
           .band p {
             font-size: 12px;
             line-height: 1.4;
-            min-height: 34px;
+            margin-bottom: 0;
           }
           .band .from {
             display: none;
@@ -853,15 +879,23 @@ export default function Home() {
             line-height: 1.45;
             margin-bottom: 16px;
           }
+          .micro,
+          .hero-quote {
+            display: none;
+          }
+          .band {
+            padding: 18px 22px;
+          }
+          .band h3 {
+            font-size: clamp(26px, 3.2vw, 36px);
+          }
         }
         @media (max-width: 700px) and (max-height: 600px) {
-          .first-screen {
-            grid-template-rows: minmax(min-content, 1fr) auto;
-          }
           .hero {
             padding: 12px 16px;
           }
           .hero h1 {
+            font-size: clamp(32px, 9.5vw, 40px) !important;
             margin-bottom: 8px;
           }
           .lede {
@@ -869,8 +903,31 @@ export default function Home() {
             margin-bottom: 8px;
           }
           .band {
-            min-height: 132px;
-            padding-block: 12px;
+            padding: 10px;
+          }
+          .bands {
+            padding-block: 10px;
+            gap: 8px;
+          }
+          .services-title {
+            font-size: 20px;
+          }
+          .band h3 {
+            font-size: 19px;
+          }
+          .band p {
+            font-size: 11px;
+            line-height: 1.3;
+          }
+        }
+        /* Let very short/zoomed windows scroll rather than cut off controls. */
+        @media (max-height: 480px) {
+          .first-screen {
+            height: auto;
+            grid-template-rows: auto auto;
+          }
+          .band {
+            min-height: 140px;
           }
         }
       `}</style>

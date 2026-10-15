@@ -13,6 +13,8 @@ const modules = [
   "appointmentSlots",
   "appointmentWindow",
   "bookingPolicy",
+  "bookingDraft",
+  "authReturn",
   "bookingTimeChoices",
   "cancellationPeriod",
   "cancellationPolicy",
@@ -75,6 +77,11 @@ try {
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-cleaning-checkout.mjs"],
+    { stdio: "inherit" },
+  );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-booking-sign-in.mjs"],
     { stdio: "inherit" },
   );
   execFileSync(process.execPath, ["--test", "scripts/test-visit-billing.mjs"], {

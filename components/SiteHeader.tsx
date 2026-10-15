@@ -262,8 +262,8 @@ export default function SiteHeader() {
         </div>
 
         <div className="mobile-primary">
-          <Link href="/services/cleaning" className="mobile-quick-link">
-            Cleaning
+          <Link href="/#services" className="mobile-quick-link">
+            Book a service
           </Link>
           <Link href="/provider" className="mobile-quick-link">
             Jobs
@@ -421,8 +421,8 @@ export default function SiteHeader() {
               </button>
             </div>
 
-            <Link href="/book" className="mobile-drawer-cta">
-              Book a cleaning
+            <Link href="/#services" className="mobile-drawer-cta">
+              Book a service
             </Link>
 
             <nav aria-label="Mobile main navigation" className="mobile-links">

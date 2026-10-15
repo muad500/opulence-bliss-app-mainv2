@@ -4,7 +4,7 @@
 //
 // Booking: Where → Session → Time → Confirm. One question per screen.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   CLEANING_DURATIONS,
@@ -43,6 +43,12 @@ import { cleaningPackageScope } from "@/lib/cleaningScope";
 
 import CleaningExtrasPicker from "@/components/CleaningExtrasPicker";
 import { cleaningSeriesQuote, type VisitExtras } from "@/lib/cleaningExtras";
+import {
+  clearBookingDraft,
+  readBookingDraft,
+  saveBookingDraft,
+} from "@/lib/bookingDraft";
+import { authLink } from "@/lib/authReturn";
 
 const supabase = createClient();
 
@@ -266,7 +272,10 @@ export default function BookPage() {
   const [handoffError, setHandoffError] = useState<string | null>(null);
 
   /* ---------- load ---------- */
+  const loadingStarted = useRef(false);
   useEffect(() => {
+    if (loadingStarted.current) return;
+    loadingStarted.current = true;
     (async () => {
       const [{ data: pkgs }, { data: ars }] = await Promise.all([
         supabase
@@ -297,6 +306,7 @@ export default function BookPage() {
 
       let savedPc: string | null = null;
       let savedAddress: string | null = null;
+      let preferredCleanerIds = new Set<string>();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -349,6 +359,9 @@ export default function BookPage() {
               display_name: `${favourite.displayName} (favourite)`,
             });
           const options = Array.from(merged.values());
+          preferredCleanerIds = new Set(
+            options.map((cleaner) => cleaner.provider_id),
+          );
           setPreviousCleaners(options);
           const requested = new URLSearchParams(window.location.search).get(
             "preferred",
@@ -370,6 +383,134 @@ export default function BookPage() {
       }
 
       const q = new URLSearchParams(window.location.search);
+      const resumeToken = q.get("resume");
+      if (resumeToken) {
+        let draft: ReturnType<typeof readBookingDraft> = null;
+        try {
+          draft = readBookingDraft(window.sessionStorage, resumeToken);
+        } catch {
+          /* Storage may be disabled. */
+        }
+        if (draft) {
+          // Restore after account defaults have loaded so they cannot overwrite the booking.
+          setSavedAddressId("");
+          setAddress(draft.address);
+          setPostcode(draft.postcode);
+          setPropertyType(draft.home.propertyType);
+          setBedrooms(draft.home.bedrooms);
+          setBathrooms(draft.home.bathrooms);
+          setPetsAtHome(draft.petsAtHome);
+          setFrequency(draft.frequency);
+          setRegularVisits(draft.regularVisits);
+          setCleaningMinutes(draft.cleaningMinutes);
+          setExtras(draft.extras);
+          setVisitOverrides(draft.visitOverrides);
+          setRequest(draft.request);
+          setPromo(draft.promo);
+          setPhone(draft.phone);
+          setPreferredCleaner(
+            preferredCleanerIds.has(draft.preferredCleaner)
+              ? draft.preferredCleaner
+              : "",
+          );
+          const restoredPackage = list.find(
+            (pkg) => pkg.id === draft.packageId,
+          );
+          const area = areaList.find((item) =>
+            item.postcode_prefixes.includes(outwardCode(draft.postcode)),
+          );
+          setGate(area ? { ok: true, area: area.name } : { ok: false });
+          let resumeStep = 0;
+          let retryAvailability = false;
+          let message =
+            "Your booking details have been kept. Please check the service address.";
+          if (area && !restoredPackage) {
+            resumeStep = 1;
+            message =
+              "Your details have been kept. That package is no longer available; please choose another.";
+          } else if (area && restoredPackage) {
+            setSelected(restoredPackage);
+            try {
+              const policyError = bookingPolicyError(
+                restoredPackage.name,
+                draft.frequency,
+              );
+              if (policyError) throw new Error(policyError);
+              const count =
+                draft.frequency === "one_time" ? 1 : draft.regularVisits;
+              const restoredQuote = cleaningSeriesQuote(
+                restoredPackage,
+                draft.cleaningMinutes,
+                draft.extras.addons,
+                draft.extras.bringsProducts,
+                count,
+                Array.from(
+                  { length: count },
+                  (_, index) => draft.visitOverrides[index] ?? draft.extras,
+                ),
+              );
+              resumeStep = 4;
+              const response = await fetch(
+                `/api/slots?${new URLSearchParams({ postcode: draft.postcode, service: restoredPackage.service_type ?? "", duration: String(restoredQuote.maxDurationMinutes) })}`,
+                { cache: "no-store" },
+              );
+              if (!response.ok)
+                throw new Error(
+                  "Your details are saved. Please check the available times again.",
+                );
+              const availability = await response.json();
+              const available = new Set<string>(availability.slots ?? []);
+              setSlots([...available]);
+              const optional = draft.optionalSlots.filter((time) =>
+                available.has(time),
+              );
+              setOptionalSlots(optional);
+              if (available.has(draft.slot)) {
+                setSlot(draft.slot);
+                resumeStep =
+                  optional.length === draft.optionalSlots.length ? 5 : 4;
+                message =
+                  resumeStep === 5
+                    ? "Your booking details are ready. Review them below, then confirm your payment."
+                    : "Your details and preferred time have been kept. Some optional times are no longer available; please review your times.";
+              } else {
+                setSlot(null);
+                message =
+                  "Your booking details have been kept. Your preferred time is no longer available; please choose another.";
+              }
+            } catch (cause) {
+              if (resumeStep === 4) {
+                retryAvailability = true;
+                setSlots([]);
+                message =
+                  "Your details are saved. Reload this page to check the available times again.";
+              } else {
+                resumeStep = 3;
+                message =
+                  cause instanceof Error
+                    ? cause.message
+                    : "Your details have been kept. Please review your booking.";
+              }
+            }
+          }
+          setStep(resumeStep);
+          setHandoffError(message);
+          if (!retryAvailability) {
+            clearBookingDraft(window.sessionStorage);
+            q.delete("resume");
+            window.history.replaceState(
+              window.history.state,
+              "",
+              `/book${q.size ? `?${q}` : ""}`,
+            );
+          }
+          setLoading(false);
+          return;
+        }
+        setHandoffError(
+          "Your saved booking has expired or is unavailable in this tab. Please check your booking details.",
+        );
+      }
       const wantPc = q.get("pc");
       const wantType = q.get("type");
       const wantService = q.get("service");
@@ -592,18 +733,44 @@ export default function BookPage() {
       return;
     }
     if (signedIn === false) {
-      const bookingQuery = new URLSearchParams({
-        pc: postcode,
-        type: "clean",
-        service: selected?.id ?? "",
-        slot: slot ?? "",
-        review: "1",
-      });
-      const returnTo = `/book?${bookingQuery.toString()}`;
-      window.location.href = `/login?next=${encodeURIComponent(returnTo)}`;
+      continueAfterSignIn();
       return;
     }
     return startCheckout();
+  }
+
+  function continueAfterSignIn() {
+    if (!selected || !home || !slot || petsAtHome === null) return;
+    let returnTo: string | null = null;
+    try {
+      returnTo = saveBookingDraft(window.sessionStorage, {
+        packageId: selected.id,
+        postcode,
+        address,
+        home,
+        frequency,
+        regularVisits,
+        cleaningMinutes,
+        extras,
+        visitOverrides,
+        petsAtHome,
+        slot,
+        optionalSlots,
+        request,
+        promo,
+        preferredCleaner,
+        phone,
+      });
+    } catch {
+      /* Keep the form on screen if browser storage is blocked. */
+    }
+    if (!returnTo) {
+      setPayError(
+        "We couldn't save your booking for sign-in. Allow storage for this website, then try again. Your details are still here.",
+      );
+      return;
+    }
+    window.location.href = authLink("/login", returnTo);
   }
 
   const needsPhone =
@@ -673,6 +840,11 @@ export default function BookPage() {
         }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        setPaying(false);
+        continueAfterSignIn();
+        return;
+      }
       if (data.url) window.location.href = data.url;
       else {
         if (data.code === "phone_required") {
@@ -1629,7 +1801,7 @@ export default function BookPage() {
                 </span>
               </div>
 
-              {perVisitBilling && (
+              {perVisitBilling && signedIn === true && (
                 <label className="consent">
                   <input
                     type="checkbox"
@@ -1788,7 +1960,7 @@ export default function BookPage() {
                 </p>
               </div>
             )}
-            {step === 5 && needsEarlyStart && (
+            {step === 5 && signedIn === true && needsEarlyStart && (
               <label className="early-start" htmlFor="early-start">
                 <input
                   id="early-start"
@@ -1816,7 +1988,7 @@ export default function BookPage() {
                 onClick={checkout}
                 disabled={
                   paying ||
-                  (perVisitBilling && !saveCardConsent) ||
+                  (signedIn !== false && perVisitBilling && !saveCardConsent) ||
                   !slot ||
                   !addressValid ||
                   !home ||
@@ -1825,7 +1997,7 @@ export default function BookPage() {
                   !!policyError ||
                   !!regularScheduleError ||
                   (needsPhone && !phoneValid) ||
-                  (needsEarlyStart && !earlyStartAgreed)
+                  (signedIn !== false && needsEarlyStart && !earlyStartAgreed)
                 }
               >
                 {paying

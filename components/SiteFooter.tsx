@@ -73,7 +73,7 @@ export default function SiteFooter() {
             Trusted home cleaning, thoughtfully delivered across London.
           </p>
           <Link href="/book" className={styles.bookButton}>
-            Book your visit <span aria-hidden="true">→</span>
+            Book a service <span aria-hidden="true">→</span>
           </Link>
           <FooterReviews />
           <p className={styles.coverage}>Central, North &amp; West London</p>

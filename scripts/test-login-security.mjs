@@ -37,6 +37,7 @@ async function load(relativePath, mocks, env = process.env) {
             appPathAllowed: () => true,
           };
         if (id === "@/lib/professionalServices") return services;
+        if (id === "@/lib/authReturn") return authReturn;
         if (id === "@/lib/handymanMarketplace")
           return {
             handymanEnabled: () => env.HANDYMAN_MARKETPLACE_ENABLED === "true",
@@ -54,6 +55,7 @@ async function load(relativePath, mocks, env = process.env) {
 }
 
 const services = await load("lib/professionalServices.ts", {});
+const authReturn = await load("lib/authReturn.ts", {});
 
 const redirect = (location) => {
   throw new Error("redirect:" + location);
