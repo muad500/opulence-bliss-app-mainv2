@@ -913,8 +913,8 @@ export default function Home() {
             display: none;
           }
           .bands {
-            padding: 14px 16px;
-            gap: 10px;
+            padding: 8px 16px;
+            gap: 8px;
           }
           .services-title {
             font-size: 22px;
@@ -1029,7 +1029,7 @@ export default function Home() {
             padding: 10px;
           }
           .bands {
-            padding-block: 10px;
+            padding-block: 4px;
             gap: 8px;
           }
           .services-title {
