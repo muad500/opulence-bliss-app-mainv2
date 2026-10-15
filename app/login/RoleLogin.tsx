@@ -7,6 +7,7 @@ import { useAppAudience } from "@/components/MobileExperience";
 import { appEntry, appPathAllowed } from "@/lib/mobileExperience";
 import GoogleAuthButton from "@/components/GoogleAuthButton";
 import { canUseProfessionalTools } from "@/lib/professionalAccess";
+import { authLink, safeAuthNext } from "@/lib/authReturn";
 
 const supabase = createClient();
 
@@ -46,9 +47,12 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
 
   useEffect(() => {
-    const reason = new URLSearchParams(window.location.search).get("error");
+    const query = new URLSearchParams(window.location.search);
+    setReturnTo(safeAuthNext(query.get("next")));
+    const reason = query.get("error");
     if (reason === "wrong-account") {
       setErr(
         "This account needs administrator sign-in. Please use the admin page.",
@@ -100,7 +104,9 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
       }
     }
 
-    const next = new URLSearchParams(window.location.search).get("next");
+    const next = safeAuthNext(
+      new URLSearchParams(window.location.search).get("next"),
+    );
     const { data: details } = await supabase
       .from("account_profile_details")
       .select("last_account_mode")
@@ -146,7 +152,14 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
           <>
             <GoogleAuthButton
               label="Continue with Google"
-              next={audience ? appEntry(audience, "bookings") : undefined}
+              next={
+                returnTo &&
+                (!audience || appPathAllowed(audience, returnTo.split("?")[0]))
+                  ? returnTo
+                  : audience
+                    ? appEntry(audience, "bookings")
+                    : undefined
+              }
               onError={(message) => setErr(message || null)}
             />
             <p className="google-terms">
@@ -203,7 +216,9 @@ export default function RoleLogin({ mode }: { mode: Mode }) {
 
         <p className="join">
           {content.signupText}{" "}
-          <a href={content.signupHref}>{content.signupLabel}</a>
+          <a href={authLink(content.signupHref, returnTo)}>
+            {content.signupLabel}
+          </a>
         </p>
 
         <Link className="home" href="/">

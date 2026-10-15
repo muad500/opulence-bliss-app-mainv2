@@ -86,7 +86,7 @@ export default function MobileAppChrome({
           : path === "/services/handyman"
             ? "Repairs & assembly"
             : path.includes("/book") && !path.startsWith("/account")
-              ? "Book a clean"
+              ? "Book a service"
               : path.includes("/availability")
                 ? "Availability"
                 : path.includes("/earnings")

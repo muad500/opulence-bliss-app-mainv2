@@ -13,6 +13,8 @@ const modules = [
   "appointmentSlots",
   "appointmentWindow",
   "bookingPolicy",
+  "bookingDraft",
+  "authReturn",
   "bookingTimeChoices",
   "cancellationPeriod",
   "cancellationPolicy",
@@ -66,6 +68,15 @@ try {
       stdio: "inherit",
       env: { ...process.env, NODE_PATH: join(process.cwd(), "node_modules") },
     },
+  );
+  execFileSync(
+    process.execPath,
+    [
+      "--test",
+      "scripts/test-booking-sign-in.mjs",
+      "scripts/test-booking-confirmation.mjs",
+    ],
+    { stdio: "inherit" },
   );
   execFileSync(
     process.execPath,

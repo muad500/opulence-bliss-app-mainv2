@@ -15,6 +15,7 @@ import RatingGate from "@/components/RatingGate";
 import SupportChat from "@/components/SupportChat";
 import EnvironmentBanner from "@/components/EnvironmentBanner";
 import MobileAppSupport from "@/components/MobileAppSupport";
+import ScopedStyleRegistry from "@/components/StyleRegistry";
 
 // Self-hosted by Next, so no extra request to Google and no flash of
 // unstyled text. Components ask for "Nunito" by name and get this.
@@ -69,18 +70,20 @@ export default function RootLayout({
               'try{var p=location.pathname,m=p.startsWith("/mobile/customer")?"customer":p.startsWith("/mobile/worker")?"worker":sessionStorage.getItem("opulence-app-audience");if(m==="customer"||m==="worker")document.documentElement.dataset.opulenceApp=m;}catch{}',
           }}
         />
-        <MobileExperience>
-          <MobileAppSupport />
-          <EnvironmentBanner />
-          <TopBar />
-          <SiteHeader />
-          {children}
-          <Toaster />
-          <RatingGate />
-          <div data-app-chat>
-            <SupportChat />
-          </div>
-        </MobileExperience>
+        <ScopedStyleRegistry>
+          <MobileExperience>
+            <MobileAppSupport />
+            <EnvironmentBanner />
+            <TopBar />
+            <SiteHeader />
+            {children}
+            <Toaster />
+            <RatingGate />
+            <div data-app-chat>
+              <SupportChat />
+            </div>
+          </MobileExperience>
+        </ScopedStyleRegistry>
       </body>
     </html>
   );

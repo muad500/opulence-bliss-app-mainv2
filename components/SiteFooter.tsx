@@ -21,14 +21,17 @@ const columns: Array<{
       ["One-Time Essential Clean", "/services/cleaning#cleaning-services"],
       ["Express Clean", "/services/cleaning#cleaning-services"],
       ["Signature Deep Clean", "/services/cleaning#cleaning-services"],
-      ["End of Tenancy / Move-In Clean", "/services/cleaning#cleaning-services"],
+      [
+        "End of Tenancy / Move-In Clean",
+        "/services/cleaning#cleaning-services",
+      ],
       ["Guest Ready", "/services/cleaning#cleaning-services"],
       ["Office cleaning", "/services/cleaning#business-cleaning"],
       ["Cleaning contracts", "/services/cleaning#business-cleaning"],
     ],
   },
   {
-    title: "Handyman services",
+    title: "Property maintenance services",
     links: [
       ["Mounting and hanging", "/services/handyman"],
       ["Furniture assembly", "/services/handyman"],
@@ -70,12 +73,10 @@ export default function SiteFooter() {
             Trusted home cleaning, thoughtfully delivered across London.
           </p>
           <Link href="/book" className={styles.bookButton}>
-            Book your visit <span aria-hidden="true">→</span>
+            Book a service <span aria-hidden="true">→</span>
           </Link>
           <FooterReviews />
-          <p className={styles.coverage}>
-            Central, North &amp; West London
-          </p>
+          <p className={styles.coverage}>Central, North &amp; West London</p>
         </section>
 
         <nav className={styles.columns} aria-label="Footer navigation">
@@ -94,10 +95,15 @@ export default function SiteFooter() {
 
       <div className={styles.bottom}>
         <div className={styles.company}>
-          <p>© {new Date().getFullYear()} {COMPANY.name}. London, United Kingdom.</p>
           <p>
-            Registered in {COMPANY.registeredIn}, company number {COMPANY.number}.
-            {COMPANY.registeredOffice ? ` Registered office: ${COMPANY.registeredOffice}.` : ""}
+            © {new Date().getFullYear()} {COMPANY.name}. London, United Kingdom.
+          </p>
+          <p>
+            Registered in {COMPANY.registeredIn}, company number{" "}
+            {COMPANY.number}.
+            {COMPANY.registeredOffice
+              ? ` Registered office: ${COMPANY.registeredOffice}.`
+              : ""}
           </p>
           <p>ICO registration number: {COMPANY.icoRegistrationNumber}</p>
         </div>
@@ -119,8 +125,12 @@ export default function SiteFooter() {
           >
             Cancellation &amp; Refund Policy
           </a>
-          <a href={HANDYMAN_TERMS_URL} target="_blank" rel="noopener noreferrer">
-            Handyman Terms
+          <a
+            href={HANDYMAN_TERMS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Property maintenance Terms
           </a>
           <a
             href={PROFESSIONAL_PARTNER_AGREEMENT_URL}

@@ -4,16 +4,44 @@
 //
 // Booking: Where → Session → Time → Confirm. One question per screen.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import {
+  clearBookingDraft,
+  readBookingDraft,
+  saveBookingDraft,
+} from "@/lib/bookingDraft";
+import { authLink } from "@/lib/authReturn";
 import { createClient } from "@/lib/supabase/client";
-import { CLEANING_DURATIONS, isCleaning, bookingPricePence, cleaningHourlyRatePence, compareCleaningSessions } from "@/lib/cleaningBooking";
+import {
+  CLEANING_DURATIONS,
+  isCleaning,
+  bookingPricePence,
+  cleaningHourlyRatePence,
+  compareCleaningSessions,
+} from "@/lib/cleaningBooking";
 import { bookingPolicyError } from "@/lib/bookingPolicy";
-import { REGULAR_MAX_VISITS, REGULAR_MIN_VISITS, regularVisitSlots, type RegularFrequency } from "@/lib/regularBooking";
-import { cleaningHomeLabel, parseCleaningHome, recommendedCleaningMinutesForHome, type PropertyType } from "@/lib/cleaningHome";
+import {
+  REGULAR_MAX_VISITS,
+  REGULAR_MIN_VISITS,
+  regularVisitSlots,
+  type RegularFrequency,
+} from "@/lib/regularBooking";
+import {
+  cleaningHomeLabel,
+  parseCleaningHome,
+  recommendedCleaningMinutesForHome,
+  type PropertyType,
+} from "@/lib/cleaningHome";
 import AppointmentTimePicker from "@/components/AppointmentTimePicker";
 import { isStoredUkPhone, isValidUkPhone } from "@/lib/ukPhone";
-import { EARLY_START_REQUEST_TEXT, startsWithinCancellationPeriod } from "@/lib/cancellationPeriod";
-import { assistantBookingHandoff, type AssistantPackage } from "@/lib/assistantBooking";
+import {
+  EARLY_START_REQUEST_TEXT,
+  startsWithinCancellationPeriod,
+} from "@/lib/cancellationPeriod";
+import {
+  assistantBookingHandoff,
+  type AssistantPackage,
+} from "@/lib/assistantBooking";
 import { CANCELLATION_REFUND_URL } from "@/lib/legal";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
 import { cleaningPackageScope } from "@/lib/cleaningScope";
@@ -32,7 +60,18 @@ type Pkg = {
 };
 
 type Area = { name: string; postcode_prefixes: string[] };
-type SavedAddress = { id: string; label: string; isDefault: boolean; line1: string; line2: string; city: string; postcode: string; propertyType: string; bedrooms: number | null; bathrooms: number | null };
+type SavedAddress = {
+  id: string;
+  label: string;
+  isDefault: boolean;
+  line1: string;
+  line2: string;
+  city: string;
+  postcode: string;
+  propertyType: string;
+  bedrooms: number | null;
+  bathrooms: number | null;
+};
 
 const STEPS = ["Address", "Session", "Frequency", "Hours", "Time", "Confirm"];
 
@@ -44,9 +83,21 @@ const FREQUENCIES: Array<{
   note: string;
 }> = [
   { value: "one_time", title: "One time", note: "Just this visit" },
-  { value: "weekly", title: "Every week", note: "6 to 10 weekly visits, paid upfront" },
-  { value: "fortnightly", title: "Every two weeks", note: "6 to 10 visits, two weeks apart, paid upfront" },
-  { value: "monthly", title: "Every month", note: "6 to 10 monthly visits, paid upfront" },
+  {
+    value: "weekly",
+    title: "Every week",
+    note: "6 to 10 weekly visits, paid upfront",
+  },
+  {
+    value: "fortnightly",
+    title: "Every two weeks",
+    note: "6 to 10 visits, two weeks apart, paid upfront",
+  },
+  {
+    value: "monthly",
+    title: "Every month",
+    note: "6 to 10 monthly visits, paid upfront",
+  },
 ];
 
 function frequencyLabel(value: BookingFrequency) {
@@ -112,22 +163,41 @@ export default function BookPage() {
   const [bedrooms, setBedrooms] = useState<number | "">("");
   const [bathrooms, setBathrooms] = useState<number | "">("");
   const [frequency, setFrequency] = useState<BookingFrequency>("weekly");
-  const [regularVisits, setRegularVisits] = useState<number>(REGULAR_MIN_VISITS);
-  const [previousCleaners, setPreviousCleaners] = useState<{ provider_id: string; display_name: string }[]>([]);
+  const [regularVisits, setRegularVisits] =
+    useState<number>(REGULAR_MIN_VISITS);
+  const [previousCleaners, setPreviousCleaners] = useState<
+    { provider_id: string; display_name: string }[]
+  >([]);
   const [preferredCleaner, setPreferredCleaner] = useState("");
   const cleaning = isCleaning(selected?.service_type);
-  const minutes = cleaning ? cleaningMinutes : selected?.duration_minutes ?? 120;
+  const minutes = cleaning
+    ? cleaningMinutes
+    : (selected?.duration_minutes ?? 120);
   const addressValid = address.trim().length >= 5;
   const home = parseCleaningHome({ propertyType, bedrooms, bathrooms });
   function applySavedAddress(place: SavedAddress) {
     setSavedAddressId(place.id);
-    setAddress([place.line1, place.line2, place.city].filter(Boolean).join(", "));
+    setAddress(
+      [place.line1, place.line2, place.city].filter(Boolean).join(", "),
+    );
     setPostcode(place.postcode);
     const kind = place.propertyType?.toLowerCase();
-    setPropertyType(["studio", "flat", "house", "other"].includes(kind) ? kind as PropertyType : "other");
-    setBedrooms(place.bedrooms != null && place.bedrooms <= 8 ? place.bedrooms : "");
-    setBathrooms(place.bathrooms != null && place.bathrooms >= 1 && place.bathrooms <= 8 ? place.bathrooms : "");
-    setGate(null); setSlot(null); setOptionalSlots([]);
+    setPropertyType(
+      ["studio", "flat", "house", "other"].includes(kind)
+        ? (kind as PropertyType)
+        : "other",
+    );
+    setBedrooms(
+      place.bedrooms != null && place.bedrooms <= 8 ? place.bedrooms : "",
+    );
+    setBathrooms(
+      place.bathrooms != null && place.bathrooms >= 1 && place.bathrooms <= 8
+        ? place.bathrooms
+        : "",
+    );
+    setGate(null);
+    setSlot(null);
+    setOptionalSlots([]);
   }
 
   const [slots, setSlots] = useState<string[] | null>(null);
@@ -152,11 +222,20 @@ export default function BookPage() {
   const [earlyStartAgreed, setEarlyStartAgreed] = useState(false);
   // Set when the server says a request is needed, in case time moved on.
   const [earlyStartForced, setEarlyStartForced] = useState(false);
-  const [assistantDraft, setAssistantDraft] = useState<{ packageId: string; postcode: string; minutes: number; slot: string; optional: string[] } | null>(null);
+  const [assistantDraft, setAssistantDraft] = useState<{
+    packageId: string;
+    postcode: string;
+    minutes: number;
+    slot: string;
+    optional: string[];
+  } | null>(null);
   const [handoffError, setHandoffError] = useState<string | null>(null);
 
   /* ---------- load ---------- */
+  const loadingStarted = useRef(false);
   useEffect(() => {
+    if (loadingStarted.current) return;
+    loadingStarted.current = true;
     (async () => {
       const [{ data: pkgs }, { data: ars }] = await Promise.all([
         supabase
@@ -180,11 +259,14 @@ export default function BookPage() {
         list.find((item) => item.name === "Essential Clean") ?? list[0] ?? null;
       setSelected(essential);
       if (essential) {
-        setCleaningMinutes(Math.min(480, Math.max(120, essential.duration_minutes ?? 120)));
+        setCleaningMinutes(
+          Math.min(480, Math.max(120, essential.duration_minutes ?? 120)),
+        );
       }
 
       let savedPc: string | null = null;
       let savedAddress: string | null = null;
+      let preferredCleanerIds = new Set<string>();
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -199,23 +281,56 @@ export default function BookPage() {
         setSavedPhone(p?.phone ?? "");
         const { data: cleaners } = await supabase.rpc("my_previous_cleaners");
         setPreviousCleaners(cleaners ?? []);
-        const response = await fetch("/api/account/profile", { cache: "no-store" }).catch(() => null);
+        const response = await fetch("/api/account/profile", {
+          cache: "no-store",
+        }).catch(() => null);
         if (response?.ok) {
-          const account = await response.json().catch(() => ({ addresses: [], favourites: [] }));
+          const account = await response
+            .json()
+            .catch(() => ({ addresses: [], favourites: [] }));
           const saved = (account.addresses ?? []) as SavedAddress[];
           setSavedAddresses(saved);
           const defaultPlace = saved.find((place) => place.isDefault);
           if (defaultPlace) {
             applySavedAddress(defaultPlace);
             savedPc = defaultPlace.postcode;
-            savedAddress = [defaultPlace.line1, defaultPlace.line2, defaultPlace.city].filter(Boolean).join(", ");
+            savedAddress = [
+              defaultPlace.line1,
+              defaultPlace.line2,
+              defaultPlace.city,
+            ]
+              .filter(Boolean)
+              .join(", ");
           }
-          const merged = new Map<string, { provider_id: string; display_name: string }>((cleaners ?? []).map((cleaner: { provider_id: string; display_name: string }) => [cleaner.provider_id, cleaner]));
-          for (const favourite of account.favourites ?? []) merged.set(favourite.providerId, { provider_id: favourite.providerId, display_name: `${favourite.displayName} (favourite)` });
+          const merged = new Map<
+            string,
+            { provider_id: string; display_name: string }
+          >(
+            (cleaners ?? []).map(
+              (cleaner: { provider_id: string; display_name: string }) => [
+                cleaner.provider_id,
+                cleaner,
+              ],
+            ),
+          );
+          for (const favourite of account.favourites ?? [])
+            merged.set(favourite.providerId, {
+              provider_id: favourite.providerId,
+              display_name: `${favourite.displayName} (favourite)`,
+            });
           const options = Array.from(merged.values());
+          preferredCleanerIds = new Set(
+            options.map((cleaner) => cleaner.provider_id),
+          );
           setPreviousCleaners(options);
-          const requested = new URLSearchParams(window.location.search).get("preferred");
-          if (requested && options.some((cleaner) => cleaner.provider_id === requested)) setPreferredCleaner(requested);
+          const requested = new URLSearchParams(window.location.search).get(
+            "preferred",
+          );
+          if (
+            requested &&
+            options.some((cleaner) => cleaner.provider_id === requested)
+          )
+            setPreferredCleaner(requested);
         }
         if (p?.postcode && !savedPc) {
           savedPc = p.postcode;
@@ -228,6 +343,118 @@ export default function BookPage() {
       }
 
       const q = new URLSearchParams(window.location.search);
+      const resumeToken = q.get("resume");
+      if (resumeToken) {
+        let draft: ReturnType<typeof readBookingDraft> = null;
+        try {
+          draft = readBookingDraft(window.sessionStorage, resumeToken);
+        } catch {
+          /* Storage may be disabled. */
+        }
+        if (draft) {
+          // Restore after account defaults have loaded so they cannot overwrite the booking.
+          setSavedAddressId("");
+          setAddress(draft.address);
+          setPostcode(draft.postcode);
+          setPropertyType(draft.home.propertyType);
+          setBedrooms(draft.home.bedrooms);
+          setBathrooms(draft.home.bathrooms);
+          setFrequency(draft.frequency);
+          setRegularVisits(draft.regularVisits);
+          setCleaningMinutes(draft.cleaningMinutes);
+          setRequest(draft.request);
+          setPromo(draft.promo);
+          setPhone(draft.phone);
+          setPreferredCleaner(
+            preferredCleanerIds.has(draft.preferredCleaner)
+              ? draft.preferredCleaner
+              : "",
+          );
+          const restoredPackage = list.find(
+            (pkg) => pkg.id === draft.packageId,
+          );
+          const area = areaList.find((item) =>
+            item.postcode_prefixes.includes(outwardCode(draft.postcode)),
+          );
+          setGate(area ? { ok: true, area: area.name } : { ok: false });
+          let resumeStep = 0;
+          let retryAvailability = false;
+          let message =
+            "Your booking details have been kept. Please check the service address.";
+          if (area && !restoredPackage) {
+            resumeStep = 1;
+            message =
+              "Your details have been kept. That package is no longer available; please choose another.";
+          } else if (area && restoredPackage) {
+            setSelected(restoredPackage);
+            try {
+              const policyError = bookingPolicyError(
+                restoredPackage.name,
+                draft.frequency,
+              );
+              if (policyError) throw new Error(policyError);
+              resumeStep = 4;
+              const response = await fetch(
+                `/api/slots?${new URLSearchParams({ postcode: draft.postcode, service: restoredPackage.service_type ?? "", duration: String(draft.cleaningMinutes) })}`,
+                { cache: "no-store" },
+              );
+              if (!response.ok)
+                throw new Error(
+                  "Your details are saved. Please check the available times again.",
+                );
+              const availability = await response.json();
+              const available = new Set<string>(availability.slots ?? []);
+              setSlots([...available]);
+              const optional = draft.optionalSlots.filter((time) =>
+                available.has(time),
+              );
+              setOptionalSlots(optional);
+              if (available.has(draft.slot)) {
+                setSlot(draft.slot);
+                resumeStep =
+                  optional.length === draft.optionalSlots.length ? 5 : 4;
+                message =
+                  resumeStep === 5
+                    ? "Your booking details are ready. Review them below, then confirm your payment."
+                    : "Your details and preferred time have been kept. Some optional times are no longer available; please review your times.";
+              } else {
+                setSlot(null);
+                message =
+                  "Your booking details have been kept. Your preferred time is no longer available; please choose another.";
+              }
+            } catch (cause) {
+              if (resumeStep === 4) {
+                retryAvailability = true;
+                setSlots([]);
+                message =
+                  "Your details are saved. Reload this page to check the available times again.";
+              } else {
+                resumeStep = 3;
+                message =
+                  cause instanceof Error
+                    ? cause.message
+                    : "Your details have been kept. Please review your booking.";
+              }
+            }
+          }
+          setStep(resumeStep);
+          setHandoffError(message);
+          if (!retryAvailability) {
+            clearBookingDraft(window.sessionStorage);
+            q.delete("resume");
+            window.history.replaceState(
+              window.history.state,
+              "",
+              `/book${q.size ? `?${q}` : ""}`,
+            );
+          }
+          setLoading(false);
+          return;
+        }
+        setHandoffError(
+          "Your saved booking has expired or is unavailable in this tab. Please check your booking details.",
+        );
+      }
       const wantPc = q.get("pc");
       const wantType = q.get("type");
       const wantService = q.get("service");
@@ -235,14 +462,21 @@ export default function BookPage() {
       const reviewHandoff = q.get("review") === "1";
 
       if (wantType === "clean") setServiceType("clean");
-      if (wantPc) { setPostcode(wantPc); if (wantPc.replace(/\s/g, "").toUpperCase() !== savedPc?.replace(/\s/g, "").toUpperCase()) setSavedAddressId(""); }
+      if (wantPc) {
+        setPostcode(wantPc);
+        if (
+          wantPc.replace(/\s/g, "").toUpperCase() !==
+          savedPc?.replace(/\s/g, "").toUpperCase()
+        )
+          setSavedAddressId("");
+      }
 
       // Already know where they live? Verify it quietly — no need to ask again.
       const pcToCheck = wantPc ?? savedPc;
       let covered = false;
       if (pcToCheck) {
         const hit = areaList.find((a) =>
-          a.postcode_prefixes.includes(outwardCode(pcToCheck))
+          a.postcode_prefixes.includes(outwardCode(pcToCheck)),
         );
         covered = !!hit;
         setGate(hit ? { ok: true, area: hit.name } : { ok: false });
@@ -254,7 +488,9 @@ export default function BookPage() {
       if (match) {
         setSelected(match);
         setFrequency(match.name === "Essential Clean" ? "weekly" : "one_time");
-        setCleaningMinutes(Math.min(480, Math.max(120, match.duration_minutes ?? 120)));
+        setCleaningMinutes(
+          Math.min(480, Math.max(120, match.duration_minutes ?? 120)),
+        );
       }
       const hasAddress = (savedAddress ?? "").trim().length >= 5;
 
@@ -263,27 +499,56 @@ export default function BookPage() {
       if (reviewHandoff && match && wantSlot && pcToCheck) {
         try {
           const draft = assistantBookingHandoff(match as AssistantPackage, {
-            postcode: pcToCheck, slot: wantSlot,
-            duration_minutes: q.get("duration") ?? match.duration_minutes ?? 120,
-            frequency: q.get("frequency") ?? (match.name === "Essential Clean" ? "weekly" : "one_time"),
-            visits: q.get("visits") ?? 6, optional_slots: q.getAll("optional"),
+            postcode: pcToCheck,
+            slot: wantSlot,
+            duration_minutes:
+              q.get("duration") ?? match.duration_minutes ?? 120,
+            frequency:
+              q.get("frequency") ??
+              (match.name === "Essential Clean" ? "weekly" : "one_time"),
+            visits: q.get("visits") ?? 6,
+            optional_slots: q.getAll("optional"),
           });
-          if (!covered) throw new Error("That postcode is not currently in our service area.");
+          if (!covered)
+            throw new Error(
+              "That postcode is not currently in our service area.",
+            );
           setCleaningMinutes(draft.duration_minutes);
           setFrequency(draft.frequency as BookingFrequency);
           setRegularVisits(draft.visits > 1 ? draft.visits : 6);
           setSlot(draft.preferred_time);
           setOptionalSlots(draft.optional_times);
-          setAssistantDraft({ packageId: match.id, postcode: draft.postcode, minutes: draft.duration_minutes, slot: draft.preferred_time, optional: draft.optional_times });
-          if (wantPc && wantPc.replace(/\s/g, "").toUpperCase() !== savedPc?.replace(/\s/g, "").toUpperCase()) setAddress("");
-          setHandoffError("Your booking draft is ready. Confirm the full address, then add or check your home details. Your chosen times will be kept.");
+          setAssistantDraft({
+            packageId: match.id,
+            postcode: draft.postcode,
+            minutes: draft.duration_minutes,
+            slot: draft.preferred_time,
+            optional: draft.optional_times,
+          });
+          if (
+            wantPc &&
+            wantPc.replace(/\s/g, "").toUpperCase() !==
+              savedPc?.replace(/\s/g, "").toUpperCase()
+          )
+            setAddress("");
+          setHandoffError(
+            "Your booking draft is ready. Confirm the full address, then add or check your home details. Your chosen times will be kept.",
+          );
           setStep(0);
         } catch (cause) {
-          setSlot(null); setOptionalSlots([]); setStep(0);
-          setHandoffError(cause instanceof Error ? cause.message : "Please choose your booking details again.");
+          setSlot(null);
+          setOptionalSlots([]);
+          setStep(0);
+          setHandoffError(
+            cause instanceof Error
+              ? cause.message
+              : "Please choose your booking details again.",
+          );
         }
       } else if (reviewHandoff) {
-        setHandoffError("That booking link is incomplete. Please ask the assistant to prepare it again.");
+        setHandoffError(
+          "That booking link is incomplete. Please ask the assistant to prepare it again.",
+        );
         setStep(0);
       } else if (match && wantSlot && covered && hasAddress) {
         setSlot(wantSlot);
@@ -300,7 +565,7 @@ export default function BookPage() {
   /* ---------- actions ---------- */
   function checkPostcode() {
     const hit = areas.find((a) =>
-      a.postcode_prefixes.includes(outwardCode(postcode))
+      a.postcode_prefixes.includes(outwardCode(postcode)),
     );
     if (hit) {
       setGate({ ok: true, area: hit.name });
@@ -318,18 +583,28 @@ export default function BookPage() {
     try {
       const res = await fetch(
         `/api/slots?postcode=${encodeURIComponent(pc)}&service=${encodeURIComponent(
-          serviceType
-        )}&duration=${encodeURIComponent(String(durationMinutes ?? 120))}`
+          serviceType,
+        )}&duration=${encodeURIComponent(String(durationMinutes ?? 120))}`,
       );
       const data = await res.json();
       const list: string[] = data.slots ?? [];
       setSlots(list);
-      if (assistantDraft && assistantDraft.packageId === selected?.id && assistantDraft.minutes === durationMinutes && assistantDraft.postcode.replace(/\s/g, "") === pc.toUpperCase().replace(/\s/g, "")) {
+      if (
+        assistantDraft &&
+        assistantDraft.packageId === selected?.id &&
+        assistantDraft.minutes === durationMinutes &&
+        assistantDraft.postcode.replace(/\s/g, "") ===
+          pc.toUpperCase().replace(/\s/g, "")
+      ) {
         if (data.covered && list.includes(assistantDraft.slot)) {
           setSlot(assistantDraft.slot);
-          setOptionalSlots(assistantDraft.optional.filter((time) => list.includes(time)));
+          setOptionalSlots(
+            assistantDraft.optional.filter((time) => list.includes(time)),
+          );
         } else {
-          setHandoffError("Your preferred time is no longer permitted. Please choose another time.");
+          setHandoffError(
+            "Your preferred time is no longer permitted. Please choose another time.",
+          );
         }
         setAssistantDraft(null);
       }
@@ -357,11 +632,7 @@ export default function BookPage() {
   function goToTimes() {
     if (!selected || !home) return;
     setStep(4);
-    loadSlots(
-      postcode,
-      selected.service_type ?? "",
-      minutes,
-    );
+    loadSlots(postcode, selected.service_type ?? "", minutes);
   }
 
   async function checkPromo() {
@@ -371,13 +642,24 @@ export default function BookPage() {
       const res = await fetch("/api/promo", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: promo, packageId: selected.id, durationMinutes: minutes, frequency, regularVisits }),
+        body: JSON.stringify({
+          code: promo,
+          packageId: selected.id,
+          durationMinutes: minutes,
+          frequency,
+          regularVisits,
+        }),
       });
       const d = await res.json();
       setPromoInfo(
         d.valid
-          ? { ok: true, msg: `${d.code} applied`, discount: d.discount, total: d.total }
-          : { ok: false, msg: d.error ?? "That code isn't valid." }
+          ? {
+              ok: true,
+              msg: `${d.code} applied`,
+              discount: d.discount,
+              total: d.total,
+            }
+          : { ok: false, msg: d.error ?? "That code isn't valid." },
       );
     } catch {
       setPromoInfo({ ok: false, msg: "Couldn't check that code." });
@@ -385,36 +667,65 @@ export default function BookPage() {
   }
 
   function checkout() {
-    const policyError = selected && bookingPolicyError(selected.name, frequency);
+    const policyError =
+      selected && bookingPolicyError(selected.name, frequency);
     if (policyError) {
       setPayError(policyError);
       return;
     }
     if (signedIn === false) {
-      const bookingQuery = new URLSearchParams({
-        pc: postcode,
-        type: "clean",
-        service: selected?.id ?? "",
-        slot: slot ?? "",
-        review: "1",
-      });
-      const returnTo = `/book?${bookingQuery.toString()}`;
-      window.location.href = `/login?next=${encodeURIComponent(returnTo)}`;
+      continueAfterSignIn();
       return;
     }
     return startCheckout();
   }
 
-  const needsPhone = signedIn === true && savedPhone !== null && !isStoredUkPhone(savedPhone);
+  function continueAfterSignIn() {
+    if (!selected || !home || !slot) return;
+    let returnTo: string | null = null;
+    try {
+      returnTo = saveBookingDraft(window.sessionStorage, {
+        packageId: selected.id,
+        postcode,
+        address,
+        home,
+        frequency,
+        regularVisits,
+        cleaningMinutes,
+        slot,
+        optionalSlots,
+        request,
+        promo,
+        preferredCleaner,
+        phone,
+      });
+    } catch {
+      /* Keep the form on screen if browser storage is blocked. */
+    }
+    if (!returnTo) {
+      setPayError(
+        "We couldn't save your booking for sign-in. Allow storage for this website, then try again. Your details are still here.",
+      );
+      return;
+    }
+    window.location.href = authLink("/login", returnTo);
+  }
+
+  const needsPhone =
+    signedIn === true && savedPhone !== null && !isStoredUkPhone(savedPhone);
   const phoneValid = isValidUkPhone(phone);
   // Any chosen time could become the visit, so the earliest one decides.
   const earliestChosenStart = [slot, ...optionalSlots]
     .filter((time): time is string => Boolean(time))
     .map((time) => new Date(time).getTime())
-    .reduce((earliest, time) => Math.min(earliest, time), Number.POSITIVE_INFINITY);
+    .reduce(
+      (earliest, time) => Math.min(earliest, time),
+      Number.POSITIVE_INFINITY,
+    );
   const needsEarlyStart =
     earlyStartForced ||
-    (Number.isFinite(earliestChosenStart) && startsWithinCancellationPeriod(earliestChosenStart));
+    (Number.isFinite(earliestChosenStart) &&
+      startsWithinCancellationPeriod(earliestChosenStart));
 
   async function startCheckout() {
     if (!selected || !addressValid || !slot || !home) return;
@@ -453,6 +764,11 @@ export default function BookPage() {
         }),
       });
       const data = await res.json();
+      if (res.status === 401) {
+        setPaying(false);
+        continueAfterSignIn();
+        return;
+      }
       if (data.url) window.location.href = data.url;
       else {
         if (data.code === "phone_required") {
@@ -521,26 +837,42 @@ export default function BookPage() {
     );
   }
 
-  const shown = (serviceType
-    ? packages.filter((p) => (p.service_type ?? "").includes(serviceType))
-    : packages
+  const shown = (
+    serviceType
+      ? packages.filter((p) => (p.service_type ?? "").includes(serviceType))
+      : packages
   ).sort(serviceType === "clean" ? compareCleaningSessions : () => 0);
 
   const total = selected
     ? promoInfo?.ok && promoInfo.total !== undefined
       ? promoInfo.total
-      : bookingPricePence(selected, minutes) * (frequency === "one_time" ? 1 : regularVisits) / 100
+      : (bookingPricePence(selected, minutes) *
+          (frequency === "one_time" ? 1 : regularVisits)) /
+        100
     : 0;
-  const policyError = selected ? bookingPolicyError(selected.name, frequency) : null;
-  const oneTimeEssential = packages.find((item) => item.name === "One-Time Essential Clean");
+  const policyError = selected
+    ? bookingPolicyError(selected.name, frequency)
+    : null;
+  const oneTimeEssential = packages.find(
+    (item) => item.name === "One-Time Essential Clean",
+  );
   const regular = frequency !== "one_time";
   let regularSlots: string[] = [];
   let regularScheduleError: string | null = null;
   if (regular && slot) {
     try {
-      regularSlots = regularVisitSlots(slot, frequency as RegularFrequency, minutes, Date.now(), regularVisits);
+      regularSlots = regularVisitSlots(
+        slot,
+        frequency as RegularFrequency,
+        minutes,
+        Date.now(),
+        regularVisits,
+      );
     } catch (cause) {
-      regularScheduleError = cause instanceof Error ? cause.message : "Choose an earlier first date.";
+      regularScheduleError =
+        cause instanceof Error
+          ? cause.message
+          : "Choose an earlier first date.";
     }
   }
 
@@ -565,22 +897,58 @@ export default function BookPage() {
               <h1>Where should we clean?</h1>
               <p className="lede">Start with the address for this visit.</p>
 
-              {savedAddresses.length > 0 && <label className="label">Saved address
-                <select value={savedAddressId} onChange={(event) => {
-                  const place = savedAddresses.find((item) => item.id === event.target.value);
-                  if (place) applySavedAddress(place); else { setSavedAddressId(""); setAddress(""); setPostcode(""); setGate(null); }
-                }} style={{ display: "block", width: "100%", padding: 14, margin: "10px 0 18px", borderRadius: 12, border: "1px solid #e5e1ef", background: "white" }}>
-                  <option value="">Enter a different address</option>
-                  {savedAddresses.map((place) => <option key={place.id} value={place.id}>{place.label} · {place.postcode}{place.isDefault ? " (default)" : ""}</option>)}
-                </select>
-                {savedAddressId && <small>Saved home and access details will be included for your assigned professional.</small>}
-              </label>}
+              {savedAddresses.length > 0 && (
+                <label className="label">
+                  Saved address
+                  <select
+                    value={savedAddressId}
+                    onChange={(event) => {
+                      const place = savedAddresses.find(
+                        (item) => item.id === event.target.value,
+                      );
+                      if (place) applySavedAddress(place);
+                      else {
+                        setSavedAddressId("");
+                        setAddress("");
+                        setPostcode("");
+                        setGate(null);
+                      }
+                    }}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      padding: 14,
+                      margin: "10px 0 18px",
+                      borderRadius: 12,
+                      border: "1px solid #e5e1ef",
+                      background: "white",
+                    }}
+                  >
+                    <option value="">Enter a different address</option>
+                    {savedAddresses.map((place) => (
+                      <option key={place.id} value={place.id}>
+                        {place.label} · {place.postcode}
+                        {place.isDefault ? " (default)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {savedAddressId && (
+                    <small>
+                      Saved home and access details will be included for your
+                      assigned professional.
+                    </small>
+                  )}
+                </label>
+              )}
               <p className="label">Full service address</p>
               <input
                 className="field bigAddress"
                 placeholder="e.g. 21 Baker Street, London"
                 value={address}
-                onChange={(e) => { setAddress(e.target.value); setSavedAddressId(""); }}
+                onChange={(e) => {
+                  setAddress(e.target.value);
+                  setSavedAddressId("");
+                }}
                 autoComplete="street-address"
                 aria-label="Full service address"
               />
@@ -629,7 +997,9 @@ export default function BookPage() {
                   ? "Add your full address"
                   : !gate?.ok
                     ? "Check your postcode"
-                    : assistantDraft ? "Confirm home details" : "Continue to sessions"}
+                    : assistantDraft
+                      ? "Confirm home details"
+                      : "Continue to sessions"}
               </button>
 
               <ul className="trust">
@@ -637,10 +1007,12 @@ export default function BookPage() {
                   <em>✓</em> Approved, DBS-verified professionals
                 </li>
                 <li>
-                  <em>✓</em> One-time card holds; regular plans of 6 to 10 visits paid upfront
+                  <em>✓</em> One-time card holds; regular plans of 6 to 10
+                  visits paid upfront
                 </li>
                 <li>
-                  <em>✓</em> No cancellation charge with more than 48 hours&apos; notice
+                  <em>✓</em> No cancellation charge with more than 48
+                  hours&apos; notice
                 </li>
               </ul>
             </section>
@@ -671,12 +1043,13 @@ export default function BookPage() {
                         )}
                         <span className="optTop">
                           <strong>{p.name}</strong>
-                          <b>
-                            {money(cleaningHourlyRatePence(p) / 100)} / hr
-                          </b>
+                          <b>{money(cleaningHourlyRatePence(p) / 100)} / hr</b>
                         </span>
                         <span className="optMeta">
-                          2–8 hours · 30-minute steps · {p.name === "Essential Clean" ? "6 to 10 visits" : "One-time cleaning"}
+                          2–8 hours · 30-minute steps ·{" "}
+                          {p.name === "Essential Clean"
+                            ? "6 to 10 visits"
+                            : "One-time cleaning"}
                         </span>
                       </span>
                     </button>
@@ -689,25 +1062,43 @@ export default function BookPage() {
                   <div>
                     <span>Selected session</span>
                     <strong>{selected.name}</strong>
-                    <p>{cleaningPackageScope(selected.name)?.purpose ?? selected.description ?? "Professional home cleaning tailored to this visit."}</p>
+                    <p>
+                      {cleaningPackageScope(selected.name)?.purpose ??
+                        selected.description ??
+                        "Professional home cleaning tailored to this visit."}
+                    </p>
                   </div>
-                  {!cleaningPackageScope(selected.name) && (selected.inclusions?.length || selected.good_to_know?.length) && (
-                    <ul>
-                      {[...(selected.inclusions ?? []), ...(selected.good_to_know ?? [])]
-                        .slice(0, 4)
-                        .map((item) => <li key={item}>✓ {item}</li>)}
-                    </ul>
-                  )}
+                  {!cleaningPackageScope(selected.name) &&
+                    (selected.inclusions?.length ||
+                      selected.good_to_know?.length) && (
+                      <ul>
+                        {[
+                          ...(selected.inclusions ?? []),
+                          ...(selected.good_to_know ?? []),
+                        ]
+                          .slice(0, 4)
+                          .map((item) => (
+                            <li key={item}>✓ {item}</li>
+                          ))}
+                      </ul>
+                    )}
                 </div>
               )}
-              {selected && <CleaningPackageScope key={selected.id} packageName={selected.name} />}
+              {selected && (
+                <CleaningPackageScope
+                  key={selected.id}
+                  packageName={selected.name}
+                />
+              )}
 
               <button
                 className="next"
                 onClick={goToFrequency}
                 disabled={!selected}
               >
-                {selected ? `Continue with ${selected.name}` : "Choose a session"}
+                {selected
+                  ? `Continue with ${selected.name}`
+                  : "Choose a session"}
               </button>
 
               <button className="back" onClick={() => setStep(0)}>
@@ -720,14 +1111,18 @@ export default function BookPage() {
           {step === 2 && selected && (
             <section>
               <h1>How often?</h1>
-              <p className="lede">Choose how regularly you would like this cleaning.</p>
+              <p className="lede">
+                Choose how regularly you would like this cleaning.
+              </p>
 
               <div className="frequencyGrid">
                 {FREQUENCIES.map((item) => (
                   <button
                     key={item.value}
                     type="button"
-                    className={frequency === item.value ? "frequency on" : "frequency"}
+                    className={
+                      frequency === item.value ? "frequency on" : "frequency"
+                    }
                     onClick={() => {
                       setFrequency(item.value);
                       setPromoInfo(null);
@@ -742,10 +1137,17 @@ export default function BookPage() {
               </div>
 
               {frequency !== "one_time" && (
-                <div className="visitCount" role="group" aria-label="Number of visits">
+                <div
+                  className="visitCount"
+                  role="group"
+                  aria-label="Number of visits"
+                >
                   <span>Number of visits</span>
                   <div>
-                    {Array.from({ length: REGULAR_MAX_VISITS - REGULAR_MIN_VISITS + 1 }, (_, index) => REGULAR_MIN_VISITS + index).map((count) => (
+                    {Array.from(
+                      { length: REGULAR_MAX_VISITS - REGULAR_MIN_VISITS + 1 },
+                      (_, index) => REGULAR_MIN_VISITS + index,
+                    ).map((count) => (
                       <button
                         key={count}
                         type="button"
@@ -765,16 +1167,26 @@ export default function BookPage() {
 
               <p className="frequencyNote">
                 A regular booking means 6 to 10 visits booked together, and you
-                pay for all of them at checkout. If you prefer to book each visit
-                separately, choose a one-time session.
+                pay for all of them at checkout. If you prefer to book each
+                visit separately, choose a one-time session.
               </p>
 
-              {policyError && <p className="flash no" role="alert">{policyError}</p>}
-              {selected.name === "Essential Clean" && frequency === "one_time" && oneTimeEssential && (
-                <button className="next" type="button" onClick={() => pick(oneTimeEssential)}>
-                  Switch to One-Time Essential Clean
-                </button>
+              {policyError && (
+                <p className="flash no" role="alert">
+                  {policyError}
+                </p>
               )}
+              {selected.name === "Essential Clean" &&
+                frequency === "one_time" &&
+                oneTimeEssential && (
+                  <button
+                    className="next"
+                    type="button"
+                    onClick={() => pick(oneTimeEssential)}
+                  >
+                    Switch to One-Time Essential Clean
+                  </button>
+                )}
 
               {!policyError && (
                 <button className="next" onClick={() => setStep(3)}>
@@ -791,19 +1203,26 @@ export default function BookPage() {
           {step === 3 && selected && (
             <section>
               <h1>How many hours?</h1>
-              <p className="lede">Tell us about your home for a suggested time, then choose from 2 to 8 hours in 30-minute steps.</p>
+              <p className="lede">
+                Tell us about your home for a suggested time, then choose from 2
+                to 8 hours in 30-minute steps.
+              </p>
 
               <div className="homeCard">
                 <h2>Your home</h2>
                 <div className="homeGrid">
                   <label>
                     Property type
-                    <select className="field" value={propertyType} onChange={(event) => {
-                      const next = event.target.value as PropertyType | "";
-                      setPropertyType(next);
-                      if (next === "studio") setBedrooms(0);
-                      else if (propertyType === "studio") setBedrooms("");
-                    }}>
+                    <select
+                      className="field"
+                      value={propertyType}
+                      onChange={(event) => {
+                        const next = event.target.value as PropertyType | "";
+                        setPropertyType(next);
+                        if (next === "studio") setBedrooms(0);
+                        else if (propertyType === "studio") setBedrooms("");
+                      }}
+                    >
                       <option value="">Select a property type</option>
                       <option value="studio">Studio</option>
                       <option value="flat">Flat</option>
@@ -813,28 +1232,79 @@ export default function BookPage() {
                   </label>
                   <label>
                     Bedrooms
-                    <select className="field" value={bedrooms} disabled={propertyType === "studio"} onChange={(event) => setBedrooms(event.target.value === "" ? "" : Number(event.target.value))}>
+                    <select
+                      className="field"
+                      value={bedrooms}
+                      disabled={propertyType === "studio"}
+                      onChange={(event) =>
+                        setBedrooms(
+                          event.target.value === ""
+                            ? ""
+                            : Number(event.target.value),
+                        )
+                      }
+                    >
                       <option value="">Select bedrooms</option>
-                      {Array.from({ length: 9 }, (_, count) => <option key={count} value={count}>{count}</option>)}
+                      {Array.from({ length: 9 }, (_, count) => (
+                        <option key={count} value={count}>
+                          {count}
+                        </option>
+                      ))}
                     </select>
                   </label>
                   <label>
                     Bathrooms
-                    <select className="field" value={bathrooms} onChange={(event) => setBathrooms(event.target.value === "" ? "" : Number(event.target.value))}>
+                    <select
+                      className="field"
+                      value={bathrooms}
+                      onChange={(event) =>
+                        setBathrooms(
+                          event.target.value === ""
+                            ? ""
+                            : Number(event.target.value),
+                        )
+                      }
+                    >
                       <option value="">Select bathrooms</option>
-                      {Array.from({ length: 8 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
+                      {Array.from({ length: 8 }, (_, index) => (
+                        <option key={index + 1} value={index + 1}>
+                          {index + 1}
+                        </option>
+                      ))}
                     </select>
                   </label>
                 </div>
                 {home && (
                   <div className="homeSuggestion">
-                    <span>Suggested starting point: <strong>{duration(recommendedCleaningMinutesForHome(home, selected.name))}</strong>. Time depends on your property and agreed tasks. Your cleaner will see these home details.</span>
-                    <button type="button" onClick={() => {
-                      setCleaningMinutes(recommendedCleaningMinutesForHome(home, selected.name));
-                      setPromoInfo(null);
-                      setSlot(null);
-                      setOptionalSlots([]);
-                    }}>Use suggestion</button>
+                    <span>
+                      Suggested starting point:{" "}
+                      <strong>
+                        {duration(
+                          recommendedCleaningMinutesForHome(
+                            home,
+                            selected.name,
+                          ),
+                        )}
+                      </strong>
+                      . Time depends on your property and agreed tasks. Your
+                      cleaner will see these home details.
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCleaningMinutes(
+                          recommendedCleaningMinutesForHome(
+                            home,
+                            selected.name,
+                          ),
+                        );
+                        setPromoInfo(null);
+                        setSlot(null);
+                        setOptionalSlots([]);
+                      }}
+                    >
+                      Use suggestion
+                    </button>
                   </div>
                 )}
               </div>
@@ -847,7 +1317,11 @@ export default function BookPage() {
                   </div>
                   <div className="sessionPrice">
                     <span>Per session</span>
-                    <strong>{money(bookingPricePence(selected, cleaningMinutes) / 100)}</strong>
+                    <strong>
+                      {money(
+                        bookingPricePence(selected, cleaningMinutes) / 100,
+                      )}
+                    </strong>
                   </div>
                 </div>
                 <input
@@ -865,24 +1339,47 @@ export default function BookPage() {
                   }}
                   aria-label="Cleaning duration"
                 />
-                <div className="rangeLabels"><span>2 hours</span><span>8 hours</span></div>
+                <div className="rangeLabels">
+                  <span>2 hours</span>
+                  <span>8 hours</span>
+                </div>
               </div>
 
               {previousCleaners.length > 0 && (
                 <div className="previousCleaner">
-                  <label className="label" htmlFor="preferred-cleaner">Request a favourite or previous cleaner (optional)</label>
-                  <select id="preferred-cleaner" className="field" value={preferredCleaner} onChange={(e) => setPreferredCleaner(e.target.value)}>
-                    <option value="">Match me with any available cleaner</option>
-                    {previousCleaners.map((p) => <option key={p.provider_id} value={p.provider_id}>{p.display_name}</option>)}
+                  <label className="label" htmlFor="preferred-cleaner">
+                    Request a favourite or previous cleaner (optional)
+                  </label>
+                  <select
+                    id="preferred-cleaner"
+                    className="field"
+                    value={preferredCleaner}
+                    onChange={(e) => setPreferredCleaner(e.target.value)}
+                  >
+                    <option value="">
+                      Match me with any available cleaner
+                    </option>
+                    {previousCleaners.map((p) => (
+                      <option key={p.provider_id} value={p.provider_id}>
+                        {p.display_name}
+                      </option>
+                    ))}
                   </select>
-                  <p className="muted">We’ll ask them first. Assignment still depends on their acceptance.</p>
+                  <p className="muted">
+                    We’ll ask them first. Assignment still depends on their
+                    acceptance.
+                  </p>
                 </div>
               )}
 
               <button className="next" onClick={goToTimes} disabled={!home}>
                 Continue · {duration(cleaningMinutes)}
               </button>
-              {!home && <p className="muted">Add your property type, bedrooms and bathrooms to continue.</p>}
+              {!home && (
+                <p className="muted">
+                  Add your property type, bedrooms and bathrooms to continue.
+                </p>
+              )}
               <button className="back" onClick={() => setStep(2)}>
                 ← Change frequency
               </button>
@@ -913,16 +1410,31 @@ export default function BookPage() {
                   slots={slots}
                   value={slot}
                   onChange={setSlot}
-                  {...(!regular ? { optionalValues: optionalSlots, onOptionalValuesChange: setOptionalSlots } : {})}
+                  {...(!regular
+                    ? {
+                        optionalValues: optionalSlots,
+                        onOptionalValuesChange: setOptionalSlots,
+                      }
+                    : {})}
                   durationMinutes={minutes}
                 />
               )}
 
-              {regularScheduleError && <p className="flash no" role="alert">{regularScheduleError}</p>}
+              {regularScheduleError && (
+                <p className="flash no" role="alert">
+                  {regularScheduleError}
+                </p>
+              )}
               {regular && regularSlots.length === regularVisits && (
                 <div className="timeChoicesReview">
                   <strong>Your {regularVisits} visits · paid upfront</strong>
-                  <ol>{regularSlots.map((visit, index) => <li key={visit}>Visit {index + 1}: {fullLabel(visit)}</li>)}</ol>
+                  <ol>
+                    {regularSlots.map((visit, index) => (
+                      <li key={visit}>
+                        Visit {index + 1}: {fullLabel(visit)}
+                      </li>
+                    ))}
+                  </ol>
                 </div>
               )}
 
@@ -960,44 +1472,91 @@ export default function BookPage() {
                 </div>
                 <div>
                   <span>Your home</span>
-                  <strong>{home ? cleaningHomeLabel(home) : "Add home details"}</strong>
-                  <small>The professional will see this before accepting.</small>
+                  <strong>
+                    {home ? cleaningHomeLabel(home) : "Add home details"}
+                  </strong>
+                  <small>
+                    The professional will see this before accepting.
+                  </small>
                 </div>
                 <div>
                   <span>Preferred time · first choice</span>
                   <strong>{slot ? fullLabel(slot) : "Choose a time"}</strong>
-                  <small>{address}, {postcode.toUpperCase()}</small>
+                  <small>
+                    {address}, {postcode.toUpperCase()}
+                  </small>
                 </div>
                 <div>
-                  <span>{regular ? `${regularVisits}-visit total` : "Amount"}</span>
+                  <span>
+                    {regular ? `${regularVisits}-visit total` : "Amount"}
+                  </span>
                   <strong>{money(total)}</strong>
-                  <small>{regular ? "Charged in full now" : "Held now, charged after completion"}</small>
+                  <small>
+                    {regular
+                      ? "Charged in full now"
+                      : "Held now, charged after completion"}
+                  </small>
                 </div>
               </div>
 
               {regular ? (
                 <div className="timeChoicesReview">
                   <strong>All {regularVisits} booked visits</strong>
-                  <ol>{regularSlots.map((visit, index) => <li key={visit}>Visit {index + 1}: {fullLabel(visit)}</li>)}</ol>
-                  {regularScheduleError && <p className="flash no" role="alert">{regularScheduleError}</p>}
-                  <small>We&apos;ll match a professional to each visit. They may be different professionals.</small>
+                  <ol>
+                    {regularSlots.map((visit, index) => (
+                      <li key={visit}>
+                        Visit {index + 1}: {fullLabel(visit)}
+                      </li>
+                    ))}
+                  </ol>
+                  {regularScheduleError && (
+                    <p className="flash no" role="alert">
+                      {regularScheduleError}
+                    </p>
+                  )}
+                  <small>
+                    We&apos;ll match a professional to each visit. They may be
+                    different professionals.
+                  </small>
                 </div>
               ) : (
                 <div className="timeChoicesReview">
                   <strong>Optional times</strong>
                   {optionalSlots.length ? (
-                    <ul>{optionalSlots.map((optionalSlot) => <li key={optionalSlot}>{fullLabel(optionalSlot)}</li>)}</ul>
-                  ) : <span>No optional times added.</span>}
-                  <small>Cleaners can choose one of these if your preferred time is unavailable.</small>
+                    <ul>
+                      {optionalSlots.map((optionalSlot) => (
+                        <li key={optionalSlot}>{fullLabel(optionalSlot)}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span>No optional times added.</span>
+                  )}
+                  <small>
+                    Cleaners can choose one of these if your preferred time is
+                    unavailable.
+                  </small>
                 </div>
               )}
 
-              <p>{frequencyLabel(frequency)} · {duration(minutes)}{preferredCleaner ? ` · Requested cleaner: ${previousCleaners.find((p) => p.provider_id === preferredCleaner)?.display_name ?? "Previous cleaner"}` : ""}</p>
+              <p>
+                {frequencyLabel(frequency)} · {duration(minutes)}
+                {preferredCleaner
+                  ? ` · Requested cleaner: ${previousCleaners.find((p) => p.provider_id === preferredCleaner)?.display_name ?? "Previous cleaner"}`
+                  : ""}
+              </p>
               <CleaningPackageScope packageName={selected.name} />
               {policyError && (
                 <>
-                  <p className="flash no" role="alert">{policyError}</p>
-                  <button className="back" type="button" onClick={() => setStep(2)}>← Change frequency or session</button>
+                  <p className="flash no" role="alert">
+                    {policyError}
+                  </p>
+                  <button
+                    className="back"
+                    type="button"
+                    onClick={() => setStep(2)}
+                  >
+                    ← Change frequency or session
+                  </button>
                 </>
               )}
               <p className="label">Requests (optional)</p>
@@ -1036,10 +1595,16 @@ export default function BookPage() {
               )}
 
               <div className="held">
-                <strong>{regular ? `Pay for all ${regularVisits} visits now` : "Your card is held, not charged"}</strong>
-                <span>{regular
-                  ? `This payment covers the ${regularVisits} dates above. Cleaners are paid after their individual visits. Refunds for cancelled visits follow the cancellation policy.`
-                  : "You pay once the visit is complete. If no pro accepts, the hold is released and you pay nothing."}</span>
+                <strong>
+                  {regular
+                    ? `Pay for all ${regularVisits} visits now`
+                    : "Your card is held, not charged"}
+                </strong>
+                <span>
+                  {regular
+                    ? `This payment covers the ${regularVisits} dates above. Cleaners are paid after their individual visits. Refunds for cancelled visits follow the cancellation policy.`
+                    : "You pay once the visit is complete. If no pro accepts, the hold is released and you pay nothing."}
+                </span>
               </div>
 
               {payError && <p className="flash no">{payError}</p>}
@@ -1059,7 +1624,9 @@ export default function BookPage() {
             <div className="brow">
               <span className="k">Address</span>
               <span className="v">
-                {address}<br />{postcode.toUpperCase()}
+                {address}
+                <br />
+                {postcode.toUpperCase()}
                 <button className="chg" onClick={() => setStep(0)}>
                   Change
                 </button>
@@ -1099,12 +1666,16 @@ export default function BookPage() {
                   <>
                     <div className="brow">
                       <span className="k">Preferred time</span>
-                      <span className="v">{slot ? fullLabel(slot) : "Not picked"}</span>
+                      <span className="v">
+                        {slot ? fullLabel(slot) : "Not picked"}
+                      </span>
                     </div>
                     {!regular && optionalSlots.length > 0 && (
                       <div className="brow">
                         <span className="k">Optional times</span>
-                        <span className="v">{optionalSlots.map(fullLabel).join(" · ")}</span>
+                        <span className="v">
+                          {optionalSlots.map(fullLabel).join(" · ")}
+                        </span>
                       </div>
                     )}
                   </>
@@ -1118,7 +1689,11 @@ export default function BookPage() {
                 )}
 
                 <div className="total">
-                  <span>{regular ? "Total for 6 visits upfront" : "Total per session"}</span>
+                  <span>
+                    {regular
+                      ? `Total for ${regularVisits} visits upfront`
+                      : "Total per session"}
+                  </span>
                   <strong>{money(total)}</strong>
                 </div>
                 <p className="fee">Service fee included</p>
@@ -1134,7 +1709,9 @@ export default function BookPage() {
             {step === 5 && needsPhone && (
               <div className="phone-ask">
                 <label htmlFor="booking-phone">Your phone number</label>
-                <div className={`phone-row ${phoneTouched && !phoneValid ? "invalid" : ""}`}>
+                <div
+                  className={`phone-row ${phoneTouched && !phoneValid ? "invalid" : ""}`}
+                >
                   <span>+44</span>
                   <input
                     id="booking-phone"
@@ -1149,37 +1726,59 @@ export default function BookPage() {
                     aria-describedby="booking-phone-help"
                   />
                 </div>
-                {phoneTouched && !phoneValid && <p className="phone-error">Enter a valid UK phone number.</p>}
+                {phoneTouched && !phoneValid && (
+                  <p className="phone-error">Enter a valid UK phone number.</p>
+                )}
                 <p className="phone-help" id="booking-phone-help">
-                  Your cleaner uses this to reach you on the day, for example if they cannot get in. It is saved to your account.
+                  Your cleaner uses this to reach you on the day, for example if
+                  they cannot get in. It is saved to your account.
                 </p>
               </div>
             )}
-            {step === 5 && needsEarlyStart && (
+            {step === 5 && signedIn === true && needsEarlyStart && (
               <label className="early-start" htmlFor="early-start">
                 <input
                   id="early-start"
                   type="checkbox"
                   checked={earlyStartAgreed}
-                  onChange={(event) => setEarlyStartAgreed(event.target.checked)}
+                  onChange={(event) =>
+                    setEarlyStartAgreed(event.target.checked)
+                  }
                 />
                 <span>
                   {EARLY_START_REQUEST_TEXT}{" "}
-                  <a href={CANCELLATION_REFUND_URL} target="_blank" rel="noopener noreferrer">
+                  <a
+                    href={CANCELLATION_REFUND_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     Your cancellation rights
                   </a>
                 </span>
               </label>
             )}
             {step === 5 && (
-              <button className="pay" onClick={checkout} disabled={paying || !slot || !addressValid || !home || !!policyError || !!regularScheduleError || (needsPhone && !phoneValid) || (needsEarlyStart && !earlyStartAgreed)}>
+              <button
+                className="pay"
+                onClick={checkout}
+                disabled={
+                  paying ||
+                  !slot ||
+                  !addressValid ||
+                  !home ||
+                  !!policyError ||
+                  !!regularScheduleError ||
+                  (needsPhone && !phoneValid) ||
+                  (signedIn !== false && needsEarlyStart && !earlyStartAgreed)
+                }
+              >
                 {paying
                   ? "Taking you to checkout…"
                   : signedIn === false
-                  ? "Sign in to continue"
-                  : regular
-                    ? `Pay ${money(total)} for 6 visits`
-                    : "Confirm & pay"}
+                    ? "Sign in to continue"
+                    : regular
+                      ? `Pay ${money(total)} for ${regularVisits} visits`
+                      : "Confirm & pay"}
               </button>
             )}
 
@@ -1254,7 +1853,10 @@ export default function BookPage() {
         }
         .types {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+          grid-template-columns: repeat(
+            auto-fit,
+            minmax(min(100%, 190px), 1fr)
+          );
           gap: 12px;
           margin-bottom: 6px;
         }
@@ -1266,7 +1868,9 @@ export default function BookPage() {
           text-align: left;
           font: inherit;
           cursor: pointer;
-          transition: border-color 0.15s ease, transform 0.15s ease;
+          transition:
+            border-color 0.15s ease,
+            transform 0.15s ease;
         }
         .type:hover {
           border-color: #c9b6f2;
@@ -1531,7 +2135,9 @@ export default function BookPage() {
           padding: 11px 12px;
           font: inherit;
           cursor: pointer;
-          transition: border-color 0.15s ease, transform 0.15s ease;
+          transition:
+            border-color 0.15s ease,
+            transform 0.15s ease;
         }
         .opt:hover {
           border-color: #c9b6f2;
@@ -1816,7 +2422,10 @@ export default function BookPage() {
         /* times */
         .times {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(min(100%, 74px), 1fr));
+          grid-template-columns: repeat(
+            auto-fill,
+            minmax(min(100%, 74px), 1fr)
+          );
           gap: 8px;
         }
         .time {

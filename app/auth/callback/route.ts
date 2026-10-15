@@ -3,15 +3,12 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { LEGAL_VERSIONS } from "@/lib/legal";
 import { canUseProfessionalTools } from "@/lib/professionalAccess";
-
-function safeNext(value: string | null) {
-  return value?.startsWith("/") && !value.startsWith("//") ? value : "/account";
-}
+import { safeAuthNext } from "@/lib/authReturn";
 
 export async function GET(request: NextRequest) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  let next = safeNext(url.searchParams.get("next"));
+  let next = safeAuthNext(url.searchParams.get("next")) ?? "/account";
 
   if (!code) {
     return NextResponse.redirect(

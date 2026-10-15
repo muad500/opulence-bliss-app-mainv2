@@ -121,7 +121,7 @@ export default function MobileAppHome({
         </Link>
       )}
       <Link className={styles.primary} href="/book">
-        Book a clean <ArrowRight size={19} />
+        Book a service <ArrowRight size={19} />
       </Link>
       <h2>How can we help?</h2>
       <div className={styles.services}>

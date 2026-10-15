@@ -33,7 +33,7 @@ const NAV: NavLink[] = [
   },
   {
     href: "/services/handyman",
-    label: "Handyman",
+    label: "Property maintenance",
     match: ["/services/handyman"],
   },
   { href: "/providers", label: "Our pros", match: ["/providers"] },
@@ -262,8 +262,8 @@ export default function SiteHeader() {
         </div>
 
         <div className="mobile-primary">
-          <Link href="/services/cleaning" className="mobile-quick-link">
-            Cleaning
+          <Link href="/#services" className="mobile-quick-link">
+            Book a service
           </Link>
           <Link href="/provider" className="mobile-quick-link">
             Jobs
@@ -421,13 +421,15 @@ export default function SiteHeader() {
               </button>
             </div>
 
-            <Link href="/book" className="mobile-drawer-cta">
-              Book a cleaning
+            <Link href="/#services" className="mobile-drawer-cta">
+              Book a service
             </Link>
 
             <nav aria-label="Mobile main navigation" className="mobile-links">
               <Link href="/services/cleaning">Cleaning services</Link>
-              <Link href="/services/handyman">Handyman quotations</Link>
+              <Link href="/services/handyman">
+                Property maintenance quotations
+              </Link>
               <Link href="/coming-soon">Coming soon</Link>
               <Link href="/providers">Our professionals</Link>
               <Link href="/blog">Blog</Link>

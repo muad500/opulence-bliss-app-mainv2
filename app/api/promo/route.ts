@@ -13,9 +13,9 @@ const admin = createClient(
 );
 
 // Keep in step with the checkout route.
-export const PLATFORM_MARGIN_RATE = 0.2;
+const PLATFORM_MARGIN_RATE = 0.2;
 
-export function discountFor(
+function discountFor(
   grossPence: number,
   promo: { percent_off: number | null; amount_off: number | null }
 ) {

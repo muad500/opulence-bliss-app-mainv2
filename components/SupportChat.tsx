@@ -363,7 +363,7 @@ export default function SupportChat() {
           @media (max-width: 620px) {
             .fabWrap {
               right: 14px;
-              bottom: 76px;
+              bottom: calc(20px + env(safe-area-inset-bottom));
             }
             .tip {
               display: none;
