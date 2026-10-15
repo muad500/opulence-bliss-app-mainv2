@@ -1,0 +1,5 @@
+[functions.visit-payments]
+# Keep gateway verification enabled and additionally require the private cron
+# header inside the handler. An anonymous JWT alone cannot run billing.
+verify_jwt = true
+entrypoint = "./functions/visit-payments/index.ts"

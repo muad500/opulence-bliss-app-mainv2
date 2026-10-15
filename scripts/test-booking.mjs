@@ -115,6 +115,20 @@ try {
       stdio: "inherit",
     },
   );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-visit-payment-worker.mjs"],
+    {
+      stdio: "inherit",
+    },
+  );
+  execFileSync(
+    process.execPath,
+    ["scripts/build-visit-payment-worker.mjs", "--check"],
+    {
+      stdio: "inherit",
+    },
+  );
 } finally {
   await rm(directory, { recursive: true, force: true });
 }
