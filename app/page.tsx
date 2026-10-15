@@ -318,21 +318,14 @@ export default function Home() {
               <span>Choose your availability</span>
               <span>Put your skills to work</span>
             </div>
-            <a
-              className="btn earn-button"
-              data-earn-with-us
-              href="/provider/join"
-            >
-              Become a professional <span aria-hidden="true">→</span>
-            </a>
             <p className="earn-sign-in">
               Already part of the team? <a href="/provider/login">Sign in</a>
             </p>
           </div>
           <div className="earn-art">
             <Image
-              src="/earn-with-us-people.webp"
-              alt="Three illustrated professionals smiling together, with a man recording himself and gold pound coins floating beside his phone."
+              src="/earn-with-us-people-cartoon-v2.webp"
+              alt="Three cartoon professionals smiling together, with a man recording himself and pound banknotes and gold coins floating beside his phone."
               width={1536}
               height={1024}
               sizes="(max-width: 700px) 100vw, (max-width: 1100px) 55vw, 620px"
@@ -577,6 +570,7 @@ export default function Home() {
         .service-cards {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
+          align-items: stretch;
           gap: 16px;
           min-height: 0;
         }
@@ -840,7 +834,7 @@ export default function Home() {
           display: flex;
           flex-wrap: wrap;
           gap: 10px 18px;
-          margin-bottom: 26px;
+          margin-bottom: 0;
           color: #634576;
           font-size: 13px;
           font-weight: 800;
@@ -848,14 +842,6 @@ export default function Home() {
         .earn-benefits span::before {
           content: "✓";
           margin-right: 7px;
-        }
-        .earn-button {
-          background: #70409b;
-          padding: 14px 24px;
-          white-space: normal;
-        }
-        .earn-button span {
-          margin-left: 10px;
         }
         .earn-sign-in {
           margin: 18px 0 0;
@@ -935,11 +921,9 @@ export default function Home() {
           }
           .service-cards {
             gap: 10px;
-            align-items: center;
           }
           .band {
             width: 100%;
-            height: min(100%, clamp(112px, 16svh, 136px));
             padding: 14px 12px;
             position: relative;
             align-items: center;
