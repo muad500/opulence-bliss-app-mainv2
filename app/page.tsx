@@ -135,9 +135,9 @@ export default function Home() {
         <header className="hero">
           <div className="hero-inner">
             <h1>
-              Peace within
+              <span className="hero-purple">Peace within</span>
               <br />
-              your walls
+              <span className="hero-gold">your walls</span>
             </h1>
             <p className="lede">
               Vetted cleaners and trusted property maintenance professionals
@@ -183,7 +183,6 @@ export default function Home() {
               <div>
                 <h3>Cleaning</h3>
                 <p>and ironing, at home</p>
-                <span className="from">Book a service</span>
               </div>
               <span className="service-icon" aria-hidden="true">
                 <Sparkles strokeWidth={1.4} />
@@ -194,7 +193,6 @@ export default function Home() {
               <div>
                 <h3>Property maintenance</h3>
                 <p>repairs, assembly and home maintenance</p>
-                <span className="from">Request a tailored quote</span>
               </div>
               <span className="service-icon" aria-hidden="true">
                 <Hammer strokeWidth={1.4} />
@@ -425,9 +423,9 @@ export default function Home() {
           background:
             linear-gradient(
               90deg,
-              rgba(19, 16, 22, 0.86) 0%,
-              rgba(26, 19, 27, 0.72) 37%,
-              rgba(24, 16, 22, 0.16) 78%
+              rgba(19, 16, 22, 0.58) 0%,
+              rgba(26, 19, 27, 0.76) 50%,
+              rgba(24, 16, 22, 0.58) 100%
             ),
             url("/hero-peace-within.webp") center 38% / cover no-repeat;
           padding: clamp(18px, 3svh, 36px) 28px;
@@ -436,7 +434,7 @@ export default function Home() {
           width: 100%;
           max-width: 1080px;
           margin: 0 auto;
-          text-align: left;
+          text-align: center;
         }
         h1 {
           color: #fff;
@@ -444,14 +442,21 @@ export default function Home() {
           line-height: 1.02;
           letter-spacing: -0.015em;
           max-width: 760px;
-          margin: 0 0 18px;
+          margin: 0 auto 18px;
+          text-shadow: 0 2px 16px rgba(19, 16, 22, 0.55);
+        }
+        .hero-purple {
+          color: #c084fc;
+        }
+        .hero-gold {
+          color: #f5c542;
         }
         .lede {
           color: rgba(255, 255, 255, 0.9);
           font-size: 18px;
           line-height: 1.6;
           max-width: 44ch;
-          margin: 0 0 20px;
+          margin: 0 auto 20px;
         }
         .composer {
           display: flex;
@@ -461,7 +466,7 @@ export default function Home() {
           border-radius: 999px;
           padding: 7px 7px 7px 22px;
           max-width: 500px;
-          margin-inline: 0;
+          margin-inline: auto;
           text-align: left;
           box-shadow: 0 18px 48px rgba(45, 19, 73, 0.22);
           backdrop-filter: blur(12px);
@@ -532,6 +537,7 @@ export default function Home() {
         }
         .services-title {
           margin: 0;
+          text-align: center;
           font-size: clamp(22px, 2.5vw, 30px);
           line-height: 1.1;
           letter-spacing: -0.02em;
@@ -548,8 +554,9 @@ export default function Home() {
           isolation: isolate;
           overflow: hidden;
           display: flex;
-          align-items: flex-end;
-          justify-content: space-between;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
           min-height: 0;
           padding: 22px 28px;
           border: 1px solid var(--line);
@@ -575,19 +582,9 @@ export default function Home() {
           color: #fff;
         }
         .band p {
-          margin: 0 0 10px;
+          margin: 0;
           font-size: 16px;
           color: rgba(255, 255, 255, 0.9);
-        }
-        .from {
-          display: inline-block;
-          background: #6d28d9;
-          border: 1px solid rgba(255, 255, 255, 0.48);
-          color: #fff;
-          font-size: 13.5px;
-          font-weight: 700;
-          padding: 6px 14px;
-          border-radius: 999px;
         }
         .service-icon {
           position: absolute;
@@ -799,8 +796,8 @@ export default function Home() {
             background-image:
               linear-gradient(
                 90deg,
-                rgba(19, 16, 22, 0.8),
-                rgba(24, 16, 22, 0.38)
+                rgba(19, 16, 22, 0.62),
+                rgba(24, 16, 22, 0.68)
               ),
               url("/hero-peace-within.webp");
           }
@@ -831,7 +828,7 @@ export default function Home() {
           .band {
             padding: 14px 12px;
             position: relative;
-            align-items: flex-start;
+            align-items: center;
           }
           .band h3 {
             font-size: clamp(20px, 5.4vw, 28px);
@@ -840,9 +837,6 @@ export default function Home() {
             font-size: 12px;
             line-height: 1.4;
             margin-bottom: 0;
-          }
-          .band .from {
-            display: none;
           }
           .service-icon {
             width: 108px;
