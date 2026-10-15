@@ -84,6 +84,11 @@ try {
     ["--test", "scripts/test-booking-sign-in.mjs"],
     { stdio: "inherit" },
   );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-booking-confirmation.mjs"],
+    { stdio: "inherit" },
+  );
   execFileSync(process.execPath, ["--test", "scripts/test-visit-billing.mjs"], {
     stdio: "inherit",
   });

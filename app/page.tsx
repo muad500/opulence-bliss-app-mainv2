@@ -135,9 +135,9 @@ export default function Home() {
         <header className="hero">
           <div className="hero-inner">
             <h1>
-              Your home,
+              Peace within
               <br />
-              taken care of
+              your walls
             </h1>
             <p className="lede">
               Vetted cleaners and trusted property maintenance professionals
@@ -429,7 +429,7 @@ export default function Home() {
               rgba(26, 19, 27, 0.72) 37%,
               rgba(24, 16, 22, 0.16) 78%
             ),
-            url("/hero-home.webp") center / cover no-repeat;
+            url("/hero-peace-within.webp") center 38% / cover no-repeat;
           padding: clamp(18px, 3svh, 36px) 28px;
         }
         .hero-inner {
@@ -581,9 +581,9 @@ export default function Home() {
         }
         .from {
           display: inline-block;
-          background: rgba(255, 255, 255, 0.82);
+          background: #6d28d9;
           border: 1px solid rgba(255, 255, 255, 0.48);
-          color: var(--green);
+          color: #fff;
           font-size: 13.5px;
           font-weight: 700;
           padding: 6px 14px;
@@ -795,7 +795,14 @@ export default function Home() {
           }
           .hero {
             padding: 18px 16px;
-            background-position: 62% center;
+            background-position: 90% center;
+            background-image:
+              linear-gradient(
+                90deg,
+                rgba(19, 16, 22, 0.8),
+                rgba(24, 16, 22, 0.38)
+              ),
+              url("/hero-peace-within.webp");
           }
           .hero h1 {
             font-size: clamp(36px, 10vw, 48px) !important;
