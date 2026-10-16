@@ -74,7 +74,17 @@ the per-visit application into `main`:
 4. Verify two real five-minute scheduled runs, advancing Production heartbeat,
    matching source hash and `per_visit_checkout_ready()=true`. Do not charge a
    live card as a deployment health check.
-5. Only then merge and deploy the per-visit web application. Keep the handyman
+5. Before merging, verify the LIVE Stripe webhook for the verified Production
+   account subscribes to `payment_intent.succeeded`,
+   `payment_intent.payment_failed`, `refund.updated` and `customer.updated`,
+   in addition to its existing checkout/subscription events. Record the live
+   endpoint ID, live mode and enabled event names without exposing its signing
+   secret or any automation-access token. Verify Stripe can reach the endpoint;
+   an outstanding or failed delivery blocks the release. Test-mode subscriptions
+   do not satisfy this gate. Make live configuration changes only as part of the
+   separately authorised Production release; do not charge a live card as a
+   webhook health check.
+6. Only then merge and deploy the per-visit web application. Keep the handyman
    marketplace off and preserve the cleaner pay-rate hold.
 
 Do not include staging audit helpers, staged test records, or the old handyman
