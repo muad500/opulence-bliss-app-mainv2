@@ -1,6 +1,7 @@
 import AdminNav from "../AdminNav";
 import BookingScheduleControl from "./BookingScheduleControl";
 import { requireAdminPage } from "@/lib/adminSession";
+import RegularSeriesControl from "@/components/RegularSeriesControl";
 
 function one<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
@@ -34,12 +35,13 @@ export default async function AdminBookingsPage() {
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, status, scheduled_at, created_at, customer_email, address, provider_delay_minutes, duration_minutes, packages(name, duration_minutes), providers(display_name)",
+      "id, regular_series_id, status, scheduled_at, created_at, customer_email, address, provider_delay_minutes, duration_minutes, packages(name, duration_minutes), providers(display_name)",
     )
     .order("scheduled_at", { ascending: false })
     .limit(150);
 
   const bookings = data ?? [];
+  const seriesControls = new Set<string>();
   const upcoming = bookings.filter(
     (booking) =>
       ["offered", "declined", "scheduled", "in_progress"].includes(
@@ -85,9 +87,18 @@ export default async function AdminBookingsPage() {
               const canMove = ["offered", "declined", "scheduled"].includes(
                 booking.status,
               );
+              const showSeries =
+                booking.regular_series_id &&
+                !seriesControls.has(booking.regular_series_id);
+              if (booking.regular_series_id)
+                seriesControls.add(booking.regular_series_id);
 
               return (
-                <article className="admin-booking-card" key={booking.id} style={card}>
+                <article
+                  className="admin-booking-card"
+                  key={booking.id}
+                  style={card}
+                >
                   <div style={{ minWidth: 0 }}>
                     <div style={cardTop}>
                       <strong style={service}>
@@ -112,10 +123,15 @@ export default async function AdminBookingsPage() {
                       {provider?.display_name ?? "Not assigned"}
                     </p>
                     <p style={meta}>{booking.address ?? "No address saved"}</p>
+                    {showSeries && (
+                      <RegularSeriesControl
+                        seriesId={booking.regular_series_id!}
+                      />
+                    )}
                     {booking.provider_delay_minutes && (
                       <p style={delay}>
-                        Cleaner reported {booking.provider_delay_minutes} minutes
-                        late
+                        Cleaner reported {booking.provider_delay_minutes}{" "}
+                        minutes late
                       </p>
                     )}
                     <small style={reference}>
@@ -127,7 +143,11 @@ export default async function AdminBookingsPage() {
                       bookingId={booking.id}
                       scheduledAt={booking.scheduled_at}
                       postcode={booking.address}
-                      durationMinutes={(booking.duration_minutes ?? pkg?.duration_minutes) ?? null}
+                      durationMinutes={
+                        booking.duration_minutes ??
+                        pkg?.duration_minutes ??
+                        null
+                      }
                     />
                   ) : booking.status === "needs_review" ? (
                     <a href="/admin/review" style={actionLink}>
@@ -153,21 +173,125 @@ function Stat({ label, value }: { label: string; value: number }) {
   );
 }
 
-const page: React.CSSProperties = { minHeight: "100vh", background: "#f7f8fa", color: "#16202a", fontFamily: "'Nunito', system-ui, sans-serif", paddingBottom: 80 };
-const inner: React.CSSProperties = { maxWidth: 1050, margin: "0 auto", padding: "0 20px" };
-const eyebrow: React.CSSProperties = { margin: "0 0 5px", color: "#6d28d9", fontSize: 11, fontWeight: 900, letterSpacing: "0.13em", textTransform: "uppercase" };
-const title: React.CSSProperties = { margin: "0 0 6px", fontSize: 34, fontWeight: 900, letterSpacing: "-0.025em" };
-const lede: React.CSSProperties = { maxWidth: 720, margin: "0 0 24px", color: "#68717d", fontSize: 14.5, lineHeight: 1.55 };
-const stats: React.CSSProperties = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 24 };
-const statCard: React.CSSProperties = { display: "grid", gap: 2, border: "1px solid #e5e7eb", borderRadius: 13, padding: "15px 17px", background: "#fff" };
-const card: React.CSSProperties = { display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 18, alignItems: "center", border: "1px solid #e5e7eb", borderRadius: 15, padding: "16px 18px", background: "#fff" };
-const cardTop: React.CSSProperties = { display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap" };
+const page: React.CSSProperties = {
+  minHeight: "100vh",
+  background: "#f7f8fa",
+  color: "#16202a",
+  fontFamily: "'Nunito', system-ui, sans-serif",
+  paddingBottom: 80,
+};
+const inner: React.CSSProperties = {
+  maxWidth: 1050,
+  margin: "0 auto",
+  padding: "0 20px",
+};
+const eyebrow: React.CSSProperties = {
+  margin: "0 0 5px",
+  color: "#6d28d9",
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: "0.13em",
+  textTransform: "uppercase",
+};
+const title: React.CSSProperties = {
+  margin: "0 0 6px",
+  fontSize: 34,
+  fontWeight: 900,
+  letterSpacing: "-0.025em",
+};
+const lede: React.CSSProperties = {
+  maxWidth: 720,
+  margin: "0 0 24px",
+  color: "#68717d",
+  fontSize: 14.5,
+  lineHeight: 1.55,
+};
+const stats: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+  gap: 10,
+  marginBottom: 24,
+};
+const statCard: React.CSSProperties = {
+  display: "grid",
+  gap: 2,
+  border: "1px solid #e5e7eb",
+  borderRadius: 13,
+  padding: "15px 17px",
+  background: "#fff",
+};
+const card: React.CSSProperties = {
+  display: "grid",
+  gridTemplateColumns: "minmax(0, 1fr) auto",
+  gap: 18,
+  alignItems: "center",
+  border: "1px solid #e5e7eb",
+  borderRadius: 15,
+  padding: "16px 18px",
+  background: "#fff",
+};
+const cardTop: React.CSSProperties = {
+  display: "flex",
+  alignItems: "center",
+  gap: 9,
+  flexWrap: "wrap",
+};
 const service: React.CSSProperties = { fontSize: 15.5, fontWeight: 900 };
-const badge: React.CSSProperties = { borderRadius: 999, padding: "4px 9px", fontSize: 10.5, fontWeight: 900, textTransform: "capitalize" };
-const dateText: React.CSSProperties = { margin: "5px 0 3px", color: "#293440", fontSize: 13.5, fontWeight: 850 };
-const meta: React.CSSProperties = { margin: "2px 0", color: "#68717d", fontSize: 12.5, overflowWrap: "anywhere" };
-const delay: React.CSSProperties = { display: "inline-block", margin: "7px 0 0", borderRadius: 999, padding: "4px 9px", background: "#fff0c9", color: "#845500", fontSize: 11, fontWeight: 850 };
-const reference: React.CSSProperties = { display: "block", marginTop: 6, color: "#9aa1aa", fontSize: 10.5 };
-const actionLink: React.CSSProperties = { border: "1px solid #d8c8f5", borderRadius: 9, padding: "8px 11px", color: "#6d28d9", fontSize: 12, fontWeight: 850, textDecoration: "none" };
-const empty: React.CSSProperties = { border: "1px dashed #d8dde3", borderRadius: 15, padding: 30, background: "#fff", color: "#7a828c", textAlign: "center" };
-const errorBox: React.CSSProperties = { ...empty, borderColor: "#f0c5cf", background: "#fff7f8", color: "#a52e47" };
+const badge: React.CSSProperties = {
+  borderRadius: 999,
+  padding: "4px 9px",
+  fontSize: 10.5,
+  fontWeight: 900,
+  textTransform: "capitalize",
+};
+const dateText: React.CSSProperties = {
+  margin: "5px 0 3px",
+  color: "#293440",
+  fontSize: 13.5,
+  fontWeight: 850,
+};
+const meta: React.CSSProperties = {
+  margin: "2px 0",
+  color: "#68717d",
+  fontSize: 12.5,
+  overflowWrap: "anywhere",
+};
+const delay: React.CSSProperties = {
+  display: "inline-block",
+  margin: "7px 0 0",
+  borderRadius: 999,
+  padding: "4px 9px",
+  background: "#fff0c9",
+  color: "#845500",
+  fontSize: 11,
+  fontWeight: 850,
+};
+const reference: React.CSSProperties = {
+  display: "block",
+  marginTop: 6,
+  color: "#9aa1aa",
+  fontSize: 10.5,
+};
+const actionLink: React.CSSProperties = {
+  border: "1px solid #d8c8f5",
+  borderRadius: 9,
+  padding: "8px 11px",
+  color: "#6d28d9",
+  fontSize: 12,
+  fontWeight: 850,
+  textDecoration: "none",
+};
+const empty: React.CSSProperties = {
+  border: "1px dashed #d8dde3",
+  borderRadius: 15,
+  padding: 30,
+  background: "#fff",
+  color: "#7a828c",
+  textAlign: "center",
+};
+const errorBox: React.CSSProperties = {
+  ...empty,
+  borderColor: "#f0c5cf",
+  background: "#fff7f8",
+  color: "#a52e47",
+};

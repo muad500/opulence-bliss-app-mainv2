@@ -1253,7 +1253,7 @@ export default function BookPage() {
               <p className="frequencyNote">
                 A regular booking means 6 to 10 visits booked together.{" "}
                 {perVisitBilling
-                  ? "Pay only the first at checkout; your saved card is charged for each later visit 48 hours before."
+                  ? "Pay only the first at checkout. Later visits are charged 48 hours before only if a cleaner is assigned, or when a cleaner accepts after that point."
                   : "Pay for the plan at checkout."}{" "}
                 If you prefer separate bookings, choose a one-time session.
               </p>
@@ -1597,7 +1597,7 @@ export default function BookPage() {
                         {perVisitBilling &&
                           (index === 0
                             ? " · paid today"
-                            : " · charged 48 hours before")}
+                            : " · charged after assignment, from 48 hours before")}
                       </li>
                     ))}
                   </ol>
@@ -1793,7 +1793,7 @@ export default function BookPage() {
                 <span>
                   {perVisitBilling
                     ? regular
-                      ? "Later visits are charged to your saved card 48 hours before their start. If no cleaner accepts a visit, its payment is refunded in full."
+                      ? "Later visits are charged 48 hours before only if a cleaner is assigned, or immediately when a cleaner accepts after that point. An unassigned later visit is never charged. Two unmatched visits in a row pause the remaining series."
                       : "Your full visit amount is charged at checkout. If no cleaner accepts, it is refunded in full."
                     : regular
                       ? `This payment covers the ${regularVisits} dates above. Refunds follow the cancellation policy.`
@@ -1811,9 +1811,10 @@ export default function BookPage() {
                     }
                   />{" "}
                   I authorise Opulence Bliss to save my card with Stripe, charge
-                  later regular visits 48 hours before they start, and charge
-                  any add-on changes I confirm. Add-ons can be changed until 24
-                  hours before the visit.
+                  later regular visits once a cleaner is assigned, 48 hours
+                  before they start or immediately on a later acceptance, and
+                  charge any add-on changes I confirm. Add-ons can be changed
+                  until 24 hours before the visit.
                 </label>
               )}
               {payError && <p className="flash no">{payError}</p>}

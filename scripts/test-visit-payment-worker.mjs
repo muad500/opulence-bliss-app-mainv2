@@ -27,7 +27,13 @@ vm.runInNewContext(code, {
             throw new Error("Unexpected default worker dependency");
           },
         }
-      : require(id),
+      : id.endsWith("lib/visitMatchingNotices")
+        ? {
+            deliverVisitMatchingNotices() {
+              throw new Error("Unexpected default notice dependency");
+            },
+          }
+        : require(id),
   Deno: { env: { get() {} }, serve() {} },
   TextEncoder,
   Request,
@@ -71,6 +77,12 @@ function harness(changes = {}, account = "acct_1UKQ4A2NzINBHbzj", fail = null) {
       if (fail === "tick") throw new Error("Private database failure");
       return { due: 1 };
     },
+    notices: async () => ({
+      emailConfigured: false,
+      smsEnabled: false,
+      submitted: 0,
+      failed: 0,
+    }),
   });
   return {
     calls,

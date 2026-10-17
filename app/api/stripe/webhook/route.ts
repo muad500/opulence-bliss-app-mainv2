@@ -59,12 +59,9 @@ export async function POST(req: NextRequest) {
       const customer = event.data.object as Stripe.Customer;
       // The charge worker retrieves the CURRENT default card; a delayed
       // event only brings the next retry forward, never restores an old card.
-      const { error } = await admin
-        .from("booking_visit_billing")
-        .update({ retry_after: new Date().toISOString() })
-        .eq("stripe_customer_id", customer.id)
-        .in("status", ["failed", "requires_action"])
-        .is("active_operation_id", null);
+      const { error } = await admin.rpc("retry_assigned_customer_visits", {
+        p_customer: customer.id,
+      });
       if (error) throw new Error("Saved-card retry could not be scheduled.");
     }
     // Retrieve current Stripe state: an old event must never restore stale
@@ -117,7 +114,7 @@ export async function POST(req: NextRequest) {
             await finalizeTipCheckout(session, payment);
           if (payment.metadata.kind === "handyman")
             await finalizeHandymanCheckout(admin, stripe, session, payment);
-        } catch (failure) {
+        } catch {
           console.error("Booking webhook finalisation failed; retry required.");
           return NextResponse.json(
             { error: "Booking finalisation failed; retry required." },
@@ -197,7 +194,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ received: true });
-  } catch (e) {
+  } catch {
     console.error("Webhook handling failed; retry required.");
     return NextResponse.json(
       { error: "Webhook reconciliation must retry." },

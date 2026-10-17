@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import Stripe from "stripe";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createVisitBilling } from "../../../lib/visitBillingServer";
+import { deliverVisitMatchingNotices } from "../../../lib/visitMatchingNotices";
 
 declare const __VISIT_WORKER_SOURCE_SHA__: string;
 
@@ -23,6 +24,10 @@ type Dependencies = {
   admin: typeof createClient;
   stripe: (key: string) => Stripe;
   tick: (admin: SupabaseClient, stripe: Stripe) => Promise<unknown>;
+  notices: (
+    admin: SupabaseClient,
+    env: Record<string, string | undefined>,
+  ) => Promise<unknown>;
 };
 
 /** Dedicated machine endpoint. A public/anonymous JWT never authorises billing. */
@@ -39,6 +44,7 @@ export function createVisitPaymentHandler(
         maxNetworkRetries: 1,
       }),
     tick: (admin, stripe) => createVisitBilling(admin, stripe).tick(5),
+    notices: deliverVisitMatchingNotices,
     ...overrides,
   };
 
@@ -87,11 +93,29 @@ export function createVisitPaymentHandler(
         auth: { persistSession: false, autoRefreshToken: false },
       });
       const result = await deps.tick(admin, stripe);
+      const notices = await deps.notices(
+        admin,
+        Object.fromEntries(
+          [
+            "RESEND_API_KEY",
+            "BOOKING_EMAIL_FROM",
+            "EMAIL_FROM",
+            "NEXT_PUBLIC_SITE_URL",
+            "BOOKING_SMS_ENABLED",
+            "TWILIO_ACCOUNT_SID",
+            "TWILIO_AUTH_TOKEN",
+            "TWILIO_MESSAGING_SERVICE_SID",
+            "TWILIO_MONTHLY_BUDGET_GBP",
+            "TWILIO_MAX_COST_PER_MESSAGE_GBP",
+          ].map((name) => [name, deps.env(name)]),
+        ),
+      );
       return Response.json({
         ok: true,
         mode,
         source: __VISIT_WORKER_SOURCE_SHA__,
         result,
+        notices,
       });
     } catch {
       // Never put provider errors, credentials or customer details in logs.

@@ -102,13 +102,7 @@ function cleaningExtrasNotes(addons, bringsProducts, petsAtHome) {
 }
 
 // lib/visitBillingPolicy.ts
-var VISIT_PAYMENT_DEADLINE_HOURS = 24;
 var VISIT_CHANGE_NOTICE_HOURS = 24;
-function unpaidVisitMustCancel(scheduledAt, now = Date.now()) {
-  return (
-    new Date(scheduledAt).getTime() - now <= VISIT_PAYMENT_DEADLINE_HOURS * 36e5
-  );
-}
 function visitExtrasCanChange(scheduledAt, now = Date.now()) {
   return (
     new Date(scheduledAt).getTime() - now >= VISIT_CHANGE_NOTICE_HOURS * 36e5
@@ -299,6 +293,26 @@ function changedVisitLines(before, after) {
   };
 }
 
+// lib/visitMatchingPolicy.ts
+function assignedPaymentMustCancel(
+  scheduledAt,
+  assigned,
+  attempts,
+  now = Date.now(),
+  graceUntil = null,
+) {
+  const graceEnd = Math.min(
+    new Date(graceUntil ?? "").getTime(),
+    new Date(scheduledAt).getTime() - 3 * 36e5,
+  );
+  return (
+    assigned &&
+    attempts > 0 &&
+    new Date(scheduledAt).getTime() - now <= 24 * 36e5 &&
+    !(graceEnd > now)
+  );
+}
+
 // lib/visitBillingServer.ts
 function must(result) {
   if (result.error) throw new Error(result.error.message);
@@ -318,7 +332,7 @@ function createVisitBilling(admin, stripe) {
       await admin
         .from("bookings")
         .select(
-          "id,customer_id,status,scheduled_at,provider_id,cleaning_extras,duration_minutes,household_notes",
+          "id,customer_id,status,scheduled_at,provider_id,regular_series_id,cleaning_extras,duration_minutes,household_notes",
         )
         .eq("id", bookingId)
         .single(),
@@ -341,6 +355,93 @@ function createVisitBilling(admin, stripe) {
     );
     return { booking, bill, charges };
   }
+  async function chargeGate(bookingId, operationId = null, kind = "charge") {
+    return must(
+      await admin.rpc("visit_charge_gate", {
+        p_booking: bookingId,
+        p_operation: operationId,
+        p_kind: kind,
+      }),
+    );
+  }
+  async function refundBlockedPayment(bookingId) {
+    const { bill, charges } = await load(bookingId);
+    if (!bill.policy_refund_required || bill.active_operation_id) return;
+    const sourceCharges = charges.filter(
+      (charge) => charge.operation_id === bill.blocked_charge_operation,
+    );
+    const operation = await prepare(
+      bookingId,
+      null,
+      "policy_refund",
+      bill.revision,
+      {
+        refundPercent: 100,
+        refunds: cancellationRefunds(sourceCharges, 100),
+      },
+    );
+    await run(operation.id);
+  }
+  async function chargeVisit(bookingId) {
+    const { booking, bill } = await load(bookingId);
+    if (bill.policy_refund_required) {
+      await refundBlockedPayment(bookingId);
+      return { status: "processing" };
+    }
+    if (!["unpaid", "failed", "requires_action"].includes(bill.status))
+      return { status: bill.status };
+    const gate = await chargeGate(bookingId);
+    if (gate.paused || !gate.assigned) return { status: "blocked" };
+    if (
+      assignedPaymentMustCancel(
+        booking.scheduled_at,
+        gate.assigned,
+        bill.attempts,
+        Date.now(),
+        bill.late_payment_grace_until,
+      )
+    )
+      return cancel(bookingId, null);
+    if (
+      !gate.allowed ||
+      (bill.retry_after && new Date(bill.retry_after).getTime() > Date.now())
+    )
+      return { status: "blocked" };
+    try {
+      const operation = await prepare(
+        bookingId,
+        null,
+        "charge",
+        bill.revision,
+        {
+          amountPence: bill.amount_pence,
+          lines: bill.line_items,
+        },
+      );
+      const result = await run(operation.id);
+      if (result.status === "failed") {
+        const refreshed = await load(bookingId);
+        if (
+          assignedPaymentMustCancel(
+            refreshed.booking.scheduled_at,
+            refreshed.booking.provider_id !== null,
+            refreshed.bill.attempts,
+            Date.now(),
+            refreshed.bill.late_payment_grace_until,
+          )
+        )
+          await cancel(bookingId, null);
+      }
+      return result;
+    } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith("VISIT_CHARGE_BLOCKED:")
+      )
+        return { status: "blocked" };
+      throw error;
+    }
+  }
   async function quoteExtras(bookingId, customerId, input) {
     const { booking, bill, charges } = await load(bookingId, customerId);
     if (!visitExtrasCanChange(booking.scheduled_at))
@@ -349,6 +450,10 @@ function createVisitBilling(admin, stripe) {
       throw new Error("This visit is closed.");
     if (bill.active_operation_id)
       throw new Error("A payment change is still processing. Please wait.");
+    if (bill.status === "review" || bill.policy_refund_required)
+      throw new Error(
+        "Your visit payment needs a team review before further changes.",
+      );
     const previous = booking.cleaning_extras;
     const quote = cleaningQuote(
       {
@@ -435,6 +540,14 @@ function createVisitBilling(admin, stripe) {
       bookingId,
       customerId ?? void 0,
     );
+    if (unfilled && (await chargeGate(bookingId)).paused)
+      return {
+        status: "blocked",
+        policy: calculateCancellationPolicy(
+          booking.scheduled_at,
+          paidTotal(charges) / 100,
+        ),
+      };
     if (
       booking.status === "cancelled" &&
       !bill.active_operation_id &&
@@ -528,6 +641,24 @@ function createVisitBilling(admin, stripe) {
         }),
       );
     }
+    async function stopBlockedCharge(intent) {
+      const gate = await chargeGate(op.booking_id, op.id, op.operation_type);
+      if (gate.allowed || intent?.status === "succeeded") return null;
+      if (intent?.status === "processing") {
+        await finish("ambiguous", "Blocked charge is still being reconciled.");
+        return { status: "processing" };
+      }
+      if (intent && intent.status !== "canceled") {
+        await stripe.paymentIntents.cancel(intent.id);
+        const recorded = results.find((result) => result.id === intent.id);
+        if (recorded) recorded.status = "canceled";
+      }
+      await finish(
+        "blocked",
+        `Charge blocked: ${gate.reason ?? "visit changed"}`,
+      );
+      return { status: "blocked" };
+    }
     try {
       const chargePence =
         op.operation_type === "charge"
@@ -538,6 +669,8 @@ function createVisitBilling(admin, stripe) {
         let intent = recorded
           ? await stripe.paymentIntents.retrieve(recorded.id)
           : await findIntent(op, bill.stripe_customer_id);
+        const blocked = await stopBlockedCharge(intent);
+        if (blocked) return blocked;
         if (!intent) {
           if (Date.now() - new Date(op.created_at).getTime() >= 23 * 36e5)
             throw new Error(
@@ -608,15 +741,8 @@ function createVisitBilling(admin, stripe) {
             "Stripe payment does not match the prepared operation.",
           );
         if (intent.status === "requires_confirmation") {
-          if (
-            op.operation_type === "charge" &&
-            unpaidVisitMustCancel(op.parameters.scheduledAt)
-          ) {
-            await stripe.paymentIntents.cancel(intent.id);
-            recorded.status = "canceled";
-            await finish("failed", "The visit reached its payment deadline.");
-            return { status: "failed" };
-          }
+          const blockedBeforeConfirm = await stopBlockedCharge(intent);
+          if (blockedBeforeConfirm) return blockedBeforeConfirm;
           intent = await stripe.paymentIntents.confirm(
             intent.id,
             { off_session: true },
@@ -695,8 +821,13 @@ function createVisitBilling(admin, stripe) {
         await checkpoint();
       }
       await finish("succeeded");
-      if (op.operation_type === "charge" && bill.deadline_missed)
-        await cancel(op.booking_id, null, false, void 0, true);
+      if (op.operation_type === "charge" || op.operation_type === "extras") {
+        const current = await load(op.booking_id);
+        if (current.bill.policy_refund_required)
+          await refundBlockedPayment(op.booking_id);
+        else if (op.operation_type === "charge" && current.bill.deadline_missed)
+          await cancel(op.booking_id, null, false, void 0, true);
+      }
       return { status: "succeeded" };
     } catch (error) {
       const definite =
@@ -757,54 +888,51 @@ function createVisitBilling(admin, stripe) {
         );
       await run(op.id);
     }
-    let dueQuery = admin
+    let refundQuery = admin
       .from("booking_visit_billing")
       .select("booking_id")
-      .in("status", ["unpaid", "failed", "requires_action"])
-      .lte("charge_due_at", /* @__PURE__ */ new Date().toISOString())
-      .or(
-        `retry_after.is.null,retry_after.lte.${/* @__PURE__ */ new Date().toISOString()},charge_due_at.lte.${new Date(Date.now() - 24 * 36e5).toISOString()}`,
-      )
-      .order("charge_due_at")
+      .eq("policy_refund_required", true)
+      .is("active_operation_id", null)
       .limit(limit);
-    if (bookingIds) dueQuery = dueQuery.in("booking_id", bookingIds);
-    const due = must(await dueQuery);
-    for (const row of due) {
-      const { booking, bill } = await load(row.booking_id);
-      if (booking.status === "cancelled") continue;
-      if (unpaidVisitMustCancel(booking.scheduled_at))
-        await cancel(row.booking_id, null);
-      else if (
-        !bill.retry_after ||
-        new Date(bill.retry_after).getTime() <= Date.now()
-      ) {
-        const operation = await prepare(
-          row.booking_id,
-          null,
-          "charge",
-          bill.revision,
-          { amountPence: bill.amount_pence, lines: bill.line_items },
-        );
-        await run(operation.id);
-      }
-    }
+    if (bookingIds) refundQuery = refundQuery.in("booking_id", bookingIds);
+    for (const row of must(await refundQuery))
+      await refundBlockedPayment(row.booking_id);
+    check(await admin.rpc("queue_due_visit_matching_notices"));
     let unmatchedQuery = admin
       .from("bookings")
-      .select("id")
+      .select("id,scheduled_at,optional_scheduled_at")
       .eq("status", "offered")
       .is("provider_id", null)
       .lte("offer_expires_at", /* @__PURE__ */ new Date().toISOString())
+      .order("scheduled_at")
       .limit(limit);
     if (bookingIds) unmatchedQuery = unmatchedQuery.in("id", bookingIds);
     const unmatched = must(await unmatchedQuery);
     for (const row of unmatched) {
+      const matchingDeadlineReached = [
+        row.scheduled_at,
+        ...(row.optional_scheduled_at ?? []),
+      ].some((slot) => new Date(slot).getTime() <= Date.now() + 2 * 36e5);
+      if (!matchingDeadlineReached) continue;
       const { data: bill } = await admin
         .from("booking_visit_billing")
         .select("booking_id,active_operation_id")
         .eq("booking_id", row.id)
         .maybeSingle();
-      if (bill && !bill.active_operation_id) await cancel(row.id, null, true);
+      if (
+        bill &&
+        !bill.active_operation_id &&
+        !(await chargeGate(row.id)).paused
+      )
+        await cancel(row.id, null, true);
     }
+    const due = must(
+      await admin.rpc("due_assigned_visit_payments", {
+        p_limit: limit,
+        p_bookings: bookingIds ?? null,
+      }),
+    );
+    for (const row of due) await chargeVisit(row.booking_id);
     check(
       await admin
         .from("visit_billing_runtime")
@@ -813,7 +941,203 @@ function createVisitBilling(admin, stripe) {
     );
     return { recovered: active.length, due: due.length };
   }
-  return { load, quoteExtras, changeExtras, cancel, run, tick };
+  return {
+    load,
+    quoteExtras,
+    changeExtras,
+    cancel,
+    chargeVisit,
+    chargeGate,
+    run,
+    tick,
+  };
+}
+
+// lib/bookingSms.ts
+import { Buffer } from "node:buffer";
+function bookingSmsConfig(env) {
+  if (env.BOOKING_SMS_ENABLED !== "true") return null;
+  const budget = Number(env.TWILIO_MONTHLY_BUDGET_GBP),
+    cost = Number(env.TWILIO_MAX_COST_PER_MESSAGE_GBP);
+  if (
+    !/^AC[0-9a-f]{32}$/i.test(env.TWILIO_ACCOUNT_SID ?? "") ||
+    !env.TWILIO_AUTH_TOKEN ||
+    !/^MG[0-9a-f]{32}$/i.test(env.TWILIO_MESSAGING_SERVICE_SID ?? "") ||
+    !Number.isFinite(budget) ||
+    budget <= 0 ||
+    budget > 1e4 ||
+    !Number.isFinite(cost) ||
+    cost <= 0 ||
+    cost > budget
+  )
+    return null;
+  return {
+    account: env.TWILIO_ACCOUNT_SID,
+    token: env.TWILIO_AUTH_TOKEN,
+    service: env.TWILIO_MESSAGING_SERVICE_SID,
+    monthlyBudgetPence: Math.floor(budget * 100),
+    costCapPence: Math.ceil(cost * 100),
+  };
+}
+function bookingSmsText(kind, bookingId, scheduledAt) {
+  const lead = {
+    received: "Booking received",
+    confirmed: "Booking confirmed",
+    reminder_24h: "Your booking is in 24 hours",
+    reminder_90m: "Your booking is in 1 hour 30 minutes",
+    unmatched_cancelled: "No cleaner found; visit cancelled",
+  }[kind];
+  if (!lead) throw new Error("Unsupported SMS event");
+  const time = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(scheduledAt));
+  return `Opulence Bliss: ${lead}. ${time} (London time). Ref ${bookingId.slice(0, 8)}. See My bookings for details.`;
+}
+async function submitBookingSms(config, to, body, fetcher = fetch) {
+  if (
+    !/^\+44\d{10}$/.test(to) ||
+    body.length > 160 ||
+    !/^[\x20-\x7e]+$/.test(body)
+  )
+    throw new Error("Invalid SMS destination or message.");
+  const response = await fetcher(
+    `https://api.twilio.com/2010-04-01/Accounts/${config.account}/Messages.json`,
+    {
+      method: "POST",
+      signal: AbortSignal.timeout(8e3),
+      headers: {
+        Authorization:
+          "Basic " +
+          Buffer.from(config.account + ":" + config.token).toString("base64"),
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        To: to,
+        MessagingServiceSid: config.service,
+        Body: body,
+        ValidityPeriod: "300",
+      }).toString(),
+    },
+  );
+  if (!response.ok)
+    throw new Error(
+      `SMS provider returned ${response.status}; manual review required.`,
+    );
+  const reply = await response.json();
+  if (
+    !reply ||
+    typeof reply !== "object" ||
+    !("sid" in reply) ||
+    typeof reply.sid !== "string" ||
+    !/^SM[0-9a-f]{32}$/i.test(reply.sid)
+  )
+    throw new Error(
+      "SMS provider did not return a message reference; manual review required.",
+    );
+  return reply.sid;
+}
+
+// lib/visitMatchingNotices.ts
+async function deliverVisitMatchingNotices(admin, env, fetcher = fetch) {
+  const key = env.RESEND_API_KEY;
+  const sender = env.BOOKING_EMAIL_FROM ?? env.EMAIL_FROM;
+  const origin = env.NEXT_PUBLIC_SITE_URL;
+  const emailEnabled = Boolean(key && sender && origin?.startsWith("https://"));
+  const sms = bookingSmsConfig(env);
+  const { data, error } = await admin.rpc("claim_visit_matching_notices", {
+    p_email_enabled: emailEnabled,
+    p_sms_enabled: Boolean(sms),
+    p_budget_pence: sms?.monthlyBudgetPence ?? 0,
+    p_cost_pence: sms?.costCapPence ?? 0,
+  });
+  if (error) throw new Error("Matching notices could not be claimed.");
+  let submitted = 0;
+  let failed = 0;
+  for (const notice of data ?? []) {
+    let reference = null;
+    let failure = null;
+    try {
+      const { data: allowed, error: checkError } = await admin.rpc(
+        "visit_matching_notice_allowed",
+        { p_id: notice.id, p_token: notice.claim_token },
+      );
+      if (checkError)
+        throw new Error("Matching notice state could not be checked.");
+      if (allowed !== true) {
+        failure = "Notice no longer applies.";
+        continue;
+      }
+      if (!notice.recipient)
+        throw new Error("Notification destination is missing.");
+      if (notice.channel === "email") {
+        if (!emailEnabled || !key || !sender || !origin)
+          throw new Error("Staging email is not configured.");
+        if (!notice.href.startsWith("/") || notice.href.startsWith("//"))
+          throw new Error("Invalid booking link.");
+        const response = await fetcher("https://api.resend.com/emails", {
+          method: "POST",
+          signal: AbortSignal.timeout(8e3),
+          headers: {
+            Authorization: `Bearer ${key}`,
+            "Content-Type": "application/json",
+            "Idempotency-Key": `visit-matching/${notice.id}`,
+          },
+          body: JSON.stringify({
+            from: sender,
+            to: [notice.recipient],
+            subject: notice.title,
+            text: `${notice.body}
+
+View your booking: ${new URL(notice.href, origin).toString()}`,
+          }),
+        });
+        if (!response.ok)
+          throw new Error(`Email provider returned ${response.status}.`);
+        const result = await response.json();
+        if (
+          !result ||
+          typeof result !== "object" ||
+          !("id" in result) ||
+          typeof result.id !== "string"
+        )
+          throw new Error("Email acceptance was not confirmed.");
+        reference = result.id;
+      } else {
+        if (!sms) throw new Error("SMS remains switched off.");
+        reference = await submitBookingSms(
+          sms,
+          notice.recipient,
+          bookingSmsText(notice.kind, notice.booking_id, notice.scheduled_at),
+          fetcher,
+        );
+      }
+      submitted++;
+    } catch {
+      failure = "Notification submission failed or is uncertain.";
+      failed++;
+    } finally {
+      const { error: finishError } = await admin.rpc(
+        "finish_visit_matching_notice",
+        {
+          p_id: notice.id,
+          p_token: notice.claim_token,
+          p_reference: reference,
+          p_error: failure,
+        },
+      );
+      if (finishError) failed++;
+    }
+  }
+  return {
+    emailConfigured: emailEnabled,
+    smsEnabled: Boolean(sms),
+    submitted,
+    failed,
+  };
 }
 
 // supabase/functions/visit-payments/handler.ts
@@ -840,6 +1164,7 @@ function createVisitPaymentHandler(overrides = {}) {
         maxNetworkRetries: 1,
       }),
     tick: (admin, stripe) => createVisitBilling(admin, stripe).tick(5),
+    notices: deliverVisitMatchingNotices,
     ...overrides,
   };
   return async (request) => {
@@ -885,12 +1210,30 @@ function createVisitPaymentHandler(overrides = {}) {
         auth: { persistSession: false, autoRefreshToken: false },
       });
       const result = await deps.tick(admin, stripe);
+      const notices = await deps.notices(
+        admin,
+        Object.fromEntries(
+          [
+            "RESEND_API_KEY",
+            "BOOKING_EMAIL_FROM",
+            "EMAIL_FROM",
+            "NEXT_PUBLIC_SITE_URL",
+            "BOOKING_SMS_ENABLED",
+            "TWILIO_ACCOUNT_SID",
+            "TWILIO_AUTH_TOKEN",
+            "TWILIO_MESSAGING_SERVICE_SID",
+            "TWILIO_MONTHLY_BUDGET_GBP",
+            "TWILIO_MAX_COST_PER_MESSAGE_GBP",
+          ].map((name) => [name, deps.env(name)]),
+        ),
+      );
       return Response.json({
         ok: true,
         mode,
         source:
-          "f819aba1c1e1fa234d1f199dd087e8fb63ce2db85a247adfe8aae5f235ae797c",
+          "8e6aae6f1bafbb403326b6591fef1f35cf17979c604b0052bb40dd2c36ba52b3",
         result,
+        notices,
       });
     } catch {
       console.error(

@@ -21,6 +21,7 @@ const modules = [
   "cleaningBooking",
   "cleaningExtras",
   "visitBillingPolicy",
+  "visitMatchingPolicy",
   "visitLineItems",
   "visitAdjustments",
   "quotePhotos",
@@ -92,6 +93,13 @@ try {
   execFileSync(process.execPath, ["--test", "scripts/test-visit-billing.mjs"], {
     stdio: "inherit",
   });
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-visit-matching-notices.mjs"],
+    {
+      stdio: "inherit",
+    },
+  );
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-handyman-payment-recovery.mjs"],

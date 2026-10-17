@@ -14,11 +14,11 @@ import {
   type VisitCharge,
   type VisitRefundPlan,
 } from "./visitAdjustments";
+import { visitExtrasCanChange, type VisitLine } from "./visitBillingPolicy";
 import {
-  unpaidVisitMustCancel,
-  visitExtrasCanChange,
-  type VisitLine,
-} from "./visitBillingPolicy";
+  assignedPaymentMustCancel,
+  type ChargeEligibility,
+} from "./visitMatchingPolicy";
 
 type MoneyResult = {
   type: "charge" | "refund";
@@ -72,7 +72,7 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
       await admin
         .from("bookings")
         .select(
-          "id,customer_id,status,scheduled_at,provider_id,cleaning_extras,duration_minutes,household_notes",
+          "id,customer_id,status,scheduled_at,provider_id,regular_series_id,cleaning_extras,duration_minutes,household_notes",
         )
         .eq("id", bookingId)
         .single(),
@@ -96,6 +96,101 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
     return { booking, bill, charges };
   }
 
+  async function chargeGate(
+    bookingId: string,
+    operationId: string | null = null,
+    kind = "charge",
+  ) {
+    return must(
+      await admin.rpc("visit_charge_gate", {
+        p_booking: bookingId,
+        p_operation: operationId,
+        p_kind: kind,
+      }),
+    ) as ChargeEligibility;
+  }
+
+  async function refundBlockedPayment(bookingId: string) {
+    const { bill, charges } = await load(bookingId);
+    if (!bill.policy_refund_required || bill.active_operation_id) return;
+    const sourceCharges = charges.filter(
+      (charge) => charge.operation_id === bill.blocked_charge_operation,
+    );
+    const operation = await prepare(
+      bookingId,
+      null,
+      "policy_refund",
+      bill.revision,
+      {
+        refundPercent: 100,
+        refunds: cancellationRefunds(sourceCharges, 100),
+      },
+    );
+    await run(operation.id);
+  }
+
+  async function chargeVisit(bookingId: string) {
+    const { booking, bill } = await load(bookingId);
+    if (bill.policy_refund_required) {
+      await refundBlockedPayment(bookingId);
+      return { status: "processing" };
+    }
+    if (!["unpaid", "failed", "requires_action"].includes(bill.status))
+      return { status: bill.status };
+    const gate = await chargeGate(bookingId);
+    if (gate.paused || !gate.assigned) return { status: "blocked" };
+    if (
+      assignedPaymentMustCancel(
+        booking.scheduled_at,
+        gate.assigned,
+        bill.attempts,
+        Date.now(),
+        bill.late_payment_grace_until,
+      )
+    )
+      return cancel(bookingId, null);
+    if (
+      !gate.allowed ||
+      (bill.retry_after && new Date(bill.retry_after).getTime() > Date.now())
+    )
+      return { status: "blocked" };
+    try {
+      const operation = await prepare(
+        bookingId,
+        null,
+        "charge",
+        bill.revision,
+        {
+          amountPence: bill.amount_pence,
+          lines: bill.line_items,
+        },
+      );
+      const result = await run(operation.id);
+      if (result.status === "failed") {
+        const refreshed = await load(bookingId);
+        if (
+          assignedPaymentMustCancel(
+            refreshed.booking.scheduled_at,
+            refreshed.booking.provider_id !== null,
+            refreshed.bill.attempts,
+            Date.now(),
+            refreshed.bill.late_payment_grace_until,
+          )
+        )
+          await cancel(bookingId, null);
+      }
+      return result;
+    } catch (error) {
+      // A pause or withdrawal may win after the due batch was selected.
+      if (
+        error instanceof Error &&
+        error.message.startsWith("VISIT_CHARGE_BLOCKED:")
+      )
+        return { status: "blocked" };
+      throw error;
+    }
+  }
+
   async function quoteExtras(
     bookingId: string,
     customerId: string,
@@ -108,6 +203,10 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
       throw new Error("This visit is closed.");
     if (bill.active_operation_id)
       throw new Error("A payment change is still processing. Please wait.");
+    if (bill.status === "review" || bill.policy_refund_required)
+      throw new Error(
+        "Your visit payment needs a team review before further changes.",
+      );
     const previous = booking.cleaning_extras;
     const quote = cleaningQuote(
       {
@@ -213,6 +312,14 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
       bookingId,
       customerId ?? undefined,
     );
+    if (unfilled && (await chargeGate(bookingId)).paused)
+      return {
+        status: "blocked",
+        policy: calculateCancellationPolicy(
+          booking.scheduled_at,
+          paidTotal(charges) / 100,
+        ),
+      };
     if (
       booking.status === "cancelled" &&
       !bill.active_operation_id &&
@@ -309,6 +416,24 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
         }),
       );
     }
+    async function stopBlockedCharge(intent: Stripe.PaymentIntent | null) {
+      const gate = await chargeGate(op.booking_id, op.id, op.operation_type);
+      if (gate.allowed || intent?.status === "succeeded") return null;
+      if (intent?.status === "processing") {
+        await finish("ambiguous", "Blocked charge is still being reconciled.");
+        return { status: "processing" };
+      }
+      if (intent && intent.status !== "canceled") {
+        await stripe.paymentIntents.cancel(intent.id);
+        const recorded = results.find((result) => result.id === intent.id);
+        if (recorded) recorded.status = "canceled";
+      }
+      await finish(
+        "blocked",
+        `Charge blocked: ${gate.reason ?? "visit changed"}`,
+      );
+      return { status: "blocked" };
+    }
     try {
       const chargePence =
         op.operation_type === "charge"
@@ -319,6 +444,8 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
         let intent = recorded
           ? await stripe.paymentIntents.retrieve(recorded.id)
           : await findIntent(op, bill.stripe_customer_id);
+        const blocked = await stopBlockedCharge(intent);
+        if (blocked) return blocked;
         if (!intent) {
           // Stripe may prune an idempotency key after 24h. An unknown old
           // creation must be reviewed, never replayed as another charge.
@@ -393,15 +520,8 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
             "Stripe payment does not match the prepared operation.",
           );
         if (intent.status === "requires_confirmation") {
-          if (
-            op.operation_type === "charge" &&
-            unpaidVisitMustCancel(op.parameters.scheduledAt)
-          ) {
-            await stripe.paymentIntents.cancel(intent.id);
-            recorded.status = "canceled";
-            await finish("failed", "The visit reached its payment deadline.");
-            return { status: "failed" };
-          }
+          const blockedBeforeConfirm = await stopBlockedCharge(intent);
+          if (blockedBeforeConfirm) return blockedBeforeConfirm;
           intent = await stripe.paymentIntents.confirm(
             intent.id,
             { off_session: true },
@@ -480,8 +600,13 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
         await checkpoint();
       }
       await finish("succeeded");
-      if (op.operation_type === "charge" && bill.deadline_missed)
-        await cancel(op.booking_id, null, false, undefined, true);
+      if (op.operation_type === "charge" || op.operation_type === "extras") {
+        const current = await load(op.booking_id);
+        if (current.bill.policy_refund_required)
+          await refundBlockedPayment(op.booking_id);
+        else if (op.operation_type === "charge" && current.bill.deadline_missed)
+          await cancel(op.booking_id, null, false, undefined, true);
+      }
       return { status: "succeeded" };
     } catch (error) {
       // Once any successful Stripe effect exists, keep recovering the SAME
@@ -543,56 +668,54 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
         );
       await run(op.id);
     }
-    let dueQuery = admin
+    let refundQuery = admin
       .from("booking_visit_billing")
       .select("booking_id")
-      .in("status", ["unpaid", "failed", "requires_action"])
-      .lte("charge_due_at", new Date().toISOString())
-      .or(
-        `retry_after.is.null,retry_after.lte.${new Date().toISOString()},charge_due_at.lte.${new Date(Date.now() - 24 * 3_600_000).toISOString()}`,
-      )
-      .order("charge_due_at")
+      .eq("policy_refund_required", true)
+      .is("active_operation_id", null)
       .limit(limit);
-    if (bookingIds) dueQuery = dueQuery.in("booking_id", bookingIds);
-    const due = must(await dueQuery);
-    for (const row of due) {
-      const { booking, bill } = await load(row.booking_id);
-      if (booking.status === "cancelled") continue;
-      if (unpaidVisitMustCancel(booking.scheduled_at))
-        await cancel(row.booking_id, null);
-      else if (
-        !bill.retry_after ||
-        new Date(bill.retry_after).getTime() <= Date.now()
-      ) {
-        const operation = await prepare(
-          row.booking_id,
-          null,
-          "charge",
-          bill.revision,
-          { amountPence: bill.amount_pence, lines: bill.line_items },
-        );
-        await run(operation.id);
-      }
-    }
+    if (bookingIds) refundQuery = refundQuery.in("booking_id", bookingIds);
+    for (const row of must(await refundQuery))
+      await refundBlockedPayment(row.booking_id);
+    check(await admin.rpc("queue_due_visit_matching_notices"));
     // Expiry is part of this scheduler too, so a separate old hold cron is
     // not required for the new payment model.
     let unmatchedQuery = admin
       .from("bookings")
-      .select("id")
+      .select("id,scheduled_at,optional_scheduled_at")
       .eq("status", "offered")
       .is("provider_id", null)
       .lte("offer_expires_at", new Date().toISOString())
+      .order("scheduled_at")
       .limit(limit);
     if (bookingIds) unmatchedQuery = unmatchedQuery.in("id", bookingIds);
     const unmatched = must(await unmatchedQuery);
     for (const row of unmatched) {
+      const matchingDeadlineReached = [
+        row.scheduled_at,
+        ...(row.optional_scheduled_at ?? []),
+      ].some((slot) => new Date(slot).getTime() <= Date.now() + 2 * 3_600_000);
+      // An old offer expiry alone must never cancel a future visit early.
+      if (!matchingDeadlineReached) continue;
       const { data: bill } = await admin
         .from("booking_visit_billing")
         .select("booking_id,active_operation_id")
         .eq("booking_id", row.id)
         .maybeSingle();
-      if (bill && !bill.active_operation_id) await cancel(row.id, null, true);
+      if (
+        bill &&
+        !bill.active_operation_id &&
+        !(await chargeGate(row.id)).paused
+      )
+        await cancel(row.id, null, true);
     }
+    const due = must(
+      await admin.rpc("due_assigned_visit_payments", {
+        p_limit: limit,
+        p_bookings: bookingIds ?? null,
+      }),
+    ) as { booking_id: string }[];
+    for (const row of due) await chargeVisit(row.booking_id);
     check(
       await admin
         .from("visit_billing_runtime")
@@ -601,5 +724,14 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
     );
     return { recovered: active.length, due: due.length };
   }
-  return { load, quoteExtras, changeExtras, cancel, run, tick };
+  return {
+    load,
+    quoteExtras,
+    changeExtras,
+    cancel,
+    chargeVisit,
+    chargeGate,
+    run,
+    tick,
+  };
 }

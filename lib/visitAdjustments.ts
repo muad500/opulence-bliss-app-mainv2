@@ -2,6 +2,7 @@ import type { VisitLine } from "./visitBillingPolicy";
 
 export type VisitCharge = {
   id: string;
+  operation_id?: string | null;
   stripe_payment_intent: string;
   amount_pence: number;
   refunded_pence: number;

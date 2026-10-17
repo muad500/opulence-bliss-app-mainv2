@@ -1,10 +1,14 @@
 {
-  "sourceSha256": "f819aba1c1e1fa234d1f199dd087e8fb63ce2db85a247adfe8aae5f235ae797c",
+  "sourceSha256": "8e6aae6f1bafbb403326b6591fef1f35cf17979c604b0052bb40dd2c36ba52b3",
   "generator": "scripts/build-visit-payment-worker.mjs",
   "generatorSha256": "5b0961440e7d2fe28516fa3f795d51b8b662fa074c630efda795952c10344db5",
   "stripeVersion": "22.3.2",
   "supabaseVersion": "2.110.0",
   "inputs": [
+    {
+      "path": "lib/bookingSms.ts",
+      "sha256": "db4aba5dee5f2c570f5f3a94d365e51c5e7b7e76461e11bbed64fb7ddb04b8ff"
+    },
     {
       "path": "lib/cancellationPolicy.ts",
       "sha256": "d66eb4aa269f20ff8bdd12246e96ea814250a20949b3b06aba4d7fcba8b56119"
@@ -19,7 +23,7 @@
     },
     {
       "path": "lib/visitAdjustments.ts",
-      "sha256": "04503877f88d973ca00e3846def92149ccde9fe31fe259c784f29ae984332e42"
+      "sha256": "0d1c713967287c70ed185705cd8706d0a05db591422f7be014c8f6ccee731891"
     },
     {
       "path": "lib/visitBillingPolicy.ts",
@@ -27,15 +31,23 @@
     },
     {
       "path": "lib/visitBillingServer.ts",
-      "sha256": "a06fe647df290be7d8b0e30879a596da201f99c94771d6792d3af774f24b3cda"
+      "sha256": "b0817df70546f58bfc7a2e17f4418611dc55b1d9de18892dd50e077d29f71727"
     },
     {
       "path": "lib/visitLineItems.ts",
       "sha256": "2719acf8c6108602da52b2d117d66d2670e13a8ea371a7aac9c89f280dfd40a6"
     },
     {
+      "path": "lib/visitMatchingNotices.ts",
+      "sha256": "da0344939bd15b727df5f406cc41d538f54335afe70775d0a0e7427b4ffd2eae"
+    },
+    {
+      "path": "lib/visitMatchingPolicy.ts",
+      "sha256": "5c42127126189e74158b7828dd6f0d07ad3075c29e48401c13325119c14becd9"
+    },
+    {
       "path": "supabase/functions/visit-payments/handler.ts",
-      "sha256": "80e5b6c1394f2a51dc22af82c769c8f111f433ce87e592d18f60fa29fd734888"
+      "sha256": "e330376159cea7ec519e16e613cda0235df89710c33a6dd7545911022e6ba8fb"
     }
   ]
 }

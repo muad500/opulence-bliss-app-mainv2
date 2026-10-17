@@ -12,6 +12,7 @@ export type VisitBillingDetails = {
   amountPence: number;
   paidPence: number;
   dueAt: string;
+  cardUpdateDeadline?: string | null;
   addons: string[];
   bringsProducts: boolean;
   canChange: boolean;
@@ -134,13 +135,33 @@ export default function VisitBillingPanel({
       </p>
       {["unpaid", "failed", "requires_action"].includes(details.status) && (
         <p>
-          The saved card is charged 48 hours before this visit.{" "}
+          Your saved card is charged only after a cleaner accepts, at 48 hours
+          before the visit or immediately if closer. Paused visits are not
+          charged.{" "}
           <a href="/account/profile#payments">Manage your saved card</a>.
         </p>
       )}
+      {["failed", "requires_action"].includes(details.status) &&
+        details.cardUpdateDeadline && (
+          <p role="alert">
+            Update your saved card before{" "}
+            {new Intl.DateTimeFormat("en-GB", {
+              dateStyle: "medium",
+              timeStyle: "short",
+              timeZone: "Europe/London",
+            }).format(new Date(details.cardUpdateDeadline))}{" "}
+            (London time). If payment still fails, this visit will be cancelled.
+          </p>
+        )}
       {details.processing && (
         <p role="status">
           A payment change is processing. Please do not pay again.
+        </p>
+      )}
+      {details.status === "review" && (
+        <p role="status">
+          Our team needs to review this visit’s payment before further changes.
+          Your existing payments remain recorded; please contact support.
         </p>
       )}
       <fieldset disabled={busy || !details.canChange}>

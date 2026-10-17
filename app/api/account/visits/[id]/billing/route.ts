@@ -50,12 +50,15 @@ export async function GET(request: NextRequest, context: RouteContext) {
         amountPence: bill.amount_pence,
         paidPence,
         dueAt: bill.charge_due_at,
+        cardUpdateDeadline: bill.late_payment_grace_until,
         lines: bill.line_items,
         addons: booking.cleaning_extras.addons,
         bringsProducts: booking.cleaning_extras.bringsProducts,
         canChange:
           ["offered", "declined", "scheduled"].includes(booking.status) &&
           visitExtrasCanChange(booking.scheduled_at) &&
+          bill.status !== "review" &&
+          !bill.policy_refund_required &&
           !bill.active_operation_id,
         cancellationPolicy: calculateCancellationPolicy(
           booking.scheduled_at,

@@ -229,6 +229,7 @@ const pureDependencies = {
   "@/lib/offerRotation": {},
   "@/lib/verificationRenewal": {},
   "@/lib/prepaidVisitPayout": {},
+  "@/lib/visitBillingServer": {},
   "@/lib/tipPayout": {},
   "@/lib/legacyDestinationCapture": {},
   "@/lib/payoutDestination": {},

@@ -14,6 +14,9 @@ function fixture({
   oldUnknown = false,
   lostRefund = false,
   extras = false,
+  unassigned = false,
+  paused = false,
+  pauseAfterCreate = false,
 } = {}) {
   const calls = [];
   const lines = [
@@ -29,6 +32,7 @@ function fixture({
       id: "booking",
       customer_id: "user",
       status: "scheduled",
+      provider_id: unassigned ? null : "provider",
       scheduled_at: new Date(Date.now() + 40 * 3_600_000).toISOString(),
     },
     bill: {
@@ -76,6 +80,7 @@ function fixture({
     },
     intents: [],
     refunds: [],
+    paused,
   };
   const db = {
     from(table) {
@@ -120,6 +125,23 @@ function fixture({
       return q;
     },
     async rpc(name, input) {
+      if (name === "visit_charge_gate") {
+        const assigned = Boolean(state.booking.provider_id);
+        const allowed = !state.paused && (extras || assigned);
+        return {
+          data: {
+            allowed,
+            assigned,
+            paused: state.paused,
+            reason: state.paused
+              ? "series_paused"
+              : assigned || extras
+                ? null
+                : "cleaner_unassigned",
+          },
+          error: null,
+        };
+      }
       if (name === "claim_visit_money_operation") {
         if (["succeeded", "failed"].includes(state.op.status))
           return { data: null, error: null };
@@ -128,7 +150,8 @@ function fixture({
       }
       if (name === "finish_visit_money_operation") {
         calls.push(`finish:${input.p_outcome}`);
-        state.op.status = input.p_outcome;
+        state.op.status =
+          input.p_outcome === "blocked" ? "failed" : input.p_outcome;
         state.op.stripe_objects = structuredClone(input.p_results);
         return { data: null, error: null };
       }
@@ -166,6 +189,7 @@ function fixture({
           created: Math.floor(Date.now() / 1000),
         };
         state.intents.push(intent);
+        if (pauseAfterCreate) state.paused = true;
         return structuredClone(intent);
       },
       async confirm(id) {
@@ -282,4 +306,39 @@ test("a paid extra swap with lost refund response recovers without another charg
   assert.equal(h.calls.filter((call) => call === "confirm").length, 1);
   assert.equal(h.calls.filter((call) => call === "refund").length, 1);
   assert.equal(h.state.op.stripe_objects.length, 2);
+});
+
+test("an unassigned later visit cannot create or confirm a payment", async () => {
+  const h = fixture({ unassigned: true });
+  assert.equal((await h.engine.run("operation")).status, "blocked");
+  assert.equal(h.calls.includes("create"), false);
+  assert.equal(h.calls.includes("confirm"), false);
+});
+
+test("a paused series blocks a previously selected or prepared charge", async () => {
+  const h = fixture({ paused: true });
+  assert.equal((await h.engine.run("operation")).status, "blocked");
+  assert.equal(h.state.intents.length, 0);
+  h.state.paused = false;
+  assert.equal((await h.engine.run("operation")).status, "failed");
+  assert.equal(
+    h.state.intents.length,
+    0,
+    "A delayed event cannot revive the old attempt after resume",
+  );
+});
+
+test("a pause after intent creation closes the unconfirmed intent without charging", async () => {
+  const h = fixture({ pauseAfterCreate: true });
+  assert.equal((await h.engine.run("operation")).status, "blocked");
+  assert.equal(h.state.intents.length, 1);
+  assert.equal(h.state.intents[0].status, "canceled");
+  assert.equal(h.calls.includes("confirm"), false);
+});
+
+test("paid add-on charges also respect a series pause", async () => {
+  const h = fixture({ extras: true, paused: true });
+  assert.equal((await h.engine.run("operation")).status, "blocked");
+  assert.equal(h.calls.includes("create"), false);
+  assert.equal(h.calls.includes("refund"), false);
 });

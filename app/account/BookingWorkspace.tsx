@@ -430,7 +430,7 @@ export default function BookingWorkspace({
             <small>
               <Info size={14} />{" "}
               {visitBilling?.model === "per_visit"
-                ? "Each visit is charged separately. The first is paid at checkout; later visits 48 hours before."
+                ? "The first visit is paid at checkout. Later visits are charged only after a cleaner accepts, at 48 hours before or immediately if closer."
                 : booking.paymentExplanation}
             </small>
           </SummaryCard>

@@ -15,6 +15,7 @@ import {
 import { sendEmail } from "@/lib/email";
 import { rotateBookingOffer } from "@/lib/offerRotation";
 import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
+import { createVisitBilling } from "@/lib/visitBillingServer";
 import {
   captureBookingPayment,
   LegacyDestinationCaptureError,
@@ -189,6 +190,32 @@ export async function acceptJob(id: string, selectedSlot: string) {
   }
 
   // Booking acceptance queues confirmation and reminders in the database.
+  // The database queue remains due if this request loses its response; its
+  // recovery path repeats the current assignment and series-pause checks.
+  const { data: visitBill } = await admin
+    .from("booking_visit_billing")
+    .select("booking_id")
+    .eq("booking_id", id)
+    .maybeSingle();
+  if (visitBill) {
+    try {
+      const result = await createVisitBilling(admin, stripe).chargeVisit(id);
+      if (result.status === "failed") {
+        revalidatePath("/worker");
+        revalidatePath("/account");
+        return {
+          error:
+            "The customer's payment failed. Their booking has been updated; refresh your jobs.",
+        };
+      }
+    } catch {
+      // Acceptance is already durable. Never invite another acceptance or a
+      // second charge because this machine request is temporarily unavailable.
+      console.error(
+        "Accepted visit payment will be recovered by the scheduler.",
+      );
+    }
+  }
 
   revalidatePath("/worker");
   revalidatePath("/account");
