@@ -15,6 +15,8 @@ type Draft = {
   url: string;
   service: string;
   total_gbp: number;
+  due_now_gbp: number;
+  payment_summary: string;
   visits: number;
   preferred_time: string;
   optional_times: string[];
@@ -42,6 +44,7 @@ export default function AssistantBooking({
   onPrepared: (draft: Draft) => void;
   onClose: () => void;
 }) {
+  const [perVisitBilling, setPerVisitBilling] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState("");
   const [postcode, setPostcode] = useState("");
@@ -68,6 +71,7 @@ export default function AssistantBooking({
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
         setServices(data.services);
+        setPerVisitBilling(data.perVisitBilling === true);
       })
       .catch((cause) => {
         if (!controller.signal.aborted)
@@ -259,13 +263,15 @@ export default function AssistantBooking({
               <strong>
                 {money(
                   (bookingPricePence(selected, minutes) *
-                    (regular ? visits : 1)) /
+                    (regular && !perVisitBilling ? visits : 1)) /
                     100,
                 )}
               </strong>
               <span>
                 {regular
-                  ? `${visits} visits paid upfront · ${money(bookingPricePence(selected, minutes) / 100)} per visit`
+                  ? perVisitBilling
+                    ? `First of ${visits} visits due at checkout; later visits charged 48 hours before only when assigned. Extras confirmed at checkout.`
+                    : `${visits} visits paid upfront · ${money(bookingPricePence(selected, minutes) / 100)} per visit`
                   : "For one visit, before any checkout discount"}
               </span>
             </p>

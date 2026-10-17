@@ -14,7 +14,7 @@ export default async function ProfessionalJobs({
 }: {
   searchParams: Promise<{ service?: string }>;
 }) {
-  const { client, admin, provider } = await professionalPortal();
+  const { admin, provider } = await professionalPortal();
   const enabled = handymanEnabled();
   const filter = professionalJobFilter((await searchParams).service, enabled);
   if (!filter) notFound();
@@ -81,9 +81,7 @@ export default async function ProfessionalJobs({
                       timeStyle: "short",
                     })}
                   </p>
-                  <strong>
-                    £{(job.hourly_rate_pence / 100).toFixed(2)}/hr
-                  </strong>
+                  <span>View the agreed job details</span>
                 </Link>
               ))}
             </div>

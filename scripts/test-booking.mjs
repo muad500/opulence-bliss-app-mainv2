@@ -149,6 +149,11 @@ try {
       stdio: "inherit",
     },
   );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-production-visit-release.mjs"],
+    { stdio: "inherit" },
+  );
 } finally {
   await rm(directory, { recursive: true, force: true });
 }

@@ -73,7 +73,7 @@ test("optional alternatives cannot repeat the preference, duplicate or have shor
   }
 });
 
-test("regular rate cannot leak into a one-off; bundle quote has the full upfront total", () => {
+test("regular rate cannot leak into a one-off; legacy bundle quote has the full upfront total", () => {
   const regularPkg = { ...pkg, name: "Essential Clean", price: 37.8 };
   assert.throws(
     () => assistantBookingHandoff(regularPkg, input, now),
@@ -173,4 +173,29 @@ test("FAQ retrieval uses actual published wording and returns no fabricated answ
     faqs[0].answer,
   );
   assert.deepEqual(relevantAssistantFaqs(faqs, "quantum astronomy"), []);
+});
+
+test("per-visit chat quote charges only the first visit and describes assigned-only later charges", () => {
+  const regularPkg = { ...pkg, name: "Essential Clean", price: 37.8 };
+  const draft = assistantBookingHandoff(
+    regularPkg,
+    { ...input, frequency: "weekly", visits: 6 },
+    now,
+    true,
+  );
+  assert.equal(draft.total_gbp, 340.2);
+  assert.equal(draft.due_now_gbp, 56.7);
+  assert.equal(draft.payment_model, "per_visit");
+  assert.match(draft.payment_summary, /only when a cleaner is assigned/);
+  assert.doesNotMatch(draft.payment_summary, /paid upfront/);
+  const single = assistantBookingHandoff(pkg, input, now, true);
+  assert.equal(single.due_now_gbp, single.total_gbp);
+  assert.match(single.payment_summary, /no card hold/);
+  const legacy = assistantBookingHandoff(
+    regularPkg,
+    { ...input, frequency: "weekly", visits: 6 },
+    now,
+  );
+  assert.equal(legacy.due_now_gbp, legacy.total_gbp);
+  assert.match(legacy.payment_summary, /paid upfront/);
 });

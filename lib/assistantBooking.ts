@@ -53,6 +53,7 @@ export function assistantBookingHandoff(
   pkg: AssistantPackage,
   input: Record<string, unknown>,
   now = Date.now(),
+  perVisitBilling = false,
 ) {
   const postcode = normaliseAssistantPostcode(input.postcode);
   const minutes = Number(input.duration_minutes ?? pkg.duration_minutes ?? 120);
@@ -121,6 +122,9 @@ export function assistantBookingHandoff(
     hourly_rate_gbp: cleaningHourlyRatePence(pkg) / 100,
     price_per_visit_gbp: visitPence / 100,
     total_gbp: (visitPence * visits) / 100,
+    due_now_gbp: (visitPence * (perVisitBilling ? 1 : visits)) / 100,
+    payment_model: perVisitBilling ? "per_visit" : "legacy",
+    payment_summary: assistantPaymentSummary(perVisitBilling, visits),
     note: "This is a draft. Review your address, home details and final price in checkout. A cleaner is matched after booking; nothing is booked or paid by this chat.",
   };
 }
@@ -146,4 +150,19 @@ export function safeAssistantHref(raw: string, origin?: string) {
     }
   }
   return raw;
+}
+
+/** The server selects the model; a chat draft never creates a payment. */
+export function assistantPaymentSummary(
+  perVisitBilling: boolean,
+  visits: number,
+) {
+  if (perVisitBilling) {
+    return visits > 1
+      ? "Only the first visit is charged at checkout. Later visits are charged 48 hours before, only when a cleaner is assigned; a cleaner accepting later triggers payment then. Extras are confirmed at checkout."
+      : "The full visit amount is charged at checkout, with no card hold. Extras are confirmed at checkout.";
+  }
+  return visits > 1
+    ? "The regular series is paid upfront. Checkout confirms the final amount."
+    : "Checkout authorises a card hold; the visit is charged after completion.";
 }

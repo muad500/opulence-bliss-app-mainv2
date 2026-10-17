@@ -63,8 +63,11 @@ success alone only means its asynchronous HTTP request was queued.
 Production stays unchanged until a separately authorised release. Before merging
 the per-visit application into `main`:
 
-1. Apply its five pending billing migrations (20261014000100–20261014000500) to
-   Production and verify the source ledger. Keep legal migration 20261003002100 held.
+1. Apply the nine exact-source migrations in `docs/production-visit-release.md`
+   (20261014000100–20261014000500, 20261017000100, and
+   20261018000100–20261018000300) and verify the ledger. The additional scope-notes
+   migration must not be omitted from the release manifest. An already-applied
+   exact ledger entry is skipped. Keep legal migration 20261003002100 held.
 2. Deploy this exact generated worker to Production from the reviewed feature
    source; configure its own live account and private cron credential.
 3. Store the credential in Production Vault as

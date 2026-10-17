@@ -1,3 +1,4 @@
+import { visitBillingEnabled } from "./visitBillingPolicy";
 import { CLEANING_ADDONS, CLEANING_PRODUCTS_FEE_PENCE } from "./cleaningExtras";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cleaningPackageScope } from "./cleaningScope";
@@ -102,5 +103,10 @@ export async function prepareAssistantBooking(
     throw new Error("Choose an exact service from the current cleaning list.");
   if (!coverage.covered)
     throw new Error("We do not currently cover that postcode.");
-  return assistantBookingHandoff(pkg, { ...input, postcode });
+  return assistantBookingHandoff(
+    pkg,
+    { ...input, postcode },
+    Date.now(),
+    visitBillingEnabled(),
+  );
 }

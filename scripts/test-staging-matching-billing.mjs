@@ -550,7 +550,7 @@ async function runSuite(admin, stripe, packages) {
         p_selected_slot: row.booking.scheduled_at,
       }),
     );
-    return provider;
+    return { ...provider, client };
   }
   async function regularAt(name, hours, options = {}) {
     // Move the clock using private synthetic schedule data, never shared time
@@ -637,6 +637,124 @@ async function runSuite(admin, stripe, packages) {
   }
 
   try {
+    await caseOf(
+      "completed_visit_full_tip_to_assigned_account_once",
+      async () => {
+        process.env.NEXT_PUBLIC_SUPABASE_URL = databaseUrl;
+        process.env.SUPABASE_SERVICE_ROLE_KEY =
+          secrets.SUPABASE_SERVICE_ROLE_KEY;
+        process.env.STRIPE_SECRET_KEY = secrets.STRIPE_SECRET_KEY;
+        const f = await fixture("completed-tip");
+        const id = f.ids[0];
+        const provider = await assign(id);
+        const connected = await stripe.accounts.create(
+          {
+            type: "custom",
+            country: "GB",
+            business_type: "individual",
+            business_profile: { url: "https://opulencebliss.com", mcc: "7349" },
+            individual: {
+              first_name: "Synthetic",
+              last_name: "Tip Fixture",
+              email: "synthetic-tip@example.invalid",
+              dob: { day: 1, month: 1, year: 1990 },
+              address: {
+                line1: "Test address",
+                city: "London",
+                postal_code: "EC1V 2NX",
+                country: "GB",
+              },
+            },
+            // Synthetic test account only; never used to onboard a real person.
+            tos_acceptance: {
+              date: Math.floor(Date.now() / 1000),
+              ip: "127.0.0.1",
+            },
+            capabilities: { transfers: { requested: true } },
+            metadata: {
+              staging_audit: runId,
+              synthetic_fixture: "tip recipient only",
+            },
+          },
+          { idempotencyKey: runId + ":tip-account" },
+        );
+        f.saved.tipAccount = connected.id;
+        save();
+        checked(
+          await admin
+            .from("providers")
+            .update({ stripe_account_id: connected.id })
+            .eq("id", provider.id),
+        );
+        checked(
+          await provider.client.rpc("transition_booking", {
+            p_booking_id: id,
+            p_to_status: "in_progress",
+            p_reason: "Synthetic staging completion test",
+          }),
+        );
+        checked(
+          await provider.client.rpc("transition_booking", {
+            p_booking_id: id,
+            p_to_status: "completed",
+            p_reason: "Synthetic staging completion test",
+          }),
+        );
+        const intent = await stripe.paymentIntents.create(
+          {
+            amount: 300,
+            currency: "gbp",
+            customer: f.customer.id,
+            payment_method: f.card.id,
+            payment_method_types: ["card"],
+            confirm: true,
+            metadata: { kind: "tip", booking_id: id, staging_audit: runId },
+            transfer_group: "ob_tip_" + id,
+          },
+          { idempotencyKey: runId + ":tip-payment" },
+        );
+        assert.equal(intent.status, "succeeded");
+        assert.equal(intent.livemode, false);
+        assert.equal(Boolean(intent.transfer_data), false);
+        const { finalizeTipCheckout } = load("lib/finalizeTipCheckout.ts");
+        const session = {
+          mode: "payment",
+          payment_status: "paid",
+          client_reference_id: f.user.id,
+        };
+        const first = await finalizeTipCheckout(session, intent);
+        const again = await finalizeTipCheckout(session, intent);
+        assert.equal(first.paymentId, again.paymentId);
+        const payouts = checked(
+          await admin
+            .from("payouts")
+            .select("id,status,amount,stripe_transfer_ref")
+            .eq("payment_id", first.paymentId),
+        );
+        assert.equal(payouts.length, 1);
+        assert.equal(Number(payouts[0].amount), 3);
+        assert.equal(
+          payouts[0].status,
+          "paid",
+          "Full tip must reach the assigned test account",
+        );
+        const transfer = await stripe.transfers.retrieve(
+          payouts[0].stripe_transfer_ref,
+        );
+        assert.equal(transfer.destination, connected.id);
+        assert.equal(transfer.amount, 300);
+        assert.equal(transfer.livemode, false);
+        return {
+          bookingId: id,
+          paymentIntent: intent.id,
+          amountPence: 300,
+          transferId: transfer.id,
+          assignedTestAccount: connected.id,
+          payoutId: payouts[0].id,
+          replayDeduplicated: true,
+        };
+      },
+    );
     await caseOf(
       "rescheduled_visit_cannot_send_its_stale_matching_warning",
       async () => {

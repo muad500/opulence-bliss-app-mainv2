@@ -1,3 +1,4 @@
+import { visitBillingEnabled } from "@/lib/visitBillingPolicy";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -21,7 +22,10 @@ export async function GET(req: NextRequest) {
           normaliseAssistantPostcode(pc),
           Number(req.nextUrl.searchParams.get("duration") ?? 120),
         )
-      : { services: await assistantServices(db) };
+      : {
+          services: await assistantServices(db),
+          perVisitBilling: visitBillingEnabled(),
+        };
     return NextResponse.json(data, {
       headers: { "Cache-Control": "no-store" },
     });

@@ -28,13 +28,17 @@ Email claims use row locks, claim tokens, short leases, bounded retries and a st
 
 Attachments use a private 10 MB Storage bucket, participant policies and short-lived signed URLs. JPG, PNG, WebP and PDF are supported. Posted files cannot be deleted through the uploader cleanup policy. No malware-scanning service is included.
 
-Custom tips support arbitrary pence amounts from Stripe's GBP card minimum of £0.30. Sources: [Stripe minimum amounts](https://docs.stripe.com/currencies?locale=en-GB), [Resend idempotency](https://resend.com/docs/dashboard/emails/idempotency-keys).
+Current staging tips have a £3 minimum and go in full to the assigned professional's
+own Stripe account. New cleaning pay calculations remain held pending the client's
+rate decision; the legacy rollout notes above do not override the current
+per-visit release gates in `production-visit-release.md`.
 
 ## Verification
 
 Run `npm ci`, `npm test`, `npx tsc --noEmit`, and the customer-booking GitHub workflow. Pure tests cover duration boundaries, pricing, size estimates, London time/DST, and existing booking-state projections.
 
 Staging integration checks:
+
 - A 2.5-hour clean costs 1.25 times a 2-hour package; invalid duration/size requests fail at checkout. Try a start that finishes exactly at 20:00, one that finishes after 20:00, 06:30 and 12:45.
 - Refresh the successful Stripe checkout concurrently; exactly one booking/payment and one initial queue should exist.
 - Verify a previous cleaner is requested first only when eligible; a provider ID from someone else's history is rejected.
