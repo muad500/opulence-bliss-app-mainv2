@@ -18,14 +18,12 @@ export default async function CurrentJobPage() {
     .eq("profile_id", user.id)
     .maybeSingle();
 
-  const inactive =
-    !provider ||
-    provider.vetting_status !== "approved";
+  const inactive = !provider || provider.vetting_status !== "approved";
   const suspended = provider?.is_suspended === true;
 
   const { data: rows } = !inactive
     ? await supabase
-        .from("bookings")
+        .rpc("worker_visible_bookings")
         .select("id")
         .eq("status", "in_progress")
         .order("scheduled_at", { ascending: true })

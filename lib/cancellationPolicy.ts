@@ -1,13 +1,14 @@
-export type CancellationPolicyTier =
-  | "full"
-  | "three_quarter"
-  | "half"
-  | "none";
+import {
+  DEFAULT_CLEANING_BILLING_TERMS,
+  type CleaningBillingTerms,
+} from "./cleaningBillingTerms";
+
+export type CancellationPolicyTier = "full" | "three_quarter" | "half" | "none";
 
 export type CancellationPolicy = {
   tier: CancellationPolicyTier;
   hoursUntilBooking: number;
-  refundPercent: 100 | 75 | 50 | 0;
+  refundPercent: number;
   refundAmount: number;
   refundPence: number;
   cancellationCharge: number;
@@ -16,7 +17,11 @@ export type CancellationPolicy = {
   explanation: string;
 };
 
-export type CancellationPaymentAction = "release" | "capture" | "refund" | "none";
+export type CancellationPaymentAction =
+  | "release"
+  | "capture"
+  | "refund"
+  | "none";
 
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -42,6 +47,7 @@ export function calculateCancellationPolicy(
   scheduledAt: string | Date,
   grossAmount: number,
   now: string | Date = new Date(),
+  refunds: CleaningBillingTerms["cancellationRefundPercent"] = DEFAULT_CLEANING_BILLING_TERMS.cancellationRefundPercent,
 ): CancellationPolicy {
   const scheduledMs = new Date(scheduledAt).getTime();
   const nowMs = new Date(now).getTime();
@@ -57,28 +63,19 @@ export function calculateCancellationPolicy(
         : hoursUntilBooking >= 24
           ? "three_quarter"
           : "half";
-  const refundPercent =
-    tier === "full"
-      ? 100
-      : tier === "three_quarter"
-        ? 75
-        : tier === "half"
-          ? 50
-          : 0;
+  const refundPercent = refunds[tier];
   const refundPence = Math.round((grossPence * refundPercent) / 100);
   const cancellationChargePence = grossPence - refundPence;
 
   const title =
-    tier === "full"
+    refundPercent === 100
       ? "Full refund"
-      : tier === "three_quarter"
-        ? "75% refund"
-        : tier === "half"
-        ? "50% refund"
-        : "No refund";
+      : refundPercent === 0
+        ? "No refund"
+        : `${refundPercent}% refund`;
   const explanation =
     tier === "full"
-      ? `This visit is at least 48 hours away. The full ${pounds(grossPence)} will be refunded or released.`
+      ? `This visit is at least 48 hours away. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
       : tier === "three_quarter"
         ? `This visit is between 24 and 48 hours away. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
         : tier === "half"

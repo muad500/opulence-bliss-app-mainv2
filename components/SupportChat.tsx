@@ -436,7 +436,7 @@ export default function SupportChat() {
           </button>
         )}
         <a href="/faq">FAQ</a>
-        <a href="mailto:opulencebliss@gmail.com">Contact support</a>
+        <a href="mailto:hello@opulencebliss.com">Contact support</a>
       </nav>
       {guided ? (
         <AssistantBooking
@@ -446,7 +446,7 @@ export default function SupportChat() {
               ...current,
               {
                 role: "assistant",
-                text: `${draft.service} · ${draft.duration_minutes / 60} hours · £${draft.due_now_gbp.toFixed(2)} at checkout (before extras). ${draft.payment_summary}\nPreferred time: ${new Date(draft.preferred_time).toLocaleString("en-GB", { timeZone: "Europe/London" })}${draft.optional_times.length ? `\nOptional times: ${draft.optional_times.map((time) => new Date(time).toLocaleString("en-GB", { timeZone: "Europe/London" })).join("; ")}` : ""}\n${draft.note}`,
+                text: `${draft.service} · ${draft.duration_minutes / 60} hours. ${draft.payment_summary}\nPreferred time: ${new Date(draft.preferred_time).toLocaleString("en-GB", { timeZone: "Europe/London" })}${draft.optional_times.length ? `\nOptional times: ${draft.optional_times.map((time) => new Date(time).toLocaleString("en-GB", { timeZone: "Europe/London" })).join("; ")}` : ""}\n${draft.note}`,
                 action: {
                   kind: "navigate",
                   label: "Review booking",

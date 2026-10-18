@@ -1,9 +1,12 @@
 "use client";
 
+import {
+  visitAddressVisible,
+  visitMessagingOpen,
+} from "@/lib/visitContactPolicy";
 import SessionCountdown from "@/components/SessionCountdown";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
 import { useEffect, useState } from "react";
-import { formatUkPhone } from "@/lib/ukPhone";
 import {
   CalendarDays,
   CheckCircle2,
@@ -15,7 +18,6 @@ import {
   MapPin,
   MessageSquare,
   Navigation,
-  Phone,
   ShieldCheck,
   Star,
   X,
@@ -161,7 +163,11 @@ function nextSteps(job: WorkerJobWorkspaceData) {
         "Follow the client's booking notes.",
         job.checkIn.arrivedAt,
       ],
-      ["Expected finish", "Based on check-in time and the customer's chosen duration.", finish],
+      [
+        "Expected finish",
+        "Based on check-in time and the customer's chosen duration.",
+        finish,
+      ],
       ["Check out", "Finish the job only when the work is done.", null],
       ["Payout", "Your payout status updates after completion.", null],
     ];
@@ -187,6 +193,11 @@ export default function WorkerJobWorkspace({
 }: {
   job: WorkerJobWorkspaceData;
 }) {
+  const [contactNow, setContactNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setContactNow(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
   const [chatOpen, setChatOpen] = useState(false);
   const [issueOpen, setIssueOpen] = useState(false);
   const modalOpen = chatOpen || issueOpen;
@@ -223,14 +234,28 @@ export default function WorkerJobWorkspace({
   );
   const stage = workerStage(job);
   const status = statusCopy(job);
-  const maps = job.address
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(job.address)}`
+  const visibleAddress = visitAddressVisible(
+    job.status,
+    job.scheduledAt,
+    job.durationMinutes,
+    job.checkIn.leftAt,
+    contactNow,
+  )
+    ? job.address
+    : null;
+  const maps = visibleAddress
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(visibleAddress)}`
     : null;
   const bookingRef = `#BKG-${job.id.slice(0, 8).toUpperCase()}`;
   const clientFirstName = job.client.name.split(" ")[0] || "Client";
-  const chatClosed =
-    job.status === "cancelled" ||
-    new Date(job.scheduledAt).getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const chatClosed = !visitMessagingOpen(
+    job.status,
+    true,
+    job.scheduledAt,
+    job.durationMinutes,
+    job.contactEnd ?? job.checkIn.leftAt,
+    contactNow,
+  );
   const timelineDetails = [
     compactDateTime(job.createdAt),
     compactDateTime(job.confirmedAt),
@@ -311,7 +336,13 @@ export default function WorkerJobWorkspace({
           </span>
           {job.delayMinutes && (
             <strong className="delay-chip">
-              Updated arrival: {clock(new Date(new Date(job.scheduledAt).getTime() + job.delayMinutes * 60_000).toISOString())}
+              Updated arrival:{" "}
+              {clock(
+                new Date(
+                  new Date(job.scheduledAt).getTime() +
+                    job.delayMinutes * 60_000,
+                ).toISOString(),
+              )}
             </strong>
           )}
         </div>
@@ -321,7 +352,8 @@ export default function WorkerJobWorkspace({
             <div>
               <span>Preferred time · first choice</span>
               <strong>
-                {fullDate(job.preferredScheduledAt ?? job.scheduledAt)} · {clock(job.preferredScheduledAt ?? job.scheduledAt)}
+                {fullDate(job.preferredScheduledAt ?? job.scheduledAt)} ·{" "}
+                {clock(job.preferredScheduledAt ?? job.scheduledAt)}
               </strong>
             </div>
             {job.optionalScheduledAt.length > 0 && (
@@ -337,7 +369,12 @@ export default function WorkerJobWorkspace({
           </section>
         )}
 
-      <SessionCountdown bookingId={job.id} status={job.status} startedAt={job.checkIn.arrivedAt} durationMinutes={job.durationMinutes} />
+        <SessionCountdown
+          bookingId={job.id}
+          status={job.status}
+          startedAt={job.checkIn.arrivedAt}
+          durationMinutes={job.durationMinutes}
+        />
         <BookingProgress
           status={job.status}
           stage={stage}
@@ -345,14 +382,14 @@ export default function WorkerJobWorkspace({
           details={timelineDetails}
         />
 
-        {bookingNotes.home
-          ? <p>Home details: {bookingNotes.home}</p>
-          : job.propertySizeSqm
-            ? <p>Property size: {Number(job.propertySizeSqm).toFixed(1)} m²</p>
-            : null}
+        {bookingNotes.home ? (
+          <p>Home details: {bookingNotes.home}</p>
+        ) : job.propertySizeSqm ? (
+          <p>Property size: {Number(job.propertySizeSqm).toFixed(1)} m²</p>
+        ) : null}
         <div className="summary-grid">
           <SummaryCard tone="sky" icon={<MapPin size={22} />} label="Location">
-            <strong>{job.address ?? "Address unavailable"}</strong>
+            <strong>{visibleAddress ?? "Address hidden after visit"}</strong>
             {maps && (
               <small>
                 <a href={maps} target="_blank" rel="noreferrer">
@@ -402,12 +439,6 @@ export default function WorkerJobWorkspace({
                 </span>
                 {job.client.completedWithYou > 0 && <span>Repeat client</span>}
               </div>
-              {job.client.email && <p>{job.client.email}</p>}
-              {job.client.phone && (
-                <a className="client-call" href={`tel:${job.client.phone}`}>
-                  <Phone size={15} /> Call {formatUkPhone(job.client.phone)}
-                </a>
-              )}
             </div>
           </div>
           <div className="instructions">
@@ -1118,7 +1149,9 @@ export default function WorkerJobWorkspace({
             display: flex;
             gap: 8px 16px;
           }
-          .offered-times { grid-template-columns: 1fr; }
+          .offered-times {
+            grid-template-columns: 1fr;
+          }
           .summary-grid {
             grid-template-columns: 1fr;
             padding: 8px;

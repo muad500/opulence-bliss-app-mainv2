@@ -29,8 +29,11 @@ export default async function Inbox({
     );
   const provider =
     audience === "worker" ? (await professionalPortal()).provider : null;
-  const { data: bookings, error } = await client
-    .from("bookings")
+  const { data: bookingData, error } = await (
+    audience === "worker"
+      ? client.rpc("worker_visible_bookings")
+      : client.from("bookings")
+  )
     .select("id,scheduled_at,status,packages(name)")
     .eq(
       audience === "customer" ? "customer_id" : "provider_id",
@@ -39,6 +42,11 @@ export default async function Inbox({
     .in("status", ["scheduled", "in_progress", "completed"])
     .order("scheduled_at", { ascending: false })
     .limit(30);
+  const bookings = (Array.isArray(bookingData) ? bookingData : []) as {
+    id: string;
+    scheduled_at: string;
+    status: string;
+  }[];
   if (error) throw new Error("Your conversations could not be loaded.");
   return (
     <main style={{ padding: 20 }}>

@@ -1,4 +1,8 @@
 import { bookingPricePence, validCleaningDuration } from "./cleaningBooking";
+import {
+  DEFAULT_CLEANING_BILLING_TERMS,
+  type CleaningBillingTerms,
+} from "./cleaningBillingTerms";
 
 export const CLEANING_ADDONS = [
   { id: "oven", label: "Oven", pricePence: 2000 },
@@ -11,7 +15,15 @@ export type CleaningAddonId = (typeof CLEANING_ADDONS)[number]["id"];
 export const CLEANING_PRODUCTS_FEE_PENCE = 500;
 
 /** Server and client share the catalogue; the request never supplies prices. */
-export function parseCleaningExtras(addons: unknown, bringsProducts: unknown) {
+type ExtraPrices = Pick<
+  CleaningBillingTerms,
+  "addonPrices" | "productsFeePence"
+>;
+export function parseCleaningExtras(
+  addons: unknown,
+  bringsProducts: unknown,
+  prices: ExtraPrices = DEFAULT_CLEANING_BILLING_TERMS,
+) {
   if (
     !Array.isArray(addons) ||
     addons.some((id) => !CLEANING_ADDONS.some((item) => item.id === id)) ||
@@ -21,13 +33,15 @@ export function parseCleaningExtras(addons: unknown, bringsProducts: unknown) {
   }
   if (typeof bringsProducts !== "boolean")
     throw new Error("Choose who brings cleaning products.");
-  const selected = CLEANING_ADDONS.filter((item) => addons.includes(item.id));
+  const selected = CLEANING_ADDONS.filter((item) =>
+    addons.includes(item.id),
+  ).map((item) => ({ ...item, pricePence: prices.addonPrices[item.id] }));
   return {
     addons: selected,
     bringsProducts,
     addonPence: selected.reduce((sum, item) => sum + item.pricePence, 0),
     extraMinutes: selected.length * 60,
-    productsPence: bringsProducts ? CLEANING_PRODUCTS_FEE_PENCE : 0,
+    productsPence: bringsProducts ? prices.productsFeePence : 0,
   };
 }
 
@@ -37,6 +51,7 @@ export function cleaningQuote(
   addons: unknown,
   bringsProducts: unknown,
   visits: number,
+  prices: ExtraPrices = DEFAULT_CLEANING_BILLING_TERMS,
 ) {
   if (
     !validCleaningDuration(baseMinutes) ||
@@ -44,7 +59,7 @@ export function cleaningQuote(
     (visits !== 1 && (visits < 6 || visits > 10))
   )
     throw new Error("Choose valid cleaning hours and visits.");
-  const extras = parseCleaningExtras(addons, bringsProducts);
+  const extras = parseCleaningExtras(addons, bringsProducts, prices);
   const durationMinutes = baseMinutes + extras.extraMinutes;
   if (!validCleaningDuration(durationMinutes))
     throw new Error(
@@ -73,6 +88,7 @@ export function cleaningSeriesQuote(
   bringsProducts: unknown,
   visits: number,
   overrides: unknown = [],
+  prices: ExtraPrices = DEFAULT_CLEANING_BILLING_TERMS,
 ) {
   if (
     !Number.isInteger(visits) ||
@@ -97,6 +113,7 @@ export function cleaningSeriesQuote(
       choice?.addons ?? addons,
       choice?.bringsProducts ?? bringsProducts,
       1,
+      prices,
     );
   });
   return {
@@ -138,11 +155,12 @@ export function cleaningExtrasNotes(
   addons: unknown,
   bringsProducts: boolean,
   petsAtHome: boolean,
+  prices: ExtraPrices = DEFAULT_CLEANING_BILLING_TERMS,
 ) {
-  const extras = parseCleaningExtras(addons, bringsProducts);
+  const extras = parseCleaningExtras(addons, bringsProducts, prices);
   return [
     `Pets at home: ${petsAtHome ? "Yes" : "No"}`,
-    `Cleaning products: ${bringsProducts ? "cleaner brings products (£5 per visit)" : "supplied by customer"}`,
+    `Cleaning products: ${bringsProducts ? `cleaner brings products (£${(prices.productsFeePence / 100).toFixed(2)} per visit)` : "supplied by customer"}`,
     ...(extras.addons.length
       ? [
           `Add-ons: ${extras.addons.map((item) => `${item.label} (up to 1 hour)`).join(", ")}`,

@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { CleaningBillingTerms } from "@/lib/cleaningBillingTerms";
 import { CLEANING_ADDONS } from "@/lib/cleaningExtras";
 import type { CancellationPolicy } from "@/lib/cancellationPolicy";
 
 export type VisitBillingDetails = {
   model: "legacy" | "per_visit";
+  pricing: Omit<CleaningBillingTerms, "cleanerHourlyPence">;
+  chargeOnAcceptance?: boolean;
   revision: number;
   status: string;
   processing: boolean;
@@ -123,7 +126,7 @@ export default function VisitBillingPanel({
     return (
       <p>
         To change add-ons on this existing booking,{" "}
-        <a href="mailto:opulencebliss@gmail.com">contact us</a>.
+        <a href="mailto:hello@opulencebliss.com">contact us</a>.
       </p>
     );
   return (
@@ -135,9 +138,10 @@ export default function VisitBillingPanel({
       </p>
       {["unpaid", "failed", "requires_action"].includes(details.status) && (
         <p>
-          Your saved card is charged only after a cleaner accepts, at 48 hours
-          before the visit or immediately if closer. Paused visits are not
-          charged.{" "}
+          {details.chargeOnAcceptance
+            ? "Your saved card is charged when a cleaner accepts this visit."
+            : "Your saved card is charged only after a cleaner accepts, at 48 hours before the visit or immediately if closer."}{" "}
+          Paused visits are not charged.{" "}
           <a href="/account/profile#payments">Manage your saved card</a>.
         </p>
       )}
@@ -180,7 +184,8 @@ export default function VisitBillingPanel({
                 setQuote(null);
               }}
             />
-            {addon.label} · {money(addon.pricePence)} · up to 1 hour
+            {addon.label} · {money(details.pricing.addonPrices[addon.id])} · up
+            to 1 hour
           </label>
         ))}
         <label>
@@ -192,7 +197,8 @@ export default function VisitBillingPanel({
               setQuote(null);
             }}
           />
-          Cleaner brings products · £5 for this visit
+          Cleaner brings products · {money(details.pricing.productsFeePence)}{" "}
+          for this visit
         </label>
         <button type="button" onClick={() => requestChange()}>
           {busy ? "Checking…" : "Review changes"}

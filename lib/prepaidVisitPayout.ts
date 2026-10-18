@@ -22,12 +22,14 @@ export async function settleCompletedVisitPayout(
 ) {
   const { data: visitBilling } = await admin
     .from("booking_visit_billing")
-    .select("rate_confirmed")
+    .select("rate_confirmed,status")
     .eq("booking_id", bookingId)
     .maybeSingle();
   if (visitBilling && !visitBilling.rate_confirmed) {
     return { earned: 0, payoutSettled: false, payRatePending: true };
   }
+  if (visitBilling && visitBilling.status !== "paid")
+    throw new Error("Visit billing is not settled for payout.");
   const { data: booking, error: bookingError } = await admin
     .from("bookings")
     .select("id, status, regular_series_id, subscription_id, provider_id")
@@ -60,10 +62,12 @@ export async function settleCompletedVisitPayout(
   if (
     paymentError ||
     !payment?.stripe_payment_ref ||
-    payment.status !== "succeeded" ||
+    !(visitBilling
+      ? ["succeeded", "partially_refunded"].includes(payment.status)
+      : payment.status === "succeeded") ||
     (booking.regular_series_id
       ? split?.upfront_series_id !== booking.regular_series_id
-      : Boolean(split?.upfront_series_id)) ||
+      : !visitBilling && Boolean(split?.upfront_series_id)) ||
     !Number.isInteger(amountPence) ||
     amountPence <= 0
   ) {

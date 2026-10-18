@@ -10,6 +10,7 @@ export type WorkerJobWorkspaceData = {
   service: string;
   durationMinutes: number | null;
   propertySizeSqm?: number | null;
+  contactEnd: string | null;
   scheduledAt: string;
   preferredScheduledAt: string | null;
   optionalScheduledAt: string[];
@@ -120,9 +121,9 @@ export async function loadWorkerJob(
   bookingId: string,
 ): Promise<WorkerJobWorkspaceData | null> {
   const { data: row } = await supabase
-    .from("bookings")
+    .rpc("worker_visible_bookings")
     .select(
-      "id, created_at, scheduled_at, preferred_scheduled_at, optional_scheduled_at, status, address, household_notes, customer_id, customer_email, provider_id, provider_payout, subscription_id, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes), providers(display_name), check_ins(arrived_at, left_at, geofence_pass, gps_lat, gps_lng)",
+      "id, created_at, scheduled_at, preferred_scheduled_at, optional_scheduled_at, status, address, household_notes, rooms_to_clean, access_instructions, customer_id, customer_email, provider_id, provider_payout, subscription_id, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes), providers(display_name), check_ins(arrived_at, left_at, geofence_pass, gps_lat, gps_lng)",
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -140,11 +141,20 @@ export async function loadWorkerJob(
   ] = await Promise.all([
     supabase.rpc("booking_customer_summary", { p_booking_id: row.id }),
     supabase
-      .from("payments")
+      .rpc("worker_visible_payments")
       .select("gross_amount, split_breakdown, status, kind, created_at")
-      .eq("booking_id", row.id),
+      .eq("booking_id", row.id)
+      .returns<
+        {
+          gross_amount: number | null;
+          split_breakdown: { provider?: number; platform?: number } | null;
+          status: string;
+          kind: string;
+          created_at: string;
+        }[]
+      >(),
     supabase
-      .from("payouts")
+      .rpc("worker_visible_payouts")
       .select("status")
       .eq("booking_id", row.id)
       .maybeSingle(),
@@ -160,8 +170,10 @@ export async function loadWorkerJob(
       .eq("reviewer", "provider")
       .maybeSingle(),
     supabase
-      .from("provider_job_invoices")
-      .select("id, invoice_number, issued_at, status, customer_name, service_name, address, property_size_sqm, duration_minutes, gross_amount, platform_fee, payout_amount, payout_schedule, payout_due_on")
+      .rpc("worker_visible_invoices")
+      .select(
+        "id, invoice_number, issued_at, status, customer_name, service_name, address, property_size_sqm, duration_minutes, gross_amount, platform_fee, payout_amount, payout_schedule, payout_due_on",
+      )
       .eq("booking_id", row.id)
       .maybeSingle(),
     supabase.rpc("my_review_submission_states"),
@@ -173,7 +185,15 @@ export async function loadWorkerJob(
     client_rating_count: number | null;
     phone?: string | null;
   } | null;
-  const payments = paymentResult.data ?? [];
+  const payments = (
+    Array.isArray(paymentResult.data) ? paymentResult.data : []
+  ) as {
+    gross_amount: number | null;
+    split_breakdown: { provider?: number; platform?: number } | null;
+    status: string;
+    kind: string;
+    created_at: string;
+  }[];
   const jobPayment = payments.find((payment) => payment.kind !== "tip");
   const tips = payments
     .filter((payment) => payment.kind === "tip")
@@ -204,8 +224,8 @@ export async function loadWorkerJob(
   let completedWithYou = 0;
   if (row.customer_id && row.provider_id) {
     const { count } = await supabase
-      .from("bookings")
-      .select("*", { count: "exact", head: true })
+      .rpc("worker_visible_bookings", {}, { count: "exact", head: true })
+      .select("*")
       .eq("customer_id", row.customer_id)
       .eq("provider_id", row.provider_id)
       .eq("status", "completed");
@@ -221,7 +241,11 @@ export async function loadWorkerJob(
     status: row.status,
     service: packageRow?.name ?? "Service",
     propertySizeSqm: row.property_size_sqm ?? null,
-    durationMinutes: row.duration_minutes ?? packageRow?.duration_minutes ?? null,
+    durationMinutes:
+      row.duration_minutes ?? packageRow?.duration_minutes ?? null,
+    contactEnd:
+      (await supabase.rpc("booking_contact_state", { p_booking_id: row.id }))
+        .data?.visitEnd ?? null,
     scheduledAt: row.scheduled_at,
     preferredScheduledAt: row.preferred_scheduled_at ?? row.scheduled_at,
     optionalScheduledAt: row.optional_scheduled_at ?? [],
@@ -233,12 +257,19 @@ export async function loadWorkerJob(
     delayMinutes: row.provider_delay_minutes ?? null,
     delayReportedAt: row.provider_delay_reported_at ?? null,
     address: row.address,
-    notes: row.household_notes,
+    notes:
+      [
+        row.household_notes,
+        row.rooms_to_clean ? `Rooms to clean: ${row.rooms_to_clean}` : null,
+        row.access_instructions ? `Access: ${row.access_instructions}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n") || null,
     isMembership,
     client: {
       name: customer?.full_name ?? row.customer_email ?? "Client",
-      email: row.customer_email,
-      phone: customer?.phone ?? null,
+      email: null,
+      phone: null,
       rating:
         customer?.client_rating_avg === null ||
         customer?.client_rating_avg === undefined

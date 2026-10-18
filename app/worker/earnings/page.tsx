@@ -85,7 +85,7 @@ export default async function EarningsPage() {
   try {
     [paysData, payoutData] = await Promise.all([
       allEarningsRows(
-        supabase,
+        privatePortalClient(),
         "payments",
         "id,booking_id,gross_amount,split_breakdown,status,kind,created_at,bookings!inner(provider_id,scheduled_at,status,packages(name))",
         prov.id,

@@ -125,9 +125,7 @@ async function loadWorkerProfile(ctx: AccountContext) {
     .filter(
       (row) =>
         row.document_type !== "dbs" &&
-        (!["public_liability_insurance", "trade_certificate"].includes(
-          row.document_type,
-        ) ||
+        (row.document_type !== "trade_certificate" ||
           (handymanEnabled() && provider.services?.includes("handyman"))),
     )
     .map((row) => ({
@@ -267,7 +265,6 @@ async function loadWorkerProfile(ctx: AccountContext) {
     },
     tax: {
       utrNumber: application?.utr_number ?? "",
-      vatNumber: settings?.vat_number ?? "",
     },
     alerts: {
       jobOffers: {
@@ -358,7 +355,7 @@ export async function PATCH(request: NextRequest) {
           "acceptsSameDay",
         ],
       ],
-      [tax, ["utrNumber", "vatNumber"]],
+      [tax, ["utrNumber"]],
       [alerts, ["jobOffers", "notifications"]],
     ];
     if (
@@ -446,12 +443,6 @@ export async function PATCH(request: NextRequest) {
       if (utr && !/^\d{10}$/.test(utr))
         return accountError("UTR must contain 10 digits.");
       onboarding.utr_number = utr;
-    }
-    if ("vatNumber" in tax) {
-      const vat = optionalText(tax.vatNumber, 20)?.toUpperCase() ?? null;
-      if (vat && !/^(GB)?\d{9}$/.test(vat))
-        return accountError("Enter a valid UK VAT number.");
-      settings.vat_number = vat;
     }
     if ("jobOffers" in alerts) {
       if (!isRecord(alerts.jobOffers))

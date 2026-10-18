@@ -4,6 +4,88 @@ import { timingSafeEqual } from "node:crypto";
 import Stripe2 from "npm:stripe@22.3.2";
 import { createClient } from "npm:@supabase/supabase-js@2.110.0";
 
+// lib/cleaningBillingTerms.ts
+var CLEANING_ADDON_IDS = ["oven", "fridge", "cupboards", "windows", "ironing"];
+var DEFAULT_CLEANING_BILLING_TERMS = {
+  version: "legacy-default",
+  cleanerHourlyPence: 1500,
+  addonPrices: {
+    oven: 2e3,
+    fridge: 1e3,
+    cupboards: 1e3,
+    windows: 1500,
+    ironing: 1500,
+  },
+  productsFeePence: 500,
+  tipMinimumPence: 300,
+  cancellationRefundPercent: {
+    full: 100,
+    three_quarter: 75,
+    half: 50,
+    none: 0,
+  },
+};
+function parseCleaningBillingTerms(value) {
+  if (!value || typeof value !== "object")
+    throw new Error("Billing settings are missing.");
+  const source = value;
+  const money = (amount, max, minimum = 0) => {
+    if (
+      !Number.isSafeInteger(amount) ||
+      Number(amount) < minimum ||
+      Number(amount) > max
+    )
+      throw new Error("Enter a valid amount with at most two decimal places.");
+    return Number(amount);
+  };
+  if (typeof source.version !== "string" || source.version.length > 100)
+    throw new Error("Billing settings version is missing.");
+  const refunds = source.cancellationRefundPercent;
+  if (
+    !refunds ||
+    !CLEANING_ADDON_IDS.every((id) => source.addonPrices?.[id] !== void 0)
+  )
+    throw new Error("Complete every price and cancellation band.");
+  const percentages = [
+    refunds.full,
+    refunds.three_quarter,
+    refunds.half,
+    refunds.none,
+  ];
+  percentages.forEach((percent) => money(percent, 100));
+  if (
+    percentages.some(
+      (percent, index) => index > 0 && percent > percentages[index - 1],
+    )
+  )
+    throw new Error(
+      "Refund percentages must not increase closer to the visit.",
+    );
+  return {
+    version: source.version,
+    cleanerHourlyPence: money(source.cleanerHourlyPence, 1e4, 1),
+    addonPrices: Object.fromEntries(
+      CLEANING_ADDON_IDS.map((id) => [id, money(source.addonPrices[id], 5e4)]),
+    ),
+    productsFeePence: money(source.productsFeePence, 1e4),
+    tipMinimumPence: money(source.tipMinimumPence, 1e4, 50),
+    cancellationRefundPercent: { ...refunds },
+  };
+}
+
+// lib/cleaningBillingSettings.ts
+async function bookingCleaningBillingTerms(admin, bookingId) {
+  const { data, error } = await admin
+    .from("booking_cleaning_billing_terms")
+    .select("terms")
+    .eq("booking_id", bookingId)
+    .maybeSingle();
+  if (error) throw new Error("Could not load the agreed booking terms.");
+  return data
+    ? parseCleaningBillingTerms(data.terms)
+    : DEFAULT_CLEANING_BILLING_TERMS;
+}
+
 // lib/visitBillingServer.ts
 import Stripe from "npm:stripe@22.3.2";
 
@@ -44,8 +126,11 @@ var CLEANING_ADDONS = [
   { id: "windows", label: "Interior windows", pricePence: 1500 },
   { id: "ironing", label: "Ironing", pricePence: 1500 },
 ];
-var CLEANING_PRODUCTS_FEE_PENCE = 500;
-function parseCleaningExtras(addons, bringsProducts) {
+function parseCleaningExtras(
+  addons,
+  bringsProducts,
+  prices = DEFAULT_CLEANING_BILLING_TERMS,
+) {
   if (
     !Array.isArray(addons) ||
     addons.some((id) => !CLEANING_ADDONS.some((item) => item.id === id)) ||
@@ -55,23 +140,32 @@ function parseCleaningExtras(addons, bringsProducts) {
   }
   if (typeof bringsProducts !== "boolean")
     throw new Error("Choose who brings cleaning products.");
-  const selected = CLEANING_ADDONS.filter((item) => addons.includes(item.id));
+  const selected = CLEANING_ADDONS.filter((item) =>
+    addons.includes(item.id),
+  ).map((item) => ({ ...item, pricePence: prices.addonPrices[item.id] }));
   return {
     addons: selected,
     bringsProducts,
     addonPence: selected.reduce((sum, item) => sum + item.pricePence, 0),
     extraMinutes: selected.length * 60,
-    productsPence: bringsProducts ? CLEANING_PRODUCTS_FEE_PENCE : 0,
+    productsPence: bringsProducts ? prices.productsFeePence : 0,
   };
 }
-function cleaningQuote(pkg, baseMinutes, addons, bringsProducts, visits) {
+function cleaningQuote(
+  pkg,
+  baseMinutes,
+  addons,
+  bringsProducts,
+  visits,
+  prices = DEFAULT_CLEANING_BILLING_TERMS,
+) {
   if (
     !validCleaningDuration(baseMinutes) ||
     !Number.isInteger(visits) ||
     (visits !== 1 && (visits < 6 || visits > 10))
   )
     throw new Error("Choose valid cleaning hours and visits.");
-  const extras = parseCleaningExtras(addons, bringsProducts);
+  const extras = parseCleaningExtras(addons, bringsProducts, prices);
   const durationMinutes = baseMinutes + extras.extraMinutes;
   if (!validCleaningDuration(durationMinutes))
     throw new Error(
@@ -88,11 +182,16 @@ function cleaningQuote(pkg, baseMinutes, addons, bringsProducts, visits) {
     totalPence: (perVisitPence + extras.productsPence) * visits,
   };
 }
-function cleaningExtrasNotes(addons, bringsProducts, petsAtHome) {
-  const extras = parseCleaningExtras(addons, bringsProducts);
+function cleaningExtrasNotes(
+  addons,
+  bringsProducts,
+  petsAtHome,
+  prices = DEFAULT_CLEANING_BILLING_TERMS,
+) {
+  const extras = parseCleaningExtras(addons, bringsProducts, prices);
   return [
     `Pets at home: ${petsAtHome ? "Yes" : "No"}`,
-    `Cleaning products: ${bringsProducts ? "cleaner brings products (\xA35 per visit)" : "supplied by customer"}`,
+    `Cleaning products: ${bringsProducts ? `cleaner brings products (\xA3${(prices.productsFeePence / 100).toFixed(2)} per visit)` : "supplied by customer"}`,
     ...(extras.addons.length
       ? [
           `Add-ons: ${extras.addons.map((item) => `${item.label} (up to 1 hour)`).join(", ")}`,
@@ -178,6 +277,7 @@ function calculateCancellationPolicy(
   scheduledAt,
   grossAmount,
   now = /* @__PURE__ */ new Date(),
+  refunds = DEFAULT_CLEANING_BILLING_TERMS.cancellationRefundPercent,
 ) {
   const scheduledMs = new Date(scheduledAt).getTime();
   const nowMs = new Date(now).getTime();
@@ -192,27 +292,18 @@ function calculateCancellationPolicy(
         : hoursUntilBooking >= 24
           ? "three_quarter"
           : "half";
-  const refundPercent =
-    tier === "full"
-      ? 100
-      : tier === "three_quarter"
-        ? 75
-        : tier === "half"
-          ? 50
-          : 0;
+  const refundPercent = refunds[tier];
   const refundPence = Math.round((grossPence * refundPercent) / 100);
   const cancellationChargePence = grossPence - refundPence;
   const title =
-    tier === "full"
+    refundPercent === 100
       ? "Full refund"
-      : tier === "three_quarter"
-        ? "75% refund"
-        : tier === "half"
-          ? "50% refund"
-          : "No refund";
+      : refundPercent === 0
+        ? "No refund"
+        : `${refundPercent}% refund`;
   const explanation =
     tier === "full"
-      ? `This visit is at least 48 hours away. The full ${pounds(grossPence)} will be refunded or released.`
+      ? `This visit is at least 48 hours away. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
       : tier === "three_quarter"
         ? `This visit is between 24 and 48 hours away. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
         : tier === "half"
@@ -261,7 +352,11 @@ function removedLineRefunds(charges, removed) {
   return refunds;
 }
 function cancellationRefunds(charges, refundPercent) {
-  if (![0, 50, 75, 100].includes(refundPercent))
+  if (
+    !Number.isInteger(refundPercent) ||
+    refundPercent < 0 ||
+    refundPercent > 100
+  )
     throw new Error("Invalid refund percentage.");
   const paid = charges.reduce(
     (sum, charge) => sum + charge.amount_pence - charge.refunded_pence,
@@ -353,7 +448,8 @@ function createVisitBilling(admin, stripe) {
         .eq("booking_id", bookingId)
         .order("created_at"),
     );
-    return { booking, bill, charges };
+    const terms = await bookingCleaningBillingTerms(admin, bookingId);
+    return { booking, bill, charges, terms };
   }
   async function chargeGate(bookingId, operationId = null, kind = "charge") {
     return must(
@@ -443,7 +539,7 @@ function createVisitBilling(admin, stripe) {
     }
   }
   async function quoteExtras(bookingId, customerId, input) {
-    const { booking, bill, charges } = await load(bookingId, customerId);
+    const { booking, bill, charges, terms } = await load(bookingId, customerId);
     if (!visitExtrasCanChange(booking.scheduled_at))
       throw new Error("Add-on changes need at least 24 hours notice.");
     if (!["offered", "declined", "scheduled"].includes(booking.status))
@@ -465,6 +561,7 @@ function createVisitBilling(admin, stripe) {
       input.addons,
       input.bringsProducts,
       1,
+      terms,
     );
     const lines = visitLineItems(quote, bill.discount_pence);
     const { added, removed } = changedVisitLines(bill.line_items, lines);
@@ -485,6 +582,7 @@ function createVisitBilling(admin, stripe) {
         quote.addons.map((a) => a.id),
         quote.bringsProducts,
         previous.petsAtHome,
+        terms,
       ),
     };
     return {
@@ -536,7 +634,7 @@ function createVisitBilling(admin, stripe) {
     expectedTier,
     latePayment = false,
   ) {
-    const { booking, bill, charges } = await load(
+    const { booking, bill, charges, terms } = await load(
       bookingId,
       customerId ?? void 0,
     );
@@ -546,6 +644,8 @@ function createVisitBilling(admin, stripe) {
         policy: calculateCancellationPolicy(
           booking.scheduled_at,
           paidTotal(charges) / 100,
+          /* @__PURE__ */ new Date(),
+          terms.cancellationRefundPercent,
         ),
       };
     if (
@@ -558,11 +658,15 @@ function createVisitBilling(admin, stripe) {
         policy: calculateCancellationPolicy(
           booking.scheduled_at,
           paidTotal(charges) / 100,
+          /* @__PURE__ */ new Date(),
+          terms.cancellationRefundPercent,
         ),
       };
     const policy = calculateCancellationPolicy(
       booking.scheduled_at,
       paidTotal(charges) / 100,
+      /* @__PURE__ */ new Date(),
+      terms.cancellationRefundPercent,
     );
     if (expectedTier && expectedTier !== policy.tier)
       throw new Error(
@@ -1231,7 +1335,7 @@ function createVisitPaymentHandler(overrides = {}) {
         ok: true,
         mode,
         source:
-          "8e6aae6f1bafbb403326b6591fef1f35cf17979c604b0052bb40dd2c36ba52b3",
+          "cc27b1388be9b882ae00525daa49f0fcf66733de1bab8ed4c0cd8f1d44d3bc05",
         result,
         notices,
       });

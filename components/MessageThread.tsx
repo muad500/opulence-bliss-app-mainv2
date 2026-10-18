@@ -96,7 +96,7 @@ function when(iso: string) {
 export default function MessageThread({
   bookingId,
   viewerRole,
-  closed = false,
+  closed: callerClosed = false,
   bare = false,
 }: {
   bookingId: string;
@@ -104,6 +104,8 @@ export default function MessageThread({
   closed?: boolean;
   bare?: boolean;
 }) {
+  const [windowOpen, setWindowOpen] = useState(false);
+  const closed = callerClosed || !windowOpen;
   const [messages, setMessages] = useState<Msg[]>([]);
   const [me, setMe] = useState<string | null>(null);
   const [attachment, setAttachment] = useState<File | null>(null);
@@ -137,6 +139,30 @@ export default function MessageThread({
         setMessages([]);
         previews.current.clear();
         throw new Error("Please sign in again to use booking messages.");
+      }
+
+      const contact = await supabase.rpc("booking_contact_state", {
+        p_booking_id: bookingId,
+      });
+      if (contact.error) throw contact.error;
+      const open = contact.data?.open === true;
+      const previewSeconds = Math.min(
+        300,
+        Math.max(
+          0,
+          Math.floor(
+            (Date.parse(contact.data?.closesAt ?? "") - Date.now()) / 1000,
+          ),
+        ),
+      );
+      setWindowOpen(open);
+      if (!open) {
+        setMessages([]);
+        previews.current.clear();
+        setMe(user.id);
+        setLoaded(true);
+        setLoadError(null);
+        return true;
       }
 
       const result = await withTimeout(
@@ -181,18 +207,20 @@ export default function MessageThread({
           booking_message_attachments: await Promise.all(
             message.booking_message_attachments.map(async (file) => {
               if (file.signedUrl) return { ...file, previewPending: false };
+              if (previewSeconds < 1) return { ...file, previewPending: false };
               try {
                 const signed = await withTimeout(
                   supabase.storage
                     .from("booking-attachments")
-                    .createSignedUrl(file.path, 3600),
+                    .createSignedUrl(file.path, previewSeconds),
                   "Attachment preview timed out.",
                   8_000,
                 );
                 if (version === loadVersion.current && signed.data?.signedUrl)
                   previews.current.set(file.path, {
                     url: signed.data.signedUrl,
-                    expires: Date.now() + 50 * 60_000,
+                    expires:
+                      Date.now() + Math.max(0, previewSeconds - 10) * 1000,
                   });
                 return {
                   ...file,
@@ -342,7 +370,9 @@ export default function MessageThread({
       } | null;
       if (moderation?.blocked) {
         throw new Error(
-          "This message was not sent. It was flagged for hateful, threatening or abusive language and added to the safety review queue. Please rewrite it respectfully.",
+          moderation.category === "private_contact"
+            ? "Use in-app messages only. Please remove the phone number before sending."
+            : "This message was not sent. It was flagged for hateful, threatening or abusive language and added to the safety review queue. Please rewrite it respectfully.",
         );
       }
       setBody("");
@@ -527,7 +557,8 @@ export default function MessageThread({
 
           {closed ? (
             <p style={{ ...muted, marginTop: 12 }}>
-              This booking is closed. Contact support if you still need help.
+              Messages open after acceptance and close 24 hours after the visit.
+              Contact hello@opulencebliss.com if you need help.
             </p>
           ) : (
             <>

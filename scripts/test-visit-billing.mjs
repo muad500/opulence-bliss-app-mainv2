@@ -89,6 +89,7 @@ function fixture({
         select: () => q,
         eq: () => q,
         single: () => q,
+        maybeSingle: () => q,
         order: () => q,
         update: (value) => {
           update = value;
@@ -116,7 +117,9 @@ function fixture({
                   ? state.bill
                   : table === "booking_visit_charges"
                     ? []
-                    : state.op,
+                    : table === "booking_cleaning_billing_terms"
+                      ? null
+                      : state.op,
             ),
             error: null,
           });

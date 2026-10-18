@@ -1,4 +1,6 @@
 "use client";
+import { DEFAULT_CLEANING_BILLING_TERMS } from "@/lib/cleaningBillingTerms";
+import { REFERRAL_SOURCES } from "@/lib/bookingPreferences";
 
 // SETUP: mkdir -p "app/book" && code "app/book/page.tsx"
 //
@@ -65,6 +67,7 @@ type Pkg = {
 
 type Area = { name: string; postcode_prefixes: string[] };
 type SavedAddress = {
+  accessInstructions?: string;
   id: string;
   label: string;
   isDefault: boolean;
@@ -147,12 +150,26 @@ function duration(mins: number | null) {
 }
 
 export default function BookPage() {
+  const [billingPrices, setBillingPrices] = useState(
+    DEFAULT_CLEANING_BILLING_TERMS,
+  );
+  const [pricesReady, setPricesReady] = useState(false);
+  const [smsAvailable, setSmsAvailable] = useState(false);
   const [perVisitBilling, setPerVisitBilling] = useState(false);
   const [saveCardConsent, setSaveCardConsent] = useState(false);
   useEffect(() => {
     void fetch("/api/visit-billing-config", { cache: "no-store" })
       .then((response) => response.json())
-      .then((data) => setPerVisitBilling(data.perVisitBilling === true))
+      .then((data) => {
+        if (!data.pricing) return;
+        setBillingPrices({
+          ...DEFAULT_CLEANING_BILLING_TERMS,
+          ...data.pricing,
+        });
+        setPricesReady(true);
+        setPerVisitBilling(data.perVisitBilling === true);
+        setSmsAvailable(data.smsAvailable === true);
+      })
       .catch(() => undefined);
   }, []);
   const [packages, setPackages] = useState<Pkg[]>([]);
@@ -206,6 +223,7 @@ export default function BookPage() {
         extras.bringsProducts,
         visitCount,
         visitExtras,
+        billingPrices,
       );
     } catch (cause) {
       extrasError =
@@ -217,6 +235,7 @@ export default function BookPage() {
   const home = parseCleaningHome({ propertyType, bedrooms, bathrooms });
   function applySavedAddress(place: SavedAddress) {
     setSavedAddressId(place.id);
+    setAccessInstructions(place.accessInstructions ?? "");
     setAddress(
       [place.line1, place.line2, place.city].filter(Boolean).join(", "),
     );
@@ -244,6 +263,12 @@ export default function BookPage() {
   const [slot, setSlot] = useState<string | null>(null);
   const [optionalSlots, setOptionalSlots] = useState<string[]>([]);
 
+  const [howHeard, setHowHeard] = useState("");
+  const [confirmationChannel, setConfirmationChannel] = useState<
+    "email" | "sms"
+  >("email");
+  const [roomsToClean, setRoomsToClean] = useState("");
+  const [accessInstructions, setAccessInstructions] = useState("");
   const [request, setRequest] = useState("");
   const [promo, setPromo] = useState("");
   const [promoInfo, setPromoInfo] = useState<{
@@ -406,6 +431,12 @@ export default function BookPage() {
           setExtras(draft.extras);
           setVisitOverrides(draft.visitOverrides);
           setRequest(draft.request);
+          setHowHeard(draft.preferences?.howHeard ?? "");
+          setConfirmationChannel(
+            draft.preferences?.confirmationChannel ?? "email",
+          );
+          setRoomsToClean(draft.preferences?.roomsToClean ?? "");
+          setAccessInstructions(draft.preferences?.accessInstructions ?? "");
           setPromo(draft.promo);
           setPhone(draft.phone);
           setPreferredCleaner(
@@ -448,6 +479,7 @@ export default function BookPage() {
                   { length: count },
                   (_, index) => draft.visitOverrides[index] ?? draft.extras,
                 ),
+                billingPrices,
               );
               resumeStep = 4;
               const response = await fetch(
@@ -753,6 +785,12 @@ export default function BookPage() {
         cleaningMinutes,
         extras,
         visitOverrides,
+        preferences: {
+          howHeard,
+          confirmationChannel,
+          roomsToClean,
+          accessInstructions,
+        },
         petsAtHome,
         slot,
         optionalSlots,
@@ -823,6 +861,12 @@ export default function BookPage() {
           bringsProducts: extras.bringsProducts,
           petsAtHome,
           saveCardConsent,
+          bookingPreferences: {
+            howHeard,
+            confirmationChannel,
+            roomsToClean,
+            accessInstructions,
+          },
           visitExtras,
           regularVisits: frequency === "one_time" ? undefined : regularVisits,
           address,
@@ -930,9 +974,12 @@ export default function BookPage() {
         Math.round((promoInfo?.ok ? (promoInfo.discount ?? 0) : 0) * 100),
       )
     : [];
-  const dueToday = perVisitBilling
-    ? ((quote?.quotes[0].totalPence ?? 0) - (discounts[0] ?? 0)) / 100
-    : total;
+  const dueToday =
+    perVisitBilling && frequency !== "one_time"
+      ? 0
+      : perVisitBilling
+        ? ((quote?.quotes[0].totalPence ?? 0) - (discounts[0] ?? 0)) / 100
+        : total;
   const policyError = selected
     ? bookingPolicyError(selected.name, frequency)
     : null;
@@ -1253,7 +1300,7 @@ export default function BookPage() {
               <p className="frequencyNote">
                 A regular booking means 6 to 10 visits booked together.{" "}
                 {perVisitBilling
-                  ? "Pay only the first at checkout. Later visits are charged 48 hours before only if a cleaner is assigned, or when a cleaner accepts after that point."
+                  ? "Save your card at checkout. Each visit is charged when a cleaner accepts it."
                   : "Pay for the plan at checkout."}{" "}
                 If you prefer separate bookings, choose a one-time session.
               </p>
@@ -1451,6 +1498,7 @@ export default function BookPage() {
               </div>
 
               <CleaningExtrasPicker
+                prices={billingPrices}
                 value={extras}
                 visits={visitCount}
                 overrides={visitOverrides}
@@ -1478,8 +1526,9 @@ export default function BookPage() {
                 </p>
               )}
               <p className="muted">
-                Reserved visit time: {duration(minutes)}. Products: £5 for each
-                visit where selected. Visit total:{" "}
+                Reserved visit time: {duration(minutes)}. Products:{" "}
+                {money(billingPrices.productsFeePence / 100)} for each visit
+                where selected. Visit total:{" "}
                 {money((quote?.quotes[0].totalPence ?? 0) / 100)}.
               </p>
               {previousCleaners.length > 0 && (
@@ -1594,10 +1643,7 @@ export default function BookPage() {
                             (discounts[index] ?? 0)) /
                             100,
                         )}
-                        {perVisitBilling &&
-                          (index === 0
-                            ? " · paid today"
-                            : " · charged after assignment, from 48 hours before")}
+                        {perVisitBilling && " · charged when a cleaner accepts"}
                       </li>
                     ))}
                   </ol>
@@ -1655,7 +1701,7 @@ export default function BookPage() {
                 <div>
                   <span>
                     {perVisitBilling && regular
-                      ? "First visit today"
+                      ? "Due today"
                       : regular
                         ? `${regularVisits}-visit total`
                         : "Amount"}
@@ -1663,7 +1709,9 @@ export default function BookPage() {
                   <strong>{money(dueToday)}</strong>
                   <small>
                     {regular
-                      ? "Charged in full now"
+                      ? perVisitBilling
+                        ? "Charged when a cleaner accepts"
+                        : "Charged in full now"
                       : perVisitBilling
                         ? "Charged at checkout"
                         : "Held now, charged after completion"}
@@ -1725,7 +1773,7 @@ export default function BookPage() {
                     .join(", ") || "None"}
                   .{" "}
                   {extras.bringsProducts
-                    ? "Cleaner brings products: £5"
+                    ? `Cleaner brings products: ${money(billingPrices.productsFeePence / 100)}`
                     : "You supply products"}
                   .
                 </p>
@@ -1745,6 +1793,63 @@ export default function BookPage() {
                   </button>
                 </>
               )}
+              <label className="label" htmlFor="rooms-to-clean">
+                Rooms to clean
+              </label>
+              <textarea
+                id="rooms-to-clean"
+                className="field"
+                maxLength={500}
+                rows={2}
+                value={roomsToClean}
+                onChange={(e) => setRoomsToClean(e.target.value)}
+                placeholder="e.g. both bedrooms, bathroom, kitchen and living room"
+              />
+              <label className="label" htmlFor="access-instructions">
+                Access instructions (optional)
+              </label>
+              <textarea
+                id="access-instructions"
+                className="field"
+                maxLength={1000}
+                rows={2}
+                value={accessInstructions}
+                onChange={(e) => setAccessInstructions(e.target.value)}
+                placeholder="e.g. concierge, entry code, key safe or parking. Do not include a phone number."
+              />
+              <label className="label" htmlFor="how-heard">
+                How did you hear about us?
+              </label>
+              <select
+                id="how-heard"
+                className="field"
+                value={howHeard}
+                onChange={(e) => setHowHeard(e.target.value)}
+              >
+                <option value="">Select (optional)</option>
+                {REFERRAL_SOURCES.map((source) => (
+                  <option key={source}>{source}</option>
+                ))}
+              </select>
+              <label className="label" htmlFor="confirmation-channel">
+                How would you like booking confirmations?
+              </label>
+              <select
+                id="confirmation-channel"
+                className="field"
+                value={confirmationChannel}
+                onChange={(e) =>
+                  setConfirmationChannel(e.target.value as "email" | "sms")
+                }
+              >
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+              </select>
+              <p className="fineprint">
+                {smsAvailable
+                  ? "We will use your selected confirmation channel. Email is a fallback if a text cannot be sent. In-app updates remain available."
+                  : "SMS is not enabled yet. If you choose SMS, we will use email until text messages are available. In-app updates remain available."}
+              </p>
               <p className="label">Requests (optional)</p>
               <textarea
                 className="field"
@@ -1784,7 +1889,7 @@ export default function BookPage() {
                 <strong>
                   {perVisitBilling
                     ? regular
-                      ? "Pay for your first visit now"
+                      ? "Save your card for your regular visits"
                       : "Pay for your visit now"
                     : regular
                       ? `Pay for all ${regularVisits} visits now`
@@ -1793,7 +1898,7 @@ export default function BookPage() {
                 <span>
                   {perVisitBilling
                     ? regular
-                      ? "Later visits are charged 48 hours before only if a cleaner is assigned, or immediately when a cleaner accepts after that point. An unassigned later visit is never charged. Two unmatched visits in a row pause the remaining series."
+                      ? "No payment is taken at checkout. Each visit is charged when a cleaner accepts it. Unassigned and paused visits are never charged. Two unmatched visits in a row pause the remaining series."
                       : "Your full visit amount is charged at checkout. If no cleaner accepts, it is refunded in full."
                     : regular
                       ? `This payment covers the ${regularVisits} dates above. Refunds follow the cancellation policy.`
@@ -1811,10 +1916,9 @@ export default function BookPage() {
                     }
                   />{" "}
                   I authorise Opulence Bliss to save my card with Stripe, charge
-                  later regular visits once a cleaner is assigned, 48 hours
-                  before they start or immediately on a later acceptance, and
-                  charge any add-on changes I confirm. Add-ons can be changed
-                  until 24 hours before the visit.
+                  each regular visit when a cleaner accepts it, and charge any
+                  add-on changes I confirm. Add-ons can be changed until 24
+                  hours before the visit.
                 </label>
               )}
               {payError && <p className="flash no">{payError}</p>}
@@ -1989,6 +2093,7 @@ export default function BookPage() {
                 onClick={checkout}
                 disabled={
                   paying ||
+                  !pricesReady ||
                   (signedIn !== false && perVisitBilling && !saveCardConsent) ||
                   !slot ||
                   !addressValid ||
@@ -2007,7 +2112,7 @@ export default function BookPage() {
                     ? "Sign in to continue"
                     : regular
                       ? perVisitBilling
-                        ? `Pay ${money(dueToday)} for first visit`
+                        ? "Save card and book visits"
                         : `Pay ${money(total)} for ${regularVisits} visits`
                       : "Confirm & pay"}
               </button>

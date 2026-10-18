@@ -1,4 +1,5 @@
 "use client";
+import { accountFetch } from "@/lib/accountFetch";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -76,7 +77,7 @@ type Profile = {
     status: string | null;
     schedule: "weekly" | "fortnightly" | "monthly";
   };
-  tax: { utrNumber: string | null; vatNumber: string | null };
+  tax: { utrNumber: string | null };
   alerts: {
     jobOffers: { app: boolean; sms: boolean; email: boolean };
     notifications: { messages: boolean };
@@ -169,7 +170,7 @@ export default function WorkerProfilePage() {
   const [deleteText, setDeleteText] = useState("");
 
   const refresh = useCallback(async () => {
-    const response = await fetch("/api/account/worker-profile", {
+    const response = await accountFetch("/api/account/worker-profile", {
       cache: "no-store",
     });
     const body = await response.json().catch(() => ({}));
@@ -296,7 +297,7 @@ export default function WorkerProfilePage() {
     setBusy(section);
     setFeedback(null);
     try {
-      const response = await fetch("/api/account/worker-profile", {
+      const response = await accountFetch("/api/account/worker-profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [section]: value }),
@@ -335,7 +336,7 @@ export default function WorkerProfilePage() {
     }
     setBusy("password");
     try {
-      const response = await fetch("/api/account/password", {
+      const response = await accountFetch("/api/account/password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPassword, newPassword: password }),
@@ -375,7 +376,7 @@ export default function WorkerProfilePage() {
     }
     setBusy("time");
     try {
-      const response = await fetch("/api/account/time-off", {
+      const response = await accountFetch("/api/account/time-off", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -412,7 +413,7 @@ export default function WorkerProfilePage() {
   async function removeTimeOff(id: string) {
     setBusy("time");
     try {
-      const response = await fetch(
+      const response = await accountFetch(
         `/api/account/time-off/${encodeURIComponent(id)}`,
         { method: "DELETE" },
       );
@@ -442,7 +443,7 @@ export default function WorkerProfilePage() {
     if (deleteText !== "DELETE MY ACCOUNT") return;
     setBusy("delete");
     try {
-      const response = await fetch("/api/account/delete", {
+      const response = await accountFetch("/api/account/delete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirmation: deleteText }),
@@ -943,8 +944,8 @@ export default function WorkerProfilePage() {
               )}
               <h3>Tax details</h3>
               <p className={styles.help}>
-                UTR is optional. Add a VAT number only if registered for VAT.
-                Both are private.
+                UTR is optional. You can add your 10-digit UTR when it is
+                available. Both are private.
               </p>
               <div className={styles.grid}>
                 <Field label="UTR number">
@@ -954,15 +955,6 @@ export default function WorkerProfilePage() {
                     value={p.tax.utrNumber ?? ""}
                     onChange={(e) => edit("tax", { utrNumber: e.target.value })}
                     placeholder="10 digits"
-                  />
-                </Field>
-                <Field label="VAT number">
-                  <input
-                    value={p.tax.vatNumber ?? ""}
-                    onChange={(e) =>
-                      edit("tax", { vatNumber: e.target.value.toUpperCase() })
-                    }
-                    placeholder="GB…"
                   />
                 </Field>
               </div>

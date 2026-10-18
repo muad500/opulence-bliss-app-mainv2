@@ -20,6 +20,8 @@ type Row = {
   status: string;
   address: string | null;
   household_notes: string | null;
+  rooms_to_clean?: string | null;
+  access_instructions?: string | null;
   customer_email: string | null;
   offer_expires_at?: string | null;
   provider_payout?: number | null;
@@ -110,42 +112,31 @@ export default async function WorkerCleaningJobs() {
   const active = serviceApproved(prov, "cleaning") && !suspended;
 
   const { data: rowsData } = await supabase
-    .from("bookings")
+    .rpc("worker_visible_bookings")
     .select(
-      "id, customer_id, scheduled_at, preferred_scheduled_at, optional_scheduled_at, status, address, household_notes, customer_email, provider_payout, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes), check_ins(arrived_at, left_at, geofence_pass)",
+      "id, customer_id, scheduled_at, preferred_scheduled_at, optional_scheduled_at, status, address, household_notes, rooms_to_clean, access_instructions, customer_email, provider_payout, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes), check_ins(arrived_at, left_at, geofence_pass)",
     )
     .order("scheduled_at", { ascending: true });
 
   const rows = (rowsData ?? []) as unknown as Row[];
 
-  // Only the currently active offer is visible to this provider.
-  let offers: Row[] = [];
-  if (prov?.id && active) {
-    const { data: offerRows } = await supabase
-      .from("booking_offers")
-      .select(
-        "booking_id, bookings(id, customer_id, scheduled_at, preferred_scheduled_at, optional_scheduled_at, status, address, household_notes, customer_email, offer_expires_at, provider_payout, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes), check_ins(arrived_at, left_at, geofence_pass))",
-      )
-      .eq("provider_id", prov.id)
-      .eq("status", "open");
-
-    offers = (offerRows ?? [])
-      .map((o) => one(o.bookings as never) as unknown as Row | null)
-      .filter((b): b is Row => !!b && b.status === "offered")
-      .sort(
-        (a, b) =>
-          new Date(a.scheduled_at).getTime() -
-          new Date(b.scheduled_at).getTime(),
-      );
-  }
+  // The safe RPC returns assigned work and this professional's open offers.
+  const offers: Row[] = active
+    ? rows.filter((row) => row.status === "offered")
+    : [];
 
   // Earnings per booking, so the card can show what each job pays
   const { data: paysData } = await supabase
-    .from("payments")
+    .rpc("worker_visible_payments")
     .select("booking_id, split_breakdown, kind, status");
   const earnMap = new Map<string, number>();
   const paymentStatusMap = new Map<string, string>();
-  for (const p of paysData ?? []) {
+  for (const p of (Array.isArray(paysData) ? paysData : []) as {
+    booking_id: string;
+    split_breakdown: { provider?: number } | null;
+    kind: string;
+    status: string;
+  }[]) {
     if (p.kind === "tip" || !p.booking_id) continue;
     const share = Number(
       (p.split_breakdown as { provider?: number } | null)?.provider ?? 0,
@@ -155,10 +146,15 @@ export default async function WorkerCleaningJobs() {
   }
 
   const { data: payoutData } = await supabase
-    .from("payouts")
+    .rpc("worker_visible_payouts")
     .select("booking_id, status");
-  const payoutStatusMap = new Map(
-    (payoutData ?? [])
+  const payoutStatusMap = new Map<string, string>(
+    (
+      (Array.isArray(payoutData) ? payoutData : []) as {
+        booking_id: string;
+        status: string;
+      }[]
+    )
       .filter((p) => p.booking_id)
       .map((p) => [p.booking_id as string, p.status as string]),
   );
@@ -231,8 +227,12 @@ export default async function WorkerCleaningJobs() {
         }),
         booking.customer_id && prov?.id
           ? supabase
-              .from("bookings")
-              .select("*", { count: "exact", head: true })
+              .rpc(
+                "worker_visible_bookings",
+                {},
+                { count: "exact", head: true },
+              )
+              .select("*")
               .eq("customer_id", booking.customer_id)
               .eq("provider_id", prov.id)
               .eq("status", "completed")
@@ -271,20 +271,31 @@ export default async function WorkerCleaningJobs() {
         booking.optional_scheduled_at ??
         [],
       address: booking.address,
-      notes: booking.household_notes,
+      notes:
+        [
+          booking.household_notes,
+          booking.rooms_to_clean
+            ? `Rooms to clean: ${booking.rooms_to_clean}`
+            : null,
+          booking.access_instructions
+            ? `Access: ${booking.access_instructions}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n") || null,
       client:
         customer?.full_name ??
         offerDetailMap.get(booking.id)?.customer_name ??
         booking.customer_email ??
         "Customer",
-      clientEmail: booking.customer_email,
+      clientEmail: null,
       clientRating:
         customer?.client_rating_avg === null ||
         customer?.client_rating_avg === undefined
           ? null
           : Number(customer.client_rating_avg),
       clientRatingCount: customer?.client_rating_count ?? 0,
-      clientPhone: customer?.phone ?? null,
+      clientPhone: null,
       clientCompletedBookings: customer?.completedWithProvider ?? 0,
       service: pkg?.name ?? "Service",
       durationMinutes:

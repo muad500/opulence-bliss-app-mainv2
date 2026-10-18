@@ -510,7 +510,7 @@ export default function HandymanJobDetail({
           )}
           <p className={styles.muted}>
             Need help?{" "}
-            <a href="mailto:opulencebliss@gmail.com">Contact support</a>.
+            <a href="mailto:hello@opulencebliss.com">Contact support</a>.
           </p>
         </>
       )}

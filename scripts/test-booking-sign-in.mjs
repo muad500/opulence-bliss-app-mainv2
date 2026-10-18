@@ -35,6 +35,12 @@ const choices = {
   slot,
   optionalSlots: [optional],
   request: "Ring the bell",
+  preferences: {
+    howHeard: "Instagram",
+    confirmationChannel: "sms",
+    roomsToClean: "Kitchen and bedrooms",
+    accessInstructions: "Concierge",
+  },
   promo: "WELCOME",
   preferredCleaner: "",
   phone: "",
@@ -161,7 +167,13 @@ function harness({
         }),
       };
     if (url === "/api/visit-billing-config")
-      return { json: async () => ({ perVisitBilling: true }) };
+      return {
+        json: async () => ({
+          perVisitBilling: true,
+          pricing: load("lib/cleaningBillingTerms.ts")
+            .DEFAULT_CLEANING_BILLING_TERMS,
+        }),
+      };
     throw new Error(`Unexpected request: ${url}`);
   };
   const cache = new Map();
@@ -246,7 +258,11 @@ test("sign-in returns to confirmation with the entered booking rather than accou
   assert.doesNotMatch(content, /Other home/);
   assert.match(content, /£70.98/);
   assert.equal(
-    elements(tree).find((node) => node.type === "textarea")?.props.value,
+    elements(tree).find(
+      (node) =>
+        node.type === "textarea" &&
+        node.props.placeholder?.includes("key is under"),
+    )?.props.value,
     "Ring the bell",
   );
   assert.equal(
@@ -320,7 +336,7 @@ test("regular visit count and individual extras survive while prices are recalcu
   });
   const tree = await app.settle();
   assert.match(text(tree), /Step 6 of 6/);
-  assert.match(text(tree), /Pay £52.98 for first visit/);
+  assert.match(text(tree), /Save card and book visits/);
   assert.match(text(tree), /£408.84/);
   assert.match(text(tree), /8 visits/);
   const changed = harness({ packageList: [{ ...packages[0], price: 55.98 }] });

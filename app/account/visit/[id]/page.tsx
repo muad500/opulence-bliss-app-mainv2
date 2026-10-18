@@ -271,9 +271,10 @@ export default async function VisitPage({
     status?.actions.some((action) => action.kind === "rate") ?? false;
   const canTip =
     status?.actions.some((action) => action.kind === "tip") ?? false;
-  const chatClosed =
-    row.status === "cancelled" ||
-    new Date(row.scheduled_at).getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const { data: messagingOpen } = await supabase.rpc("booking_messaging_open", {
+    p_booking_id: row.id,
+  });
+  const chatClosed = messagingOpen !== true;
 
   return (
     <main style={wrap}>

@@ -1,3 +1,4 @@
+import AdminProfessionalOnboarding from "@/components/AdminProfessionalOnboarding";
 import AdminNav from "../AdminNav";
 import Link from "next/link";
 import ServiceReview from "../ServiceReview";
@@ -95,6 +96,7 @@ export default async function AdminCleanersPage() {
           workload.
         </p>
 
+        <AdminProfessionalOnboarding handymanEnabled={handymanEnabled()} />
         {providersResult.error ? (
           <div style={errorBox}>{providersResult.error.message}</div>
         ) : providers.length === 0 ? (

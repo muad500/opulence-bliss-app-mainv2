@@ -15,8 +15,7 @@ import {
   rateClient,
 } from "./actions";
 import JobExceptions from "./JobExceptions";
-import ReviewVisibilityChoice from "@/components/ReviewVisibilityChoice";
-import type { ReviewVisibility } from "@/lib/reviewVisibility";
+
 import { requestPortalRefresh } from "@/lib/portalUpdates";
 
 const UPDATE_ERROR =
@@ -584,7 +583,7 @@ function RateClientBox({
   const [open, setOpen] = useState(false);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
-  const [visibility, setVisibility] = useState<ReviewVisibility>("public");
+
   const [done, setDone] = useState<string | null>(null);
 
   if (submittedPrivately) {
@@ -651,7 +650,6 @@ function RateClientBox({
             key={n}
             onClick={() => {
               setStars(n);
-              setVisibility("public");
             }}
             aria-label={`${n} star${n > 1 ? "s" : ""}`}
             style={{
@@ -685,18 +683,15 @@ function RateClientBox({
           resize: "vertical",
         }}
       />
-      <ReviewVisibilityChoice
-        rating={stars}
-        value={visibility}
-        onChange={setVisibility}
-        idPrefix={`client-review-${id}`}
-        reviewer="provider"
-      />
+      <p>
+        This feedback is private to the Opulence Bliss administrators. It is
+        never shown to the customer or published.
+      </p>
       <button
         disabled={pending || stars === 0}
         onClick={() =>
           start(async () => {
-            const r = await rateClient(id, stars, comment, visibility);
+            const r = await rateClient(id, stars, comment);
             setDone(
               r?.error
                 ? "You've already rated this client."

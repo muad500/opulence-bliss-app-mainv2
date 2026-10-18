@@ -1,3 +1,7 @@
+import {
+  assistantWithoutPrices,
+  priceFreeAssistantReply,
+} from "@/lib/assistantPresentation";
 import { visitBillingEnabled } from "@/lib/visitBillingPolicy";
 import { assistantPaymentSummary } from "@/lib/assistantBooking";
 // AI concierge — knowledge base, live account tools and confirmation-gated
@@ -574,7 +578,7 @@ async function runTool(
         client_action: {
           kind: "navigate",
           label: "Review booking",
-          summary: `${draft.service} · ${draft.duration_minutes / 60} hours · £${draft.due_now_gbp.toFixed(2)} at checkout (before extras) · ${draft.payment_summary} · ${friendlyDate(draft.preferred_time)}${draft.optional_times.length ? ` · ${draft.optional_times.length} optional times` : ""}`,
+          summary: `${draft.service} · ${draft.duration_minutes / 60} hours · ${draft.payment_summary} · ${friendlyDate(draft.preferred_time)}${draft.optional_times.length ? ` · ${draft.optional_times.length} optional times` : ""}`,
           href: draft.url,
           tone: "primary",
         },
@@ -1091,7 +1095,7 @@ Rules:
 - Write links as plain paths only, e.g. /book?service=abc&pc=SW3%201AA&slot=... — never use markdown link syntax with square brackets, and never write http:// or a domain.
 - Rely on the CONTEXT below and your tool results. Never invent prices, policies or availability.
 - Treat unresolved commercial rules as unknown; do not turn current technical behaviour into a legal promise.
-- If you don't know, say so. For a booking-specific issue, offer the confirmed resolution-desk request; for a general issue, give the support email opulencebliss@gmail.com.
+- If you don't know, say so. For a booking-specific issue, offer the confirmed resolution-desk request; for a general issue, give the support email hello@opulencebliss.com.
 - Warm, brief, practical. Two or three sentences is usually plenty; avoid bold formatting and lists unless useful.
 - Give times as friendly UK times, e.g. "Monday 3 August at 3:00pm".
 - End with a useful next step and the relevant page path. Never invent a page.
@@ -1165,7 +1169,10 @@ export async function POST(req: NextRequest) {
       try {
         const result = await executeConfirmedAction(agentContext, actionToken);
         return NextResponse.json(
-          { reply: result.message, actionCompleted: result.ok },
+          {
+            reply: priceFreeAssistantReply(result.message),
+            actionCompleted: result.ok,
+          },
           { status: result.ok ? 200 : 409 },
         );
       } catch (error) {
@@ -1207,17 +1214,19 @@ export async function POST(req: NextRequest) {
         .limit(100),
       assistantServices(admin),
     ]);
-    const knowledge = JSON.stringify({
-      faqs: faqResult.error
-        ? []
-        : relevantAssistantFaqs(faqResult.data ?? [], question),
-      services,
-      cleaning_service_rules: CLEANING_SERVICE_RULES,
-      sources: ["/faq", "/services/cleaning"],
-      faq_status: faqResult.error
-        ? "Unavailable: do not guess policy answers."
-        : "Current published FAQs",
-    });
+    const knowledge = JSON.stringify(
+      assistantWithoutPrices({
+        faqs: faqResult.error
+          ? []
+          : relevantAssistantFaqs(faqResult.data ?? [], question),
+        services,
+        cleaning_service_rules: CLEANING_SERVICE_RULES,
+        sources: ["/faq", "/services/cleaning"],
+        faq_status: faqResult.error
+          ? "Unavailable: do not guess policy answers."
+          : "Current published FAQs",
+      }),
+    );
     const exactFaq = (faqResult.data ?? []).find(
       (faq) =>
         faq.question.toLowerCase().replace(/[^a-z0-9]/g, "") ===
@@ -1225,7 +1234,9 @@ export async function POST(req: NextRequest) {
     );
     if (exactFaq && !faqResult.error) {
       return NextResponse.json({
-        reply: `${exactFaq.answer}\n\n[Read our FAQs](/faq)`,
+        reply: priceFreeAssistantReply(
+          `${exactFaq.answer}\n\n[Read our FAQs](/faq)`,
+        ),
       });
     }
     const past = assistantHistory(history);
@@ -1273,10 +1284,13 @@ export async function POST(req: NextRequest) {
           .join("")
           .trim();
         return NextResponse.json({
-          reply:
+          reply: priceFreeAssistantReply(
             reply ||
-            "Sorry, I couldn't work that one out. Please contact the Opulence Bliss team.",
-          ...(pendingAction ? { action: pendingAction } : {}),
+              "Sorry, I couldn't work that one out. Please contact the Opulence Bliss team.",
+          ),
+          ...(pendingAction
+            ? { action: assistantWithoutPrices(pendingAction) }
+            : {}),
         });
       }
 
@@ -1310,7 +1324,7 @@ export async function POST(req: NextRequest) {
           functionResponse: {
             ...(fc.id ? { id: fc.id } : {}),
             name: fc.name,
-            response: { result: safeResult },
+            response: { result: assistantWithoutPrices(safeResult) },
           },
         });
       }

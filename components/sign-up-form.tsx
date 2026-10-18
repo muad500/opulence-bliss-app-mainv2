@@ -37,9 +37,8 @@ export function SignUpForm() {
   const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
   const emailValid = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email.trim());
   const phoneValid = isValidUkPhone(phone);
-  const phoneEntered = phone.trim().length > 0;
-  const phoneOk = !phoneEntered || phoneValid;
-  const phoneError = phoneTouched && phoneEntered && !phoneValid;
+  const phoneOk = phoneValid;
+  const phoneError = phoneTouched && !phoneValid;
 
   async function handleSignUp(event: React.FormEvent) {
     event.preventDefault();
@@ -191,7 +190,7 @@ export function SignUpForm() {
             </svg>
             <span className="phone-code">+44</span>
             <label className="sr-only" htmlFor="client-phone">
-              Telephone number (optional)
+              Telephone number
             </label>
             <input
               id="client-phone"
@@ -199,7 +198,7 @@ export function SignUpForm() {
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               onBlur={() => setPhoneTouched(true)}
-              placeholder="Telephone number (optional)"
+              placeholder="Telephone number"
               autoComplete="tel"
               inputMode="numeric"
               aria-invalid={phoneError}

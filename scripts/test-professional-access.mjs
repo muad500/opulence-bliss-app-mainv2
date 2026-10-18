@@ -38,6 +38,8 @@ async function load(path, mocks = {}) {
         id === "@/lib/professionalEarnings"
       )
         return {};
+      if (id === "@/lib/accountChangeVerification")
+        return { verifyAccountChangeRequest: async () => null };
       if (id === "@/lib/professionalServices") return services;
       if (id === "@/lib/handymanMarketplace")
         return {

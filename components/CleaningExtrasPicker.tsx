@@ -1,13 +1,19 @@
 "use client";
 import { CLEANING_ADDONS, type VisitExtras } from "@/lib/cleaningExtras";
+import {
+  DEFAULT_CLEANING_BILLING_TERMS,
+  type CleaningBillingTerms,
+} from "@/lib/cleaningBillingTerms";
 import styles from "./CleaningExtrasPicker.module.css";
 export default function CleaningExtrasPicker({
+  prices = DEFAULT_CLEANING_BILLING_TERMS,
   value,
   onChange,
   visits,
   overrides,
   onOverride,
 }: {
+  prices?: Pick<CleaningBillingTerms, "addonPrices" | "productsFeePence">;
   value: VisitExtras;
   onChange: (value: VisitExtras) => void;
   visits: number;
@@ -35,7 +41,7 @@ export default function CleaningExtrasPicker({
               {item.label}
               <small>Up to 1 hour</small>
             </span>
-            <strong>£{item.pricePence / 100}</strong>
+            <strong>£{(prices.addonPrices[item.id] / 100).toFixed(2)}</strong>
           </label>
         ))}
         <label className={styles.row}>
@@ -48,9 +54,12 @@ export default function CleaningExtrasPicker({
           />
           <span>
             Cleaner brings products
-            <small>£5 per visit · equipment arranged separately</small>
+            <small>
+              £{(prices.productsFeePence / 100).toFixed(2)} per visit ·
+              equipment arranged separately
+            </small>
           </span>
-          <strong>£5</strong>
+          <strong>£{(prices.productsFeePence / 100).toFixed(2)}</strong>
         </label>
       </>
     );

@@ -1,4 +1,5 @@
 "use client";
+import { serviceTextWithoutPrices } from "@/lib/assistantPresentation";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -294,7 +295,7 @@ export default function HandymanPage() {
               {faqs.map((faq) => (
                 <details key={faq.id}>
                   <summary>{faq.question}</summary>
-                  <p>{faq.answer}</p>
+                  <p>{serviceTextWithoutPrices(faq.answer)}</p>
                 </details>
               ))}
             </div>

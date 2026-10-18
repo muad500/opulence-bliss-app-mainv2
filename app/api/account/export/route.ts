@@ -200,10 +200,19 @@ export async function GET(request: NextRequest) {
       userId,
     );
     const exportData = {
-      visitBilling: await allFor(ctx.admin, "booking_visit_billing", "customer_id", userId),
+      visitBilling: await allFor(
+        ctx.admin,
+        "booking_visit_billing",
+        "customer_id",
+        userId,
+      ),
       propertyMaintenanceQuotes: maintenanceQuotes,
       handyman: {
-        jobs: handymanJobs,
+        jobs: handymanJobs.map((row) =>
+          row.customer_id === userId
+            ? row
+            : { ...row, address: null, postcode: null, description: null },
+        ),
         files: handymanFiles,
         reviews: handymanReviews,
       },
@@ -211,7 +220,13 @@ export async function GET(request: NextRequest) {
       account: {
         email: ctx.user.email,
         userMetadata: ctx.user.user_metadata,
-        profile,
+        profile: profile.map(
+          ({
+            client_rating_avg: _average,
+            client_rating_count: _count,
+            ...safe
+          }) => safe,
+        ),
         details,
         legal,
         consents,
@@ -225,8 +240,12 @@ export async function GET(request: NextRequest) {
         payments: payments.filter((row) =>
           clientBookings.some((booking) => booking.id === row.booking_id),
         ),
-        reviews,
-        messages,
+        reviews: reviews.filter((row) => row.reviewer !== "provider"),
+        messages: messages.filter(
+          (row) =>
+            row.sender_id === userId ||
+            clientBookings.some((b) => b.id === row.booking_id),
+        ),
         notifications,
       },
       incidents,
@@ -241,7 +260,10 @@ export async function GET(request: NextRequest) {
             dbsChecks,
             bookings: professionalJobs,
             payouts: payoutRuns,
-            invoices: jobInvoices,
+            invoices: jobInvoices.map((row) => ({
+              ...row,
+              address: "Address hidden after visit",
+            })),
           }
         : null,
       note: "Payment card and bank details are held by Stripe and are not included in this file.",

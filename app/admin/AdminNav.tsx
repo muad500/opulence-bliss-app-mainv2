@@ -16,6 +16,7 @@ const LINKS = [
   ["/admin/faqs", "FAQs"],
   ["/admin/chat-flags", "Chat safety"],
   ["/admin/legal", "Legal content"],
+  ["/admin/settings", "Settings"],
   ["/admin/review", "Reports"],
 ] as const;
 

@@ -1,3 +1,7 @@
+import {
+  parseBookingPreferences,
+  type BookingPreferences,
+} from "./bookingPreferences";
 import { isBookingFrequency, type BookingFrequency } from "./bookingPolicy";
 import { validCleaningDuration } from "./cleaningBooking";
 import { parseCleaningHome, type CleaningHome } from "./cleaningHome";
@@ -9,6 +13,7 @@ export const BOOKING_DRAFT_MAX_AGE = 2 * 60 * 60 * 1000;
 type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export type BookingDraft = {
+  preferences?: BookingPreferences;
   packageId: string;
   postcode: string;
   address: string;
@@ -84,6 +89,9 @@ function parseDraft(value: unknown): BookingDraft | null {
       visitOverrides[Number(index)] = extras(choice);
     }
     return {
+      ...(data.preferences === undefined
+        ? {}
+        : { preferences: parseBookingPreferences(data.preferences) }),
       packageId: data.packageId,
       postcode: data.postcode,
       address: data.address,

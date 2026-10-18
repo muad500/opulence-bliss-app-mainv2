@@ -2,14 +2,14 @@
 
 This package is held until the user says **merge**. It does not contain credentials.
 Production has not been migrated, scheduled, configured, merged or deployed by its preparation.
-Real staging email delivery must pass before release. The cleaner pay-rate decision
-remains held; the existing database guard blocks new base-pay payouts. Tips are
-separate. Keep `HANDYMAN_MARKETPLACE_ENABLED=false` and SMS off. The legal patch
+Real staging email delivery must pass before release. Cleaner pay is decided at £15 per booked cleaning hour. Add-ons and products
+are retained by the business, and tips go to the assigned cleaner in full. Saved
+booking terms preserve the agreed pay, prices, tip minimum and refund bands. Keep `HANDYMAN_MARKETPLACE_ENABLED=false` and SMS off. The legal patch
 `20261003002100` is excluded and remains held.
 
 ## Migration order
 
-Git contains **nine** required release sources, rather than eight. The additional
+Git contains **seventeen** required release sources, rather than eight. The additional
 source is the scope-notes correction `20261014000500`. Do not discard it or renumber
 an applied migration. The installer checks the ledger first: exact matches are
 skipped, mismatches stop the release before writes, and missing sources are applied
@@ -24,6 +24,19 @@ in one transaction with their original source recorded in the migration ledger.
 7. `20261018000100_late_acceptance_card_window.sql`
 8. `20261018000200_matching_notice_freshness.sql`
 9. `20261018000300_blocked_extras_reconciliation.sql`
+10. `20261018000400_private_contact_and_messaging.sql`
+11. `20261018000500_professional_insurance_and_address.sql`
+12. `20261018000600_account_change_codes.sql`
+13. `20261018000700_previous_customers_and_onboarding.sql`
+14. `20261018000800_booking_preferences_and_support.sql`
+15. `20261018000900_private_contact_windows.sql`
+16. `20261018001000_cleaning_pay_and_booking_terms.sql`
+17. `20261018001100_setup_is_not_a_visit_charge.sql`
+
+New regular bookings save a card without an initial payment and charge each visit
+when a cleaner accepts. Existing bookings retain their saved pricing and charging
+model. Release checks must verify £15/hour pay, business-retained extras, a full tip
+transfer, unchanged old-booking settings and acceptance-only regular charges.
 
 ## Package and preflight
 
@@ -65,7 +78,7 @@ gates stop execution. No execution was performed while preparing this package.
 
 1. Verify account `acct_1UL6n3ILnegr7Mwu`, live mode and enabled Production webhook;
    verify pending deliveries are resolved. Check pinned main has not moved.
-2. Apply missing exact-source migrations to **uiqcsihgqaktpjumyeap**; verify all nine
+2. Apply missing exact-source migrations to **uiqcsihgqaktpjumyeap**; verify all seventeen
    ledger hashes. No broad `db push` and no legal migration.
 3. Preserve existing webhook events and add `payment_intent.succeeded`,
    `payment_intent.payment_failed`, `refund.updated`, `customer.updated`.

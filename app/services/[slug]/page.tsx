@@ -1,4 +1,5 @@
 "use client";
+import { serviceTextWithoutPrices } from "@/lib/assistantPresentation";
 
 // SETUP: mkdir -p "app/services/[slug]" && code "app/services/[slug]/page.tsx"
 //
@@ -526,7 +527,7 @@ export default function ServicePage() {
                         {!cleaningPackageScope(selected.name) &&
                           selected.description && (
                             <p className="detail-desc">
-                              {selected.description}
+                              {serviceTextWithoutPrices(selected.description)}
                             </p>
                           )}
                         {!cleaningPackageScope(selected.name) &&
@@ -578,17 +579,15 @@ export default function ServicePage() {
       {/* ---------- REASSURANCE ---------- */}
       <section className="business" id="business-cleaning">
         <div className="inner">
-          <h2>Office cleaning and cleaning contracts</h2>
+          <h2>Cleaning contracts</h2>
           <p>
-            We also clean offices and take on regular cleaning contracts for
-            businesses and property managers. These are priced individually, so
-            they are quoted rather than booked online.
+            Cleaning contracts for offices, residential buildings and blocks,
+            restaurants, schools and event halls. Contact our team to discuss
+            your premises and cleaning schedule.
           </p>
           <p className="business-note">
-            <strong>Email or call us for a quote:</strong>{" "}
-            <a href="mailto:opulencebliss@gmail.com">opulencebliss@gmail.com</a>
-            {" · "}
-            <a href="tel:+447484717935">+44 7484 717935</a>
+            <strong>Email us:</strong>{" "}
+            <a href="mailto:hello@opulencebliss.com">hello@opulencebliss.com</a>
           </p>
         </div>
       </section>
@@ -698,7 +697,7 @@ export default function ServicePage() {
                   <span>{f.q}</span>
                   <em>{open === i ? "−" : "+"}</em>
                 </button>
-                {open === i && <p>{f.a}</p>}
+                {open === i && <p>{serviceTextWithoutPrices(f.a)}</p>}
               </div>
             ))}
           </div>

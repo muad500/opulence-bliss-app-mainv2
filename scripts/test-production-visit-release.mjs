@@ -8,8 +8,8 @@ import {
   liveEvents,
 } from "./prepare-production-visit-release.mjs";
 
-test("release includes all nine source migrations in order and holds legal", () => {
-  assert.equal(versions.length, 9);
+test("release includes all seventeen source migrations in order and holds legal", () => {
+  assert.equal(versions.length, 17);
   assert.deepEqual([...versions].sort(), versions);
   assert.ok(versions.includes("20261014000500"));
   assert.ok(!versions.includes("20261003002100"));

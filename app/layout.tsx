@@ -7,6 +7,7 @@ import { Nunito } from "next/font/google";
 import "./globals.css";
 import "./mobile-app.css";
 
+import AccountChangeVerification from "@/components/AccountChangeVerification";
 import SocialLinks from "@/components/SocialLinks";
 import MobileExperience from "@/components/MobileExperience";
 import TopBar from "@/components/TopBar";
@@ -82,6 +83,7 @@ export default function RootLayout({
               <SocialLinks />
             </footer>
             <Toaster />
+            <AccountChangeVerification />
             <RatingGate />
             <div data-app-chat>
               <SupportChat />

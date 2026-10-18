@@ -264,7 +264,10 @@ export function BookingTools({
   const selectedService =
     serviceOptions.find((item) => item.id === selectedPackageId) ??
     currentService;
-  const selectedDuration = selectedPackageId === packageId ? durationMinutes : selectedService?.durationMinutes ?? durationMinutes;
+  const selectedDuration =
+    selectedPackageId === packageId
+      ? durationMinutes
+      : (selectedService?.durationMinutes ?? durationMinutes);
   const changed =
     (scheduledAt
       ? new Date(selectedSlot).getTime() !== new Date(scheduledAt).getTime()
@@ -334,8 +337,7 @@ export function BookingTools({
             )}
             {scheduledAt && (
               <span>
-                <Clock3 size={15} />{" "}
-                {timeRange(scheduledAt, selectedDuration)}
+                <Clock3 size={15} /> {timeRange(scheduledAt, selectedDuration)}
               </span>
             )}
             <span>
@@ -367,7 +369,9 @@ export function BookingTools({
             <Info size={21} />
             <div>
               <strong>No alternative times are available</strong>
-              <span>Please keep the current appointment or try again later.</span>
+              <span>
+                Please keep the current appointment or try again later.
+              </span>
             </div>
           </div>
         ) : (
@@ -395,7 +399,9 @@ export function BookingTools({
                       setSelectedPackageId(nextId);
                       setMessage(null);
                       void fetchSlots(
-                        nextId === packageId ? durationMinutes : next?.durationMinutes ?? durationMinutes,
+                        nextId === packageId
+                          ? durationMinutes
+                          : (next?.durationMinutes ?? durationMinutes),
                         nextId === packageId ? scheduledAt : "",
                       );
                     }}
@@ -532,7 +538,11 @@ export function BookingTools({
       <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
         <button
           className="modify-trigger"
-          style={triggerVariant === "link" ? { ...linkBtn, color: "#6D28D9" } : undefined}
+          style={
+            triggerVariant === "link"
+              ? { ...linkBtn, color: "#6D28D9" }
+              : undefined
+          }
           disabled={pending}
           onClick={() => void loadSlots()}
         >
@@ -545,22 +555,14 @@ export function BookingTools({
             disabled={pending}
             onClick={() => {
               const policy = scheduledAt
-                ? calculateCancellationPolicy(
-                    scheduledAt,
-                    paymentAmount ?? 0,
-                  )
+                ? calculateCancellationPolicy(scheduledAt, paymentAmount ?? 0)
                 : null;
               const confirmation = policy
                 ? cancellationConfirmation(policy)
                 : "Cancel this booking?";
-              if (!window.confirm(confirmation))
-                return;
+              if (!window.confirm(confirmation)) return;
               start(async () => {
-                const result = await cancelBooking(
-                  id,
-                  undefined,
-                  policy?.tier,
-                );
+                const result = await cancelBooking(id, undefined, policy?.tier);
                 if (!result.ok) setMessage(result.message);
               });
             }}
@@ -997,8 +999,7 @@ export function RateBooking({
   const [pending, start] = useTransition();
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
-  const [visibility, setVisibility] =
-    useState<ReviewVisibility>("public");
+  const [visibility, setVisibility] = useState<ReviewVisibility>("public");
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -1129,6 +1130,16 @@ export function RateBooking({
 
 // Tip your provider after a completed visit.
 export function TipBooking({ id }: { id: string }) {
+  const [minimum, setMinimum] = useState<number | null>(null);
+  useEffect(() => {
+    fetch(`/api/tip?bookingId=${encodeURIComponent(id)}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => {
+        if (Number.isInteger(data.minimumPence))
+          setMinimum(data.minimumPence / 100);
+      })
+      .catch(() => undefined);
+  }, [id]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -1172,35 +1183,80 @@ export function TipBooking({ id }: { id: string }) {
       <p style={{ margin: "0 0 8px", fontSize: 13.5, color: "#7A828C" }}>
         Tips go entirely to your provider — we take nothing.
       </p>
-      <form onSubmit={(event) => { event.preventDefault(); void tip(Number(customAmount)); }} style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void tip(Number(customAmount));
+        }}
+        style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}
+      >
         <label htmlFor={`tip-${id}`}>Your tip (£)</label>
-        <input id={`tip-${id}`} type="number" inputMode="decimal" min="3.00" step="0.01" required value={customAmount} onChange={(event) => setCustomAmount(event.target.value)} disabled={busy}
-          placeholder="Enter an amount" style={{ border: "1px solid #ddd", borderRadius: 8, padding: 8, maxWidth: 180 }} />
-        <button type="submit" disabled={busy || !Number.isFinite(Number(customAmount)) || Number(customAmount) < 3.00} style={{ padding: "8px 14px", background: "#6d28d9", color: "white", borderRadius: 8 }}>Continue</button>
-        <small style={{ width: "100%" }}>Choose any amount from £3. Tips go to your cleaner in full.</small>
+        <input
+          id={`tip-${id}`}
+          type="number"
+          inputMode="decimal"
+          min={minimum ?? 0.5}
+          step="0.01"
+          required
+          value={customAmount}
+          onChange={(event) => setCustomAmount(event.target.value)}
+          disabled={busy}
+          placeholder="Enter an amount"
+          style={{
+            border: "1px solid #ddd",
+            borderRadius: 8,
+            padding: 8,
+            maxWidth: 180,
+          }}
+        />
+        <button
+          type="submit"
+          disabled={
+            busy ||
+            !Number.isFinite(Number(customAmount)) ||
+            minimum === null ||
+            Number(customAmount) < minimum
+          }
+          style={{
+            padding: "8px 14px",
+            background: "#6d28d9",
+            color: "white",
+            borderRadius: 8,
+          }}
+        >
+          Continue
+        </button>
+        <small style={{ width: "100%" }}>
+          Choose any amount from £{minimum?.toFixed(2) ?? "…"}. Tips go to your
+          cleaner in full.
+        </small>
       </form>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {[3, 5, 10].map((n) => (
-          <button
-            key={n}
-            disabled={busy}
-            onClick={() => tip(n)}
-            style={{
-              background: "#FFFFFF",
-              border: "1.5px solid #EDEFF1",
-              borderRadius: 999,
-              padding: "9px 18px",
-              font: "inherit",
-              fontSize: 14,
-              fontWeight: 600,
-              color: "#16202A",
-              cursor: busy ? "wait" : "pointer",
-              opacity: busy ? 0.6 : 1,
-            }}
-          >
-            £{n}
-          </button>
-        ))}
+        {[...new Set([minimum, 5, 10])]
+          .filter(
+            (n): n is number => n !== null && minimum !== null && n >= minimum,
+          )
+          .map((n) => (
+            <button
+              key={n}
+              disabled={busy}
+              onClick={() => tip(n)}
+              style={{
+                background: "#FFFFFF",
+                border: "1.5px solid #EDEFF1",
+                borderRadius: 999,
+                padding: "9px 18px",
+                font: "inherit",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "#16202A",
+                cursor: busy ? "wait" : "pointer",
+                opacity: busy ? 0.6 : 1,
+              }}
+            >
+              £{n}
+            </button>
+          ))}
         <button
           style={{ ...linkBtn, color: "#7A828C" }}
           onClick={() => setOpen(false)}

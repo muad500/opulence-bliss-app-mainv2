@@ -158,6 +158,7 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       );
     }
+    let invitedProviderId: string | null = null;
     if (existingUser) {
       const { data: existingProfile } = await admin
         .from("profiles")
@@ -174,7 +175,16 @@ export async function POST(req: NextRequest) {
         .select("id")
         .eq("profile_id", existingUser.id)
         .maybeSingle();
-      if (alreadyProfessional)
+      if (alreadyProfessional) {
+        const invitation = await admin
+          .from("professional_setup_invitations")
+          .select("setup_completed_at")
+          .eq("user_id", existingUser.id)
+          .maybeSingle();
+        if (invitation.data && !invitation.data.setup_completed_at)
+          invitedProviderId = alreadyProfessional.id;
+      }
+      if (alreadyProfessional && !invitedProviderId)
         return NextResponse.json(
           {
             error:
@@ -476,7 +486,8 @@ export async function POST(req: NextRequest) {
     // 3. Provider record — work access begins after the admin approves it.
     const { data: prov, error: provErr } = await admin
       .from("providers")
-      .insert({
+      .upsert({
+        ...(invitedProviderId ? { id: invitedProviderId } : {}),
         profile_id: userId,
         services: selectedServices,
         display_name: fullName,
@@ -598,6 +609,11 @@ export async function POST(req: NextRequest) {
       })),
     );
 
+    if (invitedProviderId)
+      await admin
+        .from("professional_setup_invitations")
+        .update({ setup_completed_at: new Date().toISOString() })
+        .eq("provider_id", invitedProviderId);
     return NextResponse.json({
       ok: true,
       userId,

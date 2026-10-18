@@ -122,7 +122,8 @@ export function assistantBookingHandoff(
     hourly_rate_gbp: cleaningHourlyRatePence(pkg) / 100,
     price_per_visit_gbp: visitPence / 100,
     total_gbp: (visitPence * visits) / 100,
-    due_now_gbp: (visitPence * (perVisitBilling ? 1 : visits)) / 100,
+    due_now_gbp:
+      (visitPence * (perVisitBilling ? (visits > 1 ? 0 : 1) : visits)) / 100,
     payment_model: perVisitBilling ? "per_visit" : "legacy",
     payment_summary: assistantPaymentSummary(perVisitBilling, visits),
     note: "This is a draft. Review your address, home details and final price in checkout. A cleaner is matched after booking; nothing is booked or paid by this chat.",
@@ -159,7 +160,7 @@ export function assistantPaymentSummary(
 ) {
   if (perVisitBilling) {
     return visits > 1
-      ? "Only the first visit is charged at checkout. Later visits are charged 48 hours before, only when a cleaner is assigned; a cleaner accepting later triggers payment then. Extras are confirmed at checkout."
+      ? "Save your card at checkout. Each regular visit is charged only when a cleaner accepts it. Unassigned or paused visits are not charged. Extras are confirmed at checkout."
       : "The full visit amount is charged at checkout, with no card hold. Extras are confirmed at checkout.";
   }
   return visits > 1

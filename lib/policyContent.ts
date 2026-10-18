@@ -19,7 +19,7 @@ export const PRIVACY_POLICY_HTML = `
   <p>Opulence Bliss Ltd</p>
   <p><strong>Company Registration Number:</strong> 15894675</p>
   <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
-  <p><strong>Email:</strong> opulencebliss@gmail.com</p>
+  <p><strong>Email:</strong> hello@opulencebliss.com</p>
   <p><strong>Registered in:</strong> England and Wales</p>
   <p>If you have questions about this Privacy Policy or how we handle your personal information, please contact us using the details above.</p>
   <h2>3. Our Privacy Approach</h2>
@@ -299,7 +299,7 @@ export const PRIVACY_POLICY_HTML = `
   <h2>25. How to Exercise Your Rights</h2>
   <p>To exercise a data protection right, contact:</p>
   <p>Opulence Bliss Ltd</p>
-  <p><strong>Email:</strong> opulencebliss@gmail.com</p>
+  <p><strong>Email:</strong> hello@opulencebliss.com</p>
   <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
   <p>We may need to verify your identity before responding to certain requests.</p>
   <p>We will respond within the timescales required by applicable law.</p>
@@ -323,7 +323,7 @@ export const PRIVACY_POLICY_HTML = `
   <p>Opulence Bliss Ltd</p>
   <p><strong>Company Registration Number:</strong> 15894675</p>
   <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
-  <p><strong>Email:</strong> opulencebliss@gmail.com</p>
+  <p><strong>Email:</strong> hello@opulencebliss.com</p>
   <p><strong>Registered in:</strong> England and Wales</p>
   <p><strong>Happy Cleaners. Happier Homes.</strong></p>
   <h2>Our Privacy Commitment</h2>
@@ -490,7 +490,7 @@ export const CANCELLATION_REFUND_POLICY_HTML = `
   <p>Opulence Bliss Ltd</p>
   <p><strong>Company Registration Number:</strong> 15894675</p>
   <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
-  <p><strong>Email:</strong> opulencebliss@gmail.com</p>
+  <p><strong>Email:</strong> hello@opulencebliss.com</p>
   <p><strong>Happy Cleaners. Happier Homes.</strong></p>
 `;
 
@@ -845,7 +845,7 @@ export const HANDYMAN_TERMS_HTML = `
   <p>Registered in: England and Wales</p>
   <p>Registered office: 128 City Road, London, EC1V 2NX</p>
   <p>Call / SMS / WhatsApp: +44 7484 717935</p>
-  <p>Email: opulencebliss@gmail.com</p>
+  <p>Email: hello@opulencebliss.com</p>
   <h2>45. Customer Acknowledgement</h2>
   <p>By accepting a quotation, confirming a booking, making payment or allowing Opulence to commence the agreed work, the Customer confirms that they have had an opportunity to read these Terms and understand that the applicable terms form part of the agreement for the Property maintenance Service.</p>
 `;

@@ -1,3 +1,4 @@
+import { finalizePerVisitCheckout } from "@/lib/finalizePerVisitCheckout";
 // SETUP: mkdir -p "app/api/stripe/webhook" && code "app/api/stripe/webhook/route.ts"
 //
 // Stripe webhook — the source of truth for subscription money.
@@ -121,6 +122,23 @@ export async function POST(req: NextRequest) {
             { status: 500 },
           );
         }
+      }
+
+      if (
+        session.mode === "setup" &&
+        session.client_reference_id &&
+        session.setup_intent &&
+        session.metadata?.kind === "booking" &&
+        session.metadata?.billing_model === "per_visit"
+      ) {
+        const id =
+          typeof session.setup_intent === "string"
+            ? session.setup_intent
+            : session.setup_intent.id;
+        await finalizePerVisitCheckout(
+          session,
+          await stripe.setupIntents.retrieve(id),
+        );
       }
 
       if (session.mode === "subscription" && session.subscription) {

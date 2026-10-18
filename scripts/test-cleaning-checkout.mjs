@@ -20,6 +20,8 @@ function harness({
         select: () => q,
         eq: () => q,
         maybeSingle: () => q,
+        order: () => q,
+        limit: () => q,
         single: () => q,
         upsert: async (row) => {
           calls.staged.push(row);
@@ -93,6 +95,12 @@ function harness({
               }),
             },
           }),
+        };
+      if (id === "server-only") return {};
+      if (id === "@/lib/cleaningBillingSettings")
+        return {
+          currentCleaningBillingTerms: async () =>
+            load("lib/cleaningBillingTerms.ts").DEFAULT_CLEANING_BILLING_TERMS,
         };
       if (id === "@/lib/accountBilling")
         return { getOrCreateBillingCustomer: async () => "cus_fixture" };
@@ -169,14 +177,22 @@ test("new one-off checkout charges in full automatically and saves consent witho
     "visit-billing-v1",
   );
 });
-test("new regular checkout charges the first of six visits only, with £5 products on each visit", async () => {
+test("new regular checkout saves a card without charging, with £5 products on each visit", async () => {
   const h = harness({ perVisit: true, regular: true });
   const response = await h.checkout();
   assert.equal(response.status, 200, JSON.stringify(await response.json()));
-  assert.equal(h.calls.sessions[0].line_items[0].price_data.unit_amount, 8098);
+  assert.equal(h.calls.sessions[0].mode, "setup");
+  assert.equal(h.calls.sessions[0].line_items, undefined);
+  assert.equal(h.calls.sessions[0].payment_intent_data, undefined);
+  assert.equal(
+    h.calls.sessions[0].setup_intent_data.metadata.billing_model,
+    "per_visit",
+  );
   assert.equal(h.calls.staged[0].cleaning_extras.length, 6);
   for (const scope of h.calls.staged[0].cleaning_extras) {
     assert.equal(scope.netPence, 8098);
+    assert.equal(scope.chargeTiming, "acceptance");
+    assert.equal(scope.billingSettings.cleanerHourlyPence, 1500);
     assert.equal(
       scope.lineItems.find((line) => line.id === "products").amountPence,
       500,

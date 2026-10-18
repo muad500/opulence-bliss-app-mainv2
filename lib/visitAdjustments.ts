@@ -54,7 +54,11 @@ export function cancellationRefunds(
   charges: VisitCharge[],
   refundPercent: number,
 ) {
-  if (![0, 50, 75, 100].includes(refundPercent))
+  if (
+    !Number.isInteger(refundPercent) ||
+    refundPercent < 0 ||
+    refundPercent > 100
+  )
     throw new Error("Invalid refund percentage.");
   const paid = charges.reduce(
     (sum, charge) => sum + charge.amount_pence - charge.refunded_pence,

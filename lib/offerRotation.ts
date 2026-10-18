@@ -26,15 +26,22 @@ async function notifyRotationResult(
   bookingId: string,
   result: OfferRotationResult,
 ) {
-  if (result.action === "activated" && result.profile_id && result.provider_id) {
+  if (
+    result.action === "activated" &&
+    result.profile_id &&
+    result.provider_id
+  ) {
     const minutes = result.cadence_minutes ?? 15;
-    const { data: settings } = await admin.from("provider_profile_settings")
-      .select("alert_app,alert_email").eq("provider_id", result.provider_id).maybeSingle();
+    const { data: settings } = await admin
+      .from("provider_profile_settings")
+      .select("alert_app,alert_email")
+      .eq("provider_id", result.provider_id)
+      .maybeSingle();
     if (settings?.alert_app !== false) {
       const { error } = await admin.from("notifications").insert({
         user_id: result.profile_id,
         title: "New job offer",
-        body: `${result.service ?? "Service"} in ${result.address ?? "your area"} — reserved for you for ${minutes} minutes.`,
+        body: `${result.service ?? "Service"} in your coverage area — reserved for you for ${minutes} minutes.`,
         href: "/worker",
       });
       if (error) throw new Error(error.message);
@@ -42,8 +49,11 @@ async function notifyRotationResult(
     // Legacy accounts never opted in to email offers. A professional who saves
     // an email preference may receive one for a newly activated offer.
     if (settings?.alert_email === true) {
-      const { data: profile } = await admin.from("profiles")
-        .select("email").eq("id", result.profile_id).maybeSingle();
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("email")
+        .eq("id", result.profile_id)
+        .maybeSingle();
       await sendEmail({
         to: profile?.email,
         subject: "New Opulence Bliss job offer",
@@ -63,8 +73,7 @@ async function notifyRotationResult(
     const { error } = await admin.from("notifications").insert({
       user_id: result.customer_id,
       title: "No provider has accepted yet",
-      body:
-        "We asked every matching provider one at a time. You can reschedule, or keep this time and we'll cancel automatically if it remains unfilled.",
+      body: "We asked every matching provider one at a time. You can reschedule, or keep this time and we'll cancel automatically if it remains unfilled.",
       href: `/account/visit/${bookingId}`,
     });
     if (error) throw new Error(error.message);

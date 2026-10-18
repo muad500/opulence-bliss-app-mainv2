@@ -1,3 +1,4 @@
+import { bookingCleaningBillingTerms } from "./cleaningBillingSettings";
 import "server-only";
 import Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -93,7 +94,8 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
         .eq("booking_id", bookingId)
         .order("created_at"),
     ) as VisitCharge[];
-    return { booking, bill, charges };
+    const terms = await bookingCleaningBillingTerms(admin, bookingId);
+    return { booking, bill, charges, terms };
   }
 
   async function chargeGate(
@@ -196,7 +198,7 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
     customerId: string,
     input: { addons: unknown; bringsProducts: unknown },
   ) {
-    const { booking, bill, charges } = await load(bookingId, customerId);
+    const { booking, bill, charges, terms } = await load(bookingId, customerId);
     if (!visitExtrasCanChange(booking.scheduled_at))
       throw new Error("Add-on changes need at least 24 hours notice.");
     if (!["offered", "declined", "scheduled"].includes(booking.status))
@@ -218,6 +220,7 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
       input.addons,
       input.bringsProducts,
       1,
+      terms,
     );
     const lines = visitLineItems(quote, bill.discount_pence);
     const { added, removed } = changedVisitLines(bill.line_items, lines);
@@ -238,6 +241,7 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
         quote.addons.map((a) => a.id),
         quote.bringsProducts,
         previous.petsAtHome,
+        terms,
       ),
     };
     return {
@@ -308,7 +312,7 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
     expectedTier?: CancellationPolicyTier,
     latePayment = false,
   ) {
-    const { booking, bill, charges } = await load(
+    const { booking, bill, charges, terms } = await load(
       bookingId,
       customerId ?? undefined,
     );
@@ -318,6 +322,8 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
         policy: calculateCancellationPolicy(
           booking.scheduled_at,
           paidTotal(charges) / 100,
+          new Date(),
+          terms.cancellationRefundPercent,
         ),
       };
     if (
@@ -330,11 +336,15 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
         policy: calculateCancellationPolicy(
           booking.scheduled_at,
           paidTotal(charges) / 100,
+          new Date(),
+          terms.cancellationRefundPercent,
         ),
       };
     const policy = calculateCancellationPolicy(
       booking.scheduled_at,
       paidTotal(charges) / 100,
+      new Date(),
+      terms.cancellationRefundPercent,
     );
     if (expectedTier && expectedTier !== policy.tier)
       throw new Error(

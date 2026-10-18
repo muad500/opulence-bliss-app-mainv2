@@ -1,5 +1,5 @@
 {
-  "sourceSha256": "8e6aae6f1bafbb403326b6591fef1f35cf17979c604b0052bb40dd2c36ba52b3",
+  "sourceSha256": "cc27b1388be9b882ae00525daa49f0fcf66733de1bab8ed4c0cd8f1d44d3bc05",
   "generator": "scripts/build-visit-payment-worker.mjs",
   "generatorSha256": "5b0961440e7d2fe28516fa3f795d51b8b662fa074c630efda795952c10344db5",
   "stripeVersion": "22.3.2",
@@ -11,7 +11,15 @@
     },
     {
       "path": "lib/cancellationPolicy.ts",
-      "sha256": "d66eb4aa269f20ff8bdd12246e96ea814250a20949b3b06aba4d7fcba8b56119"
+      "sha256": "6e4a5b0c331bb110788cdfd1d3388a496f79b9a05ce7c858cfdee67f639b94a8"
+    },
+    {
+      "path": "lib/cleaningBillingSettings.ts",
+      "sha256": "23a52afbd9982302f7946ff6c1130f62b72ac8438d7259ab6cdf9b5e61a6ad58"
+    },
+    {
+      "path": "lib/cleaningBillingTerms.ts",
+      "sha256": "712b164bcc668ed38287bf19e145833a356165a279738eb6cca2cf3448d5e4d8"
     },
     {
       "path": "lib/cleaningBooking.ts",
@@ -19,11 +27,11 @@
     },
     {
       "path": "lib/cleaningExtras.ts",
-      "sha256": "6f281fbd87b02094721584d139966db34bde5910a935cd6429b6abc1fe9316d9"
+      "sha256": "0b65c5a471aa9f430163de49e18baa581b22b67678d9e470b641d638bbe9251d"
     },
     {
       "path": "lib/visitAdjustments.ts",
-      "sha256": "0d1c713967287c70ed185705cd8706d0a05db591422f7be014c8f6ccee731891"
+      "sha256": "fb604813b582c626428ac4c7e4b2d7ea9fea050a3069bb254c92ea3a7f737dac"
     },
     {
       "path": "lib/visitBillingPolicy.ts",
@@ -31,7 +39,7 @@
     },
     {
       "path": "lib/visitBillingServer.ts",
-      "sha256": "b0817df70546f58bfc7a2e17f4418611dc55b1d9de18892dd50e077d29f71727"
+      "sha256": "83f6075e53f060d1e3299a3d01e70ad719e90ddc4d38cdf47f1533c79987f2ab"
     },
     {
       "path": "lib/visitLineItems.ts",

@@ -20,16 +20,20 @@ export default async function Success({
   let upfrontRegular = false;
   let captured = false;
   let perVisit = false;
+  let savedCard = false;
   let regularVisitCount = 6;
   if (session_id) {
     try {
       const session = await stripe.checkout.sessions.retrieve(session_id, {
-        expand: ["payment_intent"],
+        expand: ["payment_intent", "setup_intent"],
       });
-      const pi = session.payment_intent as Stripe.PaymentIntent;
+      savedCard = session.mode === "setup";
+      const pi = (
+        savedCard ? session.setup_intent : session.payment_intent
+      ) as Stripe.PaymentIntent;
       ok = pi.status === "requires_capture" || pi.status === "succeeded";
-      captured = pi.status === "succeeded";
-      total = captured ? pi.amount_received : pi.amount;
+      captured = !savedCard && pi.status === "succeeded";
+      total = savedCard ? 0 : captured ? pi.amount_received : pi.amount;
       name = pi.metadata?.package ?? "";
       upfrontRegular = pi.metadata?.upfront_regular === "1";
       perVisit = pi.metadata?.billing_model === "per_visit";
@@ -47,13 +51,15 @@ export default async function Success({
     : "Your card was authorised";
   const statusMessage =
     ok && persisted
-      ? captured
-        ? upfrontRegular
-          ? perVisit
-            ? `${name} — your first visit is paid and all ${regularVisitCount} dates are booked. Each later visit is charged 48 hours before it starts. You can see each date in My Bookings.`
-            : `${name} — all ${regularVisitCount} visits are booked and paid upfront. You can see each date in My Bookings.`
-          : `${name} — your payment has been received. You can find your visit in My Bookings.`
-        : `${name} — your card is held, not charged. You'll only be charged once the visit is complete.`
+      ? savedCard
+        ? `${name} — your card is saved and all ${regularVisitCount} dates are booked. Each visit is charged when a cleaner accepts it. Unassigned or paused visits are not charged. You can see every date in My Bookings.`
+        : captured
+          ? upfrontRegular
+            ? perVisit
+              ? `${name} — your first visit is paid and all ${regularVisitCount} dates are booked. Each later visit is charged 48 hours before it starts. You can see each date in My Bookings.`
+              : `${name} — all ${regularVisitCount} visits are booked and paid upfront. You can see each date in My Bookings.`
+            : `${name} — your payment has been received. You can find your visit in My Bookings.`
+          : `${name} — your card is held, not charged. You'll only be charged once the visit is complete.`
       : error === "booking_update_pending"
         ? `${paymentState}, but the booking system update is still being applied. Do not pay again. Retry saving this booking once the update is complete.`
         : error === "finalize_failed"
@@ -95,7 +101,9 @@ export default async function Success({
           {ok
             ? captured
               ? "Payment received"
-              : "Payment authorised"
+              : savedCard
+                ? "Card saved"
+                : "Payment authorised"
             : "Payment status"}
         </p>
         <h1 style={{ fontWeight: 900, fontSize: 30, margin: "0 0 6px" }}>
@@ -106,11 +114,13 @@ export default async function Success({
           <dl style={{ margin: 0 }}>
             {[
               [
-                captured
-                  ? upfrontRegular && perVisit
-                    ? "First visit paid"
-                    : "Amount paid"
-                  : "Amount authorised",
+                savedCard
+                  ? "Amount paid today"
+                  : captured
+                    ? upfrontRegular && perVisit
+                      ? "First visit paid"
+                      : "Amount paid"
+                    : "Amount authorised",
                 gbp(total),
               ],
             ].map(([key, value]) => (

@@ -181,7 +181,12 @@ export default function ProviderJoinPage() {
       ]);
       if (!active) return;
       setExistingUserId(user.id);
-      setAlreadyProfessional(!!provider);
+      const setup = await fetch("/api/account/professional-setup", {
+        cache: "no-store",
+      })
+        .then((r) => r.json())
+        .catch(() => ({}));
+      setAlreadyProfessional(!!provider && setup.pending !== true);
       setEmail(user.email ?? "");
       const name = String(profile?.full_name ?? "")
         .trim()

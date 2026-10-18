@@ -13,7 +13,10 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as ssr } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/email";
 import { seedAndStartOfferRotation } from "@/lib/offerRotation";
-import { providerIdsWithinSavedCoverage, servicePostcodeFromText } from "@/lib/providerCoverage";
+import {
+  providerIdsWithinSavedCoverage,
+  servicePostcodeFromText,
+} from "@/lib/providerCoverage";
 
 const admin = createServiceClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -45,7 +48,7 @@ async function requireProvider(bookingId: string) {
   if (!prov) throw new Error("Not a provider");
 
   const { data: booking } = await s
-    .from("bookings")
+    .rpc("worker_visible_bookings")
     .select(
       "id, status, scheduled_at, address, customer_id, customer_email, provider_id, package_id, packages(name, service_type)",
     )
@@ -258,13 +261,22 @@ export async function cannotAttend(
         let coveredIds: string[] = [];
         try {
           coveredIds = await providerIdsWithinSavedCoverage(
-            admin, provs.map((provider) => provider.id), booking.address,
+            admin,
+            provs.map((provider) => provider.id),
+            booking.address,
           );
         } catch (coverageError) {
-          console.error(`Could not check replacement coverage for booking ${bookingId}:`, coverageError);
+          console.error(
+            `Could not check replacement coverage for booking ${bookingId}:`,
+            coverageError,
+          );
         }
         if (coveredIds.length) {
-          const started = await seedAndStartOfferRotation(admin, bookingId, coveredIds);
+          const started = await seedAndStartOfferRotation(
+            admin,
+            bookingId,
+            coveredIds,
+          );
           offered = Number((started.seed as { queued?: number })?.queued ?? 0);
         }
       }

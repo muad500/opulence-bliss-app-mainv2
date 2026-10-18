@@ -8,10 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { revalidatePath } from "next/cache";
-import {
-  effectiveReviewVisibility,
-  type ReviewVisibility,
-} from "@/lib/reviewVisibility";
+
 import { sendEmail } from "@/lib/email";
 import { rotateBookingOffer } from "@/lib/offerRotation";
 import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
@@ -857,12 +854,7 @@ export async function markAllRead() {
 }
 
 // Provider rates the client after a completed visit.
-export async function rateClient(
-  id: string,
-  rating: number,
-  comment: string,
-  visibility: ReviewVisibility,
-) {
+export async function rateClient(id: string, rating: number, comment: string) {
   const supabase = await createClient();
   const clean = Math.min(5, Math.max(1, Math.round(rating)));
 
@@ -871,20 +863,8 @@ export async function rateClient(
     reviewer: "provider",
     rating: clean,
     comment: comment?.trim() ? comment.trim() : null,
-    visibility: effectiveReviewVisibility(visibility),
+    visibility: "private",
   });
-
-  if (!error) {
-    const ctx = await bookingContext(id);
-    await notify(
-      ctx.customerId,
-      `Your provider rated you ${clean} stars`,
-      comment?.trim()
-        ? comment.trim().slice(0, 120)
-        : "Thanks for having them.",
-      "/account",
-    );
-  }
 
   revalidatePath("/worker");
   return { error: error?.message ?? null };

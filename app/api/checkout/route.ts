@@ -1,8 +1,14 @@
+import { currentCleaningBillingTerms } from "@/lib/cleaningBillingSettings";
+import {
+  DEFAULT_CLEANING_BILLING_TERMS,
+  cleanerPayPence,
+} from "@/lib/cleaningBillingTerms";
 // Platform checkout. A completed visit is paid to its assigned cleaner later.
 // Save at: app/api/checkout/route.ts
 // Needs in .env.local: STRIPE_SECRET_KEY,
 //   NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
 
+import { parseBookingPreferences } from "@/lib/bookingPreferences";
 import { isCleaning, validCleaningDuration } from "@/lib/cleaningBooking";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -50,6 +56,7 @@ const supabaseAdmin = createClient(
 export async function POST(req: NextRequest) {
   try {
     const {
+      bookingPreferences,
       packageId,
       postcode,
       address,
@@ -71,6 +78,20 @@ export async function POST(req: NextRequest) {
       visitExtras,
       saveCardConsent,
     } = await req.json();
+    let preferences;
+    try {
+      preferences = parseBookingPreferences(bookingPreferences);
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Invalid booking preferences.",
+        },
+        { status: 400 },
+      );
+    }
     const perVisit = visitBillingEnabled();
     if (perVisit && saveCardConsent !== true)
       return NextResponse.json(
@@ -172,6 +193,9 @@ export async function POST(req: NextRequest) {
         { error: "Choose between six and ten visits." },
         { status: 400 },
       );
+    const billingTerms = perVisit
+      ? await currentCleaningBillingTerms(supabaseAdmin)
+      : DEFAULT_CLEANING_BILLING_TERMS;
     let quote;
     try {
       quote = cleaningSeriesQuote(
@@ -181,6 +205,7 @@ export async function POST(req: NextRequest) {
         bringsProducts,
         visitCount,
         visitExtras,
+        billingTerms,
       );
     } catch (cause) {
       return NextResponse.json(
@@ -332,14 +357,14 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       );
 
-    // Sign-up does not require a phone, but the assigned cleaner needs one
+    // Legacy accounts must add a private phone number before checkout.
     // before a paid booking can be created.
     if (!isStoredUkPhone(profile.phone)) {
       if (!isValidUkPhone(phone)) {
         return NextResponse.json(
           {
             error:
-              "Add a UK phone number so your cleaner can reach you on the day.",
+              "Add your private UK phone number to complete your account. Your cleaner contacts you only through in-app messages.",
             code: "phone_required",
           },
           { status: 400 },
@@ -522,15 +547,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ---- PLACEHOLDER split — REPLACE with the client's SIGNED numbers ----
-    // Per-visit model: the platform takes a margin, the provider keeps the rest.
-    // Per-visit booking only. Professional onboarding has no joining fee.
-    // ---------------------------------------------------------------------
-    // Preserve the existing promotional ceiling without assigning any new
-    // cleaner pay. Legacy funded bookings retain their original allocations.
+    // Promotions never reduce the agreed pay for booked cleaning hours.
+    // Legacy funded bookings retain their original allocations.
     const platformFeeFull = perVisit
       ? quote.quotes.reduce(
-          (sum, visit) => sum + Math.round(visit.basePence * 0.2),
+          (sum, visit) =>
+            sum +
+            Math.max(
+              0,
+              visit.basePence - cleanerPayPence(baseMinutes, billingTerms),
+            ),
           0,
         )
       : allocateCleaningPayments(
@@ -593,61 +619,72 @@ export async function POST(req: NextRequest) {
       id: user.id,
       email: user.email,
     });
+    const bookingMetadata = {
+      kind: "booking",
+      billing_model: perVisit ? "per_visit" : "legacy",
+      upfront_regular: regular ? "1" : "0",
+      regular_visit_count: String(visitCount),
+      customer_id: user.id,
+      duration_minutes: String(minutes),
+      base_duration_minutes: String(baseMinutes),
+      cleaning_extras_version: "1",
+      service_address: serviceAddress.slice(0, 480),
+      booking_frequency: bookingFrequency,
+      preferred_provider_id: preferredProviderId || "",
+      package: pkg.name,
+      package_id: packageId,
+      postcode: postcode ?? "",
+      request: bookingNotesForHome(cleaningHome, String(request ?? "")),
+      slot: slot ?? "",
+      provider_amount: String(providerAmount),
+      platform_margin: String(platformFee),
+      per_visit_gross: String(perVisitGross),
+      promo_code: appliedCode ?? "",
+      discount: String(discount),
+      // Evidence of the customer's express request, kept with the payment.
+      early_start_requested_at: earlyStartRequestedAt,
+    };
+    const saveRegularCard = perVisit && regular;
     const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      ...(regular || perVisit
-        ? { payment_method_types: ["card"] as ["card"] }
-        : {}),
+      mode: saveRegularCard ? "setup" : "payment",
+      metadata: bookingMetadata,
+      payment_method_types: ["card"],
+      ...(saveRegularCard
+        ? { currency: "gbp", setup_intent_data: { metadata: bookingMetadata } }
+        : {
+            ...(regular || perVisit
+              ? { payment_method_types: ["card"] as ["card"] }
+              : {}),
+
+            line_items: [
+              {
+                quantity: 1,
+                price_data: {
+                  currency: "gbp",
+                  unit_amount: chargeAmount,
+                  product_data: {
+                    name: `${pkg.name} — ${regular ? (perVisit ? "first visit · " : `${visitCount} visits × `) : ""}${quote.quotes[0].durationMinutes / 60} hours${
+                      appliedCode ? ` (${appliedCode} applied)` : ""
+                    }`,
+                  },
+                },
+              },
+            ],
+            payment_intent_data: {
+              // New one-off visits are charged at booking. Funds stay on the platform
+              // until the completed visit can pay its assigned cleaner.
+              capture_method: perVisit || regular ? "automatic" : "manual",
+              ...(perVisit
+                ? { setup_future_usage: "off_session" as const }
+                : {}),
+              transfer_group: regular
+                ? `ob_regular_${crypto.randomUUID()}`
+                : `ob_booking_${crypto.randomUUID()}`,
+              metadata: bookingMetadata,
+            },
+          }),
       client_reference_id: user.id,
       customer: billingCustomer,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "gbp",
-            unit_amount: chargeAmount,
-            product_data: {
-              name: `${pkg.name} — ${regular ? (perVisit ? "first visit · " : `${visitCount} visits × `) : ""}${quote.quotes[0].durationMinutes / 60} hours${
-                appliedCode ? ` (${appliedCode} applied)` : ""
-              }`,
-            },
-          },
-        },
-      ],
-      payment_intent_data: {
-        // Keep both charges on the platform. For a one-off, the card is only
-        // authorised now and captured after the assigned cleaner completes it.
-        capture_method: perVisit || regular ? "automatic" : "manual",
-        ...(perVisit ? { setup_future_usage: "off_session" as const } : {}),
-        transfer_group: regular
-          ? `ob_regular_${crypto.randomUUID()}`
-          : `ob_booking_${crypto.randomUUID()}`,
-        metadata: {
-          kind: "booking",
-          billing_model: perVisit ? "per_visit" : "legacy",
-          upfront_regular: regular ? "1" : "0",
-          regular_visit_count: String(visitCount),
-          customer_id: user.id,
-          duration_minutes: String(minutes),
-          base_duration_minutes: String(baseMinutes),
-          cleaning_extras_version: "1",
-          service_address: serviceAddress.slice(0, 480),
-          booking_frequency: bookingFrequency,
-          preferred_provider_id: preferredProviderId || "",
-          package: pkg.name,
-          package_id: packageId,
-          postcode: postcode ?? "",
-          request: bookingNotesForHome(cleaningHome, String(request ?? "")),
-          slot: slot ?? "",
-          provider_amount: String(providerAmount),
-          platform_margin: String(platformFee),
-          per_visit_gross: String(perVisitGross),
-          promo_code: appliedCode ?? "",
-          discount: String(discount),
-          // Evidence of the customer's express request, kept with the payment.
-          early_start_requested_at: earlyStartRequestedAt,
-        },
-      },
       success_url: `${req.nextUrl.origin}/api/book/finalize?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${req.nextUrl.origin}/book?canceled=1`,
     });
@@ -663,6 +700,7 @@ export async function POST(req: NextRequest) {
         preferred_scheduled_at: slot,
         optional_scheduled_at: alternativeTimes,
         household_notes: householdNotes,
+        booking_preferences: preferences,
         cleaning_extras: quote.quotes.map((visit, index) => ({
           baseMinutes,
           addons: visit.addons.map((item) => item.id),
@@ -677,7 +715,9 @@ export async function POST(req: NextRequest) {
                 discountPence: discounts[index],
                 lineItems: visitLineItems(visit, discounts[index]),
                 billingModel: "per_visit",
-                payRatePending: true,
+                payRatePending: false,
+                billingSettings: billingTerms,
+                chargeTiming: regular ? "acceptance" : "checkout_then_48h",
                 cardConsentAt: new Date().toISOString(),
                 cardConsentVersion: "visit-billing-v1",
               }
@@ -686,6 +726,7 @@ export async function POST(req: NextRequest) {
             visit.addons.map((item) => item.id),
             visit.bringsProducts,
             petsAtHome,
+            billingTerms,
           ),
         })),
         ...(regular ? { regular_scheduled_at: regularSlots } : {}),

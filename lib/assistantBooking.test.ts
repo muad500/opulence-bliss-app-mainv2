@@ -175,7 +175,7 @@ test("FAQ retrieval uses actual published wording and returns no fabricated answ
   assert.deepEqual(relevantAssistantFaqs(faqs, "quantum astronomy"), []);
 });
 
-test("per-visit chat quote charges only the first visit and describes assigned-only later charges", () => {
+test("per-visit chat quote saves a card and charges regular visits on acceptance", () => {
   const regularPkg = { ...pkg, name: "Essential Clean", price: 37.8 };
   const draft = assistantBookingHandoff(
     regularPkg,
@@ -184,9 +184,9 @@ test("per-visit chat quote charges only the first visit and describes assigned-o
     true,
   );
   assert.equal(draft.total_gbp, 340.2);
-  assert.equal(draft.due_now_gbp, 56.7);
+  assert.equal(draft.due_now_gbp, 0);
   assert.equal(draft.payment_model, "per_visit");
-  assert.match(draft.payment_summary, /only when a cleaner is assigned/);
+  assert.match(draft.payment_summary, /only when a cleaner accepts/);
   assert.doesNotMatch(draft.payment_summary, /paid upfront/);
   const single = assistantBookingHandoff(pkg, input, now, true);
   assert.equal(single.due_now_gbp, single.total_gbp);

@@ -1,3 +1,4 @@
+import { customerBillingTerms } from "@/lib/cleaningBillingTerms";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import {
@@ -36,7 +37,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
       ctx.admin,
       new Stripe(process.env.STRIPE_SECRET_KEY!),
     );
-    const { booking, bill, charges } = await engine.load(id, ctx.user.id);
+    const { booking, bill, charges, terms } = await engine.load(
+      id,
+      ctx.user.id,
+    );
     const paidPence = charges.reduce(
       (sum, c) => sum + c.amount_pence - c.refunded_pence,
       0,
@@ -44,6 +48,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json(
       {
         model: "per_visit",
+        pricing: customerBillingTerms(terms),
+        chargeOnAcceptance:
+          booking.cleaning_extras.chargeTiming === "acceptance",
         revision: bill.revision,
         status: bill.status,
         processing: Boolean(bill.active_operation_id),
@@ -63,6 +70,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
         cancellationPolicy: calculateCancellationPolicy(
           booking.scheduled_at,
           paidPence / 100,
+          new Date(),
+          terms.cancellationRefundPercent,
         ),
       },
       { headers: { "Cache-Control": "no-store" } },

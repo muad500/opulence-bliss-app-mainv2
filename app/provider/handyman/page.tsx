@@ -49,14 +49,14 @@ export default function HandymanPartnerPage() {
             </p>
             <a
               className={styles.button}
-              href="mailto:opulencebliss@gmail.com?subject=Property%20maintenance%20professional%20application"
+              href="mailto:hello@opulencebliss.com?subject=Property%20maintenance%20professional%20application"
             >
               Contact the team to apply
             </a>
             <p className={styles.contact}>
               Email{" "}
-              <a href="mailto:opulencebliss@gmail.com">
-                opulencebliss@gmail.com
+              <a href="mailto:hello@opulencebliss.com">
+                hello@opulencebliss.com
               </a>{" "}
               with your tasks, experience, areas and availability.
             </p>

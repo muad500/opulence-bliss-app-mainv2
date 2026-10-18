@@ -14,6 +14,7 @@ async function confirmation({
   received = amount,
   metadata = {},
   saved = "1",
+  setup = false,
 } = {}) {
   const code = ts.transpileModule(
     readFileSync("app/book/success/page.tsx", "utf8"),
@@ -46,7 +47,13 @@ async function confirmation({
       return id === "stripe"
         ? class {
             checkout = {
-              sessions: { retrieve: async () => ({ payment_intent: intent }) },
+              sessions: {
+                retrieve: async () => ({
+                  mode: setup ? "setup" : "payment",
+                  payment_intent: setup ? null : intent,
+                  setup_intent: setup ? intent : null,
+                }),
+              },
             };
           }
         : require(id);
@@ -117,4 +124,20 @@ test("a partial capture displays money actually received and failed payments sho
     failed,
     /Amount paid|Amount authorised|£45.98|provider|platform/i,
   );
+});
+
+test("new regular confirmation saves the card and states zero paid today", async () => {
+  const html = await confirmation({
+    setup: true,
+    metadata: {
+      upfront_regular: "1",
+      regular_visit_count: "6",
+      billing_model: "per_visit",
+    },
+  });
+  assert.match(html, /Card saved/);
+  assert.match(html, /Amount paid today/);
+  assert.match(html, /£0.00/);
+  assert.match(html, /Each visit is charged when a cleaner accepts/);
+  assert.doesNotMatch(html, /first visit is paid|48 hours|card is held/);
 });

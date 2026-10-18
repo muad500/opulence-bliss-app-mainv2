@@ -430,7 +430,9 @@ export default function BookingWorkspace({
             <small>
               <Info size={14} />{" "}
               {visitBilling?.model === "per_visit"
-                ? "The first visit is paid at checkout. Later visits are charged only after a cleaner accepts, at 48 hours before or immediately if closer."
+                ? visitBilling.chargeOnAcceptance
+                  ? "Each regular visit is charged when a cleaner accepts. Unassigned and paused visits are not charged."
+                  : "One-off visits are paid at checkout. Existing regular bookings keep their agreed charging schedule."
                 : booking.paymentExplanation}
             </small>
           </SummaryCard>

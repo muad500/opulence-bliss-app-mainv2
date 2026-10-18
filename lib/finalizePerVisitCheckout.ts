@@ -12,6 +12,11 @@ import { appointmentFitsWindow } from "./appointmentWindow";
 import { bookingPolicyError, isBookingFrequency } from "./bookingPolicy";
 import { normaliseOptionalBookingTimes } from "./bookingTimeChoices";
 import { matchCleaningBookings } from "./cleaningBookingMatching";
+import {
+  DEFAULT_CLEANING_BILLING_TERMS,
+  parseCleaningBillingTerms,
+  type CleaningBillingTerms,
+} from "./cleaningBillingTerms";
 import type { VisitLine } from "./visitBillingPolicy";
 
 export type StagedVisitScope = {
@@ -26,17 +31,22 @@ export type StagedVisitScope = {
   discountPence: number;
   lineItems: VisitLine[];
   notes: string;
+  billingSettings?: CleaningBillingTerms;
+  chargeTiming?: "acceptance" | "checkout_then_48h";
 };
 
 export async function finalizePerVisitCheckout(
   session: Stripe.Checkout.Session,
-  pi: Stripe.PaymentIntent,
+  pi: Stripe.PaymentIntent | Stripe.SetupIntent,
 ) {
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+  const metadata = pi.metadata ?? {};
+  const setup = session.mode === "setup";
+  const payment = setup ? null : (pi as Stripe.PaymentIntent);
   const userId = session.client_reference_id;
   const customer =
     typeof pi.customer === "string" ? pi.customer : pi.customer?.id;
@@ -48,20 +58,21 @@ export async function finalizePerVisitCheckout(
     typeof session.customer === "string"
       ? session.customer
       : session.customer?.id;
-  const sessionIntent =
-    typeof session.payment_intent === "string"
-      ? session.payment_intent
-      : session.payment_intent?.id;
+  const source = setup ? session.setup_intent : session.payment_intent;
+  const sessionIntent = typeof source === "string" ? source : source?.id;
   if (
     !userId ||
     sessionIntent !== pi.id ||
-    pi.metadata.customer_id !== userId ||
-    pi.metadata.kind !== "booking" ||
-    pi.metadata.billing_model !== "per_visit" ||
+    metadata.customer_id !== userId ||
+    metadata.kind !== "booking" ||
+    metadata.billing_model !== "per_visit" ||
     pi.status !== "succeeded" ||
-    pi.amount_received !== pi.amount ||
-    pi.currency !== "gbp" ||
-    pi.capture_method !== "automatic" ||
+    (setup
+      ? (pi as Stripe.SetupIntent).usage !== "off_session"
+      : !payment ||
+        payment.amount_received !== payment.amount ||
+        payment.currency !== "gbp" ||
+        payment.capture_method !== "automatic") ||
     !customer ||
     sessionCustomer !== customer ||
     !method
@@ -81,13 +92,14 @@ export async function finalizePerVisitCheckout(
     .eq("customer_id", userId)
     .maybeSingle();
   if (existing) {
+    if (setup) return existing.id as string;
     const { data: charge } = await admin
       .from("booking_visit_charges")
       .select("amount_pence")
       .eq("booking_id", existing.id)
       .eq("stripe_payment_intent", pi.id)
       .maybeSingle();
-    if (charge?.amount_pence !== pi.amount)
+    if (charge?.amount_pence !== payment?.amount)
       throw new Error("Saved checkout does not match this payment.");
     return existing.id as string;
   }
@@ -109,14 +121,14 @@ export async function finalizePerVisitCheckout(
   if (stageError || !stage)
     throw new Error("This checkout's visit details are missing.");
   const plan = stage.cleaning_extras as StagedVisitScope[];
-  const frequency = pi.metadata.booking_frequency;
+  const frequency = metadata.booking_frequency;
   const { data: pkg, error: packageError } = await admin
     .from("packages")
     .select("id, name, service_type")
-    .eq("id", pi.metadata.package_id)
+    .eq("id", metadata.package_id)
     .maybeSingle();
   const count =
-    frequency === "one_time" ? 1 : Number(pi.metadata.regular_visit_count);
+    frequency === "one_time" ? 1 : Number(metadata.regular_visit_count);
   if (
     packageError ||
     !pkg ||
@@ -127,7 +139,15 @@ export async function finalizePerVisitCheckout(
     plan.length !== count
   )
     throw new Error("The visit plan does not match this service.");
-  const baseMinutes = Number(pi.metadata.base_duration_minutes);
+  if (
+    setup &&
+    (frequency === "one_time" || plan[0].chargeTiming !== "acceptance")
+  )
+    throw new Error("Regular booking acceptance terms are missing.");
+  const terms = plan[0].billingSettings
+    ? parseCleaningBillingTerms(plan[0].billingSettings)
+    : DEFAULT_CLEANING_BILLING_TERMS;
+  const baseMinutes = Number(metadata.base_duration_minutes);
   const verified = cleaningSeriesQuote(
     {
       price: plan[0].basePricePence / 100,
@@ -139,6 +159,7 @@ export async function finalizePerVisitCheckout(
     false,
     count,
     plan,
+    terms,
   );
   for (const [index, scope] of plan.entries()) {
     const lines = visitLineItems(verified.quotes[index], scope.discountPence);
@@ -158,7 +179,7 @@ export async function finalizePerVisitCheckout(
     )
       throw new Error("The saved line items do not match this checkout.");
   }
-  if (plan[0].netPence !== pi.amount)
+  if (!setup && plan[0].netPence !== payment?.amount)
     throw new Error("First visit amount does not match the captured payment.");
   const slots =
     count === 1
@@ -198,25 +219,25 @@ export async function finalizePerVisitCheckout(
       p_session: session.id,
       p_intent: pi.id,
       p_package: pkg.id,
-      p_address: pi.metadata.service_address,
+      p_address: metadata.service_address,
       p_notes: stage.household_notes,
       p_frequency: frequency,
       p_slots: slots,
       p_optional: optional,
-      p_preferred_provider: pi.metadata.preferred_provider_id || null,
+      p_preferred_provider: metadata.preferred_provider_id || null,
       p_stripe_customer: customer,
       p_method: method,
-      p_first_amount: pi.amount,
+      p_first_amount: setup ? 0 : payment!.amount,
       p_email: session.customer_details?.email ?? session.customer_email,
     },
   );
   if (error || !saved?.length)
     throw error ?? new Error("Could not save the visit plan.");
-  if (pi.metadata.early_start_requested_at)
+  if (metadata.early_start_requested_at)
     await admin
       .from("bookings")
       .update({
-        early_start_requested_at: pi.metadata.early_start_requested_at,
+        early_start_requested_at: metadata.early_start_requested_at,
       })
       .in("id", saved);
   try {
@@ -224,9 +245,9 @@ export async function finalizePerVisitCheckout(
       admin,
       saved,
       userId,
-      pi.metadata.postcode ?? "",
+      metadata.postcode ?? "",
       pkg.service_type,
-      pi.metadata.preferred_provider_id,
+      metadata.preferred_provider_id,
     );
   } catch {
     console.error(

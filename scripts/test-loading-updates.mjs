@@ -362,6 +362,16 @@ test("message text appears before slow photo previews; delayed previews cannot o
   let body = "Provider has arrived",
     reads = 0;
   const client = {
+    rpc: async (name) => ({
+      data:
+        name === "booking_contact_state"
+          ? {
+              open: true,
+              closesAt: new Date(Date.now() + 3600000).toISOString(),
+            }
+          : true,
+      error: null,
+    }),
     auth: {
       getSession: async () => ({
         data: { session: { user: { id: "customer-a" } } },

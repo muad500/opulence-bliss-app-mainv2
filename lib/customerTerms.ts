@@ -7,7 +7,7 @@ export const CUSTOMER_TERMS_HTML = String.raw`
       <p><strong>Registered in:</strong> England and Wales</p>
       <h3>Contact Us</h3>
       <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
-      <p><strong>Email:</strong> opulencebliss@gmail.com</p>
+      <p><strong>Email:</strong> hello@opulencebliss.com</p>
       <h2>1. Introduction</h2>
       <p>Welcome to Opulence Bliss Ltd.</p>
       <p>These Terms and Conditions govern the provision and arrangement of home services by Opulence Bliss Ltd (&quot;we&quot;, &quot;our&quot;, &quot;us&quot;) for customers (&quot;you&quot;, &quot;your&quot;).</p>
