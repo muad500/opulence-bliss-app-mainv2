@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   migrationBatch,
+  migrationLedgerCheck,
   versions,
   excluded,
   liveEvents,
@@ -13,6 +14,33 @@ test("release includes all seventeen source migrations in order and holds legal"
   assert.deepEqual([...versions].sort(), versions);
   assert.ok(versions.includes("20261014000500"));
   assert.ok(!versions.includes("20261003002100"));
+});
+test("read-only ledger check includes all seventeen versions, expected hashes and missing rows", () => {
+  const migrations = versions.map((version, index) => ({
+    version,
+    name: "source_" + index,
+    md5: String(index).padStart(32, "0"),
+  }));
+  const sql = migrationLedgerCheck(migrations);
+  let previous = -1;
+  for (const m of migrations) {
+    const position = sql.indexOf("('" + m.version + "'");
+    assert.ok(position > previous);
+    assert.ok(sql.includes(m.md5));
+    previous = position;
+  }
+  assert.match(sql, /left join recorded using \(version\)/);
+  assert.match(sql, /SOURCE MISMATCH - STOP/);
+  assert.doesNotMatch(sql, /\b(?:insert|update|delete|create|alter|drop)\b/i);
+  const smoke = readFileSync(
+    new URL("../supabase/production/visit-payments-smoke.sql", import.meta.url),
+    "utf8",
+  );
+  assert.equal(
+    (smoke.match(/-- RELEASE_MIGRATION_LEDGER_CHECK/g) ?? []).length,
+    1,
+  );
+  assert.doesNotMatch(smoke, /where version in/);
 });
 test("ledger checks precede every write, source is preserved, outer transaction removed only for execution", () => {
   const sql = migrationBatch([
@@ -50,6 +78,11 @@ test("runner is offline by default and requires scheduler and email gates before
   );
   assert.match(s, /RELEASE_AUTHORIZATION/);
   assert.match(s, /STAGING_EMAIL_TEST_PASSED/);
+  assert.ok(
+    s.indexOf(
+      'const preflightLedger = await query(read("00-ledger-preflight.sql"))',
+    ) < s.indexOf('await query(read("01-migrations.sql"))'),
+  );
   assert.doesNotMatch(s, /cleanerPay: "held"/);
   assert.ok(
     s.indexOf("Two successful automatic scheduler runs") <

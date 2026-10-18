@@ -9,8 +9,8 @@ booking terms preserve the agreed pay, prices, tip minimum and refund bands. Kee
 
 ## Migration order
 
-Git contains **seventeen** required release sources, rather than eight. The additional
-source is the scope-notes correction `20261014000500`. Do not discard it or renumber
+There are **seventeen** required release sources. These include the scope-notes
+correction and all eight client-account/contact/pay migrations. Do not discard or renumber
 an applied migration. The installer checks the ledger first: exact matches are
 skipped, mismatches stop the release before writes, and missing sources are applied
 in one transaction with their original source recorded in the migration ledger.
@@ -45,6 +45,47 @@ Run `node scripts/prepare-production-visit-release.mjs` to prepare the secret-fr
 `node artifacts/production-visit-release/run.mjs` prints an **offline plan only**.
 Its manifest pins the current main, staging commit, migration hashes, worker source
 and web patch. If main changes, rebuild and review the package.
+
+`00-ledger-preflight.sql` is read-only and compares all seventeen versions against
+their exact normalized source hashes. Before release, missing rows are expected;
+any recorded source mismatch blocks execution before writes. After applying the
+batch, the runner requires all seventeen rows to match. `03-database-smoke.sql`
+includes the identical generated ledger check followed by scheduler and payout
+checks, so it cannot silently verify only an older subset of migrations.
+
+### Read-only reconciliation, 18 October 2026
+
+The actual database ledgers were checked using `00-ledger-preflight.sql`:
+all seventeen staging rows are recorded with matching source hashes; all
+seventeen Production rows are missing, as expected before release. These checks
+made no schema or ledger changes. Recheck immediately before the approved release.
+
+### VAT-number field audit
+
+Staging has no VAT-number field in customer or professional forms. The worker
+profile response exposes only UTR in its tax section, and updates allow only UTR.
+The two remaining `vat_number` references in `app/api/handyman/offers/route.ts`
+read a historical registration value server-side and derive a tax rate; the
+number is never returned to customers. Historical tax records and calculations
+are preserved.
+
+The current Production/main worker profile still contains its old VAT-number
+field. Its removal is already included in this release and will reach Production
+only after the user approves the merge. Do not report the live field as removed
+before that deployment.
+
+### Email sender gate
+
+On 18 October, Resend's `opulencebliss` team listed `opulencebliss.com` as
+unverified. DNS verification was requested and the status became **Pending**.
+No sender was activated. After verification, use `Opulence Bliss Staging
+<staging@opulencebliss.com>` for Preview and `Opulence Bliss
+<hello@opulencebliss.com>` for Production, keeping their credentials separate.
+Configure `EMAIL_FROM`, `BOOKING_EMAIL_FROM` and `ACCOUNT_EMAIL_FROM` for the
+web environment, and the matching booking sender on the staging scheduled worker.
+Production sender settings prepared in Vercel take effect at the next approved
+deployment; this preparation does not authorise an early Production redeploy.
+Actual staging email delivery must pass before the release gate is cleared.
 
 The production web patch omits `app/api/staging/**`, the staging fixture library,
 staging integration runners, staging reports and all `supabase/staging/**` schedules.

@@ -1,13 +1,8 @@
 -- READ ONLY: no live checkout, capture, refund, transfer or test customer.
-select version, name,
-  md5(replace(array_to_string(statements, E'\n'), E'\r\n', E'\n')) as source_md5
-from supabase_migrations.schema_migrations
-where version in (
-  '20261014000100', '20261014000200', '20261014000300',
-  '20261014000400', '20261014000500', '20261017000100',
-  '20261018000100', '20261018000200', '20261018000300'
-)
-order by version;
+-- The release preparer expands this marker from the same seventeen sources as
+-- 01-migrations.sql. Use the generated 03-database-smoke.sql after the release;
+-- all seventeen rows must be recorded=true, source_matches=true, ledger_status=matched.
+-- RELEASE_MIGRATION_LEDGER_CHECK
 
 select public.per_visit_checkout_ready() as checkout_ready,
   last_scheduler_at, now() - last_scheduler_at as heartbeat_age

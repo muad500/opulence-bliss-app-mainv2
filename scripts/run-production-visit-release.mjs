@@ -196,19 +196,32 @@ try {
     0,
     "Unresolved Stripe deliveries block release; inspect them privately.",
   );
+  const preflightLedger = await query(read("00-ledger-preflight.sql"));
+  assert.equal(preflightLedger.length, manifest.migrationCount);
+  for (const m of manifest.migrations) {
+    const row = preflightLedger.find((r) => r.version === m.version);
+    assert.ok(row, "Missing expected ledger-check row: " + m.version);
+    assert.ok(
+      !row.recorded || row.source_matches,
+      "Migration source differs; reconcile before release: " + m.version,
+    );
+  }
   console.log(
     "Preflight passed. Applying the exact reviewed migration sources.",
   );
   await query(read("01-migrations.sql"));
-  const ledger = await query(
-    `select version, md5(replace(array_to_string(statements, E'\\n'), E'\\r\\n', E'\\n')) as source_md5 from supabase_migrations.schema_migrations where version in (${manifest.migrations.map((m) => quote(m.version)).join(",")})`,
-  );
+  const ledger = await query(read("00-ledger-preflight.sql"));
   assert.equal(ledger.length, manifest.migrationCount);
   for (const m of manifest.migrations)
     assert.equal(
       ledger.find((r) => r.version === m.version)?.source_md5,
       m.md5,
     );
+  for (const row of ledger) {
+    assert.equal(row.recorded, true);
+    assert.equal(row.source_matches, true);
+    assert.equal(row.ledger_status, "matched");
+  }
   const additions = JSON.parse(read("live-webhook-events.json"));
   const enabledEvents = endpoint.enabled_events.includes("*")
     ? ["*"]

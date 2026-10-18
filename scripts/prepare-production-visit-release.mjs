@@ -42,6 +42,38 @@ const digest = (text, algorithm = "sha256") =>
   createHash(algorithm).update(text).digest("hex");
 const literal = (text) => "'" + text.replaceAll("'", "''") + "'";
 
+/** One source of truth for the read-only preflight and post-release ledger check. */
+export function migrationLedgerCheck(migrations) {
+  const expected = migrations
+    .map(
+      ({ version, name, md5 }) =>
+        `    (${literal(version)}, ${literal(name)}, ${literal(md5)})`,
+    )
+    .join(",\n");
+  return `-- READ ONLY: expected migration sources; no schema or ledger writes.
+with expected(version, name, expected_md5) as (
+  values
+${expected}
+), recorded as (
+  select version, name,
+    md5(replace(array_to_string(statements, E'\\n'), E'\\r\\n', E'\\n')) as source_md5
+  from supabase_migrations.schema_migrations
+)
+select expected.version, expected.name, recorded.name as recorded_name,
+  recorded.version is not null as recorded,
+  expected.expected_md5, recorded.source_md5,
+  coalesce(recorded.source_md5 = expected.expected_md5, false) as source_matches,
+  case
+    when recorded.version is null then 'missing'
+    when recorded.source_md5 = expected.expected_md5 then 'matched'
+    else 'SOURCE MISMATCH - STOP'
+  end as ledger_status
+from expected
+left join recorded using (version)
+order by expected.version;
+`;
+}
+
 /** Keep the original source in the ledger, executing its body in one transaction. */
 export function migrationBatch(migrations) {
   const checks = migrations
@@ -136,13 +168,26 @@ export function prepare(root, output) {
     };
   });
   mkdirSync(output, { recursive: true });
+  const ledgerSql = migrationLedgerCheck(migrations);
+  writeFileSync(resolve(output, "00-ledger-preflight.sql"), ledgerSql);
   writeFileSync(
     resolve(output, "01-migrations.sql"),
     migrationBatch(migrations),
   );
+  const smoke = readFileSync(
+    resolve(root, "supabase/production/visit-payments-smoke.sql"),
+    "utf8",
+  );
+  if ((smoke.match(/-- RELEASE_MIGRATION_LEDGER_CHECK/g) ?? []).length !== 1)
+    throw new Error(
+      "The smoke template must include the complete ledger check once.",
+    );
+  writeFileSync(
+    resolve(output, "03-database-smoke.sql"),
+    smoke.replace("-- RELEASE_MIGRATION_LEDGER_CHECK", ledgerSql.trimEnd()),
+  );
   for (const [source, target] of [
     ["supabase/production/visit-payments-schedule.sql", "02-scheduler.sql"],
-    ["supabase/production/visit-payments-smoke.sql", "03-database-smoke.sql"],
     ["scripts/run-production-visit-release.mjs", "run.mjs"],
     ["docs/production-visit-release.md", "README.md"],
     ["supabase/functions/visit-payments/index.ts", "worker.ts"],
@@ -171,6 +216,7 @@ export function prepare(root, output) {
   );
   writeFileSync(resolve(output, "web-release.patch"), patch);
   const packageFiles = [
+    "00-ledger-preflight.sql",
     "01-migrations.sql",
     "02-scheduler.sql",
     "03-database-smoke.sql",
