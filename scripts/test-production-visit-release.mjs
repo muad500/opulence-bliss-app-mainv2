@@ -37,7 +37,8 @@ test("release projection excludes staging routes, fixtures, reports and schedule
     "docs/staging-*.md",
   ])
     assert.ok(excluded.includes(path));
-  assert.equal(liveEvents.length, 4);
+  assert.equal(liveEvents.length, 5);
+  assert.ok(liveEvents.includes("checkout.session.completed"));
 });
 test("runner is offline by default and requires scheduler and email gates before web push", () => {
   const s = readFileSync(
@@ -49,6 +50,7 @@ test("runner is offline by default and requires scheduler and email gates before
   );
   assert.match(s, /RELEASE_AUTHORIZATION/);
   assert.match(s, /STAGING_EMAIL_TEST_PASSED/);
+  assert.doesNotMatch(s, /cleanerPay: "held"/);
   assert.ok(
     s.indexOf("Two successful automatic scheduler runs") <
       s.indexOf('"HEAD:refs/heads/main"'),

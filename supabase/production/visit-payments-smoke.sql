@@ -29,5 +29,5 @@ order by start_time desc limit 3;
 select count(*) as invalid_unconfirmed_cleaner_payouts
 from public.payouts p
 join public.booking_visit_billing b on b.booking_id = p.booking_id
-join public.payments pay on pay.id = p.payment_id
-where not b.rate_confirmed and pay.kind <> 'tip' and p.amount > 0;
+left join public.payments pay on pay.id = p.payment_id
+where not b.rate_confirmed and coalesce(pay.kind, 'booking') <> 'tip' and p.amount > 0;

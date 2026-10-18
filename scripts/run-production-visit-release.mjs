@@ -45,7 +45,10 @@ if (!process.argv.includes("--execute")) {
         ],
         heldLegalMigration: manifest.heldLegalMigration,
         marketplace: "off",
-        cleanerPay: "held",
+        cleanerPay:
+          "GBP 15 per booked base cleaning hour; new-booking snapshot",
+        extras: "retained by business",
+        tips: "full amount to assigned cleaner",
       },
       null,
       2,

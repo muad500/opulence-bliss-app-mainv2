@@ -24,6 +24,7 @@ export const versions = [
   "20261018001100",
 ];
 export const liveEvents = [
+  "checkout.session.completed",
   "payment_intent.succeeded",
   "payment_intent.payment_failed",
   "refund.updated",

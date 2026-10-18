@@ -81,7 +81,8 @@ gates stop execution. No execution was performed while preparing this package.
 2. Apply missing exact-source migrations to **uiqcsihgqaktpjumyeap**; verify all seventeen
    ledger hashes. No broad `db push` and no legal migration.
 3. Preserve existing webhook events and add `payment_intent.succeeded`,
-   `payment_intent.payment_failed`, `refund.updated`, `customer.updated`.
+   `payment_intent.payment_failed`, `refund.updated`, `customer.updated`. Also require
+   `checkout.session.completed`, including saved-card regular checkout finalization.
 4. Configure/deploy the pinned `visit-payments` worker with Production's own secrets,
    gateway JWT verification on and its private header guard. Store the matching cron
    credential and anonymous JWT in Production Vault, without printing them.
