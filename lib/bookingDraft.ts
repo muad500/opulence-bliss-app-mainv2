@@ -1,6 +1,11 @@
+import {
+  parseBookingPreferences,
+  type BookingPreferences,
+} from "./bookingPreferences";
 import { isBookingFrequency, type BookingFrequency } from "./bookingPolicy";
 import { validCleaningDuration } from "./cleaningBooking";
 import { parseCleaningHome, type CleaningHome } from "./cleaningHome";
+import { parseCleaningExtras, type VisitExtras } from "./cleaningExtras";
 
 const STORAGE_KEY = "opulence-booking-sign-in-draft";
 export const BOOKING_DRAFT_MAX_AGE = 2 * 60 * 60 * 1000;
@@ -8,6 +13,7 @@ export const BOOKING_DRAFT_MAX_AGE = 2 * 60 * 60 * 1000;
 type DraftStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export type BookingDraft = {
+  preferences?: BookingPreferences;
   packageId: string;
   postcode: string;
   address: string;
@@ -15,6 +21,9 @@ export type BookingDraft = {
   frequency: BookingFrequency;
   regularVisits: number;
   cleaningMinutes: number;
+  extras: VisitExtras;
+  visitOverrides: Record<number, VisitExtras>;
+  petsAtHome: boolean;
   slot: string;
   optionalSlots: string[];
   request: string;
@@ -29,6 +38,16 @@ function isText(value: unknown, max: number): value is string {
 
 function isTime(value: unknown): value is string {
   return isText(value, 40) && Number.isFinite(Date.parse(value));
+}
+
+function extras(value: unknown): VisitExtras {
+  if (!value || typeof value !== "object") throw new Error("Invalid add-ons");
+  const choice = value as VisitExtras;
+  const parsed = parseCleaningExtras(choice.addons, choice.bringsProducts);
+  return {
+    addons: parsed.addons.map((addon) => addon.id),
+    bringsProducts: parsed.bringsProducts,
+  };
 }
 
 /** Persist choices only: prices, saved-card consent and legal consent are not saved. */
@@ -49,17 +68,30 @@ function parseDraft(value: unknown): BookingDraft | null {
     data.regularVisits < 6 ||
     data.regularVisits > 10 ||
     !validCleaningDuration(data.cleaningMinutes) ||
+    typeof data.petsAtHome !== "boolean" ||
     !isTime(data.slot) ||
     !Array.isArray(data.optionalSlots) ||
     !data.optionalSlots.every(isTime) ||
     !isText(data.request, 5000) ||
     !isText(data.promo, 100) ||
     !isText(data.preferredCleaner, 128) ||
-    !isText(data.phone, 40)
+    !isText(data.phone, 40) ||
+    !data.visitOverrides ||
+    typeof data.visitOverrides !== "object" ||
+    Array.isArray(data.visitOverrides)
   )
     return null;
   try {
+    const visitOverrides: Record<number, VisitExtras> = {};
+    for (const [index, choice] of Object.entries(data.visitOverrides)) {
+      if (!/^\d$/.test(index) || Number(index) >= data.regularVisits)
+        return null;
+      visitOverrides[Number(index)] = extras(choice);
+    }
     return {
+      ...(data.preferences === undefined
+        ? {}
+        : { preferences: parseBookingPreferences(data.preferences) }),
       packageId: data.packageId,
       postcode: data.postcode,
       address: data.address,
@@ -67,6 +99,9 @@ function parseDraft(value: unknown): BookingDraft | null {
       frequency: data.frequency,
       regularVisits: data.regularVisits,
       cleaningMinutes: data.cleaningMinutes,
+      extras: extras(data.extras),
+      visitOverrides,
+      petsAtHome: data.petsAtHome,
       slot: data.slot,
       optionalSlots: [...new Set(data.optionalSlots)].filter(
         (time) => time !== data.slot,

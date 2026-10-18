@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import PortalLiveSync from "@/components/PortalLiveSync";
 import ClientNav from "./ClientNav";
@@ -26,9 +27,11 @@ export default async function AccountLayout({
     );
   const { data: prof } = await supabase
     .from("profiles")
-    .select("role, full_name")
+    .select("role, full_name, phone")
     .eq("id", user.id)
     .maybeSingle();
+  if (prof && prof.role !== "admin" && !prof.phone)
+    redirect("/complete-profile");
   if (prof?.role === "admin")
     return (
       <Gate

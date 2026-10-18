@@ -7,6 +7,8 @@ import { Nunito } from "next/font/google";
 import "./globals.css";
 import "./mobile-app.css";
 
+import AccountChangeVerification from "@/components/AccountChangeVerification";
+import SocialLinks from "@/components/SocialLinks";
 import MobileExperience from "@/components/MobileExperience";
 import TopBar from "@/components/TopBar";
 import SiteHeader from "@/components/SiteHeader";
@@ -39,7 +41,7 @@ export const metadata: Metadata = {
   ),
   title: "Opulence Bliss — trusted home cleaning in London",
   description:
-    "Vetted home cleaners across London. Book flexible home-cleaning visits and pay securely after the visit.",
+    "Vetted home cleaners across London. Book flexible home-cleaning visits with clear prices and secure payments.",
   robots:
     process.env.VERCEL_ENV === "preview"
       ? { index: false, follow: false, noarchive: true }
@@ -77,7 +79,11 @@ export default function RootLayout({
             <TopBar />
             <SiteHeader />
             {children}
+            <footer data-social-footer>
+              <SocialLinks />
+            </footer>
             <Toaster />
+            <AccountChangeVerification />
             <RatingGate />
             <div data-app-chat>
               <SupportChat />

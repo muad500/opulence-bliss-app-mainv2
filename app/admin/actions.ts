@@ -70,6 +70,8 @@ async function approvalRequirements(
         "right_to_work",
         "photo_id",
         "public_liability_insurance",
+        "proof_of_address",
+        "trade_certificate",
       ]),
     admin.from("providers").select("services").eq("id", id).single(),
   ]);
@@ -87,6 +89,10 @@ async function approvalRequirements(
   for (const [type, label] of [
     ["right_to_work", "right to work"],
     ["photo_id", "photo ID"],
+    ["proof_of_address", "proof of address"],
+    ...(service === "handyman"
+      ? [["trade_certificate", "training or certification"] as const]
+      : []),
   ] as const) {
     const check = checksResult.data?.find(
       (item) => item.document_type === type,
@@ -108,7 +114,7 @@ async function approvalRequirements(
       missing.push(label);
     }
   }
-  if (service === "handyman") {
+  {
     const insurance = checksResult.data?.find(
       (x) => x.document_type === "public_liability_insurance",
     );

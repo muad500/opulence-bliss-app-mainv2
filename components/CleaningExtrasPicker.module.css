@@ -1,0 +1,64 @@
+.card {
+  margin: 22px 0;
+  padding: 20px;
+  border: 1px solid #e6ddf4;
+  border-radius: 18px;
+  background: #fff;
+}
+.card h2 {
+  margin: 0 0 8px;
+  font-size: 21px;
+}
+.card p {
+  color: #616b79;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-top: 1px solid #f0eaf7;
+  cursor: pointer;
+}
+.row input {
+  width: 20px;
+  height: 20px;
+  accent-color: #7b2ff7;
+  flex: 0 0 auto;
+}
+.row span {
+  flex: 1;
+  font-weight: 800;
+}
+.row small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #667180;
+}
+.row strong {
+  color: #6d28d9;
+}
+.visits,
+.visit {
+  margin-top: 14px;
+}
+.visits summary,
+.visit summary {
+  padding: 10px 0;
+  cursor: pointer;
+  font-weight: 800;
+}
+.visit {
+  border-top: 1px solid #e6ddf4;
+}
+.visit button {
+  padding: 9px 13px;
+  border-radius: 10px;
+  border: 1px solid #d5c5f0;
+  background: #f6f1ff;
+  color: #6d28d9;
+}

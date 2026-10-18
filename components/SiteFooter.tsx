@@ -76,7 +76,7 @@ export default function SiteFooter() {
             Book a service <span aria-hidden="true">→</span>
           </Link>
           <FooterReviews />
-          <p className={styles.coverage}>Central, North &amp; West London</p>
+          <p className={styles.coverage}>Across London</p>
         </section>
 
         <nav className={styles.columns} aria-label="Footer navigation">

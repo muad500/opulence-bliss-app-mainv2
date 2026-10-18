@@ -14,7 +14,7 @@ export default async function ProfessionalJobs({
 }: {
   searchParams: Promise<{ service?: string }>;
 }) {
-  const { client, admin, provider } = await professionalPortal();
+  const { admin, provider } = await professionalPortal();
   const enabled = handymanEnabled();
   const filter = professionalJobFilter((await searchParams).service, enabled);
   if (!filter) notFound();
@@ -51,10 +51,10 @@ export default async function ProfessionalJobs({
         ))}
       {enabled && filter !== "cleaning" && (
         <section className={styles.section}>
-          <h2>Handyman jobs</h2>
+          <h2>Property maintenance jobs</h2>
           {provider.service_approvals.handyman !== "approved" && (
             <p>
-              Handyman approval is{" "}
+              Property maintenance approval is{" "}
               {provider.service_approvals.handyman ?? "not requested"}. New
               bookings unlock after approval.{" "}
               <Link href="/worker/profile#services">
@@ -81,14 +81,12 @@ export default async function ProfessionalJobs({
                       timeStyle: "short",
                     })}
                   </p>
-                  <strong>
-                    £{(job.hourly_rate_pence / 100).toFixed(2)}/hr
-                  </strong>
+                  <span>View the agreed job details</span>
                 </Link>
               ))}
             </div>
           ) : (
-            <p className={styles.empty}>No handyman jobs yet.</p>
+            <p className={styles.empty}>No property maintenance jobs yet.</p>
           )}
         </section>
       )}

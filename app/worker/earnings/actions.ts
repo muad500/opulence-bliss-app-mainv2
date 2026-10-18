@@ -1,4 +1,4 @@
-"use server";
+import "server-only";
 
 import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";

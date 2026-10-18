@@ -1,7 +1,10 @@
 // Validate a promo code and preview the discount.
 // Save at: app/api/promo/route.ts
 
-import { bookingPricePence } from "@/lib/cleaningBooking";
+import {
+  cleaningSeriesQuote,
+  allocateCleaningPayments,
+} from "@/lib/cleaningExtras";
 import { bookingPolicyError } from "@/lib/bookingPolicy";
 import { REGULAR_MIN_VISITS, isRegularVisitCount } from "@/lib/regularBooking";
 import { NextRequest, NextResponse } from "next/server";
@@ -9,7 +12,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 // Keep in step with the checkout route.
@@ -17,7 +20,7 @@ const PLATFORM_MARGIN_RATE = 0.2;
 
 function discountFor(
   grossPence: number,
-  promo: { percent_off: number | null; amount_off: number | null }
+  promo: { percent_off: number | null; amount_off: number | null },
 ) {
   const raw = promo.percent_off
     ? Math.round((grossPence * promo.percent_off) / 100)
@@ -29,23 +32,42 @@ function discountFor(
 
 export async function POST(req: NextRequest) {
   try {
-    const { code, packageId, durationMinutes, frequency, regularVisits } = await req.json();
-    const clean = String(code ?? "").trim().toUpperCase();
+    const {
+      code,
+      packageId,
+      durationMinutes,
+      frequency,
+      regularVisits,
+      addons,
+      bringsProducts,
+      visitExtras,
+    } = await req.json();
+    const clean = String(code ?? "")
+      .trim()
+      .toUpperCase();
     if (!clean) {
       return NextResponse.json({ valid: false, error: "Enter a code." });
     }
 
     const { data: promo } = await admin
       .from("promo_codes")
-      .select("code, description, percent_off, amount_off, active, expires_at, max_uses, uses")
+      .select(
+        "code, description, percent_off, amount_off, active, expires_at, max_uses, uses",
+      )
       .eq("code", clean)
       .maybeSingle();
 
     if (!promo || !promo.active) {
-      return NextResponse.json({ valid: false, error: "That code isn't valid." });
+      return NextResponse.json({
+        valid: false,
+        error: "That code isn't valid.",
+      });
     }
     if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
-      return NextResponse.json({ valid: false, error: "That code has expired." });
+      return NextResponse.json({
+        valid: false,
+        error: "That code has expired.",
+      });
     }
     if (promo.max_uses !== null && promo.uses >= promo.max_uses) {
       return NextResponse.json({
@@ -63,18 +85,40 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (!pkg) {
-      return NextResponse.json({ valid: false, error: "Pick a service first." });
+      return NextResponse.json({
+        valid: false,
+        error: "Pick a service first.",
+      });
     }
     const bookingFrequency = String(frequency ?? "one_time");
     const policyError = bookingPolicyError(pkg.name, bookingFrequency);
-    if (policyError) return NextResponse.json({ valid: false, error: policyError });
+    if (policyError)
+      return NextResponse.json({ valid: false, error: policyError });
 
-    const visits = bookingFrequency === "one_time" ? 1 : Number(regularVisits ?? REGULAR_MIN_VISITS);
+    const visits =
+      bookingFrequency === "one_time"
+        ? 1
+        : Number(regularVisits ?? REGULAR_MIN_VISITS);
     if (bookingFrequency !== "one_time" && !isRegularVisitCount(visits)) {
-      return NextResponse.json({ valid: false, error: "Choose between six and ten visits." });
+      return NextResponse.json({
+        valid: false,
+        error: "Choose between six and ten visits.",
+      });
     }
-    const gross = bookingPricePence(pkg, Number(durationMinutes ?? pkg.duration_minutes ?? 120)) * visits;
-    const discount = discountFor(gross, promo);
+    const quote = cleaningSeriesQuote(
+      pkg,
+      Number(durationMinutes ?? pkg.duration_minutes ?? 120),
+      addons,
+      bringsProducts,
+      visits,
+      visitExtras,
+    );
+    const gross = quote.totalPence;
+    const margin = allocateCleaningPayments(
+      quote.quotes.map((visit) => visit.totalPence),
+      0,
+    ).reduce((sum, visit) => sum + visit.platformPence, 0);
+    const discount = Math.min(discountFor(gross, promo), margin);
 
     if (discount <= 0) {
       return NextResponse.json({
@@ -93,7 +137,7 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       { valid: false, error: "Couldn't check that code." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

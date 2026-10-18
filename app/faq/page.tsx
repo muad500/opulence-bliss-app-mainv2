@@ -2,17 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
-import {
-  FAQ_CATEGORIES,
-  FAQ_CATEGORY_LABELS,
-  type FaqRow,
-} from "@/lib/faqs";
+import { FAQ_CATEGORIES, FAQ_CATEGORY_LABELS, type FaqRow } from "@/lib/faqs";
 import styles from "../marketingPages.module.css";
 
 export const metadata: Metadata = {
   title: "Frequently asked questions | Opulence Bliss",
   description:
-    "Answers about cleaning, handyman services, booking, pricing and appointments at Opulence Bliss.",
+    "Answers about cleaning, property maintenance services, booking, pricing and appointments at Opulence Bliss.",
 };
 
 export default async function FaqPage() {
@@ -32,7 +28,8 @@ export default async function FaqPage() {
           <p className={styles.eyebrow}>Help centre</p>
           <h1>Questions, answered clearly</h1>
           <p className={styles.heroIntro}>
-            Cleaning, Handyman, booking and service information in one place.
+            Cleaning, Property maintenance, booking and service information in
+            one place.
           </p>
         </div>
       </header>
@@ -69,12 +66,19 @@ export default async function FaqPage() {
         <section className={styles.cta}>
           <div>
             <h2>Need help with your home?</h2>
-            <p>Contact us today for a cleaning or handyman quote. Send your postcode, the service you need, your preferred date and any useful photos or details. We&apos;ll get back to you with availability and pricing.</p>
+            <p>
+              Contact us today for a cleaning or property maintenance quote.
+              Send your postcode, the service you need, your preferred date and
+              any useful photos or details. We&apos;ll get back to you with
+              availability and pricing.
+            </p>
           </div>
           <div className={styles.ctaActions}>
-            <Link className={styles.primaryButton} href="/book">Book cleaning</Link>
+            <Link className={styles.primaryButton} href="/book">
+              Book cleaning
+            </Link>
             <Link className={styles.secondaryButton} href="/services/handyman">
-              Request a Handyman quote
+              Request a Property maintenance quote
             </Link>
           </div>
         </section>

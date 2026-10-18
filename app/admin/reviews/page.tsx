@@ -1,3 +1,4 @@
+import AdminPreviousCustomerReviews from "@/components/AdminPreviousCustomerReviews";
 import AdminNav from "../AdminNav";
 import ReviewList from "../ReviewList";
 import { requireAdminPage } from "@/lib/adminSession";
@@ -29,11 +30,16 @@ type MarketingReview = {
 };
 
 const saveErrors: Record<string, string> = {
-  fields: "Please complete the service, customer name, review, date and a rating from 1 to 5.",
+  fields:
+    "Please complete the service, customer name, review, date and a rating from 1 to 5.",
   save: "The review could not be saved. Your previous entry is still here; please try again or contact support if this continues.",
 };
 
-export default async function AdminReviewsPage({ searchParams }: { searchParams: Promise<{ reviewError?: string }> }) {
+export default async function AdminReviewsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reviewError?: string }>;
+}) {
   const { reviewError } = await searchParams;
   const { supabase, user } = await requireAdminPage();
   const { reviews, error } = await loadAdminReviews(supabase, 100);
@@ -46,16 +52,19 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
     .order("sort_order", { ascending: true })
     .order("reviewed_at", { ascending: false });
   const marketingReviews = (marketingData ?? []) as MarketingReview[];
-  const homepageTestimonials = marketingReviews.filter((review) => review.homepage_featured);
-  const copiedReviewIds = new Set(marketingReviews.map((review) => review.source_review_id).filter(Boolean));
+  const homepageTestimonials = marketingReviews.filter(
+    (review) => review.homepage_featured,
+  );
+  const copiedReviewIds = new Set(
+    marketingReviews.map((review) => review.source_review_id).filter(Boolean),
+  );
   const { data: featuredData, error: featuredError } = await supabase
     .from("homepage_review_highlights")
     .select("review_id, selected_at")
     .order("selected_at", { ascending: true });
   const featuredIds = new Set((featuredData ?? []).map((row) => row.review_id));
-  const eligibleReviews = reviews.filter((review) =>
-    review.reviewer === "client" &&
-    review.visibility === "public",
+  const eligibleReviews = reviews.filter(
+    (review) => review.reviewer === "client" && review.visibility === "public",
   );
 
   return (
@@ -66,12 +75,20 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
         <h1 style={title}>All recent reviews</h1>
         <p style={lede}>
           Cleaner and client reviews, newest first. Select a review to open the
-          reviewer&apos;s profile, or use the reviewed-profile link to inspect the
-          recipient.
+          reviewer&apos;s profile, or use the reviewed-profile link to inspect
+          the recipient.
         </p>
-        {reviewError && <p style={errorBox} role="alert">{saveErrors[reviewError] ?? saveErrors.save}</p>}
+        {reviewError && (
+          <p style={errorBox} role="alert">
+            {saveErrors[reviewError] ?? saveErrors.save}
+          </p>
+        )}
 
-        <section className="marketing-card" aria-labelledby="homepage-highlights">
+        <AdminPreviousCustomerReviews />
+        <section
+          className="marketing-card"
+          aria-labelledby="homepage-highlights"
+        >
           <div className="marketing-heading">
             <div>
               <p style={eyebrow}>Homepage only</p>
@@ -79,10 +96,10 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
             </div>
             <p>
               Add real customer feedback below and it appears on the homepage
-              automatically. You can also choose booking reviews or copy one
-              for editing. Admin-added reviews take precedence over the
-              booking-review selection. Original booking reviews and the
-              overall rating stay unchanged.
+              automatically. You can also choose booking reviews or copy one for
+              editing. Admin-added reviews take precedence over the
+              booking-review selection. Original booking reviews and the overall
+              rating stay unchanged.
             </p>
           </div>
           {featuredError ? (
@@ -90,46 +107,94 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
           ) : (
             <>
               <p className="highlight-count">
-                {homepageTestimonials.length} admin-added reviews on homepage · {featuredIds.size} of 6 booking reviews selected
+                {homepageTestimonials.length} admin-added reviews on homepage ·{" "}
+                {featuredIds.size} of 6 booking reviews selected
               </p>
-              {(featuredData ?? []).filter((row) => !eligibleReviews.some((review) => review.id === row.review_id)).map((row) => (
-                <form className="highlight-row" action={unfeatureHomepageReview} key={row.review_id}>
-                  <span>Previously selected review {row.review_id.slice(0, 8)}</span>
-                  <input type="hidden" name="reviewId" value={row.review_id} />
-                  <button type="submit">Remove from homepage</button>
-                </form>
-              ))}
+              {(featuredData ?? [])
+                .filter(
+                  (row) =>
+                    !eligibleReviews.some(
+                      (review) => review.id === row.review_id,
+                    ),
+                )
+                .map((row) => (
+                  <form
+                    className="highlight-row"
+                    action={unfeatureHomepageReview}
+                    key={row.review_id}
+                  >
+                    <span>
+                      Previously selected review {row.review_id.slice(0, 8)}
+                    </span>
+                    <input
+                      type="hidden"
+                      name="reviewId"
+                      value={row.review_id}
+                    />
+                    <button type="submit">Remove from homepage</button>
+                  </form>
+                ))}
               {eligibleReviews.length === 0 && !error ? (
-                <p className="marketing-empty">No eligible public booking reviews yet.</p>
-              ) : eligibleReviews.map((review) => (
-                <form className="highlight-row" action={featuredIds.has(review.id) ? unfeatureHomepageReview : featureHomepageReview} key={review.id}>
-                  <span>
-                    <strong>{"★".repeat(review.rating)}{"☆".repeat(5 - review.rating)}</strong>
-                    {review.comment?.trim()
-                      ? ` “${review.comment.trim()}”`
-                      : " Rating shared without a written comment."}
-                    <small>Booking #{review.bookingReference} · {review.reviewerName}</small>
-                  </span>
-                  <input type="hidden" name="reviewId" value={review.id} />
-                  <div className="highlight-actions">
-                    <button type="submit" disabled={!featuredIds.has(review.id) && featuredIds.size >= 6}>
-                      {featuredIds.has(review.id) ? "Remove from homepage" : "Feature on homepage"}
-                    </button>
-                    <button
-                      type="submit"
-                      formAction={copyBookingReviewToTestimonial}
-                      disabled={copiedReviewIds.has(review.id)}
-                    >
-                      {copiedReviewIds.has(review.id) ? "Copied for placement" : "Feature original review"}
-                    </button>
-                  </div>
-                </form>
-              ))}
+                <p className="marketing-empty">
+                  No eligible public booking reviews yet.
+                </p>
+              ) : (
+                eligibleReviews.map((review) => (
+                  <form
+                    className="highlight-row"
+                    action={
+                      featuredIds.has(review.id)
+                        ? unfeatureHomepageReview
+                        : featureHomepageReview
+                    }
+                    key={review.id}
+                  >
+                    <span>
+                      <strong>
+                        {"★".repeat(review.rating)}
+                        {"☆".repeat(5 - review.rating)}
+                      </strong>
+                      {review.comment?.trim()
+                        ? ` “${review.comment.trim()}”`
+                        : " Rating shared without a written comment."}
+                      <small>
+                        Booking #{review.bookingReference} ·{" "}
+                        {review.reviewerName}
+                      </small>
+                    </span>
+                    <input type="hidden" name="reviewId" value={review.id} />
+                    <div className="highlight-actions">
+                      <button
+                        type="submit"
+                        disabled={
+                          !featuredIds.has(review.id) && featuredIds.size >= 6
+                        }
+                      >
+                        {featuredIds.has(review.id)
+                          ? "Remove from homepage"
+                          : "Feature on homepage"}
+                      </button>
+                      <button
+                        type="submit"
+                        formAction={copyBookingReviewToTestimonial}
+                        disabled={copiedReviewIds.has(review.id)}
+                      >
+                        {copiedReviewIds.has(review.id)
+                          ? "Copied for placement"
+                          : "Feature original review"}
+                      </button>
+                    </div>
+                  </form>
+                ))
+              )}
             </>
           )}
         </section>
 
-        <section className="marketing-card" aria-labelledby="cleaning-testimonials">
+        <section
+          className="marketing-card"
+          aria-labelledby="cleaning-testimonials"
+        >
           <div className="marketing-heading">
             <div>
               <p style={eyebrow}>Homepage and cleaning page</p>
@@ -138,26 +203,71 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
             <p>
               Add feedback actually given by a customer. By saving it, you
               confirm you have permission to use the customer&apos;s name and
-              location. New reviews appear on the homepage automatically;
-              they also appear under Read all reviews. Only booking reviews
-              contribute to the headline rating. You can choose whether to show the full review
-              on the cleaning page. Copied booking reviews are counted only
-              once and always show the customer&apos;s own rating, words and
-              date. Never write or change a customer&apos;s words or rating.
+              location. New reviews appear on the homepage automatically; they
+              also appear under Read all reviews. Only booking reviews
+              contribute to the headline rating. You can choose whether to show
+              the full review on the cleaning page. Copied booking reviews are
+              counted only once and always show the customer&apos;s own rating,
+              words and date. Never write or change a customer&apos;s words or
+              rating.
             </p>
           </div>
 
           <form className="review-form create" action={createMarketingReview}>
-            <label>Service<input name="serviceLabel" placeholder="Essential Clean" required /></label>
-            <label>Customer name<input name="customerName" placeholder="First name" required /></label>
-            <label>Location<input name="location" placeholder="London area (optional)" /></label>
-            <label>Rating<select name="rating" defaultValue="5">{[5, 4, 3, 2, 1].map((rating) => <option value={rating} key={rating}>{rating} / 5</option>)}</select></label>
-            <label>Date<input name="reviewedAt" type="date" defaultValue={new Date().toISOString().slice(0, 10)} required /></label>
-            <label>Order<input name="sortOrder" type="number" defaultValue="0" /></label>
-            <label className="wide">Review<textarea name="comment" rows={3} placeholder="Cleaning-related feedback" required /></label>
+            <label>
+              Service
+              <input
+                name="serviceLabel"
+                placeholder="Essential Clean"
+                required
+              />
+            </label>
+            <label>
+              Customer name
+              <input name="customerName" placeholder="First name" required />
+            </label>
+            <label>
+              Location
+              <input name="location" placeholder="London area (optional)" />
+            </label>
+            <label>
+              Rating
+              <select name="rating" defaultValue="5">
+                {[5, 4, 3, 2, 1].map((rating) => (
+                  <option value={rating} key={rating}>
+                    {rating} / 5
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Date
+              <input
+                name="reviewedAt"
+                type="date"
+                defaultValue={new Date().toISOString().slice(0, 10)}
+                required
+              />
+            </label>
+            <label>
+              Order
+              <input name="sortOrder" type="number" defaultValue="0" />
+            </label>
+            <label className="wide">
+              Review
+              <textarea
+                name="comment"
+                rows={3}
+                placeholder="Cleaning-related feedback"
+                required
+              />
+            </label>
             <input type="hidden" name="homepageFeatured" value="on" />
             <div className="toggles">
-              <label><input type="checkbox" name="published" /> Also show on cleaning page</label>
+              <label>
+                <input type="checkbox" name="published" /> Also show on cleaning
+                page
+              </label>
             </div>
             <button type="submit">Add customer review</button>
           </form>
@@ -165,39 +275,135 @@ export default async function AdminReviewsPage({ searchParams }: { searchParams:
           {marketingError ? (
             <p style={errorBox}>{marketingError.message}</p>
           ) : marketingReviews.length === 0 ? (
-            <p className="marketing-empty">No manually managed cleaning testimonials yet.</p>
+            <p className="marketing-empty">
+              No manually managed cleaning testimonials yet.
+            </p>
           ) : (
             <div className="managed-list">
               {marketingReviews.map((review) => (
-                <form className="review-form managed" action={updateMarketingReview.bind(null, review.id)} key={review.id}>
+                <form
+                  className="review-form managed"
+                  action={updateMarketingReview.bind(null, review.id)}
+                  key={review.id}
+                >
                   {review.source_review_id && (
                     <p className="source-note">
-                      Copied from booking review #{review.source_review_id.slice(0, 8)}. Shown exactly as the customer left it: the rating, wording and date can&apos;t be changed. You can choose where it appears.
+                      Copied from booking review #
+                      {review.source_review_id.slice(0, 8)}. Shown exactly as
+                      the customer left it: the rating, wording and date
+                      can&apos;t be changed. You can choose where it appears.
                     </p>
                   )}
                   {review.is_demo && (
-                    <p className="source-note">Example only. It can&apos;t be published or shown on the homepage; delete it when no longer needed.</p>
+                    <p className="source-note">
+                      Example only. It can&apos;t be published or shown on the
+                      homepage; delete it when no longer needed.
+                    </p>
                   )}
-                  <label>Service<input name="serviceLabel" defaultValue={review.service_label} required disabled={Boolean(review.source_review_id)} /></label>
-                  <label>Customer name<input name="customerName" defaultValue={review.customer_name} required disabled={Boolean(review.source_review_id)} /></label>
-                  <label>Location<input name="location" defaultValue={review.location ?? ""} disabled={Boolean(review.source_review_id)} /></label>
-                  <label>Rating<select name="rating" defaultValue={String(review.rating)} disabled={Boolean(review.source_review_id)}>{[5, 4, 3, 2, 1].map((rating) => <option value={rating} key={rating}>{rating} / 5</option>)}</select></label>
-                  <label>Date<input name="reviewedAt" type="date" defaultValue={review.reviewed_at} required disabled={Boolean(review.source_review_id)} /></label>
-                  <label>Order<input name="sortOrder" type="number" defaultValue={review.sort_order} /></label>
-                  <label className="wide">Review<textarea name="comment" rows={3} defaultValue={review.comment} required disabled={Boolean(review.source_review_id)} /></label>
+                  <label>
+                    Service
+                    <input
+                      name="serviceLabel"
+                      defaultValue={review.service_label}
+                      required
+                      disabled={Boolean(review.source_review_id)}
+                    />
+                  </label>
+                  <label>
+                    Customer name
+                    <input
+                      name="customerName"
+                      defaultValue={review.customer_name}
+                      required
+                      disabled={Boolean(review.source_review_id)}
+                    />
+                  </label>
+                  <label>
+                    Location
+                    <input
+                      name="location"
+                      defaultValue={review.location ?? ""}
+                      disabled={Boolean(review.source_review_id)}
+                    />
+                  </label>
+                  <label>
+                    Rating
+                    <select
+                      name="rating"
+                      defaultValue={String(review.rating)}
+                      disabled={Boolean(review.source_review_id)}
+                    >
+                      {[5, 4, 3, 2, 1].map((rating) => (
+                        <option value={rating} key={rating}>
+                          {rating} / 5
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Date
+                    <input
+                      name="reviewedAt"
+                      type="date"
+                      defaultValue={review.reviewed_at}
+                      required
+                      disabled={Boolean(review.source_review_id)}
+                    />
+                  </label>
+                  <label>
+                    Order
+                    <input
+                      name="sortOrder"
+                      type="number"
+                      defaultValue={review.sort_order}
+                    />
+                  </label>
+                  <label className="wide">
+                    Review
+                    <textarea
+                      name="comment"
+                      rows={3}
+                      defaultValue={review.comment}
+                      required
+                      disabled={Boolean(review.source_review_id)}
+                    />
+                  </label>
                   <div className="toggles">
-                    <label><input type="checkbox" name="homepageFeatured" defaultChecked={review.homepage_featured} disabled={review.is_demo} /> Show on homepage</label>
-                    <label><input type="checkbox" name="published" defaultChecked={review.published} disabled={review.is_demo} /> Feature on cleaning page</label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="homepageFeatured"
+                        defaultChecked={review.homepage_featured}
+                        disabled={review.is_demo}
+                      />{" "}
+                      Show on homepage
+                    </label>
+                    <label>
+                      <input
+                        type="checkbox"
+                        name="published"
+                        defaultChecked={review.published}
+                        disabled={review.is_demo}
+                      />{" "}
+                      Feature on cleaning page
+                    </label>
                     {review.is_demo ? (
                       <>
                         <input type="hidden" name="isDemo" value="on" />
-                        <span className="example-type">Illustrative example (fictional)</span>
+                        <span className="example-type">
+                          Illustrative example (fictional)
+                        </span>
                       </>
                     ) : null}
                   </div>
                   <div className="form-actions">
                     <button type="submit">Save</button>
-                    <button className="delete" formAction={deleteMarketingReview.bind(null, review.id)}>Delete</button>
+                    <button
+                      className="delete"
+                      formAction={deleteMarketingReview.bind(null, review.id)}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </form>
               ))}
@@ -241,9 +447,41 @@ const page: React.CSSProperties = {
   color: "#16202a",
   fontFamily: "'Nunito', system-ui, sans-serif",
 };
-const inner: React.CSSProperties = { maxWidth: 1050, margin: "0 auto", padding: "0 20px" };
-const eyebrow: React.CSSProperties = { margin: "0 0 5px", color: "#6d28d9", fontSize: 11, fontWeight: 900, letterSpacing: "0.13em", textTransform: "uppercase" };
-const title: React.CSSProperties = { margin: "0 0 6px", fontSize: 34, fontWeight: 900 };
-const lede: React.CSSProperties = { maxWidth: 720, margin: "0 0 24px", color: "#68717d", fontSize: 14.5, lineHeight: 1.55 };
-const card: React.CSSProperties = { padding: "6px 20px", border: "1px solid #e5e7eb", borderRadius: 16, background: "#fff" };
-const errorBox: React.CSSProperties = { margin: "14px 0", padding: 14, borderRadius: 12, background: "#fff1f3", color: "#a52e47" };
+const inner: React.CSSProperties = {
+  maxWidth: 1050,
+  margin: "0 auto",
+  padding: "0 20px",
+};
+const eyebrow: React.CSSProperties = {
+  margin: "0 0 5px",
+  color: "#6d28d9",
+  fontSize: 11,
+  fontWeight: 900,
+  letterSpacing: "0.13em",
+  textTransform: "uppercase",
+};
+const title: React.CSSProperties = {
+  margin: "0 0 6px",
+  fontSize: 34,
+  fontWeight: 900,
+};
+const lede: React.CSSProperties = {
+  maxWidth: 720,
+  margin: "0 0 24px",
+  color: "#68717d",
+  fontSize: 14.5,
+  lineHeight: 1.55,
+};
+const card: React.CSSProperties = {
+  padding: "6px 20px",
+  border: "1px solid #e5e7eb",
+  borderRadius: 16,
+  background: "#fff",
+};
+const errorBox: React.CSSProperties = {
+  margin: "14px 0",
+  padding: 14,
+  borderRadius: 12,
+  background: "#fff1f3",
+  color: "#a52e47",
+};

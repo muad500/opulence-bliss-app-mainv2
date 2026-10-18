@@ -38,6 +38,8 @@ async function load(path, mocks = {}) {
         id === "@/lib/professionalEarnings"
       )
         return {};
+      if (id === "@/lib/accountChangeVerification")
+        return { verifyAccountChangeRequest: async () => null };
       if (id === "@/lib/professionalServices") return services;
       if (id === "@/lib/handymanMarketplace")
         return {
@@ -429,7 +431,7 @@ test("one signup creates both pending services with one set of shared checks", a
   const { response, writes } = await signup({
     ...validSignup,
     skills: ["cleaning", "handyman"],
-    handymanRates: { "Furniture assembly": 3200 },
+    maintenanceTasks: ["Furniture assembly"],
     coveragePostcodes: ["SW1A"],
     homePostcode: "SW1A 1AA",
   });
@@ -451,10 +453,16 @@ test("one signup creates both pending services with one set of shared checks", a
     writes.filter((x) => x.table === "provider_onboarding_details").length,
     1,
   );
+  assert.deepEqual(
+    Array.from(
+      writes.find((x) => x.table === "provider_profile_settings").value
+        .maintenance_tasks,
+    ),
+    ["Furniture assembly"],
+  );
   assert.equal(
-    writes.find((x) => x.table === "provider_task_rates").value[0]
-      .hourly_rate_pence,
-    3200,
+    writes.filter((x) => x.table === "provider_task_rates").length,
+    0,
   );
 });
 
@@ -464,7 +472,7 @@ test("handyman-only signup does not require cleaning experience", async () => {
     skills: ["handyman"],
     cleaningExperienceYears: undefined,
     cleaningExperienceTypes: undefined,
-    handymanRates: { "Furniture assembly": 3200 },
+    maintenanceTasks: ["Furniture assembly"],
     coveragePostcodes: ["SW1A"],
   });
   assert.equal(

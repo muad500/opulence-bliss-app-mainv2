@@ -13,7 +13,7 @@ export default async function WorkerToday() {
   }).format(new Date());
   const [cleaningResult, handymanResult] = await Promise.all([
     client
-      .from("bookings")
+      .rpc("worker_visible_bookings")
       .select("id,scheduled_at,status,address,packages(name)")
       .eq("provider_id", provider.id)
       .in("status", ["scheduled", "in_progress", "needs_review"])
@@ -36,7 +36,14 @@ export default async function WorkerToday() {
   if (cleaningResult.error || handymanResult.error)
     throw new Error("Your calendar could not be loaded.");
   const calendar = [
-    ...(cleaningResult.data ?? []).map((job) => ({
+    ...(
+      (Array.isArray(cleaningResult.data) ? cleaningResult.data : []) as {
+        id: string;
+        scheduled_at: string;
+        status: string;
+        address: string | null;
+      }[]
+    ).map((job) => ({
       ...job,
       service: "Cleaning",
       title: "Cleaning visit",
@@ -44,7 +51,7 @@ export default async function WorkerToday() {
     })),
     ...(handymanResult.data ?? []).map((job) => ({
       ...job,
-      service: "Handyman",
+      service: "Property maintenance",
       title: job.task_name,
       href: "/worker/jobs/handyman/" + job.id,
     })),

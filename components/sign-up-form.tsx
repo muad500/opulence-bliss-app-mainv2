@@ -37,9 +37,8 @@ export function SignUpForm() {
   const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
   const emailValid = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email.trim());
   const phoneValid = isValidUkPhone(phone);
-  const phoneEntered = phone.trim().length > 0;
-  const phoneOk = !phoneEntered || phoneValid;
-  const phoneError = phoneTouched && phoneEntered && !phoneValid;
+  const phoneOk = phoneValid;
+  const phoneError = phoneTouched && !phoneValid;
 
   async function handleSignUp(event: React.FormEvent) {
     event.preventDefault();
@@ -191,15 +190,16 @@ export function SignUpForm() {
             </svg>
             <span className="phone-code">+44</span>
             <label className="sr-only" htmlFor="client-phone">
-              Telephone number (optional)
+              Telephone number
             </label>
             <input
               id="client-phone"
               type="tel"
+              required
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               onBlur={() => setPhoneTouched(true)}
-              placeholder="Telephone number (optional)"
+              placeholder="Telephone number"
               autoComplete="tel"
               inputMode="numeric"
               aria-invalid={phoneError}
@@ -214,9 +214,8 @@ export function SignUpForm() {
             </p>
           )}
           <p className="phone-help" id="client-phone-help">
-            Optional for now. You will need one before your first booking, so
-            your professional can reach you on the day. It is used only for
-            booking-related contact.
+            Required. Your number stays private and is never shared with
+            professionals. Use in-app messages for booking-related contact.
           </p>
 
           <label className="sr-only" htmlFor="client-email">

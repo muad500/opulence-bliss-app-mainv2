@@ -42,7 +42,7 @@ const DEFAULTS: Record<LegalDocumentSlug, Omit<LegalDocument, "slug">> = {
     contentHtml: PRIVACY_POLICY_HTML,
   },
   "handyman-terms": {
-    title: "Handyman Services Terms",
+    title: "Property maintenance Services Terms",
     audience: "customers",
     version: "1.0",
     updatedAt: "2026-09-27T00:00:00.000Z",

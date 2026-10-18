@@ -308,7 +308,14 @@ export default function Home() {
         <div className="earn-inner">
           <div className="earn-copy">
             <p className="eyebrow">Your skills. New possibilities.</p>
-            <h2 id="earn-title">Earn with Us</h2>
+            <h2 id="earn-title">
+              <a
+                href="/provider/join"
+                style={{ color: "inherit", textDecoration: "none" }}
+              >
+                Earn with Us
+              </a>
+            </h2>
             <p className="earn-description">
               Turn the work you love into your next opportunity. Join our
               community of professionals and help make London homes feel their
@@ -913,7 +920,7 @@ export default function Home() {
             display: none;
           }
           .bands {
-            padding: 11px 16px;
+            padding: 8.5px 16px;
             gap: 8px;
           }
           .services-title {
@@ -1029,7 +1036,7 @@ export default function Home() {
             padding: 10px;
           }
           .bands {
-            padding-block: 7px;
+            padding-block: 4.5px;
             gap: 8px;
           }
           .services-title {

@@ -13,7 +13,7 @@ export type FaqCategory = (typeof FAQ_CATEGORIES)[number];
 export const FAQ_CATEGORY_LABELS: Record<FaqCategory, string> = {
   general: "General",
   cleaning: "Cleaning",
-  handyman: "Handyman",
+  handyman: "Property maintenance",
   booking_pricing: "Booking & pricing",
   appointments: "Appointments, changes & cancellations",
   quality: "Service quality & professionals",

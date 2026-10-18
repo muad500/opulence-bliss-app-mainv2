@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
   );
   const { data: existing } = await admin
     .from("profiles")
-    .select("role")
+    .select("role,phone")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -73,7 +73,14 @@ export async function GET(request: NextRequest) {
   }
 
   if (existing && user.user_metadata?.legal_accepted === true) {
-    return NextResponse.redirect(new URL(next, url.origin));
+    return NextResponse.redirect(
+      new URL(
+        existing?.phone
+          ? next
+          : `/complete-profile?next=${encodeURIComponent(next)}`,
+        url.origin,
+      ),
+    );
   }
 
   if (!existing) {

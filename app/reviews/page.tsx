@@ -1,3 +1,4 @@
+import PreviousCustomerReviews from "@/components/PreviousCustomerReviews";
 import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
 
@@ -45,8 +46,16 @@ export default async function ReviewsPage() {
   const reviews = (data ?? []) as PublicReview[];
   const customerReviews = (customerData ?? []) as CustomerReview[];
   const feed = [
-    ...customerReviews.map((review) => ({ kind: "customer" as const, date: review.reviewed_at, review })),
-    ...reviews.map((review) => ({ kind: "booking" as const, date: review.created_at, review })),
+    ...customerReviews.map((review) => ({
+      kind: "customer" as const,
+      date: review.reviewed_at,
+      review,
+    })),
+    ...reviews.map((review) => ({
+      kind: "booking" as const,
+      date: review.created_at,
+      review,
+    })),
   ].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
@@ -54,49 +63,73 @@ export default async function ReviewsPage() {
       <main className="review-page">
         <section className="review-hero">
           <p className="eyebrow">Community reviews</p>
-          <h1>Shared by customers and professionals</h1>
+          <h1>Shared by our customers</h1>
           <p>
-            These reviews were deliberately shared publicly. Private feedback
-            is shown only to the person who received it.
+            These reviews were deliberately shared publicly. Private feedback is
+            shown only to the person who received it.
           </p>
         </section>
 
         {feed.length === 0 ? (
-          <section className="empty">No public reviews have been shared yet.</section>
+          <section className="empty">
+            No public reviews have been shared yet.
+          </section>
         ) : (
           <section className="review-grid" aria-label="Public reviews">
-            {feed.map((entry) => entry.kind === "customer" ? (
-              <article className="review-card customer-review" key={`customer-${entry.review.id}`}>
-                <strong className="customer-name">{entry.review.customer_name}</strong>
-                <span className="stars" aria-label={`${entry.review.rating} out of 5 stars`}>
-                  {"★".repeat(entry.review.rating)}
-                  {"☆".repeat(5 - entry.review.rating)}
-                </span>
-                <blockquote>{entry.review.comment}</blockquote>
-                {entry.review.location && <p className="location">{entry.review.location}</p>}
-              </article>
-            ) : (
-              <article className="review-card" key={`booking-${entry.review.id}`}>
-                <div className="review-top">
-                  <span className="stars" aria-label={`${entry.review.rating} out of 5 stars`}>
+            {feed.map((entry) =>
+              entry.kind === "customer" ? (
+                <article
+                  className="review-card customer-review"
+                  key={`customer-${entry.review.id}`}
+                >
+                  <strong className="customer-name">
+                    {entry.review.customer_name}
+                  </strong>
+                  <span
+                    className="stars"
+                    aria-label={`${entry.review.rating} out of 5 stars`}
+                  >
                     {"★".repeat(entry.review.rating)}
                     {"☆".repeat(5 - entry.review.rating)}
                   </span>
-                  <time dateTime={entry.review.created_at}>{when(entry.review.created_at)}</time>
-                </div>
-                <p className="direction">
-                  {entry.review.reviewer === "client"
-                    ? `Customer review of ${entry.review.recipient_name}`
-                    : "Professional review of a verified client"}
-                </p>
-                <blockquote>
-                  {entry.review.comment?.trim() || "Rating shared without a comment."}
-                </blockquote>
-              </article>
-            ))}
+                  <blockquote>{entry.review.comment}</blockquote>
+                  {entry.review.location && (
+                    <p className="location">{entry.review.location}</p>
+                  )}
+                </article>
+              ) : (
+                <article
+                  className="review-card"
+                  key={`booking-${entry.review.id}`}
+                >
+                  <div className="review-top">
+                    <span
+                      className="stars"
+                      aria-label={`${entry.review.rating} out of 5 stars`}
+                    >
+                      {"★".repeat(entry.review.rating)}
+                      {"☆".repeat(5 - entry.review.rating)}
+                    </span>
+                    <time dateTime={entry.review.created_at}>
+                      {when(entry.review.created_at)}
+                    </time>
+                  </div>
+                  <p className="direction">
+                    {entry.review.reviewer === "client"
+                      ? `Customer review of ${entry.review.recipient_name}`
+                      : "Professional review of a verified client"}
+                  </p>
+                  <blockquote>
+                    {entry.review.comment?.trim() ||
+                      "Rating shared without a comment."}
+                  </blockquote>
+                </article>
+              ),
+            )}
           </section>
         )}
       </main>
+      <PreviousCustomerReviews />
       <SiteFooter />
 
       <style>{`

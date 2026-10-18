@@ -4,8 +4,9 @@ import { handymanEnabled } from "@/lib/handymanMarketplace";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "Join as a handyman | Opulence Bliss",
-  description: "Apply to join Opulence Bliss as a self-employed handyman in London.",
+  title: "Join as a property maintenance professional | Opulence Bliss",
+  description:
+    "Apply to join Opulence Bliss as a self-employed property maintenance professional in London.",
 };
 
 export const dynamic = "force-dynamic";
@@ -15,10 +16,12 @@ export default function HandymanPartnerPage() {
 
   return (
     <main className={styles.page}>
-      <Link className={styles.back} href="/provider">← All professional jobs</Link>
+      <Link className={styles.back} href="/provider">
+        ← All professional jobs
+      </Link>
       <section className={styles.card}>
         <p className={styles.eyebrow}>Work with Opulence Bliss</p>
-        <h1>Join as a handyman</h1>
+        <h1>Join as a property maintenance professional</h1>
         <p className={styles.lede}>
           Offer repairs, furniture assembly, mounting and minor decorating
           across London as a self-employed professional.
@@ -40,13 +43,22 @@ export default function HandymanPartnerPage() {
           </Link>
         ) : (
           <>
-            <p>Handyman applications are currently handled directly by our team.</p>
-            <a className={styles.button} href="mailto:opulencebliss@gmail.com?subject=Handyman%20professional%20application">
+            <p>
+              Property maintenance applications are currently handled directly
+              by our team.
+            </p>
+            <a
+              className={styles.button}
+              href="mailto:hello@opulencebliss.com?subject=Property%20maintenance%20professional%20application"
+            >
               Contact the team to apply
             </a>
             <p className={styles.contact}>
-              Email <a href="mailto:opulencebliss@gmail.com">opulencebliss@gmail.com</a> with
-              your tasks, experience, areas and availability.
+              Email{" "}
+              <a href="mailto:hello@opulencebliss.com">
+                hello@opulencebliss.com
+              </a>{" "}
+              with your tasks, experience, areas and availability.
             </p>
           </>
         )}

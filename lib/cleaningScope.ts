@@ -71,7 +71,7 @@ export function hasCleaningServiceRules(name: string) {
 }
 
 export const CLEANING_SUPPLIES_FAQ =
-  'The client provides cleaning products and equipment, or books the "cleaner brings supplies" option for an extra fee. Provide a vacuum cleaner unless the cleaner is booked to bring equipment. Any extra fee must be confirmed before the booking.';
+  'The client provides cleaning products and equipment, or chooses "Cleaner brings products" for £5 per visit. Provide a vacuum cleaner unless equipment is arranged separately. Oven £20, inside fridge £10, inside cupboards £10, interior windows £15 and ironing £15 are optional add-ons, each including up to one hour within the eight-hour visit limit.';
 
 export const CLEANING_LAUNDRY_FAQ =
   "Ironing is available as an add-on. Laundry beyond bed linen and towels where stated is not included unless agreed in writing before the booking. Please agree any additional work before booking.";

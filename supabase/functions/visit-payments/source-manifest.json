@@ -1,0 +1,61 @@
+{
+  "sourceSha256": "dee4c3bf4d8457ce8d2f35c45e33757875373b7b38471b9a6e01f11d7fa86ae5",
+  "generator": "scripts/build-visit-payment-worker.mjs",
+  "generatorSha256": "5b0961440e7d2fe28516fa3f795d51b8b662fa074c630efda795952c10344db5",
+  "stripeVersion": "22.3.2",
+  "supabaseVersion": "2.110.0",
+  "inputs": [
+    {
+      "path": "lib/bookingSms.ts",
+      "sha256": "db4aba5dee5f2c570f5f3a94d365e51c5e7b7e76461e11bbed64fb7ddb04b8ff"
+    },
+    {
+      "path": "lib/cancellationPolicy.ts",
+      "sha256": "6e4a5b0c331bb110788cdfd1d3388a496f79b9a05ce7c858cfdee67f639b94a8"
+    },
+    {
+      "path": "lib/cleaningBillingSettings.ts",
+      "sha256": "23a52afbd9982302f7946ff6c1130f62b72ac8438d7259ab6cdf9b5e61a6ad58"
+    },
+    {
+      "path": "lib/cleaningBillingTerms.ts",
+      "sha256": "712b164bcc668ed38287bf19e145833a356165a279738eb6cca2cf3448d5e4d8"
+    },
+    {
+      "path": "lib/cleaningBooking.ts",
+      "sha256": "c48a1b1b93d0c92a6f96e945867ae1223c86849338ab50296d8f7dede918578c"
+    },
+    {
+      "path": "lib/cleaningExtras.ts",
+      "sha256": "0b65c5a471aa9f430163de49e18baa581b22b67678d9e470b641d638bbe9251d"
+    },
+    {
+      "path": "lib/visitAdjustments.ts",
+      "sha256": "fb604813b582c626428ac4c7e4b2d7ea9fea050a3069bb254c92ea3a7f737dac"
+    },
+    {
+      "path": "lib/visitBillingPolicy.ts",
+      "sha256": "fd238f2aa785d51278338cc9659bc481887f3023a6617bbd21c9c46600b106a6"
+    },
+    {
+      "path": "lib/visitBillingServer.ts",
+      "sha256": "83f6075e53f060d1e3299a3d01e70ad719e90ddc4d38cdf47f1533c79987f2ab"
+    },
+    {
+      "path": "lib/visitLineItems.ts",
+      "sha256": "2719acf8c6108602da52b2d117d66d2670e13a8ea371a7aac9c89f280dfd40a6"
+    },
+    {
+      "path": "lib/visitMatchingNotices.ts",
+      "sha256": "145095d4da8709662e094fc73a8c4e6ec5d010d3b32339f935118252d5033499"
+    },
+    {
+      "path": "lib/visitMatchingPolicy.ts",
+      "sha256": "5c42127126189e74158b7828dd6f0d07ad3075c29e48401c13325119c14becd9"
+    },
+    {
+      "path": "supabase/functions/visit-payments/handler.ts",
+      "sha256": "af7e01cbcef43417565929e23f274689eb52e5eb05cad6a6fe2cc5a084d28650"
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+import { assistantWithoutPrices } from "@/lib/assistantPresentation";
+import { visitBillingEnabled } from "@/lib/visitBillingPolicy";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -21,8 +23,11 @@ export async function GET(req: NextRequest) {
           normaliseAssistantPostcode(pc),
           Number(req.nextUrl.searchParams.get("duration") ?? 120),
         )
-      : { services: await assistantServices(db) };
-    return NextResponse.json(data, {
+      : {
+          services: await assistantServices(db),
+          perVisitBilling: visitBillingEnabled(),
+        };
+    return NextResponse.json(assistantWithoutPrices(data), {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
@@ -41,7 +46,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const data = await prepareAssistantBooking(db, await req.json());
-    return NextResponse.json(data, {
+    return NextResponse.json(assistantWithoutPrices(data), {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {

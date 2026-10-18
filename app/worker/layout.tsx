@@ -2,6 +2,7 @@
 //
 // The provider portal shell. Everything under /worker lives inside this.
 
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import PortalLiveSync from "@/components/PortalLiveSync";
@@ -44,10 +45,12 @@ export default async function WorkerLayout({
 
   const { data: prof } = await supabase
     .from("profiles")
-    .select("role, full_name")
+    .select("role, full_name, phone")
     .eq("id", user.id)
     .maybeSingle();
 
+  if (prof && prof.role !== "admin" && !prof.phone)
+    redirect("/complete-profile");
   if (prof?.role === "admin") {
     return (
       <main style={gateWrap}>
@@ -80,8 +83,8 @@ export default async function WorkerLayout({
   let hasCurrentJob = false;
   if (prov?.id) {
     const { count: live } = await supabase
-      .from("bookings")
-      .select("*", { count: "exact", head: true })
+      .rpc("worker_visible_bookings", {}, { count: "exact", head: true })
+      .select("*")
       .eq("provider_id", prov.id)
       .eq("status", "in_progress");
     hasCurrentJob = (live ?? 0) > 0;

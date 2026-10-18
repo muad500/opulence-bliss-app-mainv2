@@ -174,7 +174,7 @@ export default async function ProfessionalRecordPage({
   const today = new Date().toISOString().slice(0, 10);
   const verificationTypes = PROVIDER_DOCUMENT_TYPES.filter(
     (type) =>
-      !["trade_certificate", "public_liability_insurance"].includes(type) ||
+      type !== "trade_certificate" ||
       (handymanEnabled() && provider.services?.includes("handyman")),
   );
   const verificationRecords: VerificationRecord[] = await Promise.all(
@@ -272,8 +272,12 @@ export default async function ProfessionalRecordPage({
               {profile?.email ?? "No email"} · {profile?.phone ?? "No phone"}
             </p>
             <p style={muted}>
-              {(provider.services ?? []).join(", ") || "No services"} ·{" "}
-              {provider.years_experience ?? 0}+ years ·{" "}
+              {(provider.services ?? [])
+                .map((service: string) =>
+                  service === "handyman" ? "Property maintenance" : service,
+                )
+                .join(", ") || "No services"}{" "}
+              · {provider.years_experience ?? 0}+ years ·{" "}
               {provider.vetting_status}
             </p>
           </div>

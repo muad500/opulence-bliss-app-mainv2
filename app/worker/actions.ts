@@ -8,13 +8,11 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import Stripe from "stripe";
 import { revalidatePath } from "next/cache";
-import {
-  effectiveReviewVisibility,
-  type ReviewVisibility,
-} from "@/lib/reviewVisibility";
+
 import { sendEmail } from "@/lib/email";
 import { rotateBookingOffer } from "@/lib/offerRotation";
 import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
+import { createVisitBilling } from "@/lib/visitBillingServer";
 import {
   captureBookingPayment,
   LegacyDestinationCaptureError,
@@ -189,6 +187,32 @@ export async function acceptJob(id: string, selectedSlot: string) {
   }
 
   // Booking acceptance queues confirmation and reminders in the database.
+  // The database queue remains due if this request loses its response; its
+  // recovery path repeats the current assignment and series-pause checks.
+  const { data: visitBill } = await admin
+    .from("booking_visit_billing")
+    .select("booking_id")
+    .eq("booking_id", id)
+    .maybeSingle();
+  if (visitBill) {
+    try {
+      const result = await createVisitBilling(admin, stripe).chargeVisit(id);
+      if (result.status === "failed") {
+        revalidatePath("/worker");
+        revalidatePath("/account");
+        return {
+          error:
+            "The customer's payment failed. Their booking has been updated; refresh your jobs.",
+        };
+      }
+    } catch {
+      // Acceptance is already durable. Never invite another acceptance or a
+      // second charge because this machine request is temporarily unavailable.
+      console.error(
+        "Accepted visit payment will be recovered by the scheduler.",
+      );
+    }
+  }
 
   revalidatePath("/worker");
   revalidatePath("/account");
@@ -490,6 +514,14 @@ export async function checkOutJob(id: string) {
 
   let earned = 0;
   let paymentSettled = Boolean(bk?.subscription_id || bk?.regular_series_id);
+  const { data: perVisitBilling } = await admin
+    .from("booking_visit_billing")
+    .select("rate_confirmed,status")
+    .eq("booking_id", id)
+    .maybeSingle();
+  const payRatePending = Boolean(
+    perVisitBilling && !perVisitBilling.rate_confirmed,
+  );
 
   if (bk?.regular_series_id) {
     try {
@@ -774,7 +806,9 @@ export async function checkOutJob(id: string) {
       : bk?.regular_series_id
         ? `${service} — all done. This visit was paid for with your regular booking.`
         : paymentSettled
-          ? `${service} — all done. Your card has now been charged.`
+          ? perVisitBilling
+            ? `${service} — all done. Your visit was already paid.`
+            : `${service} — all done. Your card has now been charged.`
           : `${service} — all done. We are checking the payment and you do not need to retry anything.`,
     "/account",
   );
@@ -791,7 +825,7 @@ export async function checkOutJob(id: string) {
         ? `<p>Your <strong>${service}</strong> is complete and was already paid for as part of your regular booking.</p>
            <p>If you have a moment, we'd love a quick rating for your provider.</p>`
         : paymentSettled
-          ? `<p>Your <strong>${service}</strong> is complete and your card has now been charged.</p>
+          ? `<p>Your <strong>${service}</strong> is complete and ${perVisitBilling ? "its payment was already settled" : "your card has now been charged"}.</p>
            <p>If you have a moment, we'd love a quick rating for your provider.</p>`
           : `<p>Your <strong>${service}</strong> is complete, but its payment needs a manual check.</p>
            <p>You do not need to pay or retry anything. The team will review it.</p>`,
@@ -803,7 +837,7 @@ export async function checkOutJob(id: string) {
   revalidatePath(`/worker/job/${id}`);
   revalidatePath("/worker/earnings");
   revalidatePath("/account");
-  return { earned };
+  return { earned, payRatePending };
 }
 export async function markAllRead() {
   const supabase = await createClient();
@@ -820,12 +854,7 @@ export async function markAllRead() {
 }
 
 // Provider rates the client after a completed visit.
-export async function rateClient(
-  id: string,
-  rating: number,
-  comment: string,
-  visibility: ReviewVisibility,
-) {
+export async function rateClient(id: string, rating: number, comment: string) {
   const supabase = await createClient();
   const clean = Math.min(5, Math.max(1, Math.round(rating)));
 
@@ -834,20 +863,8 @@ export async function rateClient(
     reviewer: "provider",
     rating: clean,
     comment: comment?.trim() ? comment.trim() : null,
-    visibility: effectiveReviewVisibility(visibility),
+    visibility: "private",
   });
-
-  if (!error) {
-    const ctx = await bookingContext(id);
-    await notify(
-      ctx.customerId,
-      `Your provider rated you ${clean} stars`,
-      comment?.trim()
-        ? comment.trim().slice(0, 120)
-        : "Thanks for having them.",
-      "/account",
-    );
-  }
 
   revalidatePath("/worker");
   return { error: error?.message ?? null };

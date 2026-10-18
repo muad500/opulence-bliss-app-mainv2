@@ -14,10 +14,9 @@ import {
   MapPin,
   MessageSquare,
   Navigation,
-  Phone,
   RotateCcw,
 } from "lucide-react";
-import { formatUkPhone } from "@/lib/ukPhone";
+import { visitAddressVisible } from "@/lib/visitContactPolicy";
 import BookingProgress from "@/components/BookingProgress";
 import { appointmentTimeLabel as clock } from "@/lib/appointmentWindow";
 import JobActions, { CheckInControl } from "./JobActions";
@@ -191,9 +190,18 @@ export default function ActiveJob({
   }
 
   const finish = finishTime(job.scheduled_at, job.durationMinutes);
-  const maps = job.address
+  const visibleAddress = visitAddressVisible(
+    job.status,
+    job.scheduled_at,
+    job.durationMinutes,
+    job.leftAt,
+    now,
+  )
+    ? job.address
+    : null;
+  const maps = visibleAddress
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-        job.address,
+        visibleAddress,
       )}`
     : null;
   const status = statusCopy(job, elapsed);
@@ -222,7 +230,12 @@ export default function ActiveJob({
         </div>
 
         <div className="progress-wrap">
-          <SessionCountdown bookingId={job.id} status={job.status} startedAt={job.arrivedAt} durationMinutes={job.durationMinutes} />
+          <SessionCountdown
+            bookingId={job.id}
+            status={job.status}
+            startedAt={job.arrivedAt}
+            durationMinutes={job.durationMinutes}
+          />
           <BookingProgress
             status={job.status}
             stage={stageIndex(job.status)}
@@ -247,11 +260,6 @@ export default function ActiveJob({
                   <span>Repeat client</span>
                 )}
               </div>
-              {job.clientPhone && (
-                <a className="client-call" href={`tel:${job.clientPhone}`}>
-                  <Phone size={14} /> Call {formatUkPhone(job.clientPhone)}
-                </a>
-              )}
               <small className="history">
                 <RotateCcw size={13} />
                 {(job.clientCompletedBookings ?? 0) > 0
@@ -263,7 +271,7 @@ export default function ActiveJob({
         </div>
 
         <Summary tone="sky" icon={<MapPin size={19} />} label="Location">
-          <strong>{job.address ?? "Address unavailable"}</strong>
+          <strong>{visibleAddress ?? "Address hidden after visit"}</strong>
           {maps && (
             <a href={maps} target="_blank" rel="noreferrer">
               <Navigation size={13} /> Open map
@@ -292,7 +300,10 @@ export default function ActiveJob({
           <div className="offer-times" aria-label="Customer time choices">
             <div>
               <span>Preferred time · first choice</span>
-              <strong>{fullDate(job.preferredScheduledAt ?? job.scheduled_at)} · {clock(job.preferredScheduledAt ?? job.scheduled_at)}</strong>
+              <strong>
+                {fullDate(job.preferredScheduledAt ?? job.scheduled_at)} ·{" "}
+                {clock(job.preferredScheduledAt ?? job.scheduled_at)}
+              </strong>
             </div>
             {(job.optionalScheduledAt ?? []).length > 0 && (
               <div>
@@ -305,18 +316,25 @@ export default function ActiveJob({
               </div>
             )}
           </div>
-          <div className="offer-facts" aria-label="Details to review before responding">
+          <div
+            className="offer-facts"
+            aria-label="Details to review before responding"
+          >
             <div>
               <span>Home details</span>
               <strong>
-                {bookingNotes.home ?? (job.propertySizeSqm !== null && job.propertySizeSqm !== undefined
-                  ? `${Number(job.propertySizeSqm).toFixed(1)} m²`
-                  : "Not provided")}
+                {bookingNotes.home ??
+                  (job.propertySizeSqm !== null &&
+                  job.propertySizeSqm !== undefined
+                    ? `${Number(job.propertySizeSqm).toFixed(1)} m²`
+                    : "Not provided")}
               </strong>
             </div>
             <div>
               <span>Special instructions</span>
-              <strong>{bookingNotes.request.trim() || "No special instructions"}</strong>
+              <strong>
+                {bookingNotes.request.trim() || "No special instructions"}
+              </strong>
             </div>
           </div>
         </>

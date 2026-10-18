@@ -154,6 +154,12 @@ export default async function AccountMenu({
           icon: CircleHelp,
         },
       ];
+  rows.push({
+    label: "Earn with us",
+    detail: "Explore opportunities and add a service",
+    href: "/provider/join",
+    icon: ClipboardCheck,
+  });
   return (
     <main className={styles.page}>
       <div className={styles.identity}>
@@ -181,7 +187,11 @@ export default async function AccountMenu({
               {content}
             </div>
           ) : (
-            <Link key={row.label} href={row.href}>
+            <Link
+              key={row.label}
+              href={row.href} target={row.label === "Earn with us" ? "_blank" : undefined} rel={row.label === "Earn with us" ? "noopener noreferrer" : undefined}
+              data-earn-with-us={row.label === "Earn with us" || undefined}
+            >
               {content}
             </Link>
           );

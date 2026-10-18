@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
       maxTravelDistance,
       weeklyAvailability,
       skills,
-      handymanRates,
+      maintenanceTasks,
       coveragePostcodes,
       homePostcode,
       areaIds,
@@ -93,20 +93,13 @@ export async function POST(req: NextRequest) {
     const handymanSelected = selectedServices.includes("handyman");
     if (
       handymanSelected &&
-      (!handymanRates ||
-        typeof handymanRates !== "object" ||
-        Array.isArray(handymanRates) ||
-        !Object.keys(handymanRates).length ||
-        Object.entries(handymanRates).some(
-          ([task, amount]) =>
-            !validHandymanTask(task) ||
-            !Number.isInteger(amount) ||
-            Number(amount) < 100 ||
-            Number(amount) > 100000,
-        ))
+      (!Array.isArray(maintenanceTasks) ||
+        !maintenanceTasks.length ||
+        maintenanceTasks.length > 6 ||
+        maintenanceTasks.some((task) => !validHandymanTask(task)))
     )
       return NextResponse.json(
-        { error: "Select at least one handyman task and a valid hourly rate." },
+        { error: "Choose at least one available property maintenance task." },
         { status: 400 },
       );
     if (
@@ -165,6 +158,7 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       );
     }
+    let invitedProviderId: string | null = null;
     if (existingUser) {
       const { data: existingProfile } = await admin
         .from("profiles")
@@ -181,7 +175,16 @@ export async function POST(req: NextRequest) {
         .select("id")
         .eq("profile_id", existingUser.id)
         .maybeSingle();
-      if (alreadyProfessional)
+      if (alreadyProfessional) {
+        const invitation = await admin
+          .from("professional_setup_invitations")
+          .select("setup_completed_at")
+          .eq("user_id", existingUser.id)
+          .maybeSingle();
+        if (invitation.data && !invitation.data.setup_completed_at)
+          invitedProviderId = alreadyProfessional.id;
+      }
+      if (alreadyProfessional && !invitedProviderId)
         return NextResponse.json(
           {
             error:
@@ -483,7 +486,8 @@ export async function POST(req: NextRequest) {
     // 3. Provider record — work access begins after the admin approves it.
     const { data: prov, error: provErr } = await admin
       .from("providers")
-      .insert({
+      .upsert({
+        ...(invitedProviderId ? { id: invitedProviderId } : {}),
         profile_id: userId,
         services: selectedServices,
         display_name: fullName,
@@ -578,6 +582,9 @@ export async function POST(req: NextRequest) {
           home_postcode: homePostcode || null,
           coverage_postcodes: handymanSelected ? coveragePostcodes : [],
           availability_configured: true,
+          maintenance_tasks: handymanSelected
+            ? [...new Set(maintenanceTasks)]
+            : [],
         },
         { onConflict: "provider_id" },
       );
@@ -586,22 +593,6 @@ export async function POST(req: NextRequest) {
         { error: "Could not save shared work settings." },
         { status: 503 },
       );
-    if (handymanSelected) {
-      const { error: ratesError } = await admin
-        .from("provider_task_rates")
-        .insert(
-          Object.entries(handymanRates).map(([task, amount]) => ({
-            provider_id: prov.id,
-            task_name: task,
-            hourly_rate_pence: amount,
-          })),
-        );
-      if (ratesError)
-        return NextResponse.json(
-          { error: "Could not save your handyman tasks." },
-          { status: 503 },
-        );
-    }
     // 5. Coverage areas.
     await admin.from("provider_service_areas").insert(
       (areaIds as string[]).map((id) => ({
@@ -618,6 +609,11 @@ export async function POST(req: NextRequest) {
       })),
     );
 
+    if (invitedProviderId)
+      await admin
+        .from("professional_setup_invitations")
+        .update({ setup_completed_at: new Date().toISOString() })
+        .eq("provider_id", invitedProviderId);
     return NextResponse.json({
       ok: true,
       userId,

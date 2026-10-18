@@ -61,7 +61,7 @@ export default function ProfessionalServiceApplications({
       <div style={{ display: "grid", gap: 12 }}>
         {services.map((service) => (
           <div
-            key={service}
+            key={service === "handyman" ? "Property maintenance" : "Cleaning"}
             style={{
               display: "flex",
               alignItems: "center",

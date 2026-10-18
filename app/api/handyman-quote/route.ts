@@ -3,7 +3,16 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { isValidUkPhone, normalizeUkPhone } from "@/lib/ukPhone";
 import { isSameOriginMutation, readAccountBody } from "@/lib/accountApi";
-import { handymanEstimatePence } from "@/lib/handymanEstimate";
+import { randomUUID } from "node:crypto";
+import sharp from "sharp";
+import { boundedFormData } from "@/lib/boundedForm";
+import {
+  QUOTE_MULTIPART_MAX_BYTES,
+  QUOTE_PHOTO_MAX_BYTES,
+  QUOTE_PHOTO_MAX_COUNT,
+  QUOTE_PHOTO_BUCKET,
+  quotePhotoKind,
+} from "@/lib/quotePhotos";
 
 const admin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,12 +30,18 @@ const TASK_TYPES = new Set([
 ]);
 
 function text(value: unknown, max: number) {
-  return String(value ?? "").trim().slice(0, max);
+  return String(value ?? "")
+    .trim()
+    .slice(0, max);
 }
 
 export async function POST(request: NextRequest) {
   try {
-    if (!isSameOriginMutation(request)) return NextResponse.json({ error: "Use the website to request a quote." }, { status: 403 });
+    if (!isSameOriginMutation(request))
+      return NextResponse.json(
+        { error: "Use the website to request a quote." },
+        { status: 403 },
+      );
     const supabase = await createClient();
     const {
       data: { user },
@@ -44,13 +59,80 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     if (!profile || profile.role === "admin") {
       return NextResponse.json(
-        { error: "A customer account is required to request a handyman quote." },
+        {
+          error:
+            "A customer account is required to request a property maintenance quote.",
+        },
         { status: 403 },
       );
     }
 
-    const body = await readAccountBody(request);
-    if (body instanceof NextResponse) return body;
+    const multipart = request.headers
+      .get("content-type")
+      ?.startsWith("multipart/form-data");
+    let files: File[] = [];
+    let body: Record<string, unknown>;
+    try {
+      if (multipart) {
+        const form = await boundedFormData(request, QUOTE_MULTIPART_MAX_BYTES);
+        body = Object.fromEntries(
+          [...form.entries()].filter(([, value]) => typeof value === "string"),
+        );
+        body.consentAccepted = body.consentAccepted === "on";
+        files = form
+          .getAll("photos")
+          .filter(
+            (file): file is File => file instanceof File && file.size > 0,
+          );
+      } else {
+        const json = await readAccountBody(request);
+        if (json instanceof NextResponse) return json;
+        body = json;
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "Choose up to 3 photos, each no larger than 1 MB." },
+        { status: 413 },
+      );
+    }
+    if (
+      files.length > QUOTE_PHOTO_MAX_COUNT ||
+      files.some((file) => file.size > QUOTE_PHOTO_MAX_BYTES)
+    )
+      return NextResponse.json(
+        { error: "Choose up to 3 photos, each no larger than 1 MB." },
+        { status: 400 },
+      );
+    const quoteId = randomUUID();
+    const photos: { path: string; name: string }[] = [];
+    const decoded: Buffer[] = [];
+    try {
+      for (const file of files) {
+        const bytes = Buffer.from(await file.arrayBuffer());
+        if (!quotePhotoKind(bytes)) throw new Error("Unsupported photo");
+        const photo = await sharp(bytes, {
+          limitInputPixels: 16000000,
+          animated: false,
+        })
+          .rotate()
+          .resize({
+            width: 1600,
+            height: 1600,
+            fit: "inside",
+            withoutEnlargement: true,
+          })
+          .jpeg({ quality: 80 })
+          .toBuffer();
+        if (photo.length > QUOTE_PHOTO_MAX_BYTES)
+          throw new Error("Photo too large");
+        decoded.push(photo);
+      }
+    } catch {
+      return NextResponse.json(
+        { error: "Use valid JPEG, PNG or WebP photos, each under 1 MB." },
+        { status: 400 },
+      );
+    }
     const fullName = text(body.fullName, 120);
     const email = text(body.email, 180).toLowerCase();
     const phone = text(body.phone, 40);
@@ -78,38 +160,83 @@ export async function POST(request: NextRequest) {
       );
     }
     if (!/^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/.test(email)) {
-      return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Enter a valid email address." },
+        { status: 400 },
+      );
     }
     if (!isValidUkPhone(phone)) {
-      return NextResponse.json({ error: "Enter a valid UK phone number." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Enter a valid UK phone number." },
+        { status: 400 },
+      );
     }
     if (!TASK_TYPES.has(taskType)) {
-      return NextResponse.json({ error: "Choose a valid handyman task." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Choose a valid property maintenance task." },
+        { status: 400 },
+      );
     }
 
-    let rateSnapshot: Record<string, unknown> = {};
+    let preferredProviderId: string | null = null;
     if (body.preferredProviderId) {
-      const preferredProviderId = text(body.preferredProviderId, 36);
-      if (!/^[0-9a-f-]{36}$/i.test(preferredProviderId)) return NextResponse.json({ error: "Choose a valid professional." }, { status: 400 });
-      const { data: eligible, error: eligibleError } = await supabase.rpc("public_eligible_provider_ids").eq("id", preferredProviderId);
-      if (eligibleError || !eligible?.length) return NextResponse.json({ error: "This professional is no longer available for quotes." }, { status: 409 });
-      const [worker, rate] = await Promise.all([
-        admin.from("providers").select("services").eq("id", preferredProviderId).single(),
-        admin.from("provider_task_rates").select("hourly_rate_pence").eq("provider_id", preferredProviderId).eq("task_name", taskType).maybeSingle(),
-      ]);
-      if (worker.error || rate.error) return NextResponse.json({ error: "The professional's rate could not be checked." }, { status: 503 });
-      if (!worker.data.services?.includes("handyman") || !rate.data) return NextResponse.json({ error: "This professional has no listed rate for that task." }, { status: 400 });
-      if (body.expectedHourlyRatePence !== rate.data.hourly_rate_pence) return NextResponse.json({ error: "The listed rate has changed. Refresh the page before requesting your quote." }, { status: 409 });
-      const total = handymanEstimatePence(rate.data.hourly_rate_pence, body.estimatedHours);
-      if (total === null) return NextResponse.json({ error: "Choose between half an hour and 16 hours, in half-hour steps." }, { status: 400 });
-      rateSnapshot = { preferred_provider_id: preferredProviderId, quoted_hourly_rate_pence: rate.data.hourly_rate_pence, estimated_hours: body.estimatedHours, estimate_total_pence: total };
+      preferredProviderId = text(body.preferredProviderId, 36);
+      if (!/^[0-9a-f-]{36}$/i.test(preferredProviderId))
+        return NextResponse.json(
+          { error: "Choose a valid professional." },
+          { status: 400 },
+        );
+      const { data: eligible, error: eligibleError } = await supabase
+        .rpc("public_eligible_provider_ids")
+        .eq("id", preferredProviderId);
+      if (eligibleError || !eligible?.length)
+        return NextResponse.json(
+          { error: "This professional is no longer available for quotes." },
+          { status: 409 },
+        );
+      const { data: provider } = await admin
+        .from("providers")
+        .select("services, service_approvals")
+        .eq("id", preferredProviderId)
+        .maybeSingle();
+      if (
+        !provider?.services?.includes("handyman") ||
+        provider.service_approvals?.handyman !== "approved"
+      )
+        return NextResponse.json(
+          {
+            error:
+              "This professional cannot provide property maintenance quotes.",
+          },
+          { status: 400 },
+        );
     }
-
+    for (const [index, photo] of decoded.entries()) {
+      const path = user.id + "/" + quoteId + "/" + randomUUID() + ".jpg";
+      const { error } = await admin.storage
+        .from(QUOTE_PHOTO_BUCKET)
+        .upload(path, photo, { contentType: "image/jpeg", upsert: false });
+      if (error) {
+        if (photos.length)
+          await admin.storage
+            .from(QUOTE_PHOTO_BUCKET)
+            .remove(photos.map((item) => item.path));
+        return NextResponse.json(
+          {
+            error: "Your photos could not be saved. No request was submitted.",
+          },
+          { status: 503 },
+        );
+      }
+      photos.push({ path, name: "Job photo " + (index + 1) });
+    }
     const { data, error } = await admin
       .from("handyman_quote_requests")
       .insert({
         customer_id: user.id,
-        ...rateSnapshot,
+        id: quoteId,
+        preferred_provider_id: preferredProviderId,
+        photos,
         full_name: fullName,
         email,
         phone: normalizeUkPhone(phone),
@@ -123,11 +250,20 @@ export async function POST(request: NextRequest) {
       .select("reference")
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (photos.length)
+        await admin.storage
+          .from(QUOTE_PHOTO_BUCKET)
+          .remove(photos.map((item) => item.path));
+      throw error;
+    }
 
     return NextResponse.json({ ok: true, reference: data.reference });
   } catch (caught) {
-    const message = caught instanceof Error ? caught.message : "Could not send your quote request.";
+    const message =
+      caught instanceof Error
+        ? caught.message
+        : "Could not send your quote request.";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

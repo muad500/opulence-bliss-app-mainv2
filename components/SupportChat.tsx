@@ -77,7 +77,10 @@ function Linkified({ text }: { text: string }) {
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) out.push(text.slice(last, m.index));
     const raw = m[2] ?? m[3] ?? m[4] ?? "";
-    const href = safeAssistantHref(raw, typeof window === "undefined" ? undefined : window.location.origin);
+    const href = safeAssistantHref(
+      raw,
+      typeof window === "undefined" ? undefined : window.location.origin,
+    );
     const label = m[1] ?? raw;
     const booking = href?.startsWith("/book?");
     if (!href) {
@@ -126,15 +129,22 @@ export default function SupportChat() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSignedIn(!!data.session));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSignedIn(!!session);
-      const nextUser = session?.user.id ?? null;
-      if (chatUser.current !== undefined && chatUser.current !== nextUser) {
-        setMsgs([{ role: "assistant", text: "How can I help? Book a clean, ask a question, or check your own bookings after signing in." }]);
-        setGuided(false);
-      }
-      chatUser.current = nextUser;
-    });
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSignedIn(!!session);
+        const nextUser = session?.user.id ?? null;
+        if (chatUser.current !== undefined && chatUser.current !== nextUser) {
+          setMsgs([
+            {
+              role: "assistant",
+              text: "How can I help? Book a clean, ask a question, or check your own bookings after signing in.",
+            },
+          ]);
+          setGuided(false);
+        }
+        chatUser.current = nextUser;
+      },
+    );
     return () => listener.subscription.unsubscribe();
   }, []);
 
@@ -164,7 +174,13 @@ export default function SupportChat() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ message: question, history, portalContext: window.location.pathname.startsWith("/worker") ? "professional" : "client" }),
+        body: JSON.stringify({
+          message: question,
+          history,
+          portalContext: window.location.pathname.startsWith("/worker")
+            ? "professional"
+            : "client",
+        }),
         signal: AbortSignal.timeout(70_000),
       });
       const data = await res.json();
@@ -219,7 +235,12 @@ export default function SupportChat() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ actionToken: action.token, portalContext: window.location.pathname.startsWith("/worker") ? "professional" : "client" }),
+        body: JSON.stringify({
+          actionToken: action.token,
+          portalContext: window.location.pathname.startsWith("/worker")
+            ? "professional"
+            : "client",
+        }),
       });
       const data = await response.json();
       setMsgs((current) => [
@@ -380,7 +401,11 @@ export default function SupportChat() {
 
   /* ---------- open: the panel ---------- */
   return (
-    <div className="panel support-chat-panel" role="dialog" aria-label="Opulence Bliss support assistant">
+    <div
+      className="panel support-chat-panel"
+      role="dialog"
+      aria-label="Opulence Bliss support assistant"
+    >
       <header>
         <div className="hwho">
           <span className="dot" />
@@ -395,112 +420,185 @@ export default function SupportChat() {
       </header>
 
       <nav className="shortcuts" aria-label="Assistant shortcuts">
-        <button type="button" disabled={busy} onClick={() => setGuided(true)}>Book a clean</button>
-        {signedIn && <button type="button" disabled={busy} onClick={() => { setGuided(false); void send("Show my bookings and their status"); }}>My bookings</button>}
-        <a href="/faq">FAQ</a>
-        <a href="mailto:opulencebliss@gmail.com">Contact support</a>
-      </nav>
-      {guided ? <AssistantBooking onClose={() => setGuided(false)} onPrepared={(draft) => {
-        setMsgs((current) => [...current, {
-          role: "assistant", text: `${draft.service} · ${draft.duration_minutes / 60} hours · £${draft.total_gbp.toFixed(2)}${draft.visits > 1 ? ` for ${draft.visits} visits` : ""}.\nPreferred time: ${new Date(draft.preferred_time).toLocaleString("en-GB", { timeZone: "Europe/London" })}${draft.optional_times.length ? `\nOptional times: ${draft.optional_times.map((time) => new Date(time).toLocaleString("en-GB", { timeZone: "Europe/London" })).join("; ")}` : ""}\n${draft.note}`,
-          action: { kind: "navigate", label: "Review booking", summary: "Confirm your address, home details and final price on the booking page.", href: draft.url, tone: "primary" },
-        }]); setGuided(false);
-      }} /> : <>
-      <div className="log" role="log" aria-live="polite" aria-relevant="additions" aria-label="Chat messages">
-        {msgs.map((m, i) => (
-          <div key={i} className={m.role === "user" ? "row me" : "row them"}>
-            <div className="message-stack">
-              <p>
-                {m.role === "assistant" ? <Linkified text={m.text} /> : m.text}
-              </p>
-              {m.role === "assistant" && m.action && (
-                <div
-                  className={`action-card ${
-                    m.action.tone === "danger" ? "danger" : ""
-                  }`}
-                >
-                  <span>{m.action.summary}</span>
-                  <div className="action-row">
-                    {m.action.kind === "navigate" ? (
-                      <a href={safeAssistantHref(m.action.href, typeof window === "undefined" ? undefined : window.location.origin) ?? "/book"}>{m.action.label}</a>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => void confirmAction(i, m.action!)}
-                        disabled={busy}
-                      >
-                        {m.action.label}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="dismiss"
-                      disabled={busy}
-                      onClick={() =>
-                        setMsgs((current) =>
-                          current.map((message, messageIndex) =>
-                            messageIndex === i
-                              ? { ...message, action: undefined }
-                              : message,
-                          ),
-                        )
-                      }
-                    >
-                      Not now
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {busy && (
-          <div className="row them">
-            <p className="dots">
-              <span />
-              <span />
-              <span />
-            </p>
-          </div>
-        )}
-
-        {msgs.length === 1 && (
-          <div className="chips">
-            {SUGGESTIONS.map((s) => (
-              <button key={s} onClick={() => send(s)}>
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-        <div ref={endRef} />
-      </div>
-
-      {lastFailed && <button type="button" className="retry" disabled={busy} onClick={() => void send(lastFailed)}>Try that question again</button>}
-      <div className="composer">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && send(input)}
-          placeholder="Ask a question…"
-          aria-label="Your message"
-          disabled={busy}
-        />
-        <button
-          onClick={() => send(input)}
-          disabled={busy || !input.trim()}
-          aria-label="Send"
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-            <path fill="currentColor" d="M3 20.5 22 12 3 3.5l3 8.5-3 8.5Z" />
-          </svg>
+        <button type="button" disabled={busy} onClick={() => setGuided(true)}>
+          Book a clean
         </button>
-      </div>
+        {signedIn && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setGuided(false);
+              void send("Show my bookings and their status");
+            }}
+          >
+            My bookings
+          </button>
+        )}
+        <a href="/faq">FAQ</a>
+        <a href="mailto:hello@opulencebliss.com">Contact support</a>
+      </nav>
+      {guided ? (
+        <AssistantBooking
+          onClose={() => setGuided(false)}
+          onPrepared={(draft) => {
+            setMsgs((current) => [
+              ...current,
+              {
+                role: "assistant",
+                text: `${draft.service} · ${draft.duration_minutes / 60} hours. ${draft.payment_summary}\nPreferred time: ${new Date(draft.preferred_time).toLocaleString("en-GB", { timeZone: "Europe/London" })}${draft.optional_times.length ? `\nOptional times: ${draft.optional_times.map((time) => new Date(time).toLocaleString("en-GB", { timeZone: "Europe/London" })).join("; ")}` : ""}\n${draft.note}`,
+                action: {
+                  kind: "navigate",
+                  label: "Review booking",
+                  summary:
+                    "Confirm your address, home details and final price on the booking page.",
+                  href: draft.url,
+                  tone: "primary",
+                },
+              },
+            ]);
+            setGuided(false);
+          }}
+        />
+      ) : (
+        <>
+          <div
+            className="log"
+            role="log"
+            aria-live="polite"
+            aria-relevant="additions"
+            aria-label="Chat messages"
+          >
+            {msgs.map((m, i) => (
+              <div
+                key={i}
+                className={m.role === "user" ? "row me" : "row them"}
+              >
+                <div className="message-stack">
+                  <p>
+                    {m.role === "assistant" ? (
+                      <Linkified text={m.text} />
+                    ) : (
+                      m.text
+                    )}
+                  </p>
+                  {m.role === "assistant" && m.action && (
+                    <div
+                      className={`action-card ${
+                        m.action.tone === "danger" ? "danger" : ""
+                      }`}
+                    >
+                      <span>{m.action.summary}</span>
+                      <div className="action-row">
+                        {m.action.kind === "navigate" ? (
+                          <a
+                            href={
+                              safeAssistantHref(
+                                m.action.href,
+                                typeof window === "undefined"
+                                  ? undefined
+                                  : window.location.origin,
+                              ) ?? "/book"
+                            }
+                          >
+                            {m.action.label}
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => void confirmAction(i, m.action!)}
+                            disabled={busy}
+                          >
+                            {m.action.label}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="dismiss"
+                          disabled={busy}
+                          onClick={() =>
+                            setMsgs((current) =>
+                              current.map((message, messageIndex) =>
+                                messageIndex === i
+                                  ? { ...message, action: undefined }
+                                  : message,
+                              ),
+                            )
+                          }
+                        >
+                          Not now
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
 
-      </>}
+            {busy && (
+              <div className="row them">
+                <p className="dots">
+                  <span />
+                  <span />
+                  <span />
+                </p>
+              </div>
+            )}
+
+            {msgs.length === 1 && (
+              <div className="chips">
+                {SUGGESTIONS.map((s) => (
+                  <button key={s} onClick={() => send(s)}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div ref={endRef} />
+          </div>
+
+          {lastFailed && (
+            <button
+              type="button"
+              className="retry"
+              disabled={busy}
+              onClick={() => void send(lastFailed)}
+            >
+              Try that question again
+            </button>
+          )}
+          <div className="composer">
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && send(input)}
+              placeholder="Ask a question…"
+              aria-label="Your message"
+              disabled={busy}
+            />
+            <button
+              onClick={() => send(input)}
+              disabled={busy || !input.trim()}
+              aria-label="Send"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                aria-hidden="true"
+              >
+                <path
+                  fill="currentColor"
+                  d="M3 20.5 22 12 3 3.5l3 8.5-3 8.5Z"
+                />
+              </svg>
+            </button>
+          </div>
+        </>
+      )}
       <p className="note">
-        Actions only run after you confirm. Never share card details or passwords.
+        Actions only run after you confirm. Never share card details or
+        passwords.
       </p>
 
       <style jsx>{`
@@ -576,10 +674,33 @@ export default function SupportChat() {
         header button:hover {
           background: rgba(255, 255, 255, 0.3);
         }
-        .shortcuts { display: flex; flex-wrap: wrap; gap: 7px; padding: 10px 14px; border-bottom: 1px solid #edeff1; }
-        .shortcuts button, .shortcuts a, .retry { color: ${PURPLE}; border: 1px solid #e8dcfa; border-radius: 999px; background: #fff; font: inherit; font-weight: 800; font-size: 11px; padding: 7px 10px; cursor: pointer; text-decoration: none; }
-        .retry { margin: 6px 14px; }
-        .shortcuts button:disabled { opacity: .5; }
+        .shortcuts {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 7px;
+          padding: 10px 14px;
+          border-bottom: 1px solid #edeff1;
+        }
+        .shortcuts button,
+        .shortcuts a,
+        .retry {
+          color: ${PURPLE};
+          border: 1px solid #e8dcfa;
+          border-radius: 999px;
+          background: #fff;
+          font: inherit;
+          font-weight: 800;
+          font-size: 11px;
+          padding: 7px 10px;
+          cursor: pointer;
+          text-decoration: none;
+        }
+        .retry {
+          margin: 6px 14px;
+        }
+        .shortcuts button:disabled {
+          opacity: 0.5;
+        }
         .log {
           flex: 1;
           min-height: 0;

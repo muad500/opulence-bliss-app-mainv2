@@ -1,16 +1,12 @@
 "use client";
+import { DEFAULT_CLEANING_BILLING_TERMS } from "@/lib/cleaningBillingTerms";
+import { REFERRAL_SOURCES } from "@/lib/bookingPreferences";
 
 // SETUP: mkdir -p "app/book" && code "app/book/page.tsx"
 //
 // Booking: Where → Session → Time → Confirm. One question per screen.
 
 import { useEffect, useRef, useState } from "react";
-import {
-  clearBookingDraft,
-  readBookingDraft,
-  saveBookingDraft,
-} from "@/lib/bookingDraft";
-import { authLink } from "@/lib/authReturn";
 import { createClient } from "@/lib/supabase/client";
 import {
   CLEANING_DURATIONS,
@@ -43,8 +39,18 @@ import {
   type AssistantPackage,
 } from "@/lib/assistantBooking";
 import { CANCELLATION_REFUND_URL } from "@/lib/legal";
+import { visitDiscounts } from "@/lib/visitLineItems";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
 import { cleaningPackageScope } from "@/lib/cleaningScope";
+
+import CleaningExtrasPicker from "@/components/CleaningExtrasPicker";
+import { cleaningSeriesQuote, type VisitExtras } from "@/lib/cleaningExtras";
+import {
+  clearBookingDraft,
+  readBookingDraft,
+  saveBookingDraft,
+} from "@/lib/bookingDraft";
+import { authLink } from "@/lib/authReturn";
 
 const supabase = createClient();
 
@@ -61,6 +67,7 @@ type Pkg = {
 
 type Area = { name: string; postcode_prefixes: string[] };
 type SavedAddress = {
+  accessInstructions?: string;
   id: string;
   label: string;
   isDefault: boolean;
@@ -86,17 +93,17 @@ const FREQUENCIES: Array<{
   {
     value: "weekly",
     title: "Every week",
-    note: "6 to 10 weekly visits, paid upfront",
+    note: "6 to 10 weekly visits",
   },
   {
     value: "fortnightly",
     title: "Every two weeks",
-    note: "6 to 10 visits, two weeks apart, paid upfront",
+    note: "6 to 10 visits, two weeks apart",
   },
   {
     value: "monthly",
     title: "Every month",
-    note: "6 to 10 monthly visits, paid upfront",
+    note: "6 to 10 monthly visits",
   },
 ];
 
@@ -143,6 +150,28 @@ function duration(mins: number | null) {
 }
 
 export default function BookPage() {
+  const [billingPrices, setBillingPrices] = useState(
+    DEFAULT_CLEANING_BILLING_TERMS,
+  );
+  const [pricesReady, setPricesReady] = useState(false);
+  const [smsAvailable, setSmsAvailable] = useState(false);
+  const [perVisitBilling, setPerVisitBilling] = useState(false);
+  const [saveCardConsent, setSaveCardConsent] = useState(false);
+  useEffect(() => {
+    void fetch("/api/visit-billing-config", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data) => {
+        if (!data.pricing) return;
+        setBillingPrices({
+          ...DEFAULT_CLEANING_BILLING_TERMS,
+          ...data.pricing,
+        });
+        setPricesReady(true);
+        setPerVisitBilling(data.perVisitBilling === true);
+        setSmsAvailable(data.smsAvailable === true);
+      })
+      .catch(() => undefined);
+  }, []);
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
   const [loading, setLoading] = useState(true);
@@ -158,6 +187,14 @@ export default function BookPage() {
   const [gate, setGate] = useState<null | { ok: boolean; area?: string }>(null);
   const [selected, setSelected] = useState<Pkg | null>(null);
 
+  const [extras, setExtras] = useState<VisitExtras>({
+    addons: [],
+    bringsProducts: false,
+  });
+  const [visitOverrides, setVisitOverrides] = useState<
+    Record<number, VisitExtras>
+  >({});
+  const [petsAtHome, setPetsAtHome] = useState<boolean | null>(null);
   const [cleaningMinutes, setCleaningMinutes] = useState(120);
   const [propertyType, setPropertyType] = useState<PropertyType | "">("");
   const [bedrooms, setBedrooms] = useState<number | "">("");
@@ -170,13 +207,35 @@ export default function BookPage() {
   >([]);
   const [preferredCleaner, setPreferredCleaner] = useState("");
   const cleaning = isCleaning(selected?.service_type);
-  const minutes = cleaning
-    ? cleaningMinutes
-    : (selected?.duration_minutes ?? 120);
+  const visitCount = frequency === "one_time" ? 1 : regularVisits;
+  const visitExtras = Array.from(
+    { length: visitCount },
+    (_, index) => visitOverrides[index] ?? extras,
+  );
+  let quote: ReturnType<typeof cleaningSeriesQuote> | null = null;
+  let extrasError: string | null = null;
+  if (selected) {
+    try {
+      quote = cleaningSeriesQuote(
+        selected,
+        cleaningMinutes,
+        extras.addons,
+        extras.bringsProducts,
+        visitCount,
+        visitExtras,
+        billingPrices,
+      );
+    } catch (cause) {
+      extrasError =
+        cause instanceof Error ? cause.message : "Check your add-ons.";
+    }
+  }
+  const minutes = quote?.maxDurationMinutes ?? cleaningMinutes;
   const addressValid = address.trim().length >= 5;
   const home = parseCleaningHome({ propertyType, bedrooms, bathrooms });
   function applySavedAddress(place: SavedAddress) {
     setSavedAddressId(place.id);
+    setAccessInstructions(place.accessInstructions ?? "");
     setAddress(
       [place.line1, place.line2, place.city].filter(Boolean).join(", "),
     );
@@ -204,6 +263,12 @@ export default function BookPage() {
   const [slot, setSlot] = useState<string | null>(null);
   const [optionalSlots, setOptionalSlots] = useState<string[]>([]);
 
+  const [howHeard, setHowHeard] = useState("");
+  const [confirmationChannel, setConfirmationChannel] = useState<
+    "email" | "sms"
+  >("email");
+  const [roomsToClean, setRoomsToClean] = useState("");
+  const [accessInstructions, setAccessInstructions] = useState("");
   const [request, setRequest] = useState("");
   const [promo, setPromo] = useState("");
   const [promoInfo, setPromoInfo] = useState<{
@@ -359,10 +424,19 @@ export default function BookPage() {
           setPropertyType(draft.home.propertyType);
           setBedrooms(draft.home.bedrooms);
           setBathrooms(draft.home.bathrooms);
+          setPetsAtHome(draft.petsAtHome);
           setFrequency(draft.frequency);
           setRegularVisits(draft.regularVisits);
           setCleaningMinutes(draft.cleaningMinutes);
+          setExtras(draft.extras);
+          setVisitOverrides(draft.visitOverrides);
           setRequest(draft.request);
+          setHowHeard(draft.preferences?.howHeard ?? "");
+          setConfirmationChannel(
+            draft.preferences?.confirmationChannel ?? "email",
+          );
+          setRoomsToClean(draft.preferences?.roomsToClean ?? "");
+          setAccessInstructions(draft.preferences?.accessInstructions ?? "");
           setPromo(draft.promo);
           setPhone(draft.phone);
           setPreferredCleaner(
@@ -393,9 +467,23 @@ export default function BookPage() {
                 draft.frequency,
               );
               if (policyError) throw new Error(policyError);
+              const count =
+                draft.frequency === "one_time" ? 1 : draft.regularVisits;
+              const restoredQuote = cleaningSeriesQuote(
+                restoredPackage,
+                draft.cleaningMinutes,
+                draft.extras.addons,
+                draft.extras.bringsProducts,
+                count,
+                Array.from(
+                  { length: count },
+                  (_, index) => draft.visitOverrides[index] ?? draft.extras,
+                ),
+                billingPrices,
+              );
               resumeStep = 4;
               const response = await fetch(
-                `/api/slots?${new URLSearchParams({ postcode: draft.postcode, service: restoredPackage.service_type ?? "", duration: String(draft.cleaningMinutes) })}`,
+                `/api/slots?${new URLSearchParams({ postcode: draft.postcode, service: restoredPackage.service_type ?? "", duration: String(restoredQuote.maxDurationMinutes) })}`,
                 { cache: "no-store" },
               );
               if (!response.ok)
@@ -630,7 +718,7 @@ export default function BookPage() {
   }
 
   function goToTimes() {
-    if (!selected || !home) return;
+    if (!selected || !home || petsAtHome === null || extrasError) return;
     setStep(4);
     loadSlots(postcode, selected.service_type ?? "", minutes);
   }
@@ -645,9 +733,12 @@ export default function BookPage() {
         body: JSON.stringify({
           code: promo,
           packageId: selected.id,
-          durationMinutes: minutes,
+          durationMinutes: cleaningMinutes,
           frequency,
           regularVisits,
+          addons: extras.addons,
+          bringsProducts: extras.bringsProducts,
+          visitExtras,
         }),
       });
       const d = await res.json();
@@ -681,7 +772,7 @@ export default function BookPage() {
   }
 
   function continueAfterSignIn() {
-    if (!selected || !home || !slot) return;
+    if (!selected || !home || !slot || petsAtHome === null) return;
     let returnTo: string | null = null;
     try {
       returnTo = saveBookingDraft(window.sessionStorage, {
@@ -692,6 +783,15 @@ export default function BookPage() {
         frequency,
         regularVisits,
         cleaningMinutes,
+        extras,
+        visitOverrides,
+        preferences: {
+          howHeard,
+          confirmationChannel,
+          roomsToClean,
+          accessInstructions,
+        },
+        petsAtHome,
         slot,
         optionalSlots,
         request,
@@ -728,12 +828,21 @@ export default function BookPage() {
       startsWithinCancellationPeriod(earliestChosenStart));
 
   async function startCheckout() {
-    if (!selected || !addressValid || !slot || !home) return;
+    if (
+      !selected ||
+      !addressValid ||
+      !slot ||
+      !home ||
+      petsAtHome === null ||
+      extrasError
+    )
+      return;
     if (needsPhone && !phoneValid) {
       setPhoneTouched(true);
       return;
     }
     if (needsEarlyStart && !earlyStartAgreed) return;
+    if (perVisitBilling && !saveCardConsent) return;
     const policyError = bookingPolicyError(selected.name, frequency);
     if (policyError) {
       setPayError(policyError);
@@ -747,7 +856,18 @@ export default function BookPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           packageId: selected.id,
-          durationMinutes: minutes,
+          durationMinutes: cleaningMinutes,
+          addons: extras.addons,
+          bringsProducts: extras.bringsProducts,
+          petsAtHome,
+          saveCardConsent,
+          bookingPreferences: {
+            howHeard,
+            confirmationChannel,
+            roomsToClean,
+            accessInstructions,
+          },
+          visitExtras,
           regularVisits: frequency === "one_time" ? undefined : regularVisits,
           address,
           savedAddressId: savedAddressId || undefined,
@@ -846,10 +966,20 @@ export default function BookPage() {
   const total = selected
     ? promoInfo?.ok && promoInfo.total !== undefined
       ? promoInfo.total
-      : (bookingPricePence(selected, minutes) *
-          (frequency === "one_time" ? 1 : regularVisits)) /
-        100
+      : (quote?.totalPence ?? 0) / 100
     : 0;
+  const discounts = quote
+    ? visitDiscounts(
+        quote.quotes.map((visit) => visit.totalPence),
+        Math.round((promoInfo?.ok ? (promoInfo.discount ?? 0) : 0) * 100),
+      )
+    : [];
+  const dueToday =
+    perVisitBilling && frequency !== "one_time"
+      ? 0
+      : perVisitBilling
+        ? ((quote?.quotes[0].totalPence ?? 0) - (discounts[0] ?? 0)) / 100
+        : total;
   const policyError = selected
     ? bookingPolicyError(selected.name, frequency)
     : null;
@@ -864,7 +994,7 @@ export default function BookPage() {
       regularSlots = regularVisitSlots(
         slot,
         frequency as RegularFrequency,
-        minutes,
+        cleaningMinutes,
         Date.now(),
         regularVisits,
       );
@@ -1007,12 +1137,14 @@ export default function BookPage() {
                   <em>✓</em> Approved, DBS-verified professionals
                 </li>
                 <li>
-                  <em>✓</em> One-time card holds; regular plans of 6 to 10
-                  visits paid upfront
+                  <em>✓</em>{" "}
+                  {perVisitBilling
+                    ? "One-off payment at checkout; regular visits paid individually"
+                    : "One-time card holds; regular plans of 6 to 10 visits paid upfront"}
                 </li>
                 <li>
-                  <em>✓</em> No cancellation charge with more than 48
-                  hours&apos; notice
+                  <em>✓</em> No cancellation charge with at least 48 hours&apos;
+                  notice
                 </li>
               </ul>
             </section>
@@ -1166,9 +1298,11 @@ export default function BookPage() {
               )}
 
               <p className="frequencyNote">
-                A regular booking means 6 to 10 visits booked together, and you
-                pay for all of them at checkout. If you prefer to book each
-                visit separately, choose a one-time session.
+                A regular booking means 6 to 10 visits booked together.{" "}
+                {perVisitBilling
+                  ? "Save your card at checkout. Each visit is charged when a cleaner accepts it."
+                  : "Pay for the plan at checkout."}{" "}
+                If you prefer separate bookings, choose a one-time session.
               </p>
 
               {policyError && (
@@ -1274,6 +1408,24 @@ export default function BookPage() {
                     </select>
                   </label>
                 </div>
+                <label className="label">
+                  Do you have pets at home?
+                  <select
+                    className="field"
+                    value={petsAtHome === null ? "" : petsAtHome ? "yes" : "no"}
+                    onChange={(event) =>
+                      setPetsAtHome(
+                        event.target.value === ""
+                          ? null
+                          : event.target.value === "yes",
+                      )
+                    }
+                  >
+                    <option value="">Choose an answer</option>
+                    <option value="yes">Yes</option>
+                    <option value="no">No</option>
+                  </select>
+                </label>
                 {home && (
                   <div className="homeSuggestion">
                     <span>
@@ -1345,6 +1497,40 @@ export default function BookPage() {
                 </div>
               </div>
 
+              <CleaningExtrasPicker
+                prices={billingPrices}
+                value={extras}
+                visits={visitCount}
+                overrides={visitOverrides}
+                onChange={(value) => {
+                  setExtras(value);
+                  setPromoInfo(null);
+                  setSlot(null);
+                  setOptionalSlots([]);
+                }}
+                onOverride={(index, value) => {
+                  setVisitOverrides((old) => {
+                    const next = { ...old };
+                    if (value) next[index] = value;
+                    else delete next[index];
+                    return next;
+                  });
+                  setPromoInfo(null);
+                  setSlot(null);
+                  setOptionalSlots([]);
+                }}
+              />
+              {extrasError && (
+                <p className="flash no" role="alert">
+                  {extrasError}
+                </p>
+              )}
+              <p className="muted">
+                Reserved visit time: {duration(minutes)}. Products:{" "}
+                {money(billingPrices.productsFeePence / 100)} for each visit
+                where selected. Visit total:{" "}
+                {money((quote?.quotes[0].totalPence ?? 0) / 100)}.
+              </p>
               {previousCleaners.length > 0 && (
                 <div className="previousCleaner">
                   <label className="label" htmlFor="preferred-cleaner">
@@ -1372,12 +1558,17 @@ export default function BookPage() {
                 </div>
               )}
 
-              <button className="next" onClick={goToTimes} disabled={!home}>
-                Continue · {duration(cleaningMinutes)}
+              <button
+                className="next"
+                onClick={goToTimes}
+                disabled={!home || petsAtHome === null || !!extrasError}
+              >
+                Continue · {duration(minutes)}
               </button>
               {!home && (
                 <p className="muted">
-                  Add your property type, bedrooms and bathrooms to continue.
+                  Add your property type, bedrooms, bathrooms and pets answer to
+                  continue.
                 </p>
               )}
               <button className="back" onClick={() => setStep(2)}>
@@ -1427,11 +1618,32 @@ export default function BookPage() {
               )}
               {regular && regularSlots.length === regularVisits && (
                 <div className="timeChoicesReview">
-                  <strong>Your {regularVisits} visits · paid upfront</strong>
+                  <strong>
+                    Your {regularVisits} visits ·{" "}
+                    {perVisitBilling ? "paid individually" : "paid upfront"}
+                  </strong>
                   <ol>
                     {regularSlots.map((visit, index) => (
                       <li key={visit}>
-                        Visit {index + 1}: {fullLabel(visit)}
+                        Visit {index + 1}: {fullLabel(visit)} ·{" "}
+                        {duration(
+                          quote?.quotes[index].durationMinutes ?? minutes,
+                        )}{" "}
+                        ·{" "}
+                        {quote?.quotes[index].addons
+                          .map((item) => item.label)
+                          .join(", ") || "No add-ons"}{" "}
+                        ·{" "}
+                        {quote?.quotes[index].bringsProducts
+                          ? "Cleaner brings products"
+                          : "Your products"}{" "}
+                        ·{" "}
+                        {money(
+                          ((quote?.quotes[index].totalPence ?? 0) -
+                            (discounts[index] ?? 0)) /
+                            100,
+                        )}
+                        {perVisitBilling && " · charged when a cleaner accepts"}
                       </li>
                     ))}
                   </ol>
@@ -1460,7 +1672,7 @@ export default function BookPage() {
               <h1>Review and pay</h1>
               <p className="lede">
                 {regular
-                  ? `Check all ${regularVisits} visit dates and your full upfront payment before continuing to secure checkout.`
+                  ? `Check all ${regularVisits} dates and amounts before continuing to secure checkout.`
                   : "Check your visit and payment before continuing to secure checkout."}
               </p>
 
@@ -1488,13 +1700,21 @@ export default function BookPage() {
                 </div>
                 <div>
                   <span>
-                    {regular ? `${regularVisits}-visit total` : "Amount"}
+                    {perVisitBilling && regular
+                      ? "Due today"
+                      : regular
+                        ? `${regularVisits}-visit total`
+                        : "Amount"}
                   </span>
-                  <strong>{money(total)}</strong>
+                  <strong>{money(dueToday)}</strong>
                   <small>
                     {regular
-                      ? "Charged in full now"
-                      : "Held now, charged after completion"}
+                      ? perVisitBilling
+                        ? "Charged when a cleaner accepts"
+                        : "Charged in full now"
+                      : perVisitBilling
+                        ? "Charged at checkout"
+                        : "Held now, charged after completion"}
                   </small>
                 </div>
               </div>
@@ -1544,6 +1764,20 @@ export default function BookPage() {
                   ? ` · Requested cleaner: ${previousCleaners.find((p) => p.provider_id === preferredCleaner)?.display_name ?? "Previous cleaner"}`
                   : ""}
               </p>
+              <p>Pets at home: {petsAtHome ? "Yes" : "No"}</p>
+              {!regular && (
+                <p>
+                  Add-ons:{" "}
+                  {quote?.quotes[0].addons
+                    .map((item) => item.label)
+                    .join(", ") || "None"}
+                  .{" "}
+                  {extras.bringsProducts
+                    ? `Cleaner brings products: ${money(billingPrices.productsFeePence / 100)}`
+                    : "You supply products"}
+                  .
+                </p>
+              )}
               <CleaningPackageScope packageName={selected.name} />
               {policyError && (
                 <>
@@ -1559,6 +1793,63 @@ export default function BookPage() {
                   </button>
                 </>
               )}
+              <label className="label" htmlFor="rooms-to-clean">
+                Rooms to clean
+              </label>
+              <textarea
+                id="rooms-to-clean"
+                className="field"
+                maxLength={500}
+                rows={2}
+                value={roomsToClean}
+                onChange={(e) => setRoomsToClean(e.target.value)}
+                placeholder="e.g. both bedrooms, bathroom, kitchen and living room"
+              />
+              <label className="label" htmlFor="access-instructions">
+                Access instructions (optional)
+              </label>
+              <textarea
+                id="access-instructions"
+                className="field"
+                maxLength={1000}
+                rows={2}
+                value={accessInstructions}
+                onChange={(e) => setAccessInstructions(e.target.value)}
+                placeholder="e.g. concierge, entry code, key safe or parking. Do not include a phone number."
+              />
+              <label className="label" htmlFor="how-heard">
+                How did you hear about us?
+              </label>
+              <select
+                id="how-heard"
+                className="field"
+                value={howHeard}
+                onChange={(e) => setHowHeard(e.target.value)}
+              >
+                <option value="">Select (optional)</option>
+                {REFERRAL_SOURCES.map((source) => (
+                  <option key={source}>{source}</option>
+                ))}
+              </select>
+              <label className="label" htmlFor="confirmation-channel">
+                How would you like booking confirmations?
+              </label>
+              <select
+                id="confirmation-channel"
+                className="field"
+                value={confirmationChannel}
+                onChange={(e) =>
+                  setConfirmationChannel(e.target.value as "email" | "sms")
+                }
+              >
+                <option value="email">Email</option>
+                <option value="sms">SMS</option>
+              </select>
+              <p className="fineprint">
+                {smsAvailable
+                  ? "We will use your selected confirmation channel. Email is a fallback if a text cannot be sent. In-app updates remain available."
+                  : "SMS is not enabled yet. If you choose SMS, we will use email until text messages are available. In-app updates remain available."}
+              </p>
               <p className="label">Requests (optional)</p>
               <textarea
                 className="field"
@@ -1596,17 +1887,40 @@ export default function BookPage() {
 
               <div className="held">
                 <strong>
-                  {regular
-                    ? `Pay for all ${regularVisits} visits now`
-                    : "Your card is held, not charged"}
+                  {perVisitBilling
+                    ? regular
+                      ? "Save your card for your regular visits"
+                      : "Pay for your visit now"
+                    : regular
+                      ? `Pay for all ${regularVisits} visits now`
+                      : "Your card is held, not charged"}
                 </strong>
                 <span>
-                  {regular
-                    ? `This payment covers the ${regularVisits} dates above. Cleaners are paid after their individual visits. Refunds for cancelled visits follow the cancellation policy.`
-                    : "You pay once the visit is complete. If no pro accepts, the hold is released and you pay nothing."}
+                  {perVisitBilling
+                    ? regular
+                      ? "No payment is taken at checkout. Each visit is charged when a cleaner accepts it. Unassigned and paused visits are never charged. Two unmatched visits in a row pause the remaining series."
+                      : "Your full visit amount is charged at checkout. If no cleaner accepts, it is refunded in full."
+                    : regular
+                      ? `This payment covers the ${regularVisits} dates above. Refunds follow the cancellation policy.`
+                      : "You pay once the visit is complete. If no pro accepts, the hold is released."}
                 </span>
               </div>
 
+              {perVisitBilling && signedIn === true && (
+                <label className="consent">
+                  <input
+                    type="checkbox"
+                    checked={saveCardConsent}
+                    onChange={(event) =>
+                      setSaveCardConsent(event.target.checked)
+                    }
+                  />{" "}
+                  I authorise Opulence Bliss to save my card with Stripe, charge
+                  each regular visit when a cleaner accepts it, and charge any
+                  add-on changes I confirm. Add-ons can be changed until 24
+                  hours before the visit.
+                </label>
+              )}
               {payError && <p className="flash no">{payError}</p>}
 
               <button className="back" onClick={() => setStep(4)}>
@@ -1616,6 +1930,20 @@ export default function BookPage() {
           )}
         </main>
 
+        <a
+          data-earn-with-us
+          className="earn-link"
+          style={{
+            gridColumn: "1 / -1",
+            gridRow: 3,
+            padding: 20,
+            textAlign: "center",
+            fontWeight: 800,
+          }}
+          href="/provider/join"
+        >
+          Earn with us →
+        </a>
         {/* ================= BASKET ================= */}
         {step > 0 && (
           <aside className="basket">
@@ -1691,7 +2019,9 @@ export default function BookPage() {
                 <div className="total">
                   <span>
                     {regular
-                      ? `Total for ${regularVisits} visits upfront`
+                      ? perVisitBilling
+                        ? `Plan total for ${regularVisits} visits`
+                        : `Total for ${regularVisits} visits upfront`
                       : "Total per session"}
                   </span>
                   <strong>{money(total)}</strong>
@@ -1763,9 +2093,13 @@ export default function BookPage() {
                 onClick={checkout}
                 disabled={
                   paying ||
+                  !pricesReady ||
+                  (signedIn !== false && perVisitBilling && !saveCardConsent) ||
                   !slot ||
                   !addressValid ||
                   !home ||
+                  petsAtHome === null ||
+                  !!extrasError ||
                   !!policyError ||
                   !!regularScheduleError ||
                   (needsPhone && !phoneValid) ||
@@ -1777,7 +2111,9 @@ export default function BookPage() {
                   : signedIn === false
                     ? "Sign in to continue"
                     : regular
-                      ? `Pay ${money(total)} for ${regularVisits} visits`
+                      ? perVisitBilling
+                        ? "Save card and book visits"
+                        : `Pay ${money(total)} for ${regularVisits} visits`
                       : "Confirm & pay"}
               </button>
             )}

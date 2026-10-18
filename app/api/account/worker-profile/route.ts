@@ -125,9 +125,7 @@ async function loadWorkerProfile(ctx: AccountContext) {
     .filter(
       (row) =>
         row.document_type !== "dbs" &&
-        (!["public_liability_insurance", "trade_certificate"].includes(
-          row.document_type,
-        ) ||
+        (row.document_type !== "trade_certificate" ||
           (handymanEnabled() && provider.services?.includes("handyman"))),
     )
     .map((row) => ({
@@ -233,6 +231,9 @@ async function loadWorkerProfile(ctx: AccountContext) {
       ratingAvg:
         provider.rating_avg == null ? null : Number(provider.rating_avg),
       ratingCount: provider.rating_count ?? 0,
+      maintenanceTasks: handymanEnabled()
+        ? (settings?.maintenance_tasks ?? [])
+        : [],
       handymanRates: Object.fromEntries(
         (handymanEnabled() ? (ratesResult.data ?? []) : []).map((row) => [
           row.task_name,
@@ -264,7 +265,6 @@ async function loadWorkerProfile(ctx: AccountContext) {
     },
     tax: {
       utrNumber: application?.utr_number ?? "",
-      vatNumber: settings?.vat_number ?? "",
     },
     alerts: {
       jobOffers: {
@@ -343,6 +343,7 @@ export async function PATCH(request: NextRequest) {
           "yearsExperience",
           "equipmentProvided",
           "handymanRates",
+          "maintenanceTasks",
         ],
       ],
       [
@@ -354,7 +355,7 @@ export async function PATCH(request: NextRequest) {
           "acceptsSameDay",
         ],
       ],
-      [tax, ["utrNumber", "vatNumber"]],
+      [tax, ["utrNumber"]],
       [alerts, ["jobOffers", "notifications"]],
     ];
     if (
@@ -443,12 +444,6 @@ export async function PATCH(request: NextRequest) {
         return accountError("UTR must contain 10 digits.");
       onboarding.utr_number = utr;
     }
-    if ("vatNumber" in tax) {
-      const vat = optionalText(tax.vatNumber, 20)?.toUpperCase() ?? null;
-      if (vat && !/^(GB)?\d{9}$/.test(vat))
-        return accountError("Enter a valid UK VAT number.");
-      settings.vat_number = vat;
-    }
     if ("jobOffers" in alerts) {
       if (!isRecord(alerts.jobOffers))
         return accountError("Choose valid job alerts.");
@@ -467,6 +462,27 @@ export async function PATCH(request: NextRequest) {
           alerts.notifications.messages,
         );
     }
+    if (publicProfile.maintenanceTasks !== undefined) {
+      const tasks = publicProfile.maintenanceTasks;
+      if (
+        !handymanEnabled() ||
+        !Array.isArray(tasks) ||
+        tasks.length > 6 ||
+        tasks.some((task) => !HANDYMAN_TASKS.includes(task))
+      )
+        return accountError("Choose available property maintenance tasks.");
+      const { data: provider } = await ctx.admin
+        .from("providers")
+        .select("services")
+        .eq("id", ctx.providerId!)
+        .single();
+      if (!provider?.services?.includes("handyman"))
+        return accountError(
+          "Add property maintenance to your application first.",
+          403,
+        );
+      settings.maintenance_tasks = [...new Set(tasks)];
+    }
     const rates = publicProfile.handymanRates;
     if (
       rates !== undefined &&
@@ -484,7 +500,7 @@ export async function PATCH(request: NextRequest) {
         )
       ) {
         return accountError(
-          "Enter valid hourly rates for the listed handyman tasks.",
+          "Enter valid hourly rates for the listed property maintenance tasks.",
         );
       }
       const { data: provider } = await ctx.admin
@@ -494,7 +510,7 @@ export async function PATCH(request: NextRequest) {
         .single();
       if (!provider?.services?.includes("handyman"))
         return accountError(
-          "Handyman rates are available to approved handyman providers only.",
+          "Property maintenance rates are available to approved property maintenance providers only.",
           403,
         );
     }
@@ -541,7 +557,10 @@ export async function PATCH(request: NextRequest) {
           { onConflict: "provider_id,task_name" },
         );
         if (error)
-          return accountError("A handyman rate could not be saved.", 503);
+          return accountError(
+            "A property maintenance rate could not be saved.",
+            503,
+          );
       }
     }
     return NextResponse.json(await loadWorkerProfile(ctx));

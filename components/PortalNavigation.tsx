@@ -166,11 +166,18 @@ export default function PortalNavigation({
         },
       ];
 
+  items.push({
+    href: "/provider/join",
+    label: "Earn with us",
+    mobileLabel: "Earn",
+    icon: BriefcaseBusiness,
+  });
+
   if (handyman && !professional)
     items.push({
       href: "/account/handyman",
-      label: "Handyman bookings",
-      mobileLabel: "Handyman",
+      label: "Property maintenance bookings",
+      mobileLabel: "Property maintenance",
       icon: BriefcaseBusiness,
     });
 
@@ -290,6 +297,11 @@ export default function PortalNavigation({
         <Link
           key={item.href}
           href={item.href}
+          data-earn-with-us={item.label === "Earn with us" || undefined}
+          target={item.label === "Earn with us" ? "_blank" : undefined}
+          rel={
+            item.label === "Earn with us" ? "noopener noreferrer" : undefined
+          }
           className={className}
           aria-current={isActive(item) ? "page" : undefined}
           title={!inDrawer && collapsed ? item.label : undefined}
@@ -350,7 +362,8 @@ export default function PortalNavigation({
 
   return (
     <>
-      <aside data-website-nav
+      <aside
+        data-website-nav
         className={`${styles.desktop} ${collapsed ? styles.collapsed : ""}`}
         aria-label={`${professional ? "Professional" : "Client"} portal navigation`}
       >
@@ -450,7 +463,11 @@ export default function PortalNavigation({
         </div>
       </div>
 
-      <nav data-website-nav className={styles.mobileTabs} aria-label="Quick portal navigation">
+      <nav
+        data-website-nav
+        className={styles.mobileTabs}
+        aria-label="Quick portal navigation"
+      >
         {items
           .filter((item) => item.bottom && !item.locked)
           .slice(0, 4)
@@ -460,6 +477,13 @@ export default function PortalNavigation({
               <Link
                 key={item.href}
                 href={item.href}
+                data-earn-with-us={item.label === "Earn with us" || undefined}
+                target={item.label === "Earn with us" ? "_blank" : undefined}
+                rel={
+                  item.label === "Earn with us"
+                    ? "noopener noreferrer"
+                    : undefined
+                }
                 className={`${styles.mobileTab} ${isActive(item) ? styles.mobileActive : ""}`}
                 aria-current={isActive(item) ? "page" : undefined}
               >
@@ -487,7 +511,8 @@ export default function PortalNavigation({
             aria-label="Close account menu"
             onClick={() => setDrawerOpen(false)}
           />
-          <aside data-website-nav
+          <aside
+            data-website-nav
             id="portal-mobile-drawer"
             role="dialog"
             aria-modal="true"

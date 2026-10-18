@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getVisitStatus } from "@/lib/visitStatus";
+import RegularSeriesControl from "@/components/RegularSeriesControl";
 import BookingWorkspace, {
   type ClientBookingWorkspaceData,
 } from "../../BookingWorkspace";
@@ -48,7 +49,7 @@ export default async function VisitPage({
   const { data: row } = await supabase
     .from("bookings")
     .select(
-      "id, scheduled_at, status, address, household_notes, package_id, provider_id, subscription_id, offer_expires_at, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers(display_name, public_rating_avg, public_rating_count, bio, photo_url, years_experience, services, vetting_status, dbs_verified), check_ins(arrived_at, left_at)",
+      "id, regular_series_id, scheduled_at, status, address, household_notes, package_id, provider_id, subscription_id, offer_expires_at, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers(display_name, public_rating_avg, public_rating_count, bio, photo_url, years_experience, services, vetting_status, dbs_verified), check_ins(arrived_at, left_at)",
     )
     .eq("id", id)
     .maybeSingle();
@@ -79,8 +80,7 @@ export default async function VisitPage({
     packagesResult,
     profileResult,
     submissionResult,
-  ] =
-    await Promise.all([
+  ] = await Promise.all([
     getVisitStatus(supabase, row.id),
     supabase
       .from("reviews")
@@ -250,7 +250,8 @@ export default async function VisitPage({
       name: provider?.display_name ?? null,
       photoUrl: provider?.photo_url ?? null,
       rating:
-        provider?.public_rating_avg === null || provider?.public_rating_avg === undefined
+        provider?.public_rating_avg === null ||
+        provider?.public_rating_avg === undefined
           ? null
           : Number(provider.public_rating_avg),
       ratingCount: provider?.public_rating_count ?? 0,
@@ -270,9 +271,10 @@ export default async function VisitPage({
     status?.actions.some((action) => action.kind === "rate") ?? false;
   const canTip =
     status?.actions.some((action) => action.kind === "tip") ?? false;
-  const chatClosed =
-    row.status === "cancelled" ||
-    new Date(row.scheduled_at).getTime() < Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const { data: messagingOpen } = await supabase.rpc("booking_messaging_open", {
+    p_booking_id: row.id,
+  });
+  const chatClosed = messagingOpen !== true;
 
   return (
     <main style={wrap}>
@@ -283,6 +285,9 @@ export default async function VisitPage({
           </a>
         </p>
 
+        {row.regular_series_id && (
+          <RegularSeriesControl seriesId={row.regular_series_id} />
+        )}
         <BookingWorkspace
           booking={booking}
           visitStatus={status}

@@ -1,3 +1,5 @@
+import { visitBillingEnabled } from "./visitBillingPolicy";
+import { CLEANING_ADDONS, CLEANING_PRODUCTS_FEE_PENCE } from "./cleaningExtras";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cleaningPackageScope } from "./cleaningScope";
 import {
@@ -26,6 +28,12 @@ export async function assistantServices(db: SupabaseClient) {
     .map((pkg) => ({
       ...pkg,
       scope: cleaningPackageScope(pkg.name),
+      addons: CLEANING_ADDONS.map((item) => ({
+        name: item.label,
+        price_gbp: item.pricePence / 100,
+        up_to_minutes: 60,
+      })),
+      cleaner_products_fee_per_visit_gbp: CLEANING_PRODUCTS_FEE_PENCE / 100,
       hourly_rate_gbp: cleaningHourlyRatePence(pkg) / 100,
       pricing_note:
         "Hourly rate per cleaner. Choose 2–8 hours in half-hour steps; checkout confirms the final total.",
@@ -95,5 +103,10 @@ export async function prepareAssistantBooking(
     throw new Error("Choose an exact service from the current cleaning list.");
   if (!coverage.covered)
     throw new Error("We do not currently cover that postcode.");
-  return assistantBookingHandoff(pkg, { ...input, postcode });
+  return assistantBookingHandoff(
+    pkg,
+    { ...input, postcode },
+    Date.now(),
+    visitBillingEnabled(),
+  );
 }

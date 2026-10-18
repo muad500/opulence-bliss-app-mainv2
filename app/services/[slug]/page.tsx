@@ -1,4 +1,5 @@
 "use client";
+import { serviceTextWithoutPrices } from "@/lib/assistantPresentation";
 
 // SETUP: mkdir -p "app/services/[slug]" && code "app/services/[slug]/page.tsx"
 //
@@ -20,7 +21,11 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { compareCleaningSessions } from "@/lib/cleaningBooking";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
-import { cleaningPackageScope, CLEANING_SUPPLIES_FAQ, CLEANING_LAUNDRY_FAQ } from "@/lib/cleaningScope";
+import {
+  cleaningPackageScope,
+  CLEANING_SUPPLIES_FAQ,
+  CLEANING_LAUNDRY_FAQ,
+} from "@/lib/cleaningScope";
 
 const supabase = createClient();
 
@@ -125,7 +130,7 @@ const COPY: Record<
 
 function ago(iso: string) {
   const days = Math.floor(
-    (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24)
+    (Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24),
   );
   if (days < 1) return "today";
   if (days === 1) return "1 day ago";
@@ -138,12 +143,26 @@ function ago(iso: string) {
 
 export default function ServicePage() {
   const copy = COPY.cleaning;
+  const [perVisitBilling, setPerVisitBilling] = useState<boolean | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/visit-billing-config", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Payment details unavailable");
+        const data = await response.json();
+        setPerVisitBilling(data.perVisitBilling === true);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   const [items, setItems] = useState<Pkg[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   // Average and count of every customer rating for the service, including
   // private reviews, whose text stays hidden. Null until loaded.
-  const [summary, setSummary] = useState<{ avg: number; count: number } | null>(null);
+  const [summary, setSummary] = useState<{ avg: number; count: number } | null>(
+    null,
+  );
   const [faqs, setFaqs] = useState<ServiceFaq[]>([]);
   const [postcode, setPostcode] = useState("");
   const [open, setOpen] = useState<number | null>(0);
@@ -189,17 +208,22 @@ export default function ServicePage() {
       const { data } = await supabase
         .from("packages")
         .select(
-          "id, name, description, inclusions, good_to_know, duration_minutes, service_type"
+          "id, name, description, inclusions, good_to_know, duration_minutes, service_type",
         )
         .eq("active", true)
         .eq("billing_type", "per_visit");
 
       const matching = ((data ?? []) as Pkg[]).filter((p) =>
-        (p.service_type ?? "").includes(copy.match)
+        (p.service_type ?? "").includes(copy.match),
       );
       setItems(matching.sort(compareCleaningSessions));
 
-      const [{ data: revs }, { data: curated }, { data: faqRows }, { data: summaryRows }] = await Promise.all([
+      const [
+        { data: revs },
+        { data: curated },
+        { data: faqRows },
+        { data: summaryRows },
+      ] = await Promise.all([
         supabase
           .from("reviews")
           .select("id, rating, comment, created_at")
@@ -253,7 +277,11 @@ export default function ServicePage() {
       setReviews([...managed.slice(0, 3), ...verified]);
       const row = Array.isArray(summaryRows) ? summaryRows[0] : summaryRows;
       const count = Number(row?.rating_count ?? 0);
-      setSummary(count > 0 ? { avg: Number(row.rating_avg), count } : { avg: 0, count: 0 });
+      setSummary(
+        count > 0
+          ? { avg: Number(row.rating_avg), count }
+          : { avg: 0, count: 0 },
+      );
       setFaqs(
         (faqRows ?? []).map((faq) => ({ q: faq.question, a: faq.answer })),
       );
@@ -263,7 +291,7 @@ export default function ServicePage() {
   // The headline score includes booking ratings and genuine admin-added
   // customer reviews; booking-backed copies are counted only once.
   const scoreCount = summary?.count ?? 0;
-  const avg = scoreCount > 0 ? summary?.avg ?? null : null;
+  const avg = scoreCount > 0 ? (summary?.avg ?? null) : null;
 
   const bookLink = `/book?type=${copy.match}${
     postcode ? `&pc=${encodeURIComponent(postcode)}` : ""
@@ -395,7 +423,10 @@ export default function ServicePage() {
         </div>
       </header>
 
-      <nav className="mobile-cta mobile-service-cta" aria-label="Cleaning quick actions">
+      <nav
+        className="mobile-cta mobile-service-cta"
+        aria-label="Cleaning quick actions"
+      >
         <a className="mobile-cta-services" href="#cleaning-services">
           See our services
         </a>
@@ -483,21 +514,36 @@ export default function ServicePage() {
                       <div className="detail-body">
                         <h3>{selected.name}</h3>
                         <p className="detail-price">
-                          <span>{selected.name === "Essential Clean" ? "Six-visit minimum · paid upfront · price shown when you book" : "Two-hour minimum · price shown when you book"}</span>
+                          <span>
+                            {selected.name === "Essential Clean"
+                              ? perVisitBilling === true
+                                ? "6–10 visits · first visit charged at checkout"
+                                : perVisitBilling === false
+                                  ? "6–10 visits · paid upfront"
+                                  : "6–10 visits · payment details at checkout"
+                              : "Two-hour minimum · price shown when you book"}
+                          </span>
                         </p>
-                        {!cleaningPackageScope(selected.name) && selected.description && (
-                          <p className="detail-desc">{selected.description}</p>
-                        )}
-                        {!cleaningPackageScope(selected.name) && selected.inclusions && selected.inclusions.length > 0 && (
-                          <>
-                            <p className="detail-label">What&apos;s included</p>
-                            <ul className="detail-list">
-                              {selected.inclusions.map((x) => (
-                                <li key={x}>{x}</li>
-                              ))}
-                            </ul>
-                          </>
-                        )}
+                        {!cleaningPackageScope(selected.name) &&
+                          selected.description && (
+                            <p className="detail-desc">
+                              {serviceTextWithoutPrices(selected.description)}
+                            </p>
+                          )}
+                        {!cleaningPackageScope(selected.name) &&
+                          selected.inclusions &&
+                          selected.inclusions.length > 0 && (
+                            <>
+                              <p className="detail-label">
+                                What&apos;s included
+                              </p>
+                              <ul className="detail-list">
+                                {selected.inclusions.map((x) => (
+                                  <li key={x}>{x}</li>
+                                ))}
+                              </ul>
+                            </>
+                          )}
                         {selected.good_to_know &&
                           selected.good_to_know.length > 0 && (
                             <>
@@ -509,9 +555,16 @@ export default function ServicePage() {
                               </ul>
                             </>
                           )}
-                        <CleaningPackageScope key={selected.id} packageName={selected.name} expanded />
+                        <CleaningPackageScope
+                          key={selected.id}
+                          packageName={selected.name}
+                          expanded
+                        />
                       </div>
-                      <a className="btn detail-cta" href={`${bookLink}&service=${encodeURIComponent(selected.id)}`}>
+                      <a
+                        className="btn detail-cta"
+                        href={`${bookLink}&service=${encodeURIComponent(selected.id)}`}
+                      >
                         Book this
                       </a>
                     </div>
@@ -526,17 +579,15 @@ export default function ServicePage() {
       {/* ---------- REASSURANCE ---------- */}
       <section className="business" id="business-cleaning">
         <div className="inner">
-          <h2>Office cleaning and cleaning contracts</h2>
+          <h2>Cleaning contracts</h2>
           <p>
-            We also clean offices and take on regular cleaning contracts for
-            businesses and property managers. These are priced individually,
-            so they are quoted rather than booked online.
+            Cleaning contracts for offices, residential buildings and blocks,
+            restaurants, schools and event halls. Contact our team to discuss
+            your premises and cleaning schedule.
           </p>
           <p className="business-note">
-            <strong>Email or call us for a quote:</strong>{" "}
-            <a href="mailto:opulencebliss@gmail.com">opulencebliss@gmail.com</a>
-            {" · "}
-            <a href="tel:+447484717935">+44 7484 717935</a>
+            <strong>Email us:</strong>{" "}
+            <a href="mailto:hello@opulencebliss.com">hello@opulencebliss.com</a>
           </p>
         </div>
       </section>
@@ -556,7 +607,11 @@ export default function ServicePage() {
               ],
               [
                 "We're fair",
-                "One-time visits are charged after completion; regular plans are paid upfront. Providers are paid after their visits.",
+                perVisitBilling === true
+                  ? "One-time visits are charged at checkout. For regular cleaning, pay for the first visit at checkout; later visits are charged 48 hours before only when assigned, or when a cleaner accepts later."
+                  : perVisitBilling === false
+                    ? "One-time visits are charged after completion; regular plans are paid upfront. Providers are paid after their visits."
+                    : "See your visit price and payment details before confirming checkout.",
               ],
             ].map(([t, s]) => (
               <div key={t} className="lovecard">
@@ -597,18 +652,24 @@ export default function ServicePage() {
                 {reviews.map((review) => (
                   <article className="review-row" key={review.id}>
                     <div className="review-meta">
-                      <span className="rstars" aria-label={`${review.rating} out of 5 stars`}>
+                      <span
+                        className="rstars"
+                        aria-label={`${review.rating} out of 5 stars`}
+                      >
                         {"★".repeat(review.rating)}
                         <i>{"☆".repeat(5 - review.rating)}</i>
                       </span>
                       <strong>{review.rating}/5</strong>
                       <span aria-hidden="true">·</span>
                       <span>{ago(review.created_at)}</span>
-                      {review.is_demo && <em className="sample">Prototype sample</em>}
+                      {review.is_demo && (
+                        <em className="sample">Prototype sample</em>
+                      )}
                     </div>
                     <h3>Cleaning: {review.service_label}</h3>
                     <p className="rtext">
-                      {review.comment?.trim() || `Rated ${review.rating} out of 5.`}
+                      {review.comment?.trim() ||
+                        `Rated ${review.rating} out of 5.`}
                     </p>
                     {(review.customer_name || review.location) && (
                       <footer>
@@ -628,9 +689,7 @@ export default function ServicePage() {
       {/* ---------- FAQ ---------- */}
       <section className="faq">
         <div className="inner">
-          <h2>
-            All about our cleaning service
-          </h2>
+          <h2>All about our cleaning service</h2>
           <div className="qs">
             {(faqs.length > 0 ? faqs : copy.faq).map((f, i) => (
               <div key={f.q} className={open === i ? "q open" : "q"}>
@@ -638,7 +697,7 @@ export default function ServicePage() {
                   <span>{f.q}</span>
                   <em>{open === i ? "−" : "+"}</em>
                 </button>
-                {open === i && <p>{f.a}</p>}
+                {open === i && <p>{serviceTextWithoutPrices(f.a)}</p>}
               </div>
             ))}
           </div>
@@ -648,13 +707,13 @@ export default function ServicePage() {
       <style jsx>{`
         .page {
           --cream: #ffffff;
-          --green: #16202A;
-          --green-pale: #F4ECFE;
-          --apricot: #F5C542;
-          --apricot-deep: #6D28D9;
-          --ink: #16202A;
-          --muted: #7A828C;
-          --line: #EDEFF1;
+          --green: #16202a;
+          --green-pale: #f4ecfe;
+          --apricot: #f5c542;
+          --apricot-deep: #6d28d9;
+          --ink: #16202a;
+          --muted: #7a828c;
+          --line: #edeff1;
           background: var(--cream);
           color: var(--ink);
           font-family: var(--font-nunito), system-ui, sans-serif;
@@ -737,7 +796,7 @@ export default function ServicePage() {
         /* hero */
         .hero {
           overflow: hidden;
-          background: linear-gradient(120deg,#FFF8E6,#F6F1FF 55%,#EDE4FB);
+          background: linear-gradient(120deg, #fff8e6, #f6f1ff 55%, #ede4fb);
           padding: 52px 0 58px;
         }
         .hero-grid {
@@ -795,7 +854,7 @@ export default function ServicePage() {
           border-radius: 999px;
           padding: 7px 7px 7px 22px;
           max-width: 480px;
-          box-shadow: 0 10px 30px rgba(22,32,42, 0.12);
+          box-shadow: 0 10px 30px rgba(22, 32, 42, 0.12);
         }
         .composer input {
           flex: 1;
@@ -809,7 +868,7 @@ export default function ServicePage() {
           color: var(--ink);
         }
         .btn {
-          background: linear-gradient(100deg,#F5C542,#C86FC9 55%,#7B2FF7);
+          background: linear-gradient(100deg, #f5c542, #c86fc9 55%, #7b2ff7);
           color: #fff;
           text-decoration: none;
           border-radius: 999px;
@@ -854,8 +913,11 @@ export default function ServicePage() {
           font-weight: 800;
           text-decoration: none;
           white-space: nowrap;
-          transition: background 0.15s ease, color 0.15s ease,
-            border-color 0.15s ease, box-shadow 0.15s ease;
+          transition:
+            background 0.15s ease,
+            color 0.15s ease,
+            border-color 0.15s ease,
+            box-shadow 0.15s ease;
         }
         .hero-btn svg {
           flex: 0 0 auto;
@@ -988,7 +1050,12 @@ export default function ServicePage() {
           padding: clamp(18px, 2.5vw, 28px);
           border: 1px solid #eadffc;
           border-radius: 24px;
-          background: linear-gradient(145deg, #fffdf7 0%, #fff8fb 48%, #f6f1ff 100%);
+          background: linear-gradient(
+            145deg,
+            #fffdf7 0%,
+            #fff8fb 48%,
+            #f6f1ff 100%
+          );
           box-shadow: 0 18px 45px rgba(72, 40, 118, 0.06);
         }
         .review-summary {
@@ -1093,7 +1160,7 @@ export default function ServicePage() {
         }
         .empty {
           background: #fff;
-          border: 1.5px dashed #E5E7EA;
+          border: 1.5px dashed #e5e7ea;
           border-radius: 14px;
           padding: 28px 24px;
           color: var(--muted);
@@ -1109,7 +1176,7 @@ export default function ServicePage() {
           position: relative;
         }
         .intro {
-          color: #3A424B;
+          color: #3a424b;
           font-size: 16.5px;
           line-height: 1.6;
           max-width: 62ch;
@@ -1169,26 +1236,40 @@ export default function ServicePage() {
           border: 0;
           border-radius: 20px;
           background:
-            linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)),
+            linear-gradient(
+              to top,
+              rgba(12, 10, 24, 0.72),
+              rgba(12, 10, 24, 0.34) 46%,
+              rgba(12, 10, 24, 0.08)
+            ),
             linear-gradient(145deg, #7b2ff7 0%, #a33ea6 55%, #f5c542 140%);
           color: #fff;
           box-shadow: 0 9px 26px rgba(22, 32, 42, 0.08);
           font: inherit;
           text-align: left;
           cursor: pointer;
-          transition: box-shadow 0.15s ease, transform 0.15s ease;
+          transition:
+            box-shadow 0.15s ease,
+            transform 0.15s ease;
         }
         .tile.pop {
-          box-shadow: inset 0 0 0 1px var(--apricot),
+          box-shadow:
+            inset 0 0 0 1px var(--apricot),
             0 9px 26px rgba(22, 32, 42, 0.08);
         }
         .tiles > li:nth-child(even) .tile {
           background:
-            linear-gradient(to top, rgba(12, 10, 24, 0.72), rgba(12, 10, 24, 0.34) 46%, rgba(12, 10, 24, 0.08)),
+            linear-gradient(
+              to top,
+              rgba(12, 10, 24, 0.72),
+              rgba(12, 10, 24, 0.34) 46%,
+              rgba(12, 10, 24, 0.08)
+            ),
             linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%);
         }
         .tile.on {
-          box-shadow: 0 0 0 3px var(--apricot-deep),
+          box-shadow:
+            0 0 0 3px var(--apricot-deep),
             0 9px 26px rgba(22, 32, 42, 0.12);
         }
         .tile:focus-visible {
@@ -1242,7 +1323,12 @@ export default function ServicePage() {
           border: 1.5px solid var(--line);
           border-top: 4px solid var(--apricot-deep);
           border-radius: 18px;
-          background: linear-gradient(155deg, #fffdf8 0%, #fbf4ff 58%, #f1ecff 100%);
+          background: linear-gradient(
+            155deg,
+            #fffdf8 0%,
+            #fbf4ff 58%,
+            #f1ecff 100%
+          );
           box-shadow: 0 14px 38px rgba(22, 32, 42, 0.08);
         }
         .detail:focus {
@@ -1364,11 +1450,10 @@ export default function ServicePage() {
         .q p {
           margin: 0;
           padding: 0 20px 20px;
-          color: #3A424B;
+          color: #3a424b;
           font-size: 15.5px;
           line-height: 1.6;
         }
-
 
         @media (max-width: 900px) {
           .page {
@@ -1395,7 +1480,11 @@ export default function ServicePage() {
             border-radius: 0;
             box-shadow: none;
             opacity: 0.68;
-            -webkit-mask-image: linear-gradient(to right, transparent, #000 45%);
+            -webkit-mask-image: linear-gradient(
+              to right,
+              transparent,
+              #000 45%
+            );
             mask-image: linear-gradient(to right, transparent, #000 45%);
             pointer-events: none;
           }
@@ -1445,7 +1534,7 @@ export default function ServicePage() {
           }
           .mobile-cta-book {
             color: #fff;
-            background: linear-gradient(100deg,#f5c542,#c86fc9 55%,#7b2ff7);
+            background: linear-gradient(100deg, #f5c542, #c86fc9 55%, #7b2ff7);
           }
           .services {
             scroll-margin-top: 90px;
@@ -1580,7 +1669,11 @@ export default function ServicePage() {
             width: auto;
             height: 320px;
             opacity: 0.55;
-            -webkit-mask-image: linear-gradient(to bottom, #000, transparent 100%);
+            -webkit-mask-image: linear-gradient(
+              to bottom,
+              #000,
+              transparent 100%
+            );
             mask-image: linear-gradient(to bottom, #000, transparent 100%);
           }
           .reviews-layout {

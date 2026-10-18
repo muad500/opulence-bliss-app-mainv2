@@ -11,6 +11,8 @@ import {
   professionalStatusLabel,
 } from "@/lib/professionalAccess";
 
+import { verifyAccountChangeRequest } from "@/lib/accountChangeVerification";
+
 export type AccountContext = {
   user: User;
   admin: SupabaseClient;
@@ -80,13 +82,18 @@ export async function accountContext(
       "Professional tools unlock after your application is approved. Open My application to review your status.",
       403,
     );
-  return {
+  const context: AccountContext = {
     user,
     admin,
     providerId: provider?.id ?? null,
     professionalApproved,
     professionalStatus: professionalStatusLabel(provider),
   };
+  if (options.mutation) {
+    const verification = await verifyAccountChangeRequest(request, context);
+    if (verification) return verification;
+  }
+  return context;
 }
 
 export function isAccountError(

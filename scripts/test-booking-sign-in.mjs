@@ -35,6 +35,12 @@ const choices = {
   slot,
   optionalSlots: [optional],
   request: "Ring the bell",
+  preferences: {
+    howHeard: "Instagram",
+    confirmationChannel: "sms",
+    roomsToClean: "Kitchen and bedrooms",
+    accessInstructions: "Concierge",
+  },
   promo: "WELCOME",
   preferredCleaner: "",
   phone: "",
@@ -161,7 +167,13 @@ function harness({
         }),
       };
     if (url === "/api/visit-billing-config")
-      return { json: async () => ({ perVisitBilling: true }) };
+      return {
+        json: async () => ({
+          perVisitBilling: true,
+          pricing: load("lib/cleaningBillingTerms.ts")
+            .DEFAULT_CLEANING_BILLING_TERMS,
+        }),
+      };
     throw new Error(`Unexpected request: ${url}`);
   };
   const cache = new Map();
@@ -244,9 +256,13 @@ test("sign-in returns to confirmation with the entered booking rather than accou
   assert.match(content, /Step 6 of 6/);
   assert.match(content, /128 City Road, London/);
   assert.doesNotMatch(content, /Other home/);
-  assert.match(content, /£45.98/);
+  assert.match(content, /£70.98/);
   assert.equal(
-    elements(tree).find((node) => node.type === "textarea")?.props.value,
+    elements(tree).find(
+      (node) =>
+        node.type === "textarea" &&
+        node.props.placeholder?.includes("key is under"),
+    )?.props.value,
     "Ring the bell",
   );
   assert.equal(
@@ -254,10 +270,10 @@ test("sign-in returns to confirmation with the entered booking rather than accou
       (node) => node.type === "button" && text(node) === "Confirm & pay",
     ).props.disabled,
     true,
-    "early-start consent must be confirmed again",
+    "saved-card consent must be confirmed again",
   );
   assert.ok(
-    app.calls.some((url) => url.includes("duration=120")),
+    app.calls.some((url) => url.includes("duration=180")),
     "availability uses the restored base hours plus oven time",
   );
   assert.equal(
@@ -296,10 +312,10 @@ test("an anonymous return saves the complete choices before leaving for sign-in"
   });
   const returned = await back.settle();
   assert.match(text(returned), /Step 6 of 6/);
-  assert.match(text(returned), /£45.98/);
+  assert.match(text(returned), /£70.98/);
 });
 
-test("regular bookings retain their visit count and the existing upfront payment model", async () => {
+test("regular visit count and individual extras survive while prices are recalculated", async () => {
   const app = harness({
     packageList: [
       {
@@ -314,11 +330,17 @@ test("regular bookings retain their visit count and the existing upfront payment
       packageId: "essential",
       frequency: "weekly",
       regularVisits: 8,
+      extras: { addons: ["fridge"], bringsProducts: true },
+      visitOverrides: { 1: { addons: [], bringsProducts: false } },
     },
   });
   const tree = await app.settle();
-  assert.match(text(tree), /Pay £303.84 for 8 visits/);
-  assert.equal(app.calls.includes("/api/visit-billing-config"), false);
+  assert.match(text(tree), /Step 6 of 6/);
+  assert.match(text(tree), /Save card and book visits/);
+  assert.match(text(tree), /£408.84/);
+  assert.match(text(tree), /8 visits/);
+  const changed = harness({ packageList: [{ ...packages[0], price: 55.98 }] });
+  assert.match(text(await changed.settle()), /£80.98/);
 });
 
 test("a stale preferred time returns to Time while preserving the rest of the booking", async () => {
@@ -327,7 +349,7 @@ test("a stale preferred time returns to Time while preserving the rest of the bo
   assert.match(text(tree), /Step 5 of 6/);
   assert.match(text(tree), /preferred time is no longer available/);
   assert.match(text(tree), /128 City Road/);
-  assert.match(text(tree), /£45.98/);
+  assert.match(text(tree), /£70.98/);
 });
 
 test("an unavailable optional time also requires reviewing Time before payment", async () => {

@@ -1,4 +1,5 @@
 "use client";
+import { accountFetch } from "@/lib/accountFetch";
 
 import { FormEvent, useState } from "react";
 import {
@@ -48,9 +49,7 @@ export default function VerificationDocuments({
     Record<string, { error: boolean; text: string }>
   >({});
   const types = PROVIDER_DOCUMENT_TYPES.filter(
-    (type) =>
-      !["trade_certificate", "public_liability_insurance"].includes(type) ||
-      services.includes("handyman"),
+    (type) => type !== "trade_certificate" || services.includes("handyman"),
   );
   const dbs = checks.find((item) => item.type === "dbs");
 
@@ -68,10 +67,13 @@ export default function VerificationDocuments({
       [type]: { error: false, text: "Uploading…" },
     }));
     try {
-      const response = await fetch("/api/account/verification-document", {
-        method: "POST",
-        body: data,
-      });
+      const response = await accountFetch(
+        "/api/account/verification-document",
+        {
+          method: "POST",
+          body: data,
+        },
+      );
       const result = await response.json().catch(() => ({}));
       if (!response.ok)
         throw new Error(result.error ?? "Document could not be uploaded.");

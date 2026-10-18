@@ -4,7 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createClient as createAdmin } from "@supabase/supabase-js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import Stripe from "stripe";
-import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
+import { createVisitBilling } from "@/lib/visitBillingServer";
+import {
+  captureBookingPayment,
+  LegacyDestinationCaptureError,
+} from "@/lib/legacyDestinationCapture";
 import {
   claimMoneyOperation,
   modifyCustomerBookingState,
@@ -142,6 +146,45 @@ export async function cancelCustomerBooking(
     };
   }
 
+  const { data: visitBilling } = await admin
+    .from("booking_visit_billing")
+    .select("booking_id")
+    .eq("booking_id", id)
+    .maybeSingle();
+  if (visitBilling) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return { ok: false as const, message: "Please sign in again." };
+    try {
+      const result = await createVisitBilling(admin, stripe).cancel(
+        id,
+        user.id,
+        false,
+        expectedPolicyTier,
+      );
+      revalidatePath("/account");
+      revalidatePath(`/account/visit/${id}`);
+      revalidatePath("/worker");
+      return {
+        ok: true as const,
+        policy: result.policy,
+        message:
+          result.status === "succeeded"
+            ? `Visit cancelled. ${result.policy.explanation}`
+            : "Visit cancelled. Your payment adjustment is still processing; please do not pay again.",
+      };
+    } catch (error) {
+      return {
+        ok: false as const,
+        message:
+          error instanceof Error
+            ? error.message
+            : "This visit could not be cancelled.",
+      };
+    }
+  }
+
   const { data: payments } = await admin
     .from("payments")
     .select("id, stripe_payment_ref, status, gross_amount, split_breakdown")
@@ -186,7 +229,9 @@ export async function cancelCustomerBooking(
 
   let paymentMessage = "Booking cancelled. No payment adjustment was needed.";
   if (payment?.stripe_payment_ref && originalGross > 0) {
-    const isCaptured = ["succeeded", "partially_refunded"].includes(payment.status);
+    const isCaptured = ["succeeded", "partially_refunded"].includes(
+      payment.status,
+    );
     const paymentAction = cancellationPaymentAction(payment.status, policy);
     const shouldRefundCaptured = paymentAction === "refund";
     const shouldReleaseHold = paymentAction === "release";
@@ -288,23 +333,31 @@ export async function cancelCustomerBooking(
               if (policy.refundPercent > 0 && policy.refundPercent < 100) {
                 const platformFee = platformFeePence / 100;
                 moneyOperationSucceeded = true;
-                await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", {
-                  stripeObjectId: stripeObject.id,
-                });
-                const update = await admin.rpc("system_record_cancellation_capture", {
-                  p_payment_id: payment.id,
-                  p_operation_id: operation.id,
-                  p_split_breakdown: {
-                    ...split,
-                    provider: Number(
-                      (policy.cancellationCharge - platformFee).toFixed(2),
-                    ),
-                    platform_margin: platformFee,
-                    original_gross_amount: originalGross,
-                    cancellation_refund: policy.refundAmount,
-                    cancellation_policy: policy.tier,
+                await systemFinaliseMoneyOperation(
+                  admin,
+                  operation.id,
+                  "succeeded",
+                  {
+                    stripeObjectId: stripeObject.id,
                   },
-                });
+                );
+                const update = await admin.rpc(
+                  "system_record_cancellation_capture",
+                  {
+                    p_payment_id: payment.id,
+                    p_operation_id: operation.id,
+                    p_split_breakdown: {
+                      ...split,
+                      provider: Number(
+                        (policy.cancellationCharge - platformFee).toFixed(2),
+                      ),
+                      platform_margin: platformFee,
+                      original_gross_amount: originalGross,
+                      cancellation_refund: policy.refundAmount,
+                      cancellation_policy: policy.tier,
+                    },
+                  },
+                );
                 if (update.error) {
                   await admin.rpc("open_review_case", {
                     p_booking_id: id,
@@ -321,9 +374,14 @@ export async function cancelCustomerBooking(
 
             if (!moneyOperationSucceeded) {
               moneyOperationSucceeded = true;
-              await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", {
-                stripeObjectId: stripeObject.id,
-              });
+              await systemFinaliseMoneyOperation(
+                admin,
+                operation.id,
+                "succeeded",
+                {
+                  stripeObjectId: stripeObject.id,
+                },
+              );
             }
           } catch (error) {
             const failure =
@@ -359,7 +417,9 @@ export async function cancelCustomerBooking(
               : shouldReleaseHold
                 ? "cancelled"
                 : "succeeded",
-            { reason: `Customer cancellation adjustment confirmed: ${policy.title}` },
+            {
+              reason: `Customer cancellation adjustment confirmed: ${policy.title}`,
+            },
           );
         }
       }
@@ -368,14 +428,14 @@ export async function cancelCustomerBooking(
         paymentAction === "none" && !isCaptured
           ? "Booking cancelled. No completed card payment needed adjustment."
           : policy.tier === "full"
-          ? isCaptured
-            ? `Booking cancelled. Your full £${policy.refundAmount.toFixed(2)} refund has been started.`
-            : "Booking cancelled. Your full card hold is being released."
-          : policy.refundPercent > 0
             ? isCaptured
-              ? `Booking cancelled. Your ${policy.refundPercent}% refund of £${policy.refundAmount.toFixed(2)} has been started.`
-              : `Booking cancelled. £${policy.cancellationCharge.toFixed(2)} has been charged and the remaining ${policy.refundPercent}% of the hold is being released.`
-            : `Booking cancelled. The £${policy.cancellationCharge.toFixed(2)} booking amount is non-refundable.`;
+              ? `Booking cancelled. Your full £${policy.refundAmount.toFixed(2)} refund has been started.`
+              : "Booking cancelled. Your full card hold is being released."
+            : policy.refundPercent > 0
+              ? isCaptured
+                ? `Booking cancelled. Your ${policy.refundPercent}% refund of £${policy.refundAmount.toFixed(2)} has been started.`
+                : `Booking cancelled. £${policy.cancellationCharge.toFixed(2)} has been charged and the remaining ${policy.refundPercent}% of the hold is being released.`
+              : `Booking cancelled. The £${policy.cancellationCharge.toFixed(2)} booking amount is non-refundable.`;
     } catch (error) {
       const failure =
         error instanceof Error ? error.message : "Stripe cancellation failed";
@@ -440,7 +500,14 @@ export async function rescheduleCustomerBooking(
   const packageRow = Array.isArray(bookingForDuration?.packages)
     ? bookingForDuration.packages[0]
     : bookingForDuration?.packages;
-  if (!appointmentFitsWindow(newSlot, bookingForDuration?.duration_minutes ?? packageRow?.duration_minutes ?? 120)) {
+  if (
+    !appointmentFitsWindow(
+      newSlot,
+      bookingForDuration?.duration_minutes ??
+        packageRow?.duration_minutes ??
+        120,
+    )
+  ) {
     return { ok: false as const, message: APPOINTMENT_WINDOW_MESSAGE };
   }
   if (!appointmentWithinBookingHorizon(newSlot)) {
@@ -495,7 +562,9 @@ export async function rescheduleCustomerBooking(
 
   return {
     ok: true as const,
-    message: result.changed ? `Visit moved to ${when}.` : "No changes were needed.",
+    message: result.changed
+      ? `Visit moved to ${when}.`
+      : "No changes were needed.",
   };
 }
 

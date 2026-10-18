@@ -1,30 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  CLEANING_DURATIONS,
-  bookingPricePence,
-  durationLabel,
-} from "@/lib/cleaningBooking";
+import { CLEANING_DURATIONS, durationLabel } from "@/lib/cleaningBooking";
 import { londonDateKey, appointmentTimeLabel } from "@/lib/appointmentWindow";
 import type { AssistantPackage } from "@/lib/assistantBooking";
 import styles from "./AssistantBooking.module.css";
 
-type Service = AssistantPackage & { hourly_rate_gbp: number };
+type Service = Pick<AssistantPackage, "id" | "name" | "description">;
 type Draft = {
   url: string;
   service: string;
-  total_gbp: number;
+  payment_summary: string;
   visits: number;
   preferred_time: string;
   optional_times: string[];
   duration_minutes: number;
   note: string;
 };
-const money = (amount: number) =>
-  new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP" }).format(
-    amount,
-  );
 const when = (time: string) =>
   new Date(time).toLocaleString("en-GB", {
     timeZone: "Europe/London",
@@ -55,8 +47,8 @@ export default function AssistantBooking({
   const [step, setStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const selected = services.find((service) => service.id === serviceId);
   const regular = frequency !== "one_time";
+  const selected = services.find((service) => service.id === serviceId);
   const dates = [...new Set(slots.map(londonDateKey))];
   const times = slots.filter((time) => londonDateKey(time) === date);
 
@@ -191,7 +183,7 @@ export default function AssistantBooking({
               <option value="">Choose a service</option>
               {services.map((service) => (
                 <option key={service.id} value={service.id}>
-                  {service.name} · {money(service.hourly_rate_gbp)}/hr
+                  {service.name}
                 </option>
               ))}
             </select>
@@ -255,19 +247,9 @@ export default function AssistantBooking({
             </div>
           )}
           {selected && (
-            <p className={styles.total}>
-              <strong>
-                {money(
-                  (bookingPricePence(selected, minutes) *
-                    (regular ? visits : 1)) /
-                    100,
-                )}
-              </strong>
-              <span>
-                {regular
-                  ? `${visits} visits paid upfront · ${money(bookingPricePence(selected, minutes) / 100)} per visit`
-                  : "For one visit, before any checkout discount"}
-              </span>
+            <p className={styles.description}>
+              Choose your options here. The full price is shown on the booking
+              page before you confirm.
             </p>
           )}
           <button
