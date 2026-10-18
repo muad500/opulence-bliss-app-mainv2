@@ -130,3 +130,58 @@ test("an external URL cannot be smuggled into a booking email", async () => {
   assert.equal(result.failed, 1);
   assert.equal(h.calls.at(-1).args.p_reference, null);
 });
+
+test("staging email fails closed without an approved recipient list", async () => {
+  const h = harness([]);
+  const result = await deliverVisitMatchingNotices(
+    h.admin,
+    { ...env, VISIT_PAYMENTS_MODE: "staging" },
+    () => assert.fail("Unconfigured staging email must not be sent"),
+  );
+  assert.equal(result.emailConfigured, false);
+  assert.equal(h.calls[0].args.p_email_enabled, false);
+});
+
+test("staging permits only the exact approved mailbox and retains excluded notices for audit", async () => {
+  const h = harness([
+    { ...notice, recipient: "approved@example.invalid" },
+    { ...notice, id: "excluded", recipient: "other@example.invalid" },
+  ]);
+  const recipients = [];
+  const result = await deliverVisitMatchingNotices(
+    h.admin,
+    {
+      ...env,
+      VISIT_PAYMENTS_MODE: "staging",
+      STAGING_EMAIL_RECIPIENTS: " APPROVED@example.invalid ",
+    },
+    async (_url, request) => {
+      recipients.push(...JSON.parse(request.body).to);
+      return new Response(JSON.stringify({ id: "accepted-test-email" }));
+    },
+  );
+  assert.deepEqual(recipients, ["approved@example.invalid"]);
+  assert.equal(result.submitted, 1);
+  assert.equal(result.excluded, 1);
+  assert.equal(result.failed, 0);
+  const excluded = h.calls
+    .filter((call) => call.name === "finish_visit_matching_notice")
+    .at(-1);
+  assert.equal(excluded.args.p_reference, null);
+  assert.match(excluded.args.p_error, /not approved/);
+});
+
+test("a staging allowlist cannot accidentally restrict Production delivery", async () => {
+  const h = harness();
+  const result = await deliverVisitMatchingNotices(
+    h.admin,
+    {
+      ...env,
+      VISIT_PAYMENTS_MODE: "production",
+      STAGING_EMAIL_RECIPIENTS: "different@example.invalid",
+    },
+    async () => new Response(JSON.stringify({ id: "production-fixture" })),
+  );
+  assert.equal(result.submitted, 1);
+  assert.equal(result.excluded, 0);
+});

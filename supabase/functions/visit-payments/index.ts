@@ -1150,7 +1150,23 @@ async function deliverVisitMatchingNotices(admin, env, fetcher = fetch) {
   const key = env.RESEND_API_KEY;
   const sender = env.BOOKING_EMAIL_FROM ?? env.EMAIL_FROM;
   const origin = env.NEXT_PUBLIC_SITE_URL;
-  const emailEnabled = Boolean(key && sender && origin?.startsWith("https://"));
+  const stagingRecipients =
+    env.VISIT_PAYMENTS_MODE === "staging"
+      ? new Set(
+          (env.STAGING_EMAIL_RECIPIENTS ?? "")
+            .split(",")
+            .map((recipient) => recipient.trim().toLowerCase())
+            .filter((recipient) =>
+              /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient),
+            ),
+        )
+      : null;
+  const emailEnabled = Boolean(
+    key &&
+    sender &&
+    origin?.startsWith("https://") &&
+    (stagingRecipients === null || stagingRecipients.size > 0),
+  );
   const sms = bookingSmsConfig(env);
   const { data, error } = await admin.rpc("claim_visit_matching_notices", {
     p_email_enabled: emailEnabled,
@@ -1161,6 +1177,7 @@ async function deliverVisitMatchingNotices(admin, env, fetcher = fetch) {
   if (error) throw new Error("Matching notices could not be claimed.");
   let submitted = 0;
   let failed = 0;
+  let excluded = 0;
   for (const notice of data ?? []) {
     let reference = null;
     let failure = null;
@@ -1180,6 +1197,14 @@ async function deliverVisitMatchingNotices(admin, env, fetcher = fetch) {
       if (notice.channel === "email") {
         if (!emailEnabled || !key || !sender || !origin)
           throw new Error("Staging email is not configured.");
+        if (
+          stagingRecipients &&
+          !stagingRecipients.has(notice.recipient.trim().toLowerCase())
+        ) {
+          failure = "Staging recipient is not approved for test delivery.";
+          excluded++;
+          continue;
+        }
         if (!notice.href.startsWith("/") || notice.href.startsWith("//"))
           throw new Error("Invalid booking link.");
         const response = await fetcher("https://api.resend.com/emails", {
@@ -1241,6 +1266,7 @@ View your booking: ${new URL(notice.href, origin).toString()}`,
     smsEnabled: Boolean(sms),
     submitted,
     failed,
+    excluded,
   };
 }
 
@@ -1319,6 +1345,8 @@ function createVisitPaymentHandler(overrides = {}) {
         Object.fromEntries(
           [
             "RESEND_API_KEY",
+            "VISIT_PAYMENTS_MODE",
+            "STAGING_EMAIL_RECIPIENTS",
             "BOOKING_EMAIL_FROM",
             "EMAIL_FROM",
             "NEXT_PUBLIC_SITE_URL",
@@ -1335,7 +1363,7 @@ function createVisitPaymentHandler(overrides = {}) {
         ok: true,
         mode,
         source:
-          "cc27b1388be9b882ae00525daa49f0fcf66733de1bab8ed4c0cd8f1d44d3bc05",
+          "dee4c3bf4d8457ce8d2f35c45e33757875373b7b38471b9a6e01f11d7fa86ae5",
         result,
         notices,
       });

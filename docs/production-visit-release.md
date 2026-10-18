@@ -87,6 +87,20 @@ Production sender settings prepared in Vercel take effect at the next approved
 deployment; this preparation does not authorise an early Production redeploy.
 Actual staging email delivery must pass before the release gate is cleared.
 
+Update, 19 October: the domain is fully verified. Separate branded sender values
+are saved for Preview and Production, with no Production redeploy. A separate
+sending-only staging key, restricted to `opulencebliss.com`, is used only by
+Preview and the staging worker. The first unused staging credential was revoked
+and replaced before installation; the Production credential was untouched.
+
+Actual staging account-mail and matching-warning emails to the approved test
+mailbox were both **Delivered** in Resend. The matching warning is recorded once
+as sent in the staging outbox; replay sent no duplicate. Scheduled staging mail
+requires `STAGING_EMAIL_RECIPIENTS`, currently the approved test mailbox only.
+Other old QA notices are excluded from provider submission and retain their
+audit records. This staging-only restriction does not alter Production delivery.
+Do not copy the staging key or recipient restriction into Production.
+
 The production web patch omits `app/api/staging/**`, the staging fixture library,
 staging integration runners, staging reports and all `supabase/staging/**` schedules.
 The runner creates a separate checkout from the pinned main, applies that patch,
@@ -154,6 +168,7 @@ inspect its ledger before resuming. Never blindly retry money operations, undo
 live payments or roll back a used schema. Preserve audit history. If a deployment
 fails, keep the last working web deployment and diagnose without enabling the marketplace.
 
-This is a prepared package, not evidence that Production has been released or that
-an unverified domain can send email. Wix DNS and the actual staging email test are
-the remaining external email dependencies.
+This is a prepared package, not evidence that Production has been released.
+The domain and staging email delivery gates have passed. Production's own
+credential validity, live webhook and scheduler gates still require verification
+in the authorised release; no live email delivery or Production release is claimed.

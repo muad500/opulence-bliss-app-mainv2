@@ -30,7 +30,25 @@ export async function deliverVisitMatchingNotices(
   const key = env.RESEND_API_KEY;
   const sender = env.BOOKING_EMAIL_FROM ?? env.EMAIL_FROM;
   const origin = env.NEXT_PUBLIC_SITE_URL;
-  const emailEnabled = Boolean(key && sender && origin?.startsWith("https://"));
+  // Sandbox queues may contain old fixtures. Never deliver them to unapproved
+  // recipients. Production does not use this staging-only restriction.
+  const stagingRecipients =
+    env.VISIT_PAYMENTS_MODE === "staging"
+      ? new Set(
+          (env.STAGING_EMAIL_RECIPIENTS ?? "")
+            .split(",")
+            .map((recipient) => recipient.trim().toLowerCase())
+            .filter((recipient) =>
+              /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient),
+            ),
+        )
+      : null;
+  const emailEnabled = Boolean(
+    key &&
+    sender &&
+    origin?.startsWith("https://") &&
+    (stagingRecipients === null || stagingRecipients.size > 0),
+  );
   const sms = bookingSmsConfig(env);
   const { data, error } = await admin.rpc("claim_visit_matching_notices", {
     p_email_enabled: emailEnabled,
@@ -41,6 +59,7 @@ export async function deliverVisitMatchingNotices(
   if (error) throw new Error("Matching notices could not be claimed.");
   let submitted = 0;
   let failed = 0;
+  let excluded = 0;
   for (const notice of (data ?? []) as Notice[]) {
     let reference: string | null = null;
     let failure: string | null = null;
@@ -60,6 +79,14 @@ export async function deliverVisitMatchingNotices(
       if (notice.channel === "email") {
         if (!emailEnabled || !key || !sender || !origin)
           throw new Error("Staging email is not configured.");
+        if (
+          stagingRecipients &&
+          !stagingRecipients.has(notice.recipient.trim().toLowerCase())
+        ) {
+          failure = "Staging recipient is not approved for test delivery.";
+          excluded++;
+          continue;
+        }
         if (!notice.href.startsWith("/") || notice.href.startsWith("//"))
           throw new Error("Invalid booking link.");
         const response = await fetcher("https://api.resend.com/emails", {
@@ -120,5 +147,6 @@ export async function deliverVisitMatchingNotices(
     smsEnabled: Boolean(sms),
     submitted,
     failed,
+    excluded,
   };
 }

@@ -98,6 +98,8 @@ export function createVisitPaymentHandler(
         Object.fromEntries(
           [
             "RESEND_API_KEY",
+            "VISIT_PAYMENTS_MODE",
+            "STAGING_EMAIL_RECIPIENTS",
             "BOOKING_EMAIL_FROM",
             "EMAIL_FROM",
             "NEXT_PUBLIC_SITE_URL",
