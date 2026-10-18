@@ -195,6 +195,7 @@ export function SignUpForm() {
             <input
               id="client-phone"
               type="tel"
+              required
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               onBlur={() => setPhoneTouched(true)}
@@ -213,9 +214,8 @@ export function SignUpForm() {
             </p>
           )}
           <p className="phone-help" id="client-phone-help">
-            Optional for now. You will need one before your first booking, so
-            your professional can reach you on the day. It is used only for
-            booking-related contact.
+            Required. Your number stays private and is never shared with
+            professionals. Use in-app messages for booking-related contact.
           </p>
 
           <label className="sr-only" htmlFor="client-email">
