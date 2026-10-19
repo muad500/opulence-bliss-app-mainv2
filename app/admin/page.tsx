@@ -3,6 +3,7 @@
 // Log in as admin@test.com, then visit localhost:3000/admin
 
 import { createClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/adminSession";
 import Link from "next/link";
 import AdminButtons from "./AdminButtons";
 import ServiceReview from "./ServiceReview";
@@ -24,7 +25,7 @@ async function count(
 }
 
 export default async function AdminPage() {
-  const supabase = await createClient();
+  const { supabase } = await requireAdminPage();
   const {
     data: { user },
   } = await supabase.auth.getUser();

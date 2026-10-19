@@ -28,6 +28,7 @@ export async function updateSession(request: NextRequest) {
   ];
   const publicPath =
     request.nextUrl.pathname === "/staff/login" ||
+    request.nextUrl.pathname === "/staff/mfa" ||
     [
       "/manifest.webmanifest",
       "/.well-known/assetlinks.json",

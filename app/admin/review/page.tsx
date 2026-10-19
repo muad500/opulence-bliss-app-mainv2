@@ -2,7 +2,7 @@
 //
 // The resolution desk. Read the evidence, then act deliberately.
 
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/adminSession";
 import DeskControls, { PrototypeFindingsCleanup } from "./DeskControls";
 import AdminNav from "../AdminNav";
 import { developmentToolsEnabled } from "@/lib/developmentTools";
@@ -48,7 +48,7 @@ type FindingPayout = {
 };
 
 export default async function ReviewDeskPage() {
-  const supabase = await createClient();
+  const { supabase } = await requireAdminPage();
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -93,10 +93,14 @@ export default async function ReviewDeskPage() {
   const openFindings = findings ?? [];
 
   const findingPaymentIds = [
-    ...new Set(openFindings.map((finding) => finding.payment_id).filter(Boolean)),
+    ...new Set(
+      openFindings.map((finding) => finding.payment_id).filter(Boolean),
+    ),
   ] as string[];
   const findingPayoutIds = [
-    ...new Set(openFindings.map((finding) => finding.payout_id).filter(Boolean)),
+    ...new Set(
+      openFindings.map((finding) => finding.payout_id).filter(Boolean),
+    ),
   ] as string[];
 
   const [findingPaymentsResult, findingPayoutsResult] = await Promise.all([
@@ -126,22 +130,25 @@ export default async function ReviewDeskPage() {
     );
   }
 
-  const findingPayments = (findingPaymentsResult.data ?? []) as FindingPayment[];
+  const findingPayments = (findingPaymentsResult.data ??
+    []) as FindingPayment[];
   const findingPayouts = (findingPayoutsResult.data ?? []) as FindingPayout[];
 
   const paymentById = new Map<string, FindingPayment>(
-    findingPayments.map((payment) => [payment.id, payment] as const)
+    findingPayments.map((payment) => [payment.id, payment] as const),
   );
   const payoutById = new Map<string, FindingPayout>(
-    findingPayouts.map((payout) => [payout.id, payout] as const)
+    findingPayouts.map((payout) => [payout.id, payout] as const),
   );
-  const activeRows = rows.filter((reviewCase) => reviewCase.status !== "resolved");
+  const activeRows = rows.filter(
+    (reviewCase) => reviewCase.status !== "resolved",
+  );
 
   const critical = openFindings.filter((f) => f.severity === "critical").length;
   const overdue = activeRows.filter((c) => c.overdue).length;
   const unassigned = activeRows.filter((c) => !c.assigned_to).length;
   const blockingMoney = activeRows.filter(
-    (c) => c.blocks_payment || c.blocks_payout
+    (c) => c.blocks_payment || c.blocks_payout,
   ).length;
   const unmatchedTransferFindings = openFindings.filter(
     (finding) =>
@@ -151,7 +158,9 @@ export default async function ReviewDeskPage() {
   return (
     <main style={wrap}>
       <AdminNav email={user.email ?? "Admin"} />
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 22px 80px" }}>
+      <div
+        style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 22px 80px" }}
+      >
         <h1 style={h1}>Resolution desk</h1>
         <p style={lede}>
           Nothing here changes on its own. Read the evidence, then act — every
@@ -159,27 +168,43 @@ export default async function ReviewDeskPage() {
         </p>
 
         <div style={stats}>
-          <Stat label="Critical findings" value={String(critical)} alarm={critical > 0} />
-          <Stat label="Overdue cases" value={String(overdue)} alarm={overdue > 0} />
+          <Stat
+            label="Critical findings"
+            value={String(critical)}
+            alarm={critical > 0}
+          />
+          <Stat
+            label="Overdue cases"
+            value={String(overdue)}
+            alarm={overdue > 0}
+          />
           <Stat label="Unassigned" value={String(unassigned)} />
-          <Stat label="Blocking money" value={String(blockingMoney)} alarm={blockingMoney > 0} />
+          <Stat
+            label="Blocking money"
+            value={String(blockingMoney)}
+            alarm={blockingMoney > 0}
+          />
         </div>
 
         {/* ================= FINDINGS ================= */}
         <h2 style={h2}>
-          Reconciliation findings{openFindings.length ? ` (${openFindings.length})` : ""}
+          Reconciliation findings
+          {openFindings.length ? ` (${openFindings.length})` : ""}
         </h2>
         <p style={note}>
           Raised by the nightly comparison against Stripe. Findings are
           observations — they never alter a record.
         </p>
 
-        {developmentToolsEnabled(process.env) && unmatchedTransferFindings > 0 && (
-          <PrototypeFindingsCleanup count={unmatchedTransferFindings} />
-        )}
+        {developmentToolsEnabled(process.env) &&
+          unmatchedTransferFindings > 0 && (
+            <PrototypeFindingsCleanup count={unmatchedTransferFindings} />
+          )}
 
         {openFindings.length === 0 ? (
-          <div style={empty}>Nothing outstanding. Stripe and our records agree.</div>
+          <div style={empty}>
+            Nothing outstanding. Stripe and our records agree.
+          </div>
         ) : (
           <div style={{ display: "grid", gap: 12, marginBottom: 34 }}>
             {openFindings.map((f) => {
@@ -194,7 +219,9 @@ export default async function ReviewDeskPage() {
                 <article key={f.id} style={card}>
                   <div style={rowTop}>
                     <div>
-                      <span style={{ ...chip, background: sev.bg, color: sev.fg }}>
+                      <span
+                        style={{ ...chip, background: sev.bg, color: sev.fg }}
+                      >
                         {f.severity}
                       </span>
                       <strong style={title}>
@@ -211,7 +238,9 @@ export default async function ReviewDeskPage() {
                   <div style={evidence}>
                     <div>
                       <span style={evLabel}>Expected</span>
-                      <pre style={pre}>{JSON.stringify(f.expected, null, 1)}</pre>
+                      <pre style={pre}>
+                        {JSON.stringify(f.expected, null, 1)}
+                      </pre>
                     </div>
                     <div>
                       <span style={evLabel}>Actual</span>
@@ -236,7 +265,8 @@ export default async function ReviewDeskPage() {
 
         {/* ================= CASES ================= */}
         <h2 style={h2}>
-          Review cases and approved refunds{rows.length ? ` (${rows.length})` : ""}
+          Review cases and approved refunds
+          {rows.length ? ` (${rows.length})` : ""}
         </h2>
         <p style={note}>
           Somewhere safe for a booking to sit that isn&apos;t completed or
@@ -260,38 +290,67 @@ export default async function ReviewDeskPage() {
                 >
                   <div style={rowTop}>
                     <div>
-                      <span style={{ ...chip, background: pri.bg, color: pri.fg }}>
+                      <span
+                        style={{ ...chip, background: pri.bg, color: pri.fg }}
+                      >
                         {c.priority}
                       </span>
                       {c.overdue && (
-                        <span style={{ ...chip, background: "#FFE6EA", color: "#B0384F" }}>
+                        <span
+                          style={{
+                            ...chip,
+                            background: "#FFE6EA",
+                            color: "#B0384F",
+                          }}
+                        >
                           overdue
                         </span>
                       )}
                       {c.blocks_payout && (
-                        <span style={{ ...chip, background: "#EDE4FD", color: "#6D28D9" }}>
+                        <span
+                          style={{
+                            ...chip,
+                            background: "#EDE4FD",
+                            color: "#6D28D9",
+                          }}
+                        >
                           holds payout
                         </span>
                       )}
                       {c.blocks_payment && (
-                        <span style={{ ...chip, background: "#EDE4FD", color: "#6D28D9" }}>
+                        <span
+                          style={{
+                            ...chip,
+                            background: "#EDE4FD",
+                            color: "#6D28D9",
+                          }}
+                        >
                           blocks payment
                         </span>
                       )}
-                      {c.status === "resolved" && Number(c.refund_remaining) > 0 && (
-                        <span style={{ ...chip, background: "#E4F6EC", color: "#137B4E" }}>
-                          refund approved
-                        </span>
-                      )}
+                      {c.status === "resolved" &&
+                        Number(c.refund_remaining) > 0 && (
+                          <span
+                            style={{
+                              ...chip,
+                              background: "#E4F6EC",
+                              color: "#137B4E",
+                            }}
+                          >
+                            refund approved
+                          </span>
+                        )}
                       <strong style={title}>
                         {String(c.category).replace(/_/g, " ")}
                       </strong>
                       <p style={meta}>
-                        {c.service ?? "Service"} · {c.customer_email ?? "client"} ·
-                        visit {when(c.scheduled_at)}
+                        {c.service ?? "Service"} ·{" "}
+                        {c.customer_email ?? "client"} · visit{" "}
+                        {when(c.scheduled_at)}
                       </p>
                       <p style={meta}>
-                        Opened {when(c.opened_at)} · due {when(c.resolution_due_at)}
+                        Opened {when(c.opened_at)} · due{" "}
+                        {when(c.resolution_due_at)}
                         {c.assigned_to ? " · assigned" : " · unassigned"}
                       </p>
                     </div>
@@ -311,8 +370,14 @@ export default async function ReviewDeskPage() {
                           : "—"
                       }
                     />
-                    <Fact label="Refunded so far" value={money(c.refunded_amount)} />
-                    <Fact label="Refund remaining" value={money(c.refund_remaining)} />
+                    <Fact
+                      label="Refunded so far"
+                      value={money(c.refunded_amount)}
+                    />
+                    <Fact
+                      label="Refund remaining"
+                      value={money(c.refund_remaining)}
+                    />
                   </dl>
 
                   <DeskControls
@@ -342,10 +407,19 @@ export default async function ReviewDeskPage() {
 
 function Denied({ text }: { text: string }) {
   return (
-    <main style={{ ...wrap, display: "grid", placeItems: "center", minHeight: "70vh" }}>
+    <main
+      style={{
+        ...wrap,
+        display: "grid",
+        placeItems: "center",
+        minHeight: "70vh",
+      }}
+    >
       <div style={{ ...card, textAlign: "center", maxWidth: 380 }}>
         <strong style={{ fontSize: 18, fontWeight: 900 }}>Not available</strong>
-        <p style={{ color: "#7A828C", margin: "6px 0 0", fontWeight: 600 }}>{text}</p>
+        <p style={{ color: "#7A828C", margin: "6px 0 0", fontWeight: 600 }}>
+          {text}
+        </p>
       </div>
     </main>
   );

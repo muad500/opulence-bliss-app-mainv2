@@ -15,10 +15,13 @@
 import { revalidatePath } from "next/cache";
 import Stripe from "stripe";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { createClient as ssr } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/adminSession";
 import { settleCompletedVisitPayout } from "@/lib/prepaidVisitPayout";
 import { settleTipPayout } from "@/lib/tipPayout";
-import { captureBookingPayment, LegacyDestinationCaptureError } from "@/lib/legacyDestinationCapture";
+import {
+  captureBookingPayment,
+  LegacyDestinationCaptureError,
+} from "@/lib/legacyDestinationCapture";
 import { isTestStripeKey, payoutDestination } from "@/lib/payoutDestination";
 import { assertDevelopmentToolsEnabled } from "@/lib/developmentTools";
 import {
@@ -33,27 +36,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
 
 const admin = createServiceClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 type Result = { ok: boolean; message: string };
 
 /** Everything below requires a signed-in admin. */
 async function requireAdmin() {
-  const s = await ssr();
-  const {
-    data: { user },
-  } = await s.auth.getUser();
-  if (!user) throw new Error("Not signed in");
-
-  const { data: me, error: profileError } = await s
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileError) throw new Error(profileError.message);
-  if (me?.role !== "admin") throw new Error("Admins only");
+  const { supabase: s, user } = await requireAdminPage();
   return { s, userId: user.id };
 }
 
@@ -77,7 +67,7 @@ async function opFailed(opId: string, message: string) {
 async function opAmbiguous(
   opId: string,
   message: string,
-  stripeObjectId?: string
+  stripeObjectId?: string,
 ) {
   await systemFinaliseMoneyOperation(admin, opId, "ambiguous", {
     error: message,
@@ -130,7 +120,10 @@ export async function closePreResetTransferFindings(): Promise<Result> {
       const transfer = await stripe.transfers.retrieve(
         finding.stripe_object_id,
       );
-      if (transfer.livemode !== false || transfer.created * 1000 >= resetAt.getTime()) {
+      if (
+        transfer.livemode !== false ||
+        transfer.created * 1000 >= resetAt.getTime()
+      ) {
         kept++;
         continue;
       }
@@ -160,7 +153,9 @@ export async function closePreResetTransferFindings(): Promise<Result> {
     message:
       closed > 0
         ? `Cleared ${closed} pre-reset test finding${closed === 1 ? "" : "s"}.` +
-          (kept ? ` Kept ${kept} newer or unprovable finding${kept === 1 ? "" : "s"}.` : "")
+          (kept
+            ? ` Kept ${kept} newer or unprovable finding${kept === 1 ? "" : "s"}.`
+            : "")
         : "No findings were old enough to clear. Newer findings were kept.",
   };
 }
@@ -170,7 +165,7 @@ export async function closePreResetTransferFindings(): Promise<Result> {
  * ========================================================================== */
 export async function retryCapture(
   paymentId: string,
-  reason: string
+  reason: string,
 ): Promise<Result> {
   const { s, userId } = await requireAdmin();
 
@@ -189,7 +184,10 @@ export async function retryCapture(
   if (!pay.stripe_payment_ref)
     return { ok: false, message: "No Stripe reference on this payment." };
   if (!["authorised", "capture_failed"].includes(pay.status))
-    return { ok: false, message: `Nothing to capture — status is ${pay.status}.` };
+    return {
+      ok: false,
+      message: `Nothing to capture — status is ${pay.status}.`,
+    };
 
   // Durable identity. The same logical capture, however many attempts.
   const key = `capture:booking:${pay.booking_id}`;
@@ -205,7 +203,8 @@ export async function retryCapture(
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Could not claim capture",
+      message:
+        error instanceof Error ? error.message : "Could not claim capture",
     };
   }
   if (!claim?.should_run)
@@ -221,7 +220,8 @@ export async function retryCapture(
   try {
     await transitionPayment(s, paymentId, "capturing", { reason });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Transition failed";
+    const message =
+      error instanceof Error ? error.message : "Transition failed";
     await opFailed(opId, message);
     return { ok: false, message };
   }
@@ -232,7 +232,7 @@ export async function retryCapture(
       stripe,
       pay.stripe_payment_ref,
       { metadata: { operation_key: key, booking_id: pay.booking_id } },
-      { idempotencyKey: key }
+      { idempotencyKey: key },
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Capture failed";
@@ -270,7 +270,9 @@ export async function retryCapture(
   if (pi.status !== "succeeded") {
     const message = `Stripe returned ${pi.status}`;
     await opFailed(opId, message);
-    await transitionPayment(s, paymentId, "capture_failed", { reason: message });
+    await transitionPayment(s, paymentId, "capture_failed", {
+      reason: message,
+    });
     return { ok: false, message: `Capture did not succeed (${pi.status}).` };
   }
 
@@ -278,11 +280,12 @@ export async function retryCapture(
     await opSucceeded(opId, pi.id);
     await transitionPayment(s, paymentId, "succeeded", { reason });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Local update failed";
+    const message =
+      error instanceof Error ? error.message : "Local update failed";
     await opAmbiguous(
       opId,
       `Stripe capture ${pi.id} succeeded but local finalisation failed: ${message}`,
-      pi.id
+      pi.id,
     ).catch(() => undefined);
     return {
       ok: false,
@@ -310,7 +313,7 @@ export async function retryCapture(
  * ========================================================================== */
 export async function retryTransfer(
   payoutId: string,
-  reason: string
+  reason: string,
 ): Promise<Result> {
   const { s, userId } = await requireAdmin();
 
@@ -334,10 +337,21 @@ export async function retryTransfer(
       const result = await settleTipPayout(po.payment_id, userId);
       refreshAdmin();
       return result.payoutSettled
-        ? { ok: true, message: `Sent £${Number(po.amount).toFixed(2)} tip to the assigned cleaner.` }
-        : { ok: false, message: "No tip transfer was sent. Check the payout hold and review case." };
+        ? {
+            ok: true,
+            message: `Sent £${Number(po.amount).toFixed(2)} tip to the assigned cleaner.`,
+          }
+        : {
+            ok: false,
+            message:
+              "No tip transfer was sent. Check the payout hold and review case.",
+          };
     } catch (error) {
-      return { ok: false, message: error instanceof Error ? error.message : "Tip transfer needs review." };
+      return {
+        ok: false,
+        message:
+          error instanceof Error ? error.message : "Tip transfer needs review.",
+      };
     }
   }
 
@@ -346,16 +360,31 @@ export async function retryTransfer(
     .select("subscription_id")
     .eq("id", po.booking_id)
     .maybeSingle();
-  if (bookingError || !booking) return { ok: false, message: bookingError?.message ?? "Booking not found." };
+  if (bookingError || !booking)
+    return {
+      ok: false,
+      message: bookingError?.message ?? "Booking not found.",
+    };
   if (!booking.subscription_id) {
     try {
       const result = await settleCompletedVisitPayout(po.booking_id, userId);
       refreshAdmin();
       return result.payoutSettled
-        ? { ok: true, message: `Sent £${result.earned.toFixed(2)} to the assigned cleaner.` }
-        : { ok: false, message: "No transfer was sent. Check the payout hold and review case." };
+        ? {
+            ok: true,
+            message: `Sent £${result.earned.toFixed(2)} to the assigned cleaner.`,
+          }
+        : {
+            ok: false,
+            message:
+              "No transfer was sent. Check the payout hold and review case.",
+          };
     } catch (error) {
-      return { ok: false, message: error instanceof Error ? error.message : "Transfer needs review." };
+      return {
+        ok: false,
+        message:
+          error instanceof Error ? error.message : "Transfer needs review.",
+      };
     }
   }
 
@@ -387,7 +416,8 @@ export async function retryTransfer(
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Could not claim transfer",
+      message:
+        error instanceof Error ? error.message : "Could not claim transfer",
     };
   }
   if (!claim?.should_run)
@@ -403,7 +433,8 @@ export async function retryTransfer(
   try {
     await transitionPayout(s, payoutId, "processing", { reason });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Transition failed";
+    const message =
+      error instanceof Error ? error.message : "Transition failed";
     await opFailed(opId, message);
     return { ok: false, message };
   }
@@ -422,7 +453,7 @@ export async function retryTransfer(
           payout_id: payoutId,
         },
       },
-      { idempotencyKey: key }
+      { idempotencyKey: key },
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Transfer failed";
@@ -454,11 +485,12 @@ export async function retryTransfer(
 
     await transitionPayout(s, payoutId, "paid", { reason });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Local update failed";
+    const message =
+      error instanceof Error ? error.message : "Local update failed";
     await opAmbiguous(
       opId,
       `Stripe transfer ${transfer.id} succeeded but local finalisation failed: ${message}`,
-      transfer.id
+      transfer.id,
     ).catch(() => undefined);
     return {
       ok: false,
@@ -475,7 +507,7 @@ export async function retryTransfer(
  * ========================================================================== */
 export async function releasePayoutHold(
   payoutId: string,
-  reason: string
+  reason: string,
 ): Promise<Result> {
   const { s } = await requireAdmin();
   if (!reason?.trim()) return { ok: false, message: "Give a reason." };
@@ -525,7 +557,7 @@ export async function releasePayoutHold(
 export async function issueRefund(
   caseId: string,
   amount: number,
-  reason: string
+  reason: string,
 ): Promise<Result> {
   const { s, userId } = await requireAdmin();
 
@@ -537,16 +569,17 @@ export async function issueRefund(
 
   const { data: rc, error: caseError } = await s
     .from("review_cases")
-    .select(
-      "id, booking_id, status, resolution_amount, resolution_currency"
-    )
+    .select("id, booking_id, status, resolution_amount, resolution_currency")
     .eq("id", caseId)
     .maybeSingle();
 
   if (caseError) return { ok: false, message: caseError.message };
   if (!rc) return { ok: false, message: "Case not found." };
   if (rc.status !== "resolved")
-    return { ok: false, message: "Resolve the case and approve an amount first." };
+    return {
+      ok: false,
+      message: "Resolve the case and approve an amount first.",
+    };
   if (rc.resolution_currency !== "gbp")
     return { ok: false, message: "Only GBP refunds are supported." };
 
@@ -585,14 +618,14 @@ export async function issueRefund(
 
   const refundedForCasePence = (priorOps ?? []).reduce(
     (sum, operation) => sum + Math.round(Number(operation.amount) * 100),
-    0
+    0,
   );
   const approvalRemaining = approvedPence - refundedForCasePence;
   if (amountPence > approvalRemaining)
     return {
       ok: false,
       message: `Refund exceeds the £${(approvalRemaining / 100).toFixed(
-        2
+        2,
       )} remaining approval.`,
     };
 
@@ -600,12 +633,15 @@ export async function issueRefund(
   try {
     paymentIntent = await stripe.paymentIntents.retrieve(
       pay.stripe_payment_ref,
-      { expand: ["latest_charge"] }
+      { expand: ["latest_charge"] },
     );
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Could not read Stripe payment",
+      message:
+        error instanceof Error
+          ? error.message
+          : "Could not read Stripe payment",
     };
   }
 
@@ -637,7 +673,8 @@ export async function issueRefund(
   } catch (error) {
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Could not claim refund",
+      message:
+        error instanceof Error ? error.message : "Could not claim refund",
     };
   }
   if (!claim?.should_run)
@@ -651,7 +688,8 @@ export async function issueRefund(
       reason: `${reason} (case ${caseId}, seq ${seq})`,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Transition failed";
+    const message =
+      error instanceof Error ? error.message : "Transition failed";
     await opFailed(opId, message);
     return { ok: false, message };
   }
@@ -668,7 +706,7 @@ export async function issueRefund(
           booking_id: rc.booking_id ?? "",
         },
       },
-      { idempotencyKey: key }
+      { idempotencyKey: key },
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Refund failed";
@@ -702,7 +740,7 @@ export async function issueRefund(
     await opAmbiguous(
       opId,
       `Stripe refund ${refund.id} is ${refund.status}`,
-      refund.id
+      refund.id,
     );
     return {
       ok: false,
@@ -719,14 +757,15 @@ export async function issueRefund(
       s,
       pay.id,
       fullyRefunded ? "refunded" : "partially_refunded",
-      { reason }
+      { reason },
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Local update failed";
+    const message =
+      error instanceof Error ? error.message : "Local update failed";
     await opAmbiguous(
       opId,
       `Stripe refund ${refund.id} succeeded but local finalisation failed: ${message}`,
-      refund.id
+      refund.id,
     ).catch(() => undefined);
     return {
       ok: false,
@@ -758,7 +797,7 @@ export async function closeCase(
   caseId: string,
   outcome: string,
   notes: string,
-  amount?: number
+  amount?: number,
 ): Promise<Result> {
   const { s } = await requireAdmin();
   if (!outcome?.trim()) return { ok: false, message: "Give an outcome." };
@@ -791,7 +830,10 @@ export async function closeCase(
       .maybeSingle();
 
     if (payoutError)
-      return { ok: false, message: `Case closed, but payout check failed: ${payoutError.message}` };
+      return {
+        ok: false,
+        message: `Case closed, but payout check failed: ${payoutError.message}`,
+      };
 
     if (po?.status === "held") {
       extra =
@@ -801,7 +843,8 @@ export async function closeCase(
         await maybeReleasePayout(admin, bookingId);
         extra = " Payout readiness re-checked.";
       } catch (error) {
-        const message = error instanceof Error ? error.message : "unknown error";
+        const message =
+          error instanceof Error ? error.message : "unknown error";
         extra = ` Payout readiness check needs attention: ${message}`;
       }
     }
@@ -824,7 +867,7 @@ export async function ackFinding(findingId: string): Promise<Result> {
 export async function closeFinding(
   findingId: string,
   outcome: string,
-  falsePositive = false
+  falsePositive = false,
 ): Promise<Result> {
   const { s } = await requireAdmin();
   if (!outcome?.trim()) return { ok: false, message: "Say what was done." };

@@ -1,24 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/adminSession";
 import { isFaqCategory } from "@/lib/faqs";
 
 async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") throw new Error("Administrators only");
-
-  return { supabase, user };
+  return requireAdminPage();
 }
 
 function faqValues(formData: FormData) {
@@ -64,7 +51,10 @@ export async function createFaq(formData: FormData) {
 
 export async function updateFaq(id: string, formData: FormData) {
   const { supabase } = await requireAdmin();
-  const { error } = await supabase.from("faqs").update(faqValues(formData)).eq("id", id);
+  const { error } = await supabase
+    .from("faqs")
+    .update(faqValues(formData))
+    .eq("id", id);
   if (error) throw new Error(error.message);
   refreshFaqs();
 }

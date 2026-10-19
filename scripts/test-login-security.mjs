@@ -38,6 +38,7 @@ async function load(relativePath, mocks, env = process.env) {
           };
         if (id === "@/lib/professionalServices") return services;
         if (id === "@/lib/authReturn") return authReturn;
+        if (id === "@/lib/staffMfa") return staffMfa;
         if (id === "@/lib/handymanMarketplace")
           return {
             handymanEnabled: () => env.HANDYMAN_MARKETPLACE_ENABLED === "true",
@@ -56,6 +57,7 @@ async function load(relativePath, mocks, env = process.env) {
 
 const services = await load("lib/professionalServices.ts", {});
 const authReturn = await load("lib/authReturn.ts", {});
+const staffMfa = await load("lib/staffMfa.ts", {});
 
 const redirect = (location) => {
   throw new Error("redirect:" + location);
@@ -66,9 +68,14 @@ function client({
   profile = null,
   authError = null,
   profileError = null,
+  claims = { aal: "aal2", amr: [{ method: "totp" }] },
+  claimsError = null,
 } = {}) {
   return {
-    auth: { getUser: async () => ({ data: { user }, error: authError }) },
+    auth: {
+      getUser: async () => ({ data: { user }, error: authError }),
+      getClaims: async () => ({ data: { claims }, error: claimsError }),
+    },
     from: () => ({
       select: () => ({
         eq: () => ({
@@ -136,7 +143,10 @@ test("client, professional, missing, deleted and failed profile lookups are refu
 
 test("active administrator can enter and the shared admin layout enforces the guard", async () => {
   const guard = await session({
-    user: { id: "admin" },
+    user: {
+      id: "admin",
+      factors: [{ factor_type: "totp", status: "verified" }],
+    },
     profile: { role: "admin", full_name: "Admin", account_deleted_at: null },
   });
   assert.equal((await guard.requireAdminPage()).user.id, "admin");
@@ -174,6 +184,32 @@ test("old admin login redirects to the separate staff login", async () => {
     "next/navigation": { redirect },
   });
   assert.throws(LegacyLogin, /redirect:\/staff\/login$/);
+});
+
+test("staff password-only, phone-only, missing, revoked or unverified TOTP sessions cannot open admin", async () => {
+  for (const fixture of [
+    { claims: { aal: "aal1", amr: [{ method: "password" }] } },
+    { claims: { aal: "aal2", amr: [{ method: "phone" }] } },
+    { claims: null },
+    { claimsError: new Error("invalid signature") },
+    { user: { id: "admin", factors: [] } },
+    {
+      user: {
+        id: "admin",
+        factors: [{ factor_type: "totp", status: "unverified" }],
+      },
+    },
+  ]) {
+    const guard = await session({
+      user: {
+        id: "admin",
+        factors: [{ factor_type: "totp", status: "verified" }],
+      },
+      profile: { role: "admin" },
+      ...fixture,
+    });
+    await assert.rejects(guard.requireAdminPage(), /redirect:\/staff\/mfa$/);
+  }
 });
 
 const enabledPreview = {
@@ -239,6 +275,14 @@ const pureDependencies = {
   "next/cache": { revalidatePath: () => {} },
 };
 
+async function adminSessionFor(signedIn) {
+  return load("lib/adminSession.ts", {
+    "server-only": {},
+    "next/navigation": { redirect },
+    "@/lib/supabase/server": { createClient: async () => signedIn },
+  });
+}
+
 test("each destructive admin action refuses production before reading or mutating activity", async () => {
   for (const env of [
     { ...enabledPreview, VERCEL_ENV: "production" },
@@ -247,7 +291,10 @@ test("each destructive admin action refuses production before reading or mutatin
     { ...enabledPreview, DEVELOPMENT_TOOLS_ENABLED: undefined },
   ]) {
     const signedIn = client({
-      user: { id: "admin" },
+      user: {
+        id: "admin",
+        factors: [{ factor_type: "totp", status: "verified" }],
+      },
       profile: { role: "admin" },
     });
     const from = signedIn.from;
@@ -259,6 +306,7 @@ test("each destructive admin action refuses production before reading or mutatin
       "app/admin/actions.ts",
       {
         ...pureDependencies,
+        "@/lib/adminSession": await adminSessionFor(signedIn),
         "@/lib/supabase/server": { createClient: async () => signedIn },
         "@supabase/supabase-js": {
           createClient: () => ({
@@ -284,7 +332,10 @@ test("prototype reconciliation cleanup is blocked on production and retains live
     const closed = [];
     let resetReads = 0;
     const signedIn = client({
-      user: { id: "admin" },
+      user: {
+        id: "admin",
+        factors: [{ factor_type: "totp", status: "verified" }],
+      },
       profile: { role: "admin" },
     });
     const from = signedIn.from;
@@ -313,6 +364,7 @@ test("prototype reconciliation cleanup is blocked on production and retains live
       "app/admin/resolution-actions.ts",
       {
         ...pureDependencies,
+        "@/lib/adminSession": await adminSessionFor(signedIn),
         stripe: {
           default: class {
             transfers = {
@@ -432,6 +484,9 @@ test("production admin pages omit development tools even for an administrator", 
   };
   const component = () => null;
   const mocks = {
+    "@/lib/adminSession": {
+      requireAdminPage: async () => ({ supabase: database }),
+    },
     "@/lib/developmentTools": tools,
     "@/lib/supabase/server": { createClient: async () => database },
     "next/link": {

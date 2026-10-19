@@ -26,11 +26,12 @@ export default function AdminLoginPage() {
     setBusy(true);
     setError(null);
     const supabase = createClient();
-    const { data, error: signInError } =
-      await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword(
+      {
         email: email.trim(),
         password,
-      });
+      },
+    );
 
     if (signInError || !data.user) {
       setError("The admin email or password is incorrect.");
@@ -51,7 +52,7 @@ export default function AdminLoginPage() {
       return;
     }
 
-    window.location.href = "/admin";
+    window.location.href = "/staff/mfa";
   }
 
   return (
@@ -66,7 +67,8 @@ export default function AdminLoginPage() {
         <p className="eyebrow">Restricted access</p>
         <h1>Admin login</h1>
         <p className="lede">
-          Sign in with an authorised administrator account to manage operations.
+          Sign in with your staff password, then confirm the code from your
+          authenticator app.
         </p>
 
         <label htmlFor="admin-email">Admin email</label>
@@ -93,9 +95,8 @@ export default function AdminLoginPage() {
         </button>
         {error && <p className="error">{error}</p>}
         <p className="security">
-          Access is checked against the administrator role stored in the
-          database. Client and cleaner accounts are refused even with a valid
-          password.
+          Authenticator sign-in is required for every staff account. If you have
+          not set it up, you must do so before opening the admin area.
         </p>
       </section>
 
