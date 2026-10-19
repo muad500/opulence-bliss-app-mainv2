@@ -43,14 +43,12 @@ async function person(
   );
   users.push(user.id);
   await need(
-    admin
-      .from("profiles")
-      .upsert({
-        id: user.id,
-        role,
-        email,
-        full_name: "[TEST ONLY] Security check",
-      }),
+    admin.from("profiles").upsert({
+      id: user.id,
+      role,
+      email,
+      full_name: "[TEST ONLY] Security check",
+    }),
   );
   return { id: user.id, email, password };
 }
@@ -130,26 +128,22 @@ try {
   );
   check((await count()) === before, "Unchanged values do not queue alerts");
   await need(
-    admin
-      .from("account_profile_details")
-      .upsert({
-        user_id: customer.id,
-        photo_url: "https://example.invalid/test-photo.png",
-      }),
+    admin.from("account_profile_details").upsert({
+      user_id: customer.id,
+      photo_url: "https://example.invalid/test-photo.png",
+    }),
   );
   check((await count()) === before + 1, "Saved photo change queues an alert");
   before = await count();
   const address = randomUUID();
   await need(
-    admin
-      .from("customer_addresses")
-      .insert({
-        id: address,
-        user_id: customer.id,
-        line1: "Fictional test address",
-        city: "London",
-        postcode: "SW1A 1AA",
-      }),
+    admin.from("customer_addresses").insert({
+      id: address,
+      user_id: customer.id,
+      line1: "Fictional test address",
+      city: "London",
+      postcode: "SW1A 1AA",
+    }),
   );
   await need(
     admin
@@ -165,14 +159,12 @@ try {
   before = await count();
   const provider = randomUUID();
   await need(
-    admin
-      .from("providers")
-      .insert({
-        id: provider,
-        profile_id: customer.id,
-        services: ["cleaning"],
-        display_name: "[TEST ONLY] Security provider",
-      }),
+    admin.from("providers").insert({
+      id: provider,
+      profile_id: customer.id,
+      services: ["cleaning"],
+      display_name: "[TEST ONLY] Security provider",
+    }),
   );
   await need(
     admin
@@ -186,6 +178,16 @@ try {
   check(
     (await count()) === before + 1,
     "Saved payout account/schedule change queues an alert",
+  );
+  before = await count();
+  await need(
+    admin
+      .from("provider_profile_settings")
+      .upsert({ provider_id: provider, home_postcode: "SE10 0DX" }),
+  );
+  check(
+    (await count()) === before + 1,
+    "First saved professional home address queues an alert",
   );
   before = await count();
   await need(

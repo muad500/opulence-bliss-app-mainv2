@@ -27,7 +27,8 @@ Staging sends only to exact addresses in `STAGING_EMAIL_RECIPIENTS`; all other
 recipients are held, never rerouted to another person.
 
 Apply `20261019000200_account_security_alerts.sql`, then
-`20261019000300_require_staff_totp.sql` on staging only. Deploy the staging branch,
+`20261019000300_require_staff_totp.sql` and
+`20261019000400_account_security_phone_and_first_address.sql` on staging only. Deploy the staging branch,
 then install `supabase/staging/account-security-alert-schedule.sql`. It reuses
 existing private cron credentials and deployment protection remains enabled.
 `/api/cron/account-security-alerts` requires the cron bearer credential.
