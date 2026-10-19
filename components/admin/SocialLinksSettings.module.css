@@ -1,0 +1,77 @@
+.panel {
+  margin-top: 48px;
+  padding-top: 28px;
+  border-top: 1px solid #e6ddee;
+}
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 25px;
+  font-weight: 900;
+}
+.panel p {
+  line-height: 1.6;
+  color: #58616d;
+}
+.panel fieldset {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  border: 0;
+  margin: 20px 0;
+  padding: 0;
+}
+.panel label {
+  display: grid;
+  gap: 7px;
+  font-weight: 800;
+  min-width: 0;
+}
+.panel input {
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid #d8d0e2;
+  border-radius: 10px;
+  background: #fff;
+  color: #18232d;
+  font: inherit;
+}
+.panel input:focus-visible {
+  outline: 2px solid #7b2ff7;
+  outline-offset: 2px;
+}
+.panel button {
+  padding: 12px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #6d28d9;
+  color: #fff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.panel button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.panel .error {
+  color: #b42336;
+}
+.panel .success {
+  color: #186b43;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .panel fieldset {
+    grid-template-columns: 1fr;
+  }
+}

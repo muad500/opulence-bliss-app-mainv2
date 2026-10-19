@@ -1185,8 +1185,3 @@ dd,
     max-height: calc(100dvh - 108px - env(safe-area-inset-bottom)) !important;
   }
 }
-
-[data-social-footer] {
-  background: #f9f7fc;
-  border-top: 1px solid #eee6f8;
-}
