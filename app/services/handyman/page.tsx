@@ -69,11 +69,24 @@ const TASK_OPTIONS = [
 ];
 
 export default function HandymanPage() {
+  const [quoteMarketplace, setQuoteMarketplace] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void fetch("/api/handyman/config")
+      .then((r) => r.json())
+      .then((d) => {
+        if (active) setQuoteMarketplace(d.enabled === true);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   const [taskType, setTaskType] = useState("");
   const [quoteProfessional, setQuoteProfessional] = useState<{
     id: string;
     displayName: string;
-    rates: { task_name: string; hourly_rate_pence: number }[];
+    tasks: string[];
   } | null>(null);
   const [professionalLoading, setProfessionalLoading] = useState(false);
   const [requestedProfessionalError, setRequestedProfessionalError] = useState<
@@ -95,12 +108,7 @@ export default function HandymanPage() {
           throw new Error(info.error ?? "This professional is unavailable.");
         setQuoteProfessional(info);
         const task = params.get("task");
-        if (
-          info.rates.some(
-            (rate: { task_name: string }) => rate.task_name === task,
-          )
-        )
-          setTaskType(task!);
+        if (info.tasks.includes(task)) setTaskType(task!);
       } catch (cause) {
         setRequestedProfessionalError(
           cause instanceof Error
@@ -329,7 +337,20 @@ export default function HandymanPage() {
             </ol>
           </div>
 
-          {quoteAccess === "loading" ? (
+          {quoteMarketplace ? (
+            <div className="accessGate">
+              <h2>Compare fixed quotes</h2>
+              <p>
+                Post your category, description, photos, postcode and preferred
+                dates. Approved professionals can send a total including
+                materials or propose a free site visit. Pay only when you accept
+                a quote.
+              </p>
+              <Link className="primary" href="/handyman">
+                Post your job →
+              </Link>
+            </div>
+          ) : quoteAccess === "loading" ? (
             <div className="accessGate" aria-live="polite">
               <span className="gateMark">•••</span>
               <h2>Checking your account</h2>
@@ -449,9 +470,9 @@ export default function HandymanPage() {
                 >
                   <option value="">Choose a task</option>
                   {(quoteProfessional
-                    ? quoteProfessional.rates.map((rate) => ({
-                        value: rate.task_name,
-                        label: handymanTaskLabel(rate.task_name),
+                    ? quoteProfessional.tasks.map((task) => ({
+                        value: task,
+                        label: handymanTaskLabel(task),
                       }))
                     : TASK_OPTIONS
                   ).map((task) => (

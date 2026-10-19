@@ -24,21 +24,21 @@ export async function GET(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
-  const [provider, rates] = await Promise.all([
+  const [provider, tasks] = await Promise.all([
     admin
       .from("providers")
       .select("display_name,services")
       .eq("id", id)
       .single(),
     admin
-      .from("provider_task_rates")
-      .select("task_name,hourly_rate_pence")
+      .from("provider_profile_settings")
+      .select("maintenance_tasks")
       .eq("provider_id", id)
-      .order("task_name"),
+      .maybeSingle(),
   ]);
-  if (provider.error || rates.error)
+  if (provider.error || tasks.error)
     return NextResponse.json(
-      { error: "Rates could not be loaded." },
+      { error: "Services could not be loaded." },
       { status: 503 },
     );
   if (!provider.data.services?.includes("handyman"))
@@ -47,7 +47,11 @@ export async function GET(
       { status: 404 },
     );
   return NextResponse.json(
-    { id, displayName: provider.data.display_name, rates: (rates.data ?? []).map((rate) => ({ task_name: rate.task_name })) },
+    {
+      id,
+      displayName: provider.data.display_name,
+      tasks: tasks.data?.maintenance_tasks ?? [],
+    },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

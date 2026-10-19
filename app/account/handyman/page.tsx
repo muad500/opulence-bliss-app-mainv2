@@ -23,7 +23,7 @@ export default async function CustomerHandymanBookings() {
     <main className={styles.page}>
       <header className={styles.header}>
         <h1>Property maintenance bookings</h1>
-        <Link href="/handyman">Book a property maintenance →</Link>
+        <Link href="/handyman">Post a property maintenance job →</Link>
       </header>
       <div className={styles.cards}>
         {jobs?.map((job) => (
@@ -37,11 +37,13 @@ export default async function CustomerHandymanBookings() {
             </span>
             <h2>{handymanTaskLabel(job.task_name)}</h2>
             <p>
-              {new Date(job.scheduled_at).toLocaleString("en-GB", {
-                timeZone: "Europe/London",
-                dateStyle: "medium",
-                timeStyle: "short",
-              })}
+              {job.scheduled_at
+                ? new Date(job.scheduled_at).toLocaleString("en-GB", {
+                    timeZone: "Europe/London",
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })
+                : "Compare fixed quotes before choosing a date"}
             </p>
           </Link>
         ))}

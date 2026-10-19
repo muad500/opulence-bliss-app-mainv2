@@ -6,6 +6,7 @@ import { requireAdminPage } from "@/lib/adminSession";
 import DeskControls, { PrototypeFindingsCleanup } from "./DeskControls";
 import AdminNav from "../AdminNav";
 import { developmentToolsEnabled } from "@/lib/developmentTools";
+import HandymanQuoteAdmin from "@/components/admin/HandymanQuoteAdmin";
 
 function money(n: number | null | undefined) {
   return n === null || n === undefined ? "—" : "£" + Number(n).toFixed(2);
@@ -162,6 +163,7 @@ export default async function ReviewDeskPage() {
         style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 22px 80px" }}
       >
         <h1 style={h1}>Resolution desk</h1>
+        <HandymanQuoteAdmin preview />
         <p style={lede}>
           Nothing here changes on its own. Read the evidence, then act — every
           action is recorded against your account.
