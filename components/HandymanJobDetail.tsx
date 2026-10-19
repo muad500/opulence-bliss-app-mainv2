@@ -1,4 +1,5 @@
 "use client";
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { HandymanJob } from "@/lib/handymanServer";
@@ -179,7 +180,7 @@ export default function HandymanJobDetail({
             <span className={styles.status}>
               {j.status.replaceAll("_", " ")}
             </span>
-            <h1>{j.task_name}</h1>
+            <h1>{handymanTaskLabel(j.task_name)}</h1>
             <p>
               Professional: <strong>{detail.professionalName}</strong>
             </p>

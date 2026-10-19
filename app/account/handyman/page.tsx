@@ -1,3 +1,4 @@
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { privatePortalClient } from "@/lib/professionalPortal";
@@ -34,7 +35,7 @@ export default async function CustomerHandymanBookings() {
             <span className={styles.badge}>
               {job.status.replaceAll("_", " ")}
             </span>
-            <h2>{job.task_name}</h2>
+            <h2>{handymanTaskLabel(job.task_name)}</h2>
             <p>
               {new Date(job.scheduled_at).toLocaleString("en-GB", {
                 timeZone: "Europe/London",

@@ -23,7 +23,7 @@ export default function HandymanPartnerPage() {
         <p className={styles.eyebrow}>Work with Opulence Bliss</p>
         <h1>Join as a property maintenance professional</h1>
         <p className={styles.lede}>
-          Offer repairs, furniture assembly, mounting and minor decorating
+          Offer repairs, furniture assembly, mounting, painting and decoration
           across London as a self-employed professional.
         </p>
         <h2>Tell us about your work</h2>

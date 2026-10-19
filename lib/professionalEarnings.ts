@@ -1,4 +1,4 @@
-import { handymanBill } from "./handymanMarketplace";
+import { handymanBill, handymanTaskLabel } from "./handymanMarketplace";
 
 export type HandymanEarning = {
   id: string;
@@ -40,7 +40,7 @@ export function handymanEarnings(jobs: HandymanEarning[]) {
     })),
     rows: [...paid, ...pending].map((job) => ({
       key: `handyman-${job.id}`,
-      service: `Handyman · ${job.task_name}`,
+      service: `Handyman · ${handymanTaskLabel(job.task_name)}`,
       when: job.scheduled_at,
       label: job.bill
         ? "professional payout, including approved materials and VAT"

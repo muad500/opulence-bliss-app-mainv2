@@ -1,4 +1,5 @@
 "use client";
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 
 // Become a provider — sign up, then complete the approval process.
 // Save at: app/provider/join/page.tsx  →  localhost:3000/provider/join
@@ -1314,7 +1315,7 @@ export default function ProviderJoinPage() {
                               })
                             }
                           />
-                          {task}
+                          {handymanTaskLabel(task)}
                         </label>
                       </div>
                     ))}

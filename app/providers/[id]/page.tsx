@@ -1,3 +1,4 @@
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
@@ -222,7 +223,7 @@ export default async function PublicProviderPage({
                     <Link
                       href={`/services/handyman?provider=${id}&task=${encodeURIComponent(rate.task_name)}#quote`}
                     >
-                      {rate.task_name}
+                      {handymanTaskLabel(rate.task_name)}
                     </Link>
                   </li>
                 ))}

@@ -14,6 +14,12 @@ const compiled = ts.transpileModule(source, {
   }
 }).outputText;
 
+const marketplace = {};
+vm.runInNewContext(ts.transpileModule(
+  await readFile(new URL('../lib/handymanMarketplace.ts', import.meta.url), 'utf8'),
+  { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }
+).outputText, { exports: marketplace });
+
 function harness(overrides = {}) {
   let now = Date.UTC(2026, 9, 3, 12);
   const j = {
@@ -170,7 +176,7 @@ function harness(overrides = {}) {
     if (name === 'next/server') return { NextResponse: {} };
     if (name === '@/lib/accountApi') return {};
     if (name === '@/lib/handymanMarketplace')
-      return { handymanEnabled: () => true };
+      return { ...marketplace, handymanEnabled: () => true };
     if (name === '@/lib/accountBilling')
       return { getOrCreateBillingCustomer: async () => 'cus_owned' };
     throw new Error('Unexpected import ' + name);
