@@ -32,6 +32,10 @@ Apply `20261019000200_account_security_alerts.sql`, then
 then install `supabase/staging/account-security-alert-schedule.sql`. It reuses
 existing private cron credentials and deployment protection remains enabled.
 `/api/cron/account-security-alerts` requires the cron bearer credential.
+The transport audit confirmed that Supabase's `net` schema is not exposed through
+the browser database API (`PGRST106`), and browser roles cannot read Vault secrets
+or the account-security outbox. The pg_net tables are provider-owned; no provider
+permissions or existing transport credentials were changed.
 
 ## Mandatory staff authenticator
 
@@ -61,3 +65,25 @@ Inspect private outbox counts/statuses rather than logging recipients or message
 contents. A `sent` record confirms email-provider acceptance, not inbox delivery.
 Before any future Production rollout, separately approve migrations, install a
 Production scheduler, verify the email sender and confirm Connect subscriptions.
+
+## Staging release results — 19 October 2026
+
+- PR #33 merged into `codex/staging` only; deployed commit
+  `c1db49899ac220e7839fcf829dc959fe800e8555` is Ready.
+- Automated security tests, full application tests, TypeScript, changed-file lint
+  and the build passed. The initial placeholder-host build failed because the
+  app deliberately rejects unrecognised auth hosts; the staging-host build passed.
+- Real isolated-staging tests passed for saved-change alerts, address changes,
+  password changes, private outbox permissions, incorrect/valid TOTP, required
+  enrollment, password-only page/API denial, verified page/API access and factor
+  removal invalidating stale AAL2 privileges. Test-owned users were removed.
+- A pending email-change request queued no false alert. A confirmed change queued
+  separate alerts for the old/new Gmail test aliases; the email provider accepted
+  both, and a worker retry did not resend them. One initial invocation timed out;
+  the repeated end-to-end delivery check passed. Inbox arrival was not asserted.
+- The private background delivery schedule is enabled on staging. Other staging
+  recipients are held unless explicitly allowlisted; no customer mail test ran.
+- Still required: the Stripe owner must activate the staging Connect event
+  subscription and store its separate signing secret. Signed-event tests pass,
+  but live sandbox webhook delivery cannot be claimed until that setup is done.
+- Production branch and deployed application were not changed by this release.

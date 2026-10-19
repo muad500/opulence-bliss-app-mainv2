@@ -82,12 +82,17 @@ async function signIn(person) {
     cookie: () => [...jar].map(([k, v]) => `${k}=${v}`).join("; "),
   };
 }
-async function web(path, session) {
+async function web(path, session, method = "GET", body, extraHeaders = {}) {
   return fetch(root + path, {
+    method,
+    body: body ? JSON.stringify(body) : undefined,
     redirect: "manual",
     headers: {
       Cookie: session.cookie(),
       "x-vercel-protection-bypass": process.env.STAGING_VERCEL_BYPASS,
+      Origin: root,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...extraHeaders,
     },
     signal: AbortSignal.timeout(45000),
   });
@@ -190,6 +195,60 @@ try {
     "First saved professional home address queues an alert",
   );
   before = await count();
+  if (process.env.STAGING_VERCEL_BYPASS) {
+    const session = await signIn(customer);
+    const body = { profile: { phone: "+442079460952" } };
+    const unverified = await web(
+      "/api/account/profile",
+      session,
+      "PATCH",
+      body,
+    );
+    const challenge = await unverified.json();
+    check(
+      unverified.status === 428 && (await count()) === before,
+      "Unverified account edit is blocked and sends no change alert",
+    );
+    const signed = await session.client.auth.getSession();
+    const sessionId = JSON.parse(
+      Buffer.from(
+        signed.data.session.access_token.split(".")[1],
+        "base64url",
+      ).toString(),
+    ).session_id;
+    const proof = randomBytes(32).toString("hex");
+    // A test-owned verified challenge exercises the real one-use proof binding
+    // without sending SMS to a fictional fixture phone number.
+    await need(
+      admin.from("account_change_challenges").insert({
+        user_id: customer.id,
+        session_id: sessionId,
+        request_hash: challenge.requestHash,
+        code_hash: "unused-fixture-code",
+        grant_hash: createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY)
+          .update(proof)
+          .digest("hex"),
+        channel: "email",
+        sent: true,
+        verified_at: new Date().toISOString(),
+      }),
+    );
+    const updated = await web("/api/account/profile", session, "PATCH", body, {
+      "x-account-change-proof": proof,
+    });
+    check(
+      updated.status === 200 && (await count()) === before + 1,
+      "Verified account edit saves and queues its alert",
+    );
+    const reused = await web("/api/account/profile", session, "PATCH", body, {
+      "x-account-change-proof": proof,
+    });
+    check(
+      reused.status === 428 && (await count()) === before + 1,
+      "Used verification proof cannot change details or queue another alert",
+    );
+    before = await count();
+  }
   await need(
     admin.auth.admin.updateUserById(customer.id, {
       password: randomBytes(30).toString("hex") + "aA9!",
@@ -225,10 +284,19 @@ try {
   );
   if (process.env.STAGING_VERCEL_BYPASS) {
     const page = await web("/admin", session);
-    check(
+    const pageText = await page.text();
+    const httpRedirect =
       [303, 307, 308].includes(page.status) &&
-        new URL(page.headers.get("location"), root).pathname === "/staff/mfa",
-      "Password-only admin page redirects to authenticator setup",
+      new URL(page.headers.get("location"), root).pathname === "/staff/mfa";
+    const streamedRedirect =
+      page.status === 200 &&
+      (pageText.includes("NEXT_REDIRECT;replace;/staff/mfa;307;") ||
+        /<meta[^>]+http-equiv="refresh"[^>]+content="0;url=\/staff\/mfa"/.test(
+          pageText,
+        ));
+    check(
+      (httpRedirect || streamedRedirect) && !pageText.includes("Control panel"),
+      `Password-only admin page redirects to authenticator setup (HTTP ${page.status})`,
     );
     check(
       (await web("/api/admin/social-links", session)).status === 403,
