@@ -1,7 +1,7 @@
 // Explicit, synthetic F1 fixtures only. No Stripe calls and no customer mail.
 import assert from "node:assert/strict";
 import { readFileSync, writeFileSync } from "node:fs";
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 if (!process.argv.includes("--run-real-staging"))
@@ -767,7 +767,380 @@ async function guards() {
   );
 }
 
+async function edgeCases() {
+  async function booking(name, day, extra = {}) {
+    if (!state.bookings[name]) {
+      const when = new Date(Date.now() + day * 86400000);
+      when.setUTCHours(10, 0, 0, 0);
+      const row = await need(
+        admin
+          .from("bookings")
+          .insert({
+            customer_id: state.users.find((x) => x.kind === "customer").id,
+            package_id: state.package,
+            scheduled_at: when.toISOString(),
+            duration_minutes: 120,
+            status: "offered",
+            customer_email: null,
+            address: "[TEST ONLY F1] Fictional Place, ZE1 0AA",
+            household_notes: "F1 SYNTHETIC TEST ONLY " + name,
+            offer_expires_at: new Date(when - 2 * 3600000).toISOString(),
+            ...extra,
+          })
+          .select("id,scheduled_at")
+          .single(),
+      );
+      state.bookings[name] = row.id;
+      state[name + "Slot"] = row.scheduled_at;
+      save();
+    }
+    await need(
+      admin.rpc("system_initialize_booking_offer_queue", {
+        p_booking_id: state.bookings[name],
+        p_provider_ids: [],
+      }),
+    );
+    return need(
+      admin.rpc("system_rotate_booking_offer", {
+        p_booking_id: state.bookings[name],
+      }),
+    );
+  }
+  const provider = state.providers[7],
+    client = await signed(provider);
+  await booking("freshChecks", 14);
+  if (!state.freshCheckDone) {
+    const doc = await need(
+      admin
+        .from("provider_verification_items")
+        .select("expires_at")
+        .eq("provider_id", provider)
+        .eq("document_type", "public_liability_insurance")
+        .single(),
+    );
+    try {
+      await need(
+        admin
+          .from("provider_verification_items")
+          .update({ expires_at: "2020-01-01" })
+          .eq("provider_id", provider)
+          .eq("document_type", "public_liability_insurance"),
+      );
+      const denied = await client.rpc("provider_accept_booking_time", {
+        p_booking_id: state.bookings.freshChecks,
+        p_selected_slot: state.freshChecksSlot,
+      });
+      check(
+        !!denied.error && /checks or working hours/.test(denied.error.message),
+        "Acceptance rechecks insurance after an offer was sent",
+      );
+    } finally {
+      await need(
+        admin
+          .from("provider_verification_items")
+          .update({ expires_at: doc.expires_at })
+          .eq("provider_id", provider)
+          .eq("document_type", "public_liability_insurance"),
+      );
+    }
+    state.freshCheckDone = true;
+    save();
+  }
+  if (!state.parallelCalendarDone) {
+    await booking("calendarRaceC", 18);
+    await booking("calendarRaceD", 18);
+    const pair = await Promise.all(
+      ["calendarRaceC", "calendarRaceD"].map((name) =>
+        client.rpc("provider_accept_booking_time", {
+          p_booking_id: state.bookings[name],
+          p_selected_slot: state[name + "Slot"],
+        }),
+      ),
+    );
+    check(
+      pair.filter((x) => !x.error).length === 1 &&
+        pair.filter((x) => !!x.error).length === 1,
+      "One cleaner accepting two overlapping jobs concurrently gets only one",
+    );
+    state.parallelCalendarDone = true;
+    save();
+  }
+  if (!state.pausedSeries) {
+    state.pausedSeries = (
+      await need(
+        admin
+          .from("regular_booking_series")
+          .insert({
+            customer_id: state.users.find((x) => x.kind === "customer").id,
+            package_id: state.package,
+            checkout_session_id: "F1-UNFUNDED-SESSION-" + state.run,
+            stripe_payment_ref: "F1-UNFUNDED-NO-PAYMENT-" + state.run,
+            frequency: "weekly",
+            total_amount: 60,
+            platform_amount: 30,
+            billing_paused: true,
+          })
+          .select("id")
+          .single(),
+      )
+    ).id;
+    save();
+  }
+  const paused = await booking("paused", 16, {
+    regular_series_id: state.pausedSeries,
+    regular_visit_number: 2,
+    booking_frequency: "weekly",
+  });
+  const pausedState = await snapshot("paused");
+  check(
+    paused.action === "paused" && pausedState.offers.length === 0,
+    "Paused regular series receives no offers or assignment",
+  );
+  const refused = await client.rpc("provider_accept_booking_time", {
+    p_booking_id: state.bookings.paused,
+    p_selected_slot: state.pausedSlot,
+  });
+  check(
+    !!refused.error,
+    "Cleaner cannot bypass a paused series by accepting directly",
+  );
+  if (!state.deadlineDone) {
+    await booking("deadline", 17);
+    await need(
+      admin.rpc("system_reschedule_booking", {
+        p_booking_id: state.bookings.deadline,
+        p_new_slot: new Date(
+          Math.floor((Date.now() + 90 * 60000) / 1800000) * 1800000,
+        ).toISOString(),
+        p_reason: "F1 synthetic two-hour deadline test",
+        p_meta: {},
+      }),
+    );
+    const ended = await need(
+      admin.rpc("system_rotate_booking_offer", {
+        p_booking_id: state.bookings.deadline,
+      }),
+    );
+    check(
+      ended.action === "hard_deadline" &&
+        (await snapshot("deadline")).offers.every((x) => x.status !== "open"),
+      "Two-hour unmatched deadline closes offers and blocks later waves",
+    );
+    state.deadlineDone = true;
+    save();
+  }
+  const ranks = await need(
+    admin.rpc("system_booking_offer_ranking", {
+      p_booking_id: state.bookings.eligibility,
+    }),
+  );
+  check(
+    ranks.some((x) => x.factors.acceptanceRate > 0.5) &&
+      ranks.some((x) => x.factors.acceptanceRate < 0.5),
+    "Acceptance history rewards acceptance and lowers declined-offer scores",
+  );
+  check(
+    ranks.filter((x) => x.factors.acceptanceRate === 0.5).length > 0,
+    "Losing the acceptance race does not lower acceptance rate",
+  );
+}
+
+async function finalChecks() {
+  const customer = state.users.find((x) => x.kind === "customer");
+  async function newBooking(name, day, extra = {}) {
+    if (state.bookings[name]) return state.bookings[name];
+    const slot = new Date(Date.now() + day * 86400000);
+    slot.setUTCHours(10, 0, 0, 0);
+    const row = await need(
+      admin
+        .from("bookings")
+        .insert({
+          customer_id: customer.id,
+          package_id: state.package,
+          scheduled_at: slot.toISOString(),
+          duration_minutes: 120,
+          status: "offered",
+          customer_email: null,
+          address: "[TEST ONLY F1] Fictional Place, ZE1 0AA",
+          household_notes: "F1 SYNTHETIC TEST ONLY " + name,
+          offer_expires_at: new Date(slot - 2 * 3600000).toISOString(),
+          ...extra,
+        })
+        .select("id")
+        .single(),
+    );
+    state.bookings[name] = row.id;
+    save();
+    return row.id;
+  }
+  if (!state.legacyChecksDone) {
+    const booking = await newBooking("legacyGuardFinal", 24);
+    await need(
+      admin.rpc("system_initialize_booking_offer_queue", {
+        p_booking_id: booking,
+        p_provider_ids: [],
+      }),
+    );
+    await need(
+      admin.rpc("system_rotate_booking_offer", { p_booking_id: booking }),
+    );
+    const run = await snapshot("legacyGuardFinal"),
+      outsider = state.providers.find(
+        (id) => !run.offers.some((o) => o.provider_id === id),
+      );
+    const other = await signed(outsider);
+    const inserted = await other
+      .from("booking_offers")
+      .insert({ booking_id: booking, provider_id: outsider, status: "open" });
+    check(
+      !!inserted.error,
+      "Cleaner cannot insert an offer to bypass wave ranking",
+    );
+    const bypass = await other.rpc("transition_booking", {
+      p_booking_id: booking,
+      p_to_status: "scheduled",
+      p_reason: null,
+      p_meta: {},
+    });
+    check(
+      !!bypass.error,
+      "Legacy transition cannot assign a cleaner without an offer",
+    );
+    const favourite = await signed(state.providers[7]);
+    try {
+      await need(
+        admin
+          .from("service_areas")
+          .update({ active: false })
+          .eq("id", state.area),
+      );
+      const stale = await favourite.rpc("transition_booking", {
+        p_booking_id: booking,
+        p_to_status: "scheduled",
+        p_reason: null,
+        p_meta: {},
+      });
+      check(
+        !!stale.error && /eligible|deadline/.test(stale.error.message),
+        "Legacy acceptance rechecks service-area eligibility",
+      );
+    } finally {
+      await need(
+        admin
+          .from("service_areas")
+          .update({ active: true })
+          .eq("id", state.area),
+      );
+    }
+    await need(
+      favourite.rpc("transition_booking", {
+        p_booking_id: booking,
+        p_to_status: "scheduled",
+        p_reason: null,
+        p_meta: {},
+      }),
+    );
+    check(
+      (await snapshot("legacyGuardFinal")).offers.filter(
+        (x) => x.status === "accepted",
+      ).length === 1,
+      "Eligible legacy acceptance still closes competing offers atomically",
+    );
+    state.legacyChecksDone = true;
+    save();
+  }
+  if (!state.assignedInsertDone) {
+    await newBooking("assignedInsert", 23, {
+      provider_id: state.providers[1],
+      status: "scheduled",
+    });
+    let blocked = false;
+    try {
+      await newBooking("assignedClash", 23, {
+        provider_id: state.providers[1],
+        status: "scheduled",
+      });
+    } catch (error) {
+      blocked = /clash/.test(error.message);
+    }
+    check(
+      blocked,
+      "Assigned-booking insert works, but a second overlapping insert rolls back",
+    );
+    state.assignedInsertDone = true;
+    save();
+  }
+  const ranking = () =>
+    need(
+      admin.rpc("system_booking_offer_ranking", {
+        p_booking_id: state.bookings.eligibility,
+      }),
+    );
+  const provider = state.providers[2];
+  if (!state.ratingDone) {
+    const before = (await ranking()).find((x) => x.provider_id === provider);
+    const original = await need(
+      admin.from("providers").select("rating_avg").eq("id", provider).single(),
+    );
+    try {
+      await need(
+        admin.from("providers").update({ rating_avg: 5 }).eq("id", provider),
+      );
+      const after = (await ranking()).find((x) => x.provider_id === provider);
+      check(
+        Number(after.score) > Number(before.score) &&
+          after.factors.rating === 5,
+        "A higher professional rating increases the ranking score",
+      );
+    } finally {
+      await need(
+        admin
+          .from("providers")
+          .update({ rating_avg: original.rating_avg })
+          .eq("id", provider),
+      );
+    }
+    state.ratingDone = true;
+    save();
+  }
+  if (!state.lateHistoryDone) {
+    const p = state.providers[3],
+      before = (await ranking()).find((x) => x.provider_id === p);
+    const booking = await newBooking("lateWithdrawal", 1, {
+      provider_id: p,
+      status: "scheduled",
+    });
+    const cleaner = await signed(p);
+    await need(
+      cleaner.rpc("transition_booking", {
+        p_booking_id: booking,
+        p_to_status: "offered",
+        p_reason: "F1 synthetic late withdrawal",
+        p_meta: { late: false },
+      }),
+    );
+    const after = (await ranking()).find((x) => x.provider_id === p);
+    check(
+      after.factors.lateCancellations ===
+        before.factors.lateCancellations + 1 &&
+        after.factors.reliability < before.factors.reliability,
+      "A late withdrawal lowers reliability even if the caller claims it was not late",
+    );
+    const replacement = await need(
+      admin.rpc("system_booking_offer_ranking", { p_booking_id: booking }),
+    );
+    check(
+      !replacement.some((x) => x.provider_id === p),
+      "A withdrawing cleaner is excluded from the replacement wave",
+    );
+    state.lateHistoryDone = true;
+    save();
+  }
+}
+
 if (process.argv.includes("--seed")) await seed();
 if (process.argv.includes("--test")) await test();
 if (process.argv.includes("--wave2")) await wave2();
 if (process.argv.includes("--guards")) await guards();
+if (process.argv.includes("--edge-cases")) await edgeCases();
+if (process.argv.includes("--final-checks")) await finalChecks();

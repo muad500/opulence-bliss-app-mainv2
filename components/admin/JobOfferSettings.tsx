@@ -100,6 +100,17 @@ export default function JobOfferSettings() {
         <p role="status">Loading offer settings…</p>
       )}
       <style jsx>{`
+        h2 {
+          margin: 0 0 12px;
+          font-size: 26px;
+          line-height: 1.25;
+          font-weight: 800;
+        }
+        p {
+          margin: 0 0 12px;
+          color: #617085;
+          line-height: 1.6;
+        }
         section {
           margin-top: 36px;
           border-top: 1px solid #e3ddef;

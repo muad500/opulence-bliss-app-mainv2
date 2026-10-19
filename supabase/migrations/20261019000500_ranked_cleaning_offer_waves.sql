@@ -152,10 +152,10 @@ begin
 end;
 $function$;
 
-create trigger cleaning_calendar_insert before insert on public.bookings
+create trigger cleaning_calendar_insert after insert on public.bookings
   for each row when (new.provider_id is not null and new.status::text = 'scheduled')
   execute function public.check_professional_offer_acceptance();
-create trigger cleaning_calendar_duration before update of duration_minutes on public.bookings
+create trigger cleaning_calendar_duration after update of duration_minutes on public.bookings
   for each row when (new.provider_id is not null and new.status::text = 'scheduled'
     and new.duration_minutes is distinct from old.duration_minutes)
   execute function public.check_professional_offer_acceptance();
@@ -194,6 +194,24 @@ as $function$
   );
 $function$;
 
+-- Legacy transition RPCs must not provide an alternative acceptance route
+-- around the wave endpoint's eligibility or two-hour matching deadline.
+create function public.guard_cleaning_wave_assignment()
+returns trigger language plpgsql security definer set search_path = public
+as $function$
+begin
+  perform pg_advisory_xact_lock(hashtextextended('professional-schedule:' || new.provider_id::text, 0));
+  if not public._cleaning_offer_qualified(new.provider_id, new.id, new.scheduled_at) then
+    raise exception 'This cleaning offer is no longer eligible or its matching deadline has passed';
+  end if;
+  return new;
+end;
+$function$;
+create trigger cleaning_wave_assignment before update of provider_id, status on public.bookings
+  for each row when (old.status::text = 'offered' and new.status::text = 'scheduled' and new.provider_id is not null)
+  execute function public.guard_cleaning_wave_assignment();
+revoke all on function public.guard_cleaning_wave_assignment() from public, anon, authenticated, service_role;
+
 create function public._rank_cleaning_offers(p_booking uuid)
 returns table(provider_id uuid, score numeric, factors jsonb)
 language sql stable security definer set search_path = public
@@ -218,7 +236,7 @@ as $function$
         join public.bookings cancelled on cancelled.id = e.booking_id
         where e.actor_id = p.profile_id and e.actor_kind = 'provider'
           and e.from_status in ('scheduled', 'needs_review')
-          and e.to_status in ('offered', 'cancelled', 'needs_review')
+          and e.to_status in ('offered', 'cancelled')
           and ((e.meta ->> 'late') = 'true' or e.created_at >= cancelled.scheduled_at - interval '24 hours')) as late_cancellations,
       (select count(distinct c.booking_id) from public.review_cases c
         join public.bookings missed on missed.id = c.booking_id
@@ -525,7 +543,7 @@ end;
 $function$;
 revoke all on function public.provider_decline_booking_offer(uuid) from public, anon;
 grant execute on function public.provider_decline_booking_offer(uuid) to authenticated;
-revoke update on public.booking_offers from authenticated;
+revoke insert, update, delete on public.booking_offers from public, anon, authenticated;
 
 create function public.process_ranked_job_offer_waves(p_limit integer default 100)
 returns jsonb language plpgsql security definer set search_path = public
