@@ -1,3 +1,15 @@
+export function chatMessageSite(env: Record<string, string | undefined>) {
+  if (env.NEXT_PUBLIC_SITE_URL) return env.NEXT_PUBLIC_SITE_URL;
+  // The live website already uses this canonical domain. Never use it as a
+  // fallback for Preview or the isolated staging database.
+  if (
+    env.VERCEL_ENV === "production" &&
+    !env.NEXT_PUBLIC_SUPABASE_URL?.includes("comwdjprdedmsnxtvuuk")
+  )
+    return "https://www.opulencebliss.com";
+  return undefined;
+}
+
 export function chatMessageMail(
   delivery: { sender_role: string; body: string; href: string },
   site: string,

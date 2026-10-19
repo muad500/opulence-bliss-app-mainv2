@@ -5,10 +5,10 @@ import {
   sendPrivateAccountMail,
 } from "@/lib/privateAccountMail";
 import { securityMailRecipientAllowed } from "@/lib/accountSecurityAlerts";
-import { chatMessageMail } from "@/lib/chatMessageMail";
+import { chatMessageMail, chatMessageSite } from "@/lib/chatMessageMail";
 
 export async function deliverChatMessageEmails(admin: SupabaseClient) {
-  const site = process.env.NEXT_PUBLIC_SITE_URL;
+  const site = chatMessageSite(process.env);
   if (!accountMailReady() || !site)
     throw new Error("Chat email is not configured");
   const claimed = await admin.rpc("claim_chat_message_emails", { p_limit: 2 });
