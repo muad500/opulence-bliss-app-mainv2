@@ -221,7 +221,7 @@ function runtime(db, { path = "/admin", guard, overview } = {}) {
               ? resolve(dirname(file), id)
               : null;
           if (candidate) {
-            const name = relative(root, candidate);
+            const name = relative(root, candidate).replaceAll("\\", "/");
             if (name === "app/admin/actions" || name === "app/admin/actions.ts")
               return {
                 deleteReview: () => {},

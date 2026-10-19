@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import SiteFooter from "@/components/SiteFooter";
@@ -100,6 +101,19 @@ export default async function LegalDocumentPage({
             className={styles.content}
             dangerouslySetInnerHTML={{ __html: document.contentHtml }}
           />
+          {slug === "privacy" && (
+            <section
+              className={styles.content}
+              aria-labelledby="delete-account-heading"
+            >
+              <h2 id="delete-account-heading">Request account deletion</h2>
+              <p>
+                <Link href="/delete-account">Delete your account</Link>: how to
+                send a request from your account settings or by email, and what
+                information may need to be retained.
+              </p>
+            </section>
+          )}
         </article>
       </main>
       <SiteFooter />
