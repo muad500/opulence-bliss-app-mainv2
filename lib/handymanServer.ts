@@ -9,7 +9,14 @@ export async function handymanContext(request: NextRequest, mutation = false) {
   if (!handymanEnabled()) return accountError("Not found.", 404);
   return accountContext(request, { mutation });
 }
-export const handymanStripe = () => new Stripe(process.env.STRIPE_SECRET_KEY!);
+export const handymanStripe = () => {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!handymanEnabled() || !key?.startsWith("sk_test_"))
+    throw new Error(
+      "Property maintenance testing requires staging and Stripe test credentials.",
+    );
+  return new Stripe(key);
+};
 export type HandymanJob = {
   id: string;
   customer_id: string;

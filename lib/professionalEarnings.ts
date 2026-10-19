@@ -1,13 +1,10 @@
-import { handymanBill, handymanTaskLabel } from "./handymanMarketplace";
+import { handymanTaskLabel } from "./handymanMarketplace";
 
 export type HandymanEarning = {
   id: string;
   task_name: string;
   scheduled_at: string;
   status: string;
-  hourly_rate_pence: number;
-  estimated_minutes: number;
-  vat_bps: number;
   transfer_ref: string | null;
   bill: { provider: number; gross: number } | null;
 };
@@ -25,10 +22,7 @@ export function handymanEarnings(jobs: HandymanEarning[]) {
       "payment_pending",
     ].includes(job.status),
   );
-  const share = (job: HandymanEarning) =>
-    (job.bill?.provider ??
-      handymanBill(job.hourly_rate_pence, job.estimated_minutes, job.vat_bps, 0)
-        .provider) / 100;
+  const share = (job: HandymanEarning) => (job.bill?.provider ?? 0) / 100;
   return {
     paid,
     pending,
@@ -43,8 +37,8 @@ export function handymanEarnings(jobs: HandymanEarning[]) {
       service: `Handyman · ${handymanTaskLabel(job.task_name)}`,
       when: job.scheduled_at,
       label: job.bill
-        ? "professional payout, including approved materials and VAT"
-        : "estimated labour payout",
+        ? "agreed professional payout"
+        : "payout awaiting an agreed quote",
       amount: share(job),
       state: paid.includes(job) ? "Paid" : "Pending",
       note: job.transfer_ref ? `Stripe transfer ${job.transfer_ref}` : null,

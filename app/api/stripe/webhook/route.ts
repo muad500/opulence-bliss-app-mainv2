@@ -9,6 +9,10 @@ import { finalizePerVisitCheckout } from "@/lib/finalizePerVisitCheckout";
 // Copy the whsec_... it prints into .env.local as STRIPE_WEBHOOK_SECRET.
 
 import { finalizeHandymanCheckout } from "@/lib/handymanServer";
+import {
+  finalizeHandymanQuoteCheckout,
+  reviewHandymanQuoteDispute,
+} from "@/lib/handymanQuoteServer";
 import { finalizeCustomerCheckout } from "@/lib/finalizeCustomerCheckout";
 import { finalizeTipCheckout } from "@/lib/finalizeTipCheckout";
 import { NextRequest, NextResponse } from "next/server";
@@ -87,6 +91,12 @@ export async function POST(req: NextRequest) {
         await createVisitBilling(admin, stripe).run(operation.id);
       }
     }
+    if (event.type === "charge.dispute.created") {
+      const dispute = event.data.object as Stripe.Dispute;
+      const chargeId =
+        typeof dispute.charge === "string" ? dispute.charge : dispute.charge.id;
+      await reviewHandymanQuoteDispute(admin, chargeId);
+    }
     if (event.type === "refund.updated") {
       const refund = event.data.object as Stripe.Refund;
       if (refund.metadata?.visit_operation)
@@ -115,6 +125,13 @@ export async function POST(req: NextRequest) {
             await finalizeTipCheckout(session, payment);
           if (payment.metadata.kind === "handyman")
             await finalizeHandymanCheckout(admin, stripe, session, payment);
+          if (payment.metadata.kind === "handyman_quote")
+            await finalizeHandymanQuoteCheckout(
+              admin,
+              stripe,
+              session,
+              payment,
+            );
         } catch {
           console.error("Booking webhook finalisation failed; retry required.");
           return NextResponse.json(

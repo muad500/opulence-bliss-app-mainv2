@@ -81,11 +81,11 @@ export default async function PublicProviderPage({
           .maybeSingle(),
         serviceKeys.includes("handyman")
           ? admin
-              .from("provider_task_rates")
-              .select("task_name,hourly_rate_pence")
+              .from("provider_profile_settings")
+              .select("maintenance_tasks")
               .eq("provider_id", id)
-              .order("task_name")
-          : Promise.resolve({ data: [], error: null }),
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
         admin
           .from("reviews")
           .select("id,rating,comment,created_at,bookings!inner(provider_id)")
@@ -98,7 +98,7 @@ export default async function PublicProviderPage({
       ])
     : [
         { data: null, error: null },
-        { data: [], error: null },
+        { data: null, error: null },
         { data: [], error: null },
       ];
   const languages =
@@ -111,12 +111,10 @@ export default async function PublicProviderPage({
   const equipment = !settingsResult.error
     ? settingsResult.data?.brings_equipment
     : null;
-  const rates = !ratesResult.error
-    ? (ratesResult.data ?? []).filter(
-        (row) =>
-          typeof row.task_name === "string" &&
-          Number.isFinite(Number(row.hourly_rate_pence)),
-      )
+  const rates: { task_name: string }[] = !ratesResult.error
+    ? (ratesResult.data?.maintenance_tasks ?? [])
+        .filter((task: unknown): task is string => typeof task === "string")
+        .map((task: string) => ({ task_name: task }))
     : [];
   const reviews = !reviewsResult.error ? (reviewsResult.data ?? []) : [];
 

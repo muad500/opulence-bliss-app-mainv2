@@ -1,26 +1,39 @@
 "use client";
-import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import Link from "next/link";
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
-import type { HandymanJob } from "@/lib/handymanServer";
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
+import { handymanMoney as money, handymanPence } from "@/lib/handymanQuotes";
+import type { HandymanQuote, HandymanQuoteJob } from "@/lib/handymanQuotes";
 import styles from "@/app/handyman/marketplace.module.css";
-import { handymanBill } from "@/lib/handymanMarketplace";
-type FileRecord = {
-  id: string;
-  kind: "photo" | "receipt";
-  original_name: string;
-  amount_pence: number | null;
-  decision: "pending" | "approved" | "rejected";
-  url: string | null;
-};
 type Detail = {
-  job: HandymanJob;
-  files: FileRecord[];
-  professionalName: string;
+  job: HandymanQuoteJob;
   role: "customer" | "professional";
+  quotes: HandymanQuote[];
+  files: { id: string; original_name: string; url: string | null }[];
+  visits: {
+    quote_id: string;
+    scheduled_at: string;
+    address: string;
+    status: string;
+  }[];
+  operations: {
+    id: string;
+    kind: string;
+    status: string;
+    amount_pence: number;
+    last_error: string | null;
+  }[];
+  termsVersion: string | null;
+  cancellationPreview?: string;
   review: { rating: number; comment: string | null; is_public: boolean } | null;
 };
-const money = (n: number) => "£" + (n / 100).toFixed(2);
+const when = (v: string) =>
+  new Date(v).toLocaleString("en-GB", {
+    timeZone: "Europe/London",
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 export default function HandymanJobDetail({
   id,
   portal,
@@ -29,122 +42,82 @@ export default function HandymanJobDetail({
   portal: "customer" | "professional";
 }) {
   const [detail, setDetail] = useState<Detail | null>(null),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false),
-    [receipt, setReceipt] = useState<File | null>(null),
-    [receiptAmount, setReceiptAmount] = useState(""),
-    [rating, setRating] = useState(5),
-    [comment, setComment] = useState(""),
-    [publicReview, setPublicReview] = useState(false);
+    [error, setError] = useState("");
+  const [busy, setBusy] = useState(false),
+    [address, setAddress] = useState("");
+  const [terms, setTerms] = useState(false),
+    [siteVisit, setSiteVisit] = useState(false);
+  const [notice, setNotice] = useState("");
   const load = useCallback(async () => {
-    const r = await fetch("/api/handyman/jobs/" + id),
+    const r = await fetch("/api/handyman/jobs/" + id, { cache: "no-store" }),
       d = await r.json();
-    if (!r.ok) throw Error(d.error);
+    if (!r.ok) throw new Error(d.error);
     setDetail(d);
-    if (d.review) {
-      setRating(d.review.rating);
-      setComment(d.review.comment ?? "");
-      setPublicReview(d.review.is_public);
-    }
   }, [id]);
   useEffect(() => {
     let active = true;
-    async function initialise() {
-      if (
-        new URLSearchParams(window.location.search).get("checkout") ===
-        "complete"
-      ) {
-        const current = await fetch("/api/handyman/jobs/" + id),
-          d = await current.json();
-        if (
-          current.ok &&
-          ["checkout_pending", "awaiting_authorization"].includes(d.job.status)
-        ) {
-          const sync = await fetch("/api/handyman/jobs/" + id, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action: "sync" }),
-          });
-          if (!sync.ok) {
-            const error = await sync.json();
-            throw Error(error.error);
-          }
-        }
-      }
-      if (active) await load();
-    }
-    void initialise().catch((e) => {
-      if (active) setError(e.message);
-    });
+    const reload = () => {
+      if (active)
+        void load().catch((e) => {
+          if (active) setError(e.message);
+        });
+    };
+    reload();
+    const timer = setInterval(() => {
+      if (!document.hidden) reload();
+    }, 15000);
     return () => {
       active = false;
+      clearInterval(timer);
     };
-  }, [id, load]);
+  }, [load]);
   async function action(name: string, fields: Record<string, unknown> = {}) {
+    if (busy) return;
     setBusy(true);
     setError("");
+    setNotice("");
     try {
       const r = await fetch("/api/handyman/jobs/" + id, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: name, ...fields }),
-        }),
-        d = await r.json();
-      if (!r.ok) {
-        if (d.status === "awaiting_authorization") await load();
-        throw Error(d.error);
-      }
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: name, ...fields }),
+      });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error);
       if (d.url) {
         window.location.assign(d.url);
         return;
       }
       await load();
+      setNotice("Saved. The latest status is shown below.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Please try again.");
+      await load().catch(() => {});
     } finally {
       setBusy(false);
     }
   }
-  async function upload() {
-    if (!receipt) return;
-    setBusy(true);
-    setError("");
+  async function sendQuote(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget),
+      revision = detail?.job.status === "in_progress";
     try {
-      const form = new FormData();
-      form.set("kind", "receipt");
-      form.set("file", receipt);
-      form.set("amountPence", String(Math.round(Number(receiptAmount) * 100)));
-      const r = await fetch("/api/handyman/jobs/" + id + "/files", {
-          method: "POST",
-          body: form,
-        }),
-        d = await r.json();
-      if (!r.ok) throw Error(d.error);
-      setReceipt(null);
-      setReceiptAmount("");
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Receipt could not be added.");
-    } finally {
-      setBusy(false);
+      await action(revision ? "revision" : siteVisit ? "site_visit" : "quote", {
+        requestKey: crypto.randomUUID(),
+        totalPence:
+          siteVisit && !revision ? 0 : handymanPence(String(form.get("total"))),
+        scope: form.get("scope"),
+        durationMinutes: Number(form.get("duration")),
+        earliestAt: revision
+          ? detail!.job.scheduled_at
+          : new Date(String(form.get("date"))).toISOString(),
+      });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Check your quote.");
     }
   }
   const j = detail?.job,
-    customer = detail?.role === "customer",
-    materialTotal =
-      detail?.files
-        .filter((f) => f.kind === "receipt" && f.decision === "approved")
-        .reduce((n, f) => n + (f.amount_pence ?? 0), 0) ?? 0;
-  const bill =
-    j?.bill ??
-    (j?.worked_minutes !== null && j?.worked_minutes !== undefined
-      ? handymanBill(
-          j.hourly_rate_pence,
-          j.worked_minutes,
-          j.vat_bps,
-          materialTotal,
-        )
-      : null);
+    customer = detail?.role === "customer";
   return (
     <main className={styles.page}>
       <nav className={styles.nav}>
@@ -157,23 +130,15 @@ export default function HandymanJobDetail({
         >
           ← My jobs
         </Link>
-        {portal === "customer" && (
-          <Link href="/handyman">Book a property maintenance</Link>
-        )}
-        <Link
-          href={
-            portal === "professional" ? "/worker/profile" : "/account/profile"
-          }
-        >
-          My profile
-        </Link>
+        {portal === "customer" && <Link href="/handyman">Post a job</Link>}
       </nav>
       {error && (
         <p className={styles.error} role="alert">
           {error}
         </p>
       )}
-      {!j && !error && <p>Loading job…</p>}
+      {notice && <p role="status">{notice}</p>}
+      {!j && !error && <p role="status">Loading job…</p>}
       {j && detail && (
         <>
           <section className={styles.card}>
@@ -181,338 +146,459 @@ export default function HandymanJobDetail({
               {j.status.replaceAll("_", " ")}
             </span>
             <h1>{handymanTaskLabel(j.task_name)}</h1>
+            <p>{j.description}</p>
             <p>
-              Professional: <strong>{detail.professionalName}</strong>
+              {j.postcode}
+              {j.address ? ` · ${j.address}` : ""}
             </p>
-            <p>
-              {new Intl.DateTimeFormat("en-GB", {
-                timeZone: "Europe/London",
-                dateStyle: "full",
-                timeStyle: "short",
-              }).format(new Date(j.scheduled_at))}{" "}
-              · London time
+            <p className={styles.muted}>
+              Preferred dates: {j.preferred_dates.join(", ")}
             </p>
-            <p>
-              {j.address}, {j.postcode}
-            </p>
-            <p className={styles.muted}>{j.description}</p>
-
-            <strong>
-              {j.status === "completed"
-                ? "Paid: " + money(j.bill?.gross ?? 0)
-                : "Card hold: " + money(j.held_pence)}
-            </strong>
+            {j.scheduled_at && (
+              <p>Agreed appointment: {when(j.scheduled_at)} (London time)</p>
+            )}
+            {j.selected_quote_id && (
+              <>
+                <h2>Agreed fixed total: {money(j.total_pence)}</h2>
+                <p>Includes materials. No hourly billing or added VAT.</p>
+                {!customer && j.bill && (
+                  <p>
+                    Your payout: <strong>{money(j.bill.provider)}</strong> after{" "}
+                    {(j.commission_bps ?? 2000) / 100}% platform commission.
+                  </p>
+                )}
+                {customer && (
+                  <p>
+                    Paid: {money(j.paid_pence)} · Refunded:{" "}
+                    {money(j.refunded_pence)}
+                  </p>
+                )}
+              </>
+            )}
+            {j.status === "posted" && (
+              <p>
+                Compare the complete scope, materials, estimated on-site time
+                and earliest available date before choosing.
+              </p>
+            )}
             <div className={styles.actions}>
+              {customer && j.status === "draft" && (
+                <button
+                  disabled={busy}
+                  className={styles.button}
+                  onClick={() => void action("publish")}
+                >
+                  Publish saved job
+                </button>
+              )}
               {customer &&
-                ["checkout_pending", "awaiting_authorization"].includes(
-                  j.status,
-                ) && (
-                  <>
-                    <button
-                      className={styles.button}
-                      disabled={busy}
-                      onClick={() => void action("authorise")}
-                    >
-                      {j.status === "awaiting_authorization"
-                        ? "Authorise the approved bill"
-                        : "Continue card authorisation"}
-                    </button>
-                    <button
-                      className={styles.secondary}
-                      disabled={busy}
-                      onClick={() => void action("sync")}
-                    >
-                      I completed authorisation — refresh
-                    </button>
-                  </>
+                ["checkout_pending", "revision_pending"].includes(j.status) && (
+                  <button
+                    disabled={busy}
+                    className={styles.button}
+                    onClick={() => void action("pay")}
+                  >
+                    Continue approved payment
+                  </button>
+                )}
+              {customer &&
+                [
+                  "checkout_pending",
+                  "revision_pending",
+                  "cancel_pending",
+                ].includes(j.status) && (
+                  <button
+                    disabled={busy}
+                    className={styles.secondary}
+                    onClick={() => void action("sync")}
+                  >
+                    I paid — check payment status
+                  </button>
                 )}
               {!customer && j.status === "scheduled" && (
                 <button
-                  className={styles.button}
                   disabled={busy}
+                  className={styles.button}
                   onClick={() => void action("start")}
                 >
-                  Check in and start work
+                  Start agreed work
                 </button>
               )}
               {!customer && j.status === "in_progress" && (
                 <button
-                  className={styles.button}
                   disabled={busy}
+                  className={styles.button}
                   onClick={() => void action("finish")}
                 >
-                  Check out and send bill
+                  Work completed — ask customer to confirm
                 </button>
               )}
-              {["checkout_pending", "scheduled", "cancel_pending"].includes(
-                j.status,
-              ) && (
+              {customer && j.status === "awaiting_customer" && (
                 <button
-                  className={styles.secondary}
                   disabled={busy}
+                  className={styles.button}
+                  onClick={() => void action("confirm")}
+                >
+                  Confirm completion
+                </button>
+              )}
+              {[
+                "draft",
+                "posted",
+                "checkout_pending",
+                "scheduled",
+                "cancel_pending",
+              ].includes(j.status) && (
+                <button
+                  disabled={busy}
+                  className={styles.secondary}
                   onClick={() => {
                     if (
                       window.confirm(
-                        "Cancel this unstarted job and release its card hold?",
+                        detail.cancellationPreview ??
+                          "Cancel this job? The agreed cancellation refund bands apply to paid bookings.",
                       )
                     )
                       void action("cancel");
                   }}
                 >
-                  Cancel and release hold
+                  Cancel job
                 </button>
               )}
-              {customer && j.status === "payment_pending" && (
+              {!customer && j.status === "posted" && (
                 <button
-                  className={styles.button}
                   disabled={busy}
-                  onClick={() => void action("claim_payment")}
-                >
-                  Retry approved payment
-                </button>
-              )}
-            </div>
-            <p className={styles.muted}>
-              {j.status === "completed"
-                ? "Your approved bill was paid. The professional receives the labour share, VAT and all approved materials."
-                : j.status === "awaiting_customer"
-                  ? "Review the worked time and receipts below. Payment is collected only after you approve the bill."
-                  : "Your card is held. Unused authorised funds are released when the final bill is collected."}
-            </p>
-          </section>
-          <section className={styles.card}>
-            <h2>Job photos and materials receipts</h2>
-            <div className={styles.files}>
-              {detail.files.map((f) => (
-                <div className={styles.file} key={f.id}>
-                  {f.url ? (
-                    <a href={f.url} target="_blank" rel="noreferrer">
-                      {f.original_name}
-                    </a>
-                  ) : (
-                    <span>{f.original_name}</span>
-                  )}
-                  {f.kind === "receipt" && (
-                    <>
-                      <strong>{money(f.amount_pence ?? 0)}</strong>
-                      <span>{f.decision}</span>
-                      {customer && j.status === "awaiting_customer" && (
-                        <>
-                          <button
-                            className={styles.secondary}
-                            disabled={busy}
-                            onClick={() =>
-                              void action("receipt", {
-                                fileId: f.id,
-                                approve: true,
-                              })
-                            }
-                          >
-                            Approve receipt
-                          </button>
-                          <button
-                            className={styles.secondary}
-                            disabled={busy}
-                            onClick={() =>
-                              void action("receipt", {
-                                fileId: f.id,
-                                approve: false,
-                              })
-                            }
-                          >
-                            Reject receipt
-                          </button>
-                        </>
-                      )}
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-            {!detail.files.length && (
-              <p className={styles.muted}>No files attached.</p>
-            )}
-            {!customer &&
-              ["in_progress", "awaiting_customer"].includes(j.status) && (
-                <>
-                  <div className={styles.grid}>
-                    <label className={styles.field}>
-                      Receipt (PDF, JPEG or PNG)
-                      <input
-                        type="file"
-                        accept="application/pdf,image/jpeg,image/png"
-                        onChange={(e) =>
-                          setReceipt(e.target.files?.[0] ?? null)
-                        }
-                      />
-                    </label>
-                    <label className={styles.field}>
-                      Receipt amount (£)
-                      <input
-                        type="number"
-                        min="0.01"
-                        max="5000"
-                        step="0.01"
-                        value={receiptAmount}
-                        onChange={(e) => setReceiptAmount(e.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <div className={styles.actions}>
-                    <button
-                      className={styles.secondary}
-                      disabled={busy || !receipt}
-                      onClick={() => void upload()}
-                    >
-                      Add receipt for customer approval
-                    </button>
-                  </div>
-                </>
-              )}
-          </section>
-          {bill && (
-            <section className={styles.card}>
-              <h2>
-                {j.status === "completed"
-                  ? "Receipt and statement"
-                  : "Review the final bill"}
-              </h2>
-              <p>
-                Recorded work: {j.worked_minutes} minutes · billed time:{" "}
-                {bill.billedMinutes} minutes
-              </p>
-              <div className={styles.bill}>
-                <div>
-                  <span>Labour excluding VAT</span>
-                  <strong>{money(bill.labour)}</strong>
-                </div>
-                <div>
-                  <span>Labour VAT</span>
-                  <strong>{money(bill.vat)}</strong>
-                </div>
-                <div>
-                  <span>Approved materials</span>
-                  <strong>{money(bill.materials)}</strong>
-                </div>
-                <div>
-                  <span>Total</span>
-                  <strong>{money(bill.gross)}</strong>
-                </div>
-                {!customer && (
-                  <>
-                    <div>
-                      <span>Platform fee</span>
-                      <strong>{money(bill.platform)}</strong>
-                    </div>
-                    <div>
-                      <span>Your transfer</span>
-                      <strong>{money(bill.provider)}</strong>
-                    </div>
-                  </>
-                )}
-              </div>
-              {customer && j.status === "awaiting_customer" && (
-                <>
-                  <p className={styles.muted}>
-                    Approve or reject every receipt before approving this bill.
-                    If it exceeds the card hold, you will complete a new
-                    authorisation first.
-                  </p>
-                  <button
-                    className={styles.button}
-                    disabled={
-                      busy ||
-                      detail.files.some(
-                        (f) => f.kind === "receipt" && f.decision === "pending",
-                      )
-                    }
-                    onClick={() => void action("approve_bill")}
-                  >
-                    Approve worked time and final bill
-                  </button>
-                </>
-              )}
-              {j.status === "completed" && (
-                <button
                   className={styles.secondary}
-                  onClick={() => window.print()}
+                  onClick={() => void action("decline")}
                 >
-                  Print receipt / save PDF
+                  Decline invitation
                 </button>
               )}
+            </div>
+            {j.status === "awaiting_customer" && j.confirm_after && (
+              <p className={styles.muted}>
+                Confirm the work or raise a dispute before{" "}
+                {when(j.confirm_after)}. Otherwise completion is confirmed
+                automatically after 48 hours.
+              </p>
+            )}
+            {j.status === "revision_pending" && (
+              <p className={styles.muted}>
+                Work is paused while the approved price difference is paid or
+                refunded. The old scope remains in force until this settles.
+              </p>
+            )}
+            {j.status === "disputed" && (
+              <p role="status">
+                This job is with the admin resolution desk. Further payouts are
+                blocked until staff resolve it.
+              </p>
+            )}
+            {detail.operations
+              .filter((o) => o.status === "held")
+              .map((o) => (
+                <p key={o.id} className={styles.error}>
+                  {o.last_error ?? "Payment needs admin review."}
+                </p>
+              ))}
+          </section>
+          {detail.files.length > 0 && (
+            <section className={styles.card}>
+              <h2>Job photos</h2>
+              <div className={styles.photoGrid}>
+                {detail.files.map((f) => (
+                  <a
+                    key={f.id}
+                    href={f.url ?? undefined}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {f.url && (
+                      <Image
+                        unoptimized
+                        src={f.url}
+                        alt={f.original_name}
+                        width={320}
+                        height={160}
+                      />
+                    )}
+                    <span>{f.original_name}</span>
+                  </a>
+                ))}
+              </div>
             </section>
           )}
-          {j.status === "completed" && customer && (
+          {detail.visits.length > 0 && (
             <section className={styles.card}>
-              <h2>
-                {detail.review
-                  ? "Edit your review"
-                  : "Review your professional"}
-              </h2>
-              <div className={styles.grid}>
-                <label className={styles.field}>
-                  Rating
-                  <select
-                    value={rating}
-                    onChange={(e) => setRating(Number(e.target.value))}
-                  >
-                    {[5, 4, 3, 2, 1].map((n) => (
-                      <option key={n} value={n}>
-                        {n} stars
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className={styles.field}>
-                  Your words
-                  <textarea
-                    value={comment}
-                    maxLength={2000}
-                    onChange={(e) => setComment(e.target.value)}
-                  />
-                </label>
-              </div>
+              <h2>Free site visits</h2>
+              {detail.visits.map((v) => (
+                <p key={v.quote_id}>
+                  {when(v.scheduled_at)} · {v.address} · {v.status} · No charge
+                </p>
+              ))}
+            </section>
+          )}
+          {customer && j.status === "posted" && (
+            <section className={styles.card}>
+              <h2>Before accepting a quote or visit</h2>
+              <label className={styles.field}>
+                Service address
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  minLength={5}
+                  maxLength={300}
+                  autoComplete="street-address"
+                />
+              </label>
               <label className={styles.check}>
                 <input
                   type="checkbox"
-                  checked={publicReview}
-                  onChange={(e) => setPublicReview(e.target.checked)}
+                  checked={terms}
+                  onChange={(e) => setTerms(e.target.checked)}
                 />
-                Publish my review. Private reviews are visible to me and the
-                professional; anonymous scores can still contribute to their
-                rating.
+                I have read and accept the{" "}
+                <Link href="/legal/handyman-terms" target="_blank">
+                  Handyman Terms
+                </Link>
+                .
               </label>
-              <div className={styles.actions}>
-                <button
-                  className={styles.button}
-                  disabled={busy}
-                  onClick={() =>
-                    void action("review", {
-                      rating,
-                      comment,
-                      isPublic: publicReview,
-                    })
-                  }
-                >
-                  Save review
+            </section>
+          )}
+          <section className={styles.card}>
+            <h2>
+              {customer ? "Quotes and site visit proposals" : "Your quotes"}
+            </h2>
+            {!detail.quotes.length && (
+              <p className={styles.muted}>
+                No quotes yet. We notify approved professionals in ranked
+                groups.
+              </p>
+            )}
+            {detail.quotes.map((q) => (
+              <article className={styles.quoteCard} key={q.id}>
+                <header>
+                  <strong>{q.display_name}</strong>
+                  <span className={styles.status}>
+                    {q.kind === "site_visit"
+                      ? "Free site visit"
+                      : q.kind === "revision"
+                        ? "Revised fixed quote"
+                        : "Fixed quote"}{" "}
+                    · {q.status.replaceAll("_", " ")}
+                  </span>
+                </header>
+                <h3>
+                  {q.kind === "site_visit"
+                    ? "Free — no commitment to paid work"
+                    : money(q.total_pence) + " total, including materials"}
+                </h3>
+                <p className={styles.scope}>{q.scope}</p>
+                <p className={styles.muted}>
+                  Estimated on-site time: {q.duration_minutes} minutes ·
+                  Earliest: {when(q.earliest_at)}
+                </p>
+                {customer &&
+                  q.status === "sent" &&
+                  ((j.status === "posted" && q.kind !== "revision") ||
+                    (j.status === "in_progress" && q.kind === "revision")) && (
+                    <button
+                      className={styles.button}
+                      disabled={
+                        busy ||
+                        (q.kind !== "revision" &&
+                          (!terms ||
+                            address.trim().length < 5 ||
+                            !detail.termsVersion))
+                      }
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            q.kind === "site_visit"
+                              ? "Agree this free site visit? No payment will be taken."
+                              : q.kind === "revision"
+                                ? `Approve revised total ${money(q.total_pence)}? Only the difference will be charged or refunded.`
+                                : `Accept ${money(q.total_pence)} and pay in full? Other quotes will close.`,
+                          )
+                        )
+                          return;
+                        void action(
+                          q.kind === "site_visit"
+                            ? "accept_visit"
+                            : q.kind === "revision"
+                              ? "accept_revision"
+                              : "accept",
+                          {
+                            quoteId: q.id,
+                            address,
+                            termsVersion: terms ? detail.termsVersion : null,
+                          },
+                        );
+                      }}
+                    >
+                      {q.kind === "site_visit"
+                        ? "Agree free visit"
+                        : q.kind === "revision"
+                          ? "Approve revised quote"
+                          : "Accept quote & pay"}
+                    </button>
+                  )}
+              </article>
+            ))}
+          </section>
+          {!customer && ["posted", "in_progress"].includes(j.status) && (
+            <form className={styles.card} onSubmit={sendQuote}>
+              <h2>
+                {j.status === "in_progress"
+                  ? "Propose a scope change"
+                  : "Send your proposal"}
+              </h2>
+              <p className={styles.muted}>
+                Describe exactly what is included. All materials must be
+                included in the fixed total. Time is for scheduling only.
+              </p>
+              {j.status === "posted" && (
+                <label className={styles.check}>
+                  <input
+                    type="checkbox"
+                    checked={siteVisit}
+                    onChange={(e) => setSiteVisit(e.target.checked)}
+                  />
+                  Propose a free site visit first
+                </label>
+              )}
+              <fieldset disabled={busy} className={styles.formFields}>
+                <label className={styles.field}>
+                  Included work and materials
+                  <textarea
+                    name="scope"
+                    required
+                    minLength={10}
+                    maxLength={4000}
+                  />
+                </label>
+                <div className={styles.grid}>
+                  {(!siteVisit || j.status === "in_progress") && (
+                    <label className={styles.field}>
+                      Full fixed total (£), including materials
+                      <input
+                        name="total"
+                        inputMode="decimal"
+                        required
+                        pattern="[0-9]+(\.[0-9]{1,2})?"
+                        placeholder="e.g. 150.00"
+                      />
+                    </label>
+                  )}
+                  <label className={styles.field}>
+                    Estimated on-site time
+                    <select name="duration" defaultValue="60">
+                      {Array.from({ length: 16 }, (_, n) => (n + 1) * 30).map(
+                        (n) => (
+                          <option value={n} key={n}>
+                            {n} minutes
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                  {j.status === "posted" && (
+                    <label className={styles.field}>
+                      Earliest appointment
+                      <input type="datetime-local" name="date" required />
+                      <small>
+                        Shown in your device timezone; the agreed booking
+                        displays London time.
+                      </small>
+                    </label>
+                  )}
+                </div>
+                <button className={styles.button}>
+                  {j.status === "in_progress"
+                    ? "Send revised quote for approval"
+                    : siteVisit
+                      ? "Propose free visit"
+                      : "Send fixed quote"}
                 </button>
-              </div>
-            </section>
+              </fieldset>
+            </form>
           )}
-          {j.status === "completed" && !customer && detail.review && (
-            <section className={styles.card}>
-              <h2>Customer feedback</h2>
-              <strong>
-                {detail.review.rating} ★ ·{" "}
-                {detail.review.is_public ? "Public" : "Private"}
-              </strong>
-              <p>{detail.review.comment}</p>
-            </section>
+          {[
+            "in_progress",
+            "revision_pending",
+            "awaiting_customer",
+            "payment_pending",
+            "completed",
+          ].includes(j.status) && (
+            <form
+              className={styles.card}
+              onSubmit={(e) => {
+                e.preventDefault();
+                void action("dispute", {
+                  reason: new FormData(e.currentTarget).get("reason"),
+                });
+              }}
+            >
+              <h2>Need help with the work?</h2>
+              <label className={styles.field}>
+                Describe the issue
+                <textarea
+                  name="reason"
+                  required
+                  minLength={10}
+                  maxLength={4000}
+                />
+              </label>
+              <button className={styles.secondary} disabled={busy}>
+                Send to admin resolution desk
+              </button>
+            </form>
           )}
-          <p className={styles.muted}>
-            Need help?{" "}
-            <a href="mailto:hello@opulencebliss.com">Contact support</a>.
-          </p>
+          {customer && j.status === "completed" && (
+            <form
+              className={styles.card}
+              onSubmit={(e) => {
+                e.preventDefault();
+                const f = new FormData(e.currentTarget);
+                void action("review", {
+                  rating: Number(f.get("rating")),
+                  comment: String(f.get("comment")),
+                  isPublic: f.get("public") === "on",
+                });
+              }}
+            >
+              <h2>Review this job</h2>
+              <label className={styles.field}>
+                Rating
+                <select name="rating" defaultValue={detail.review?.rating ?? 5}>
+                  {[5, 4, 3, 2, 1].map((r) => (
+                    <option key={r} value={r}>
+                      {r} out of 5
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className={styles.field}>
+                Review
+                <textarea
+                  name="comment"
+                  maxLength={2000}
+                  defaultValue={detail.review?.comment ?? ""}
+                />
+              </label>
+              <label className={styles.check}>
+                <input
+                  type="checkbox"
+                  name="public"
+                  defaultChecked={detail.review?.is_public ?? false}
+                />
+                Display my review publicly
+              </label>
+              <button className={styles.button} disabled={busy}>
+                Save review
+              </button>
+            </form>
+          )}
         </>
       )}
     </main>

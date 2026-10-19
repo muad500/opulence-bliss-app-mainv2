@@ -55,9 +55,7 @@ export async function allHandymanEarnings(
   for (let offset = 0; ; offset += 500) {
     const { data, error } = await client
       .from("handyman_jobs")
-      .select(
-        "id,task_name,scheduled_at,status,hourly_rate_pence,estimated_minutes,vat_bps,transfer_ref,bill",
-      )
+      .select("id,task_name,scheduled_at,status,transfer_ref,bill")
       .eq("provider_id", providerId)
       .order("scheduled_at", { ascending: false })
       .order("id")

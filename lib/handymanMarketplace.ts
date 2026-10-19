@@ -13,7 +13,11 @@ export function handymanTaskLabel(task: string) {
 export function handymanEnabled(
   env: Record<string, string | undefined> = process.env,
 ) {
-  return env.HANDYMAN_MARKETPLACE_ENABLED === "true";
+  return (
+    env.VERCEL_ENV !== "production" &&
+    env.APP_ENV !== "production" &&
+    env.HANDYMAN_MARKETPLACE_ENABLED === "true"
+  );
 }
 export function isHandymanMarketplacePath(path: string) {
   return path === "/handyman" || path.startsWith("/handyman/");
@@ -52,40 +56,5 @@ export function handymanReviewSummary(reviews: HandymanReview[]) {
         comment,
         reviewed_at,
       })),
-  };
-}
-/** Rates are exclusive of VAT. Commission applies only to net labour. */
-export function handymanBill(
-  rate: number,
-  minutes: number,
-  vatBps: number,
-  materials: number,
-) {
-  if (
-    !Number.isInteger(rate) ||
-    rate < 100 ||
-    rate > 100000 ||
-    !Number.isInteger(minutes) ||
-    minutes < 0 ||
-    minutes > 960 ||
-    ![0, 2000].includes(vatBps) ||
-    !Number.isInteger(materials) ||
-    materials < 0 ||
-    materials > 500000
-  )
-    throw new Error("Invalid property maintenance bill.");
-  const billedMinutes = Math.max(60, minutes),
-    labour = Math.round((rate * billedMinutes) / 60),
-    vat = Math.round((labour * vatBps) / 10000),
-    platform = Math.round(labour * 0.2),
-    gross = labour + vat + materials;
-  return {
-    billedMinutes,
-    labour,
-    vat,
-    materials,
-    platform,
-    gross,
-    provider: gross - platform,
   };
 }

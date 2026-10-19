@@ -2,6 +2,7 @@ import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CleaningJobs from "@/components/WorkerCleaningJobs";
+import HandymanQuoteInvitations from "@/components/HandymanQuoteInvitations";
 import { handymanEnabled } from "@/lib/handymanMarketplace";
 import {
   professionalPortal,
@@ -53,6 +54,9 @@ export default async function ProfessionalJobs({
       {enabled && filter !== "cleaning" && (
         <section className={styles.section}>
           <h2>Property maintenance jobs</h2>
+          {provider.service_approvals.handyman === "approved" && (
+            <HandymanQuoteInvitations />
+          )}
           {provider.service_approvals.handyman !== "approved" && (
             <p>
               Property maintenance approval is{" "}

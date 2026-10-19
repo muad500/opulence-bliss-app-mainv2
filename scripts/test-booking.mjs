@@ -39,7 +39,7 @@ const modules = [
   "quotePhotos",
   "cleaningHome",
   "earningsPeriod",
-  "handymanEstimate",
+  "handymanQuotes",
   "legacyDestinationCapture",
   "messageAttachments",
   "payoutDestination",
@@ -136,6 +136,11 @@ try {
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-handyman-payment-recovery.mjs"],
+    { stdio: "inherit" },
+  );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-handyman-quote-marketplace.mjs"],
     { stdio: "inherit" },
   );
   execFileSync(

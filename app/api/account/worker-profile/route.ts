@@ -35,7 +35,6 @@ async function loadWorkerProfile(ctx: AccountContext) {
     settingsResult,
     verificationResult,
     dbsResult,
-    ratesResult,
     timeOffResult,
     legalResult,
   ] = await Promise.all([
@@ -78,10 +77,6 @@ async function loadWorkerProfile(ctx: AccountContext) {
       .eq("provider_id", providerId)
       .maybeSingle(),
     ctx.admin
-      .from("provider_task_rates")
-      .select("task_name,hourly_rate_pence")
-      .eq("provider_id", providerId),
-    ctx.admin
       .from("provider_time_off")
       .select("id,starts_at,ends_at,note")
       .eq("provider_id", providerId)
@@ -100,7 +95,6 @@ async function loadWorkerProfile(ctx: AccountContext) {
       settingsResult,
       verificationResult,
       dbsResult,
-      ratesResult,
       timeOffResult,
       legalResult,
     ].some((result) => result.error)
@@ -234,12 +228,6 @@ async function loadWorkerProfile(ctx: AccountContext) {
       maintenanceTasks: handymanEnabled()
         ? (settings?.maintenance_tasks ?? [])
         : [],
-      handymanRates: Object.fromEntries(
-        (handymanEnabled() ? (ratesResult.data ?? []) : []).map((row) => [
-          row.task_name,
-          row.hourly_rate_pence / 100,
-        ]),
-      ),
     },
     work: {
       coveragePostcodes: settings?.coverage_postcodes ?? [],
@@ -342,7 +330,6 @@ export async function PATCH(request: NextRequest) {
           "languages",
           "yearsExperience",
           "equipmentProvided",
-          "handymanRates",
           "maintenanceTasks",
         ],
       ],
@@ -483,37 +470,6 @@ export async function PATCH(request: NextRequest) {
         );
       settings.maintenance_tasks = [...new Set(tasks)];
     }
-    const rates = publicProfile.handymanRates;
-    if (
-      rates !== undefined &&
-      (!isRecord(rates) || Object.keys(rates).length > 0)
-    ) {
-      if (
-        !isRecord(rates) ||
-        Object.keys(rates).some(
-          (task) =>
-            !HANDYMAN_TASKS.includes(task) ||
-            typeof rates[task] !== "number" ||
-            !Number.isFinite(rates[task]) ||
-            Number(rates[task]) < 1 ||
-            Number(rates[task]) > 1000,
-        )
-      ) {
-        return accountError(
-          "Enter valid hourly rates for the listed property maintenance tasks.",
-        );
-      }
-      const { data: provider } = await ctx.admin
-        .from("providers")
-        .select("services")
-        .eq("id", ctx.providerId!)
-        .single();
-      if (!provider?.services?.includes("handyman"))
-        return accountError(
-          "Property maintenance rates are available to approved property maintenance providers only.",
-          403,
-        );
-    }
     if (Object.keys(profileChanges).length) {
       const { error } = await ctx.admin
         .from("profiles")
@@ -542,26 +498,6 @@ export async function PATCH(request: NextRequest) {
         .update(onboarding)
         .eq("provider_id", ctx.providerId!);
       if (error) return accountError("Tax details could not be saved.", 503);
-    }
-    if (isRecord(rates) && Object.keys(rates).length > 0) {
-      if (!handymanEnabled())
-        return accountError("This service is not available.", 404);
-      for (const [task, amount] of Object.entries(rates)) {
-        const { error } = await ctx.admin.from("provider_task_rates").upsert(
-          {
-            provider_id: ctx.providerId,
-            task_name: task,
-            hourly_rate_pence: Math.round(Number(amount) * 100),
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "provider_id,task_name" },
-        );
-        if (error)
-          return accountError(
-            "A property maintenance rate could not be saved.",
-            503,
-          );
-      }
     }
     return NextResponse.json(await loadWorkerProfile(ctx));
   } catch (error) {

@@ -29,6 +29,8 @@ async function load(relativePath, mocks, env = process.env) {
       module,
       exports: module.exports,
       require: (id) => {
+        if (id === "@/components/admin/HandymanQuoteAdmin")
+          return { __esModule: true, default: () => null };
         if (id.endsWith(".module.css"))
           return {
             __esModule: true,
