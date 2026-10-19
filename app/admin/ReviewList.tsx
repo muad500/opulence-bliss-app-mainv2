@@ -18,7 +18,9 @@ export default function ReviewList({
 
   if (reviews.length === 0) {
     return (
-      <p style={{ color: "#6e7a70", padding: "16px 0" }}>No reviews yet.</p>
+      <p style={{ color: "var(--ob-muted)", padding: "16px 0" }}>
+        No reviews yet.
+      </p>
     );
   }
 
@@ -27,13 +29,14 @@ export default function ReviewList({
       {reviews.map((r) => (
         <div
           key={r.id}
+          id={`review-${r.id}`}
           style={{
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
             gap: 14,
             padding: "14px 0",
-            borderBottom: "1px solid #f0ebe0",
+            borderBottom: "1px solid var(--ob-border)",
             flexWrap: "wrap",
           }}
         >
@@ -59,8 +62,8 @@ export default function ReviewList({
             }}
             style={{
               background: "transparent",
-              color: "#8a4b26",
-              border: "1.5px solid #e6c4b0",
+              color: "var(--ob-danger-text)",
+              border: "1.5px solid var(--ob-border-strong)",
               borderRadius: 999,
               padding: compact ? "6px 12px" : "8px 16px",
               fontFamily: "'Hanken Grotesk', system-ui, sans-serif",
@@ -87,9 +90,16 @@ function ReviewSummary({
 }) {
   return (
     <div style={{ flex: 1, minWidth: 200 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 7,
+          flexWrap: "wrap",
+        }}
+      >
         <span style={categoryBadge}>App · {r.category}</span>
-        <span style={{ color: "#cf854f", letterSpacing: 1 }}>
+        <span style={{ color: "var(--ob-rating-text)", letterSpacing: 1 }}>
           {"★".repeat(r.rating)}
           {"☆".repeat(5 - r.rating)}
         </span>
@@ -97,8 +107,14 @@ function ReviewSummary({
           style={{
             borderRadius: 999,
             padding: "3px 8px",
-            background: r.visibility === "public" ? "#e4f6ec" : "#f1e9fb",
-            color: r.visibility === "public" ? "#137b4e" : "#6d28d9",
+            background:
+              r.visibility === "public"
+                ? "var(--ob-mint)"
+                : "var(--ob-purple-soft)",
+            color:
+              r.visibility === "public"
+                ? "var(--ob-success-text)"
+                : "var(--ob-purple)",
             fontSize: 10.5,
             fontWeight: 800,
           }}
@@ -106,30 +122,39 @@ function ReviewSummary({
           {r.visibility === "public" ? "Public" : "Private"}
         </span>
       </div>
-      <p style={{ margin: "6px 0 0", color: "#26302a", fontSize: 13.5 }}>
+      <p style={{ margin: "6px 0 0", color: "var(--ob-text)", fontSize: 13.5 }}>
         <strong>{r.reviewerName}</strong> reviewed {r.recipientName}
       </p>
       {r.comment && (
         <p
           style={{
             margin: "4px 0 0",
-            color: "#58616d",
+            color: "var(--ob-muted)",
+            overflowWrap: "anywhere",
             fontSize: 13,
             overflow: "hidden",
             display: "-webkit-box",
             WebkitBoxOrient: "vertical",
-            WebkitLineClamp: compact ? 1 : 3,
+            WebkitLineClamp: compact ? 1 : undefined,
           }}
         >
           “{r.comment}”
         </p>
       )}
-      <span style={{ display: "block", marginTop: 4, color: "#a89f90", fontSize: 11.5 }}>
+      <span
+        style={{
+          display: "block",
+          marginTop: 4,
+          color: "var(--ob-muted)",
+          fontSize: 11.5,
+        }}
+      >
         {new Date(r.created_at).toLocaleDateString("en-GB", {
           day: "numeric",
           month: "short",
           year: "numeric",
-        })} · Booking #{r.bookingReference} · View reviewer profile →
+        })}{" "}
+        · Booking #{r.bookingReference} · View reviewer profile →
       </span>
     </div>
   );
@@ -146,7 +171,7 @@ const reviewLink: React.CSSProperties = {
 };
 
 const recipientLink: React.CSSProperties = {
-  color: "#6d28d9",
+  color: "var(--ob-purple)",
   fontSize: 11.5,
   fontWeight: 900,
   textDecoration: "none",
@@ -156,8 +181,8 @@ const recipientLink: React.CSSProperties = {
 const categoryBadge: React.CSSProperties = {
   borderRadius: 999,
   padding: "3px 8px",
-  background: "#fff4d6",
-  color: "#7a5610",
+  background: "var(--ob-butter)",
+  color: "var(--ob-warning-text)",
   fontSize: 10.5,
   fontWeight: 900,
 };

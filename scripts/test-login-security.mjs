@@ -29,6 +29,12 @@ async function load(relativePath, mocks, env = process.env) {
       module,
       exports: module.exports,
       require: (id) => {
+        if (id.endsWith(".module.css"))
+          return {
+            __esModule: true,
+            default: new Proxy({}, { get: (_, key) => String(key) }),
+          };
+        if (id === "@/lib/adminDashboard") return adminDashboard;
         if (id.endsWith("MobileExperience"))
           return { useAppAudience: () => null };
         if (id === "@/lib/mobileExperience")
@@ -58,6 +64,7 @@ async function load(relativePath, mocks, env = process.env) {
 const services = await load("lib/professionalServices.ts", {});
 const authReturn = await load("lib/authReturn.ts", {});
 const staffMfa = await load("lib/staffMfa.ts", {});
+const adminDashboard = await load("lib/adminDashboard.ts", {});
 
 const redirect = (location) => {
   throw new Error("redirect:" + location);
@@ -485,7 +492,10 @@ test("production admin pages omit development tools even for an administrator", 
   const component = () => null;
   const mocks = {
     "@/lib/adminSession": {
-      requireAdminPage: async () => ({ supabase: database }),
+      requireAdminPage: async () => ({
+        supabase: database,
+        user: { id: "admin", email: "private" },
+      }),
     },
     "@/lib/developmentTools": tools,
     "@/lib/supabase/server": { createClient: async () => database },
@@ -502,6 +512,15 @@ test("production admin pages omit development tools even for an administrator", 
     "../AdminNav": { default: component },
     "@/lib/adminReviews": {
       loadAdminReviews: async () => ({ reviews: [], error: null }),
+    },
+    "@/lib/adminOverview": {
+      loadAdminOverview: async () => ({
+        bookings: { count: 0 },
+        customers: { count: 0 },
+        professionals: { data: [], count: 0 },
+        approvals: { data: [], count: 0 },
+        reviews: { reviews: [], error: null, count: 0 },
+      }),
     },
     "./DeskControls": {
       default: component,
