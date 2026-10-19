@@ -27,6 +27,7 @@ export async function updateSession(request: NextRequest) {
     "/notifications",
   ];
   const publicPath =
+    request.nextUrl.pathname === "/delete-account" ||
     request.nextUrl.pathname === "/staff/login" ||
     request.nextUrl.pathname === "/staff/mfa" ||
     [
