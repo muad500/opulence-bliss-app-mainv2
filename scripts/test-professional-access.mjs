@@ -165,6 +165,34 @@ test("approved professionals can switch modes; all applicants can keep using the
   }
 });
 
+test("public deletion guide needs no sign-in while adjacent and admin routes stay protected", async () => {
+  const db = database(null);
+  db.auth.getClaims = async () => ({ data: { claims: null } });
+  const { updateSession } = await load("lib/supabase/proxy.ts", {
+    "@supabase/ssr": { createServerClient: () => db },
+    "../utils": { hasEnvVars: true },
+    "../professionalAccess": access,
+  });
+  assert.equal(
+    (await updateSession(request("/delete-account"))).headers.get("location"),
+    null,
+  );
+  assert.equal(
+    new URL(
+      (await updateSession(request("/delete-account/private"))).headers.get(
+        "location",
+      ),
+    ).pathname,
+    "/auth/login",
+  );
+  assert.equal(
+    new URL(
+      (await updateSession(request("/admin/settings"))).headers.get("location"),
+    ).pathname,
+    "/staff/login",
+  );
+});
+
 test("direct professional URLs and RSC requests cannot bypass approval", async () => {
   for (const provider of [
     null,
