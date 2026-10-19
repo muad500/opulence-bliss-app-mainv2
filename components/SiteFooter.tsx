@@ -1,5 +1,6 @@
 import Link from "next/link";
 import FooterReviews from "./FooterReviews";
+import SocialLinks from "./SocialLinks";
 import {
   CANCELLATION_REFUND_URL,
   COMPANY,
@@ -77,6 +78,7 @@ export default function SiteFooter() {
           </Link>
           <FooterReviews />
           <p className={styles.coverage}>Across London</p>
+          <SocialLinks variant="footer" />
         </section>
 
         <nav className={styles.columns} aria-label="Footer navigation">
