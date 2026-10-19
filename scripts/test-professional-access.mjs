@@ -41,6 +41,7 @@ async function load(path, mocks = {}) {
       if (id === "@/lib/accountChangeVerification")
         return { verifyAccountChangeRequest: async () => null };
       if (id === "@/lib/professionalServices") return services;
+      if (id === "./sessionOptions") return sessionOptions;
       if (id === "@/lib/handymanMarketplace")
         return {
           handymanEnabled: () => true,
@@ -53,7 +54,7 @@ async function load(path, mocks = {}) {
     },
     process: {
       env: {
-        NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+        NEXT_PUBLIC_SUPABASE_URL: "https://comwdjprdedmsnxtvuuk.supabase.co",
         SUPABASE_SERVICE_ROLE_KEY: "fixture",
       },
     },
@@ -64,6 +65,7 @@ async function load(path, mocks = {}) {
   });
   return module.exports;
 }
+const sessionOptions = await load("lib/supabase/sessionOptions.ts");
 const services = await load("lib/professionalServices.ts");
 const access = await load("lib/professionalAccess.ts");
 const onboarding = await load("lib/providerOnboarding.ts");

@@ -1,3 +1,4 @@
+import { supabaseSessionOptions } from "./sessionOptions";
 // SETUP: code "lib/supabase/client.ts"
 //
 // One shared browser client. Every component calling createClient() gets the
@@ -15,7 +16,8 @@ export function createClient(): Client {
   client = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     (process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)!,
+    supabaseSessionOptions(process.env.NEXT_PUBLIC_SUPABASE_URL!),
   );
 
   return client;
