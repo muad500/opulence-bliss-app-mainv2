@@ -1,8 +1,29 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { chatMessageMail } from "./chatMessageMail";
+import { chatMessageMail, chatMessageSite } from "./chatMessageMail";
 
 const id = "00000000-0000-4000-8000-000000000001";
+test("Production mail uses the canonical domain without a site setting; staging never falls back to live", () => {
+  assert.equal(
+    chatMessageSite({ VERCEL_ENV: "production" }),
+    "https://www.opulencebliss.com",
+  );
+  assert.equal(chatMessageSite({ VERCEL_ENV: "preview" }), undefined);
+  assert.equal(
+    chatMessageSite({
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_SUPABASE_URL: "https://comwdjprdedmsnxtvuuk.supabase.co",
+    }),
+    undefined,
+  );
+  assert.equal(
+    chatMessageSite({
+      VERCEL_ENV: "preview",
+      NEXT_PUBLIC_SITE_URL: "https://staging.example.com",
+    }),
+    "https://staging.example.com",
+  );
+});
 test("chat emails identify the sender, preserve text and link to the private chat", () => {
   for (const [role, label, path] of [
     ["provider", "cleaner", "/account/visit/"],
