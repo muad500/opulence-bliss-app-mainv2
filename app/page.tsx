@@ -207,8 +207,8 @@ export default function Home() {
       <section className="strip">
         {[
           [
-            "Vetted cleaners",
-            "Every approved cleaner is vetted before taking bookings",
+            "Vetted & insured cleaners",
+            "Every approved cleaner is vetted and has verified insurance before taking bookings",
           ],
           [
             "Clear before you commit",

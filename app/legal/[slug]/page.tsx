@@ -40,7 +40,10 @@ const loadDocument = cache(async (slug: string) => {
       audience: row.audience,
       contentHtml: sanitizeLegalHtml(row.content_html).replace(
         />[^<]+</g,
-        (text) => text.replace(/Handyman/gi, "Property maintenance"),
+        (text) =>
+          text
+            .replace(/Handyman/gi, "Property maintenance")
+            .replace(/Minor decorating/gi, "Painting &amp; decoration"),
       ),
       version: row.version,
       updatedAt: row.updated_at,

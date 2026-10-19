@@ -1,4 +1,5 @@
 "use client";
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import { serviceTextWithoutPrices } from "@/lib/assistantPresentation";
 
 import Link from "next/link";
@@ -54,13 +55,16 @@ const TASKS = [
   },
   {
     name: "Minor decorating",
-    note: "Small touch-ups and minor decorating",
+    note: "Painting, decorating and touch-ups",
     icon: PaintRoller,
   },
 ] as const;
 
 const TASK_OPTIONS = [
-  ...TASKS.map((task) => ({ value: task.name, label: task.name })),
+  ...TASKS.map((task) => ({
+    value: task.name,
+    label: handymanTaskLabel(task.name),
+  })),
   { value: "Other", label: "Other" },
 ];
 
@@ -212,8 +216,8 @@ export default function HandymanPage() {
               Tell us what needs doing. We&apos;ll arrange the right quote.
             </h1>
             <p className="lede">
-              Repairs, assembly, mounting, minor decorating and practical help
-              around your home from trusted professionals.
+              Repairs, assembly, mounting, painting, decoration and practical
+              help around your home from trusted professionals.
             </p>
             <a className="primary" href="#quote">
               Request a quote
@@ -272,7 +276,7 @@ export default function HandymanPage() {
             >
               <Icon size={23} strokeWidth={1.8} />
               <span>
-                <strong>{name}</strong>
+                <strong>{handymanTaskLabel(name)}</strong>
                 <small>{note}</small>
               </span>
             </button>
@@ -447,7 +451,7 @@ export default function HandymanPage() {
                   {(quoteProfessional
                     ? quoteProfessional.rates.map((rate) => ({
                         value: rate.task_name,
-                        label: rate.task_name,
+                        label: handymanTaskLabel(rate.task_name),
                       }))
                     : TASK_OPTIONS
                   ).map((task) => (

@@ -1,4 +1,5 @@
 "use client";
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import { accountFetch } from "@/lib/accountFetch";
 
 import Link from "next/link";
@@ -724,7 +725,7 @@ export default function WorkerProfilePage() {
                             })
                           }
                         />
-                        {task}
+                        {handymanTaskLabel(task)}
                       </label>
                     ))}
                   </fieldset>

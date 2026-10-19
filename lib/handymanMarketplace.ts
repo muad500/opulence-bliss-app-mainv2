@@ -6,6 +6,10 @@ export const HANDYMAN_TASKS = [
   "Furniture moving",
   "Minor decorating",
 ] as const;
+/** Keep saved task identifiers stable while presenting the current service name. */
+export function handymanTaskLabel(task: string) {
+  return task === "Minor decorating" ? "Painting & decoration" : task;
+}
 export function handymanEnabled(
   env: Record<string, string | undefined> = process.env,
 ) {

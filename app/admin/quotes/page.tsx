@@ -1,3 +1,4 @@
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { QUOTE_PHOTO_BUCKET } from "@/lib/quotePhotos";
 import AdminNav from "../AdminNav";
@@ -69,7 +70,7 @@ export default async function AdminQuotesPage() {
                 <div className="head">
                   <div>
                     <span>{quote.reference}</span>
-                    <h2>{quote.task_type}</h2>
+                    <h2>{handymanTaskLabel(quote.task_type)}</h2>
                   </div>
                   <strong className={`status ${quote.status}`}>
                     {quote.status}

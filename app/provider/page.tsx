@@ -46,7 +46,7 @@ const TRADES: Trade[] = [
   {
     key: "maintenance",
     role: "Property maintenance professional",
-    blurb: "Repairs, assembly, mounting and minor decorating.",
+    blurb: "Repairs, assembly, mounting, painting and decoration.",
     icon: Hammer,
     tint: "linear-gradient(145deg, #f5c542 0%, #c86fc9 62%, #7b2ff7 120%)",
     href: "/provider/handyman",
@@ -97,7 +97,10 @@ export default function PartnerPage() {
           Work for yourself across London, choose your own hours and area, and
           let us bring you the customers. No joining fee.
         </p>
-        <p className={styles.lede}>Cleaning: average pay £15/hour before tax. Choose the hours that work for you.</p>
+        <p className={styles.lede}>
+          Cleaning: average pay £15/hour before tax. Choose the hours that work
+          for you.
+        </p>
         <p className={styles.already}>
           Already a partner? <Link href="/provider/login">Sign in</Link>
         </p>

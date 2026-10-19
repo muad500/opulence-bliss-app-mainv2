@@ -1,3 +1,4 @@
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import CleaningJobs from "@/components/WorkerCleaningJobs";
@@ -73,7 +74,7 @@ export default async function ProfessionalJobs({
                   <span className={styles.badge}>
                     {job.status.replaceAll("_", " ")}
                   </span>
-                  <h2>{job.task_name}</h2>
+                  <h2>{handymanTaskLabel(job.task_name)}</h2>
                   <p>
                     {new Date(job.scheduled_at).toLocaleString("en-GB", {
                       timeZone: "Europe/London",

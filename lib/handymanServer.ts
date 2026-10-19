@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { accountContext, accountError, isAccountError } from "@/lib/accountApi";
-import { handymanEnabled } from "@/lib/handymanMarketplace";
+import { handymanEnabled, handymanTaskLabel } from "@/lib/handymanMarketplace";
 import { getOrCreateBillingCustomer } from "@/lib/accountBilling";
 export async function handymanContext(request: NextRequest, mutation = false) {
   if (!handymanEnabled()) return accountError("Not found.", 404);
@@ -257,7 +257,7 @@ export async function handymanCheckout(
             name:
               revision === "final"
                 ? "Property maintenance approved bill authorisation"
-                : j.task_name,
+                : handymanTaskLabel(j.task_name),
             description:
               "Card hold. Payment is collected after the completed job and approved bill.",
           },

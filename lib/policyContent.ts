@@ -517,7 +517,7 @@ export const HANDYMAN_TERMS_HTML = `
   <p>Wall mounting</p>
   <p>Minor carpentry</p>
   <p>Caulking and sealant work</p>
-  <p>Minor decorating and touch-up work</p>
+  <p>Painting &amp; decoration and touch-up work</p>
   <p>Basic property maintenance</p>
   <p>General household repairs</p>
   <p>Removal or replacement of minor fixtures</p>

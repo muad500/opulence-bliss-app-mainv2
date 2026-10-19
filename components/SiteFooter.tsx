@@ -38,7 +38,7 @@ const columns: Array<{
       ["Minor repairs", "/services/handyman"],
       ["Curtains and blinds", "/services/handyman"],
       ["Furniture moving", "/services/handyman"],
-      ["Minor decorating", "/services/handyman"],
+      ["Painting & decoration", "/services/handyman"],
     ],
   },
   {

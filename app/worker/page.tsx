@@ -1,3 +1,4 @@
+import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import Link from "next/link";
 import { professionalPortal } from "@/lib/professionalPortal";
 import { handymanEnabled } from "@/lib/handymanMarketplace";
@@ -52,7 +53,7 @@ export default async function WorkerToday() {
     ...(handymanResult.data ?? []).map((job) => ({
       ...job,
       service: "Property maintenance",
-      title: job.task_name,
+      title: handymanTaskLabel(job.task_name),
       href: "/worker/jobs/handyman/" + job.id,
     })),
   ].sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at));
