@@ -1,5 +1,6 @@
 import AdminPreviousCustomerReviews from "@/components/AdminPreviousCustomerReviews";
 import AdminNav from "../AdminNav";
+import Link from "next/link";
 import ReviewList from "../ReviewList";
 import { requireAdminPage } from "@/lib/adminSession";
 import { loadAdminReviews } from "@/lib/adminReviews";
@@ -72,7 +73,19 @@ export default async function AdminReviewsPage({
       <AdminNav email={user.email ?? "Admin"} />
       <div style={inner}>
         <p style={eyebrow}>App activity</p>
-        <h1 style={title}>All recent reviews</h1>
+        <h1 style={title}>Website reviews</h1>
+        <Link
+          href="/admin/reviews/activity"
+          style={{
+            display: "inline-block",
+            marginBottom: 16,
+            color: "var(--ob-purple)",
+            fontSize: 14,
+            fontWeight: 800,
+          }}
+        >
+          View all booking reviews →
+        </Link>
         <p style={lede}>
           Cleaner and client reviews, newest first. Select a review to open the
           reviewer&apos;s profile, or use the reviewed-profile link to inspect

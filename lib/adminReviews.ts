@@ -28,26 +28,52 @@ type ReviewRow = {
   visibility: string;
   created_at: string;
 };
-type BookingRow = { id: string; customer_id: string | null; provider_id: string | null };
-type CustomerRow = { id: string; full_name: string | null; email: string | null };
-type ProviderRow = { id: string; display_name: string | null; profile_id: string | null };
+type BookingRow = {
+  id: string;
+  customer_id: string | null;
+  provider_id: string | null;
+};
+type CustomerRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+};
+type ProviderRow = {
+  id: string;
+  display_name: string | null;
+  profile_id: string | null;
+};
 
 export async function loadAdminReviews(
   supabase: SupabaseClient,
   limit: number,
-): Promise<{ reviews: AdminReview[]; error: string | null }> {
-  const reviewResult = await supabase
+  options?: { offset: number; reviewer?: "client" | "provider" },
+): Promise<{
+  reviews: AdminReview[];
+  error: string | null;
+  count: number | null;
+}> {
+  let query = supabase
     .from("reviews")
-    .select("id, booking_id, reviewer, rating, comment, visibility, created_at")
+    .select(
+      "id, booking_id, reviewer, rating, comment, visibility, created_at",
+      { count: "exact" },
+    )
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .order("id", { ascending: false });
+  if (options?.reviewer) query = query.eq("reviewer", options.reviewer);
+  const reviewResult = await (options
+    ? query.range(options.offset, options.offset + limit - 1)
+    : query.limit(limit));
 
   if (reviewResult.error) {
-    return { reviews: [], error: reviewResult.error.message };
+    return { reviews: [], error: reviewResult.error.message, count: null };
   }
 
   const rows = (reviewResult.data ?? []) as ReviewRow[];
-  const bookingIds = [...new Set(rows.map((review) => review.booking_id).filter(Boolean))];
+  const bookingIds = [
+    ...new Set(rows.map((review) => review.booking_id).filter(Boolean)),
+  ];
   const bookingResult = bookingIds.length
     ? await supabase
         .from("bookings")
@@ -56,7 +82,7 @@ export async function loadAdminReviews(
     : { data: [], error: null };
 
   if (bookingResult.error) {
-    return { reviews: [], error: bookingResult.error.message };
+    return { reviews: [], error: bookingResult.error.message, count: null };
   }
 
   const bookingRows = (bookingResult.data ?? []) as BookingRow[];
@@ -80,17 +106,27 @@ export async function loadAdminReviews(
 
   const [customerResult, providerResult] = await Promise.all([
     customerIds.length
-      ? supabase.from("profiles").select("id, full_name, email").in("id", customerIds)
+      ? supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", customerIds)
       : Promise.resolve({ data: [], error: null }),
     providerIds.length
-      ? supabase.from("providers").select("id, display_name, profile_id").in("id", providerIds)
+      ? supabase
+          .from("providers")
+          .select("id, display_name, profile_id")
+          .in("id", providerIds)
       : Promise.resolve({ data: [], error: null }),
   ]);
 
   if (customerResult.error || providerResult.error) {
     return {
       reviews: [],
-      error: customerResult.error?.message ?? providerResult.error?.message ?? "Reviews could not be loaded.",
+      count: null,
+      error:
+        customerResult.error?.message ??
+        providerResult.error?.message ??
+        "Reviews could not be loaded.",
     };
   }
 
@@ -100,11 +136,15 @@ export async function loadAdminReviews(
     customerRows.map((profile): [string, CustomerRow] => [profile.id, profile]),
   );
   const providers = new Map<string, ProviderRow>(
-    providerRows.map((provider): [string, ProviderRow] => [provider.id, provider]),
+    providerRows.map((provider): [string, ProviderRow] => [
+      provider.id,
+      provider,
+    ]),
   );
 
   return {
     error: null,
+    count: reviewResult.count ?? null,
     reviews: rows.map((review) => {
       const booking = bookings.get(review.booking_id);
       const customer = booking?.customer_id
@@ -113,7 +153,8 @@ export async function loadAdminReviews(
       const provider = booking?.provider_id
         ? providers.get(booking.provider_id)
         : null;
-      const clientName = customer?.full_name || customer?.email || "Unknown client";
+      const clientName =
+        customer?.full_name || customer?.email || "Unknown client";
       const cleanerName = provider?.display_name || "Unknown cleaner";
       const clientHref = booking?.customer_id
         ? `/admin/customers/${booking.customer_id}`
@@ -130,11 +171,14 @@ export async function loadAdminReviews(
         visibility: review.visibility as "public" | "private",
         created_at: review.created_at,
         bookingReference: review.booking_id.slice(0, 8).toUpperCase(),
-        category: review.reviewer === "client" ? "Cleaner review" : "Client review",
+        category:
+          review.reviewer === "client" ? "Cleaner review" : "Client review",
         reviewerName: review.reviewer === "client" ? clientName : cleanerName,
-        reviewerProfileHref: review.reviewer === "client" ? clientHref : cleanerHref,
+        reviewerProfileHref:
+          review.reviewer === "client" ? clientHref : cleanerHref,
         recipientName: review.reviewer === "client" ? cleanerName : clientName,
-        recipientProfileHref: review.reviewer === "client" ? cleanerHref : clientHref,
+        recipientProfileHref:
+          review.reviewer === "client" ? cleanerHref : clientHref,
       };
     }),
   };
