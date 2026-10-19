@@ -7,7 +7,7 @@
   padding: 20px 16px;
 }
 .links a,
-.nextdoor {
+.placeholder {
   display: inline-flex;
   gap: 8px;
   align-items: center;
@@ -25,16 +25,35 @@
   outline-offset: 5px;
   border-radius: 4px;
 }
-.nextdoor {
-  color: #6b7280;
+.footer {
+  justify-content: flex-start;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0;
 }
-.nextdoor small {
-  display: block;
-  font-size: 10px;
-  font-weight: 600;
+.footer a,
+.footer .placeholder {
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: #e7d9f2;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
-.nextdoorIcon {
-  font-size: 30px;
-  color: #288b42;
-  line-height: 1;
+.placeholder {
+  opacity: 0.55;
+  cursor: default;
+}
+.footer a:hover {
+  background: rgba(214, 154, 221, 0.18);
+  color: #fff;
+}
+.footer a:focus-visible {
+  outline-color: #f5c542;
+  outline-offset: 3px;
+  border-radius: 50%;
 }
