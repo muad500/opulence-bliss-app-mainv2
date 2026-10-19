@@ -371,6 +371,10 @@ export default async function WorkerCleaningJobs() {
         <h2 style={sectionTitle}>
           New offers{offers.length > 0 ? ` (${offers.length})` : ""}
         </h2>
+        <p>
+          Offers are shared with other qualified cleaners. The first to accept
+          gets the job.
+        </p>
         {offers.length === 0 ? (
           <p style={{ color: "var(--ob-muted)", margin: "0 0 34px" }}>
             Nothing waiting right now.

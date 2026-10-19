@@ -121,7 +121,8 @@ const CASE_SUMMARY: Record<string, string> = {
   client_unavailable:
     "Your provider couldn't get access. We're reviewing what happens next.",
   late_cancellation: "This visit was cancelled close to the start time.",
-  work_stopped: "The visit was stopped part-way through. We're looking into it.",
+  work_stopped:
+    "The visit was stopped part-way through. We're looking into it.",
   unsafe_property:
     "Your provider raised a safety concern and stopped work. Our team is reviewing it.",
   damage_or_injury:
@@ -304,8 +305,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
   const reviewCase = f.reviewCase
     ? {
         category: f.reviewCase.category,
-        summary:
-          CASE_SUMMARY[f.reviewCase.category] ?? CASE_SUMMARY.other,
+        summary: CASE_SUMMARY[f.reviewCase.category] ?? CASE_SUMMARY.other,
         status: f.reviewCase.resolved ? "resolved" : "being handled",
         resolved: f.reviewCase.resolved,
       }
@@ -336,7 +336,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
             at: openCase.resolutionDueAt,
             label: `We aim to update you by ${friendlyTime(
               openCase.resolutionDueAt,
-              f.now
+              f.now,
             )}`,
           }
         : null,
@@ -352,7 +352,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       actions.push(
         { kind: "wait", label: "We'll let you know", primary: true },
         { kind: "cancel", label: "Cancel booking" },
-        { kind: "reschedule", label: "Modify booking" }
+        { kind: "reschedule", label: "Modify booking" },
       );
 
       return {
@@ -361,7 +361,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
           f.openOfferCount > 0
             ? `${f.openOfferCount} available providers`
             : "matching providers"
-        } one at a time. If one doesn't answer, the next provider gets a turn automatically.`,
+        } in ranked waves. The first available cleaner to accept gets the job.`,
         tone: "neutral",
         nextActor: "provider",
         nextActorLabel: ACTOR_LABEL.provider,
@@ -384,7 +384,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       actions.push(
         { kind: "wait", label: "Nothing to do", primary: true },
         { kind: "reschedule", label: "Modify booking" },
-        { kind: "cancel", label: "Cancel booking" }
+        { kind: "cancel", label: "Cancel booking" },
       );
 
       return {
@@ -413,7 +413,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       const finish =
         f.arrivedAt && f.durationMinutes
           ? new Date(
-              new Date(f.arrivedAt).getTime() + f.durationMinutes * 60000
+              new Date(f.arrivedAt).getTime() + f.durationMinutes * 60000,
             ).toISOString()
           : null;
 
@@ -452,7 +452,10 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       if (money.state === "charged" || money.state === "none") {
         actions.push({ kind: "tip", label: "Add a tip" });
       }
-      if (money.state === "under_review" && f.paymentStatus === "capture_failed") {
+      if (
+        money.state === "under_review" &&
+        f.paymentStatus === "capture_failed"
+      ) {
         actions.push({
           kind: "update_card",
           label: "Sort out payment",
@@ -506,17 +509,17 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       return {
         headline: "Cancelled",
         detail:
-           money.state === "released"
-             ? "This visit was cancelled and the hold was released. You weren't charged."
-             : money.state === "refunded"
-               ? "This visit was cancelled and your payment was refunded."
+          money.state === "released"
+            ? "This visit was cancelled and the hold was released. You weren't charged."
+            : money.state === "refunded"
+              ? "This visit was cancelled and your payment was refunded."
               : money.state === "partially_refunded"
                 ? `This visit was cancelled and £${(money.refunded ?? 0).toFixed(2)} was refunded under the cancellation policy.`
                 : money.state === "charged"
                   ? `This visit was cancelled. The cancellation charge was £${(money.amount ?? 0).toFixed(2)}.`
                   : money.state === "under_review"
                     ? "This visit was cancelled and its payment adjustment is being processed."
-               : "This visit was cancelled.",
+                    : "This visit was cancelled.",
         tone: "neutral",
         nextActor: "client",
         nextActorLabel: ACTOR_LABEL.client,
@@ -618,7 +621,7 @@ function unavailableVisitStatus(bookingId: string): VisitStatus {
  */
 export async function getVisitStatus(
   supabase: SupabaseClient,
-  bookingId: string
+  bookingId: string,
 ): Promise<VisitStatus | null> {
   const { data: b, error: bookingError } = await supabase
     .from("bookings")
@@ -627,7 +630,7 @@ export async function getVisitStatus(
        subscription_id,
        duration_minutes, property_size_sqm, packages(name, duration_minutes),
        providers(display_name),
-       check_ins(arrived_at)`
+       check_ins(arrived_at)`,
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -635,14 +638,16 @@ export async function getVisitStatus(
   if (bookingError) return unavailableVisitStatus(bookingId);
   if (!b) return null;
 
-  const one = <T,>(v: T | T[] | null | undefined): T | null =>
-    !v ? null : Array.isArray(v) ? v[0] ?? null : v;
+  const one = <T>(v: T | T[] | null | undefined): T | null =>
+    !v ? null : Array.isArray(v) ? (v[0] ?? null) : v;
 
   const pkg = one(b.packages as never) as {
     name: string;
     duration_minutes: number | null;
   } | null;
-  const prv = one(b.providers as never) as { display_name: string | null } | null;
+  const prv = one(b.providers as never) as {
+    display_name: string | null;
+  } | null;
   const ci = one(b.check_ins as never) as { arrived_at: string | null } | null;
 
   const [paymentResult, privateResult, ratingResult] = await Promise.all([
@@ -668,8 +673,7 @@ export async function getVisitStatus(
   const hasSubmittedClientReview = (
     (ratingResult.data ?? []) as Array<{ booking_id: string; reviewer: string }>
   ).some(
-    (review) =>
-      review.booking_id === bookingId && review.reviewer === "client",
+    (review) => review.booking_id === bookingId && review.reviewer === "client",
   );
   const privateRows = privateResult.data as
     | {
@@ -704,16 +708,17 @@ export async function getVisitStatus(
 
     openOfferCount: Number(safe?.open_offer_count ?? 0),
 
-    reviewCase: safe?.review_category && safe.review_status
-      ? {
-          category: safe.review_category,
-          status: safe.review_status,
-          blocksPayment: !!safe.blocks_payment,
-          blocksPayout: !!safe.blocks_payout,
-          resolutionDueAt: safe.resolution_due_at,
-          resolved: safe.review_status === "resolved",
-        }
-      : null,
+    reviewCase:
+      safe?.review_category && safe.review_status
+        ? {
+            category: safe.review_category,
+            status: safe.review_status,
+            blocksPayment: !!safe.blocks_payment,
+            blocksPayout: !!safe.blocks_payout,
+            resolutionDueAt: safe.resolution_due_at,
+            resolved: safe.review_status === "resolved",
+          }
+        : null,
 
     hasRated: hasSubmittedClientReview,
     now: new Date().toISOString(),

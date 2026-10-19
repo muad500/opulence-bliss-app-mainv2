@@ -234,11 +234,12 @@ export async function declineJob(id: string) {
     .maybeSingle();
   if (!me) return;
 
-  await supabase
-    .from("booking_offers")
-    .update({ status: "declined" })
-    .eq("booking_id", id)
-    .eq("provider_id", me.id);
+  const { data, error } = await supabase.rpc("provider_decline_booking_offer", {
+    p_booking_id: id,
+  });
+  if (error) throw new Error(error.message);
+  if (data?.taken) return { taken: true };
+  if (!data?.declined) throw new Error("There is no open offer to decline.");
 
   await rotateBookingOffer(admin, id).catch((error) => {
     console.error("Could not advance declined offer:", error);

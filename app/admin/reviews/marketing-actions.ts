@@ -2,23 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/adminSession";
 
 async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") throw new Error("Admins only");
-
-  return { supabase, user };
+  return requireAdminPage();
 }
 
 function reviewValues(formData: FormData) {
@@ -33,7 +20,12 @@ function reviewValues(formData: FormData) {
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     throw new Error("Rating must be between 1 and 5");
   }
-  if (!serviceLabel || !comment || !customerName || !/^\d{4}-\d{2}-\d{2}$/.test(reviewedAt)) {
+  if (
+    !serviceLabel ||
+    !comment ||
+    !customerName ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(reviewedAt)
+  ) {
     throw new Error("Complete the service, review, customer and date fields");
   }
 
@@ -68,7 +60,11 @@ function refreshReviews() {
 
 function saveErrorCode(error: unknown) {
   const message = error instanceof Error ? error.message : "";
-  if (message.includes("Complete the service") || message.includes("Rating must")) return "fields";
+  if (
+    message.includes("Complete the service") ||
+    message.includes("Rating must")
+  )
+    return "fields";
   console.error("Could not save marketing review", error);
   return "save";
 }
@@ -119,7 +115,9 @@ export async function updateMarketingReview(id: string, formData: FormData) {
     if (readError) throw new Error(readError.message);
     // A copied booking review always shows the customer's own rating, words
     // and date (the database enforces this), so only its placement can change.
-    const values = existing?.source_review_id ? placementValues(formData) : reviewValues(formData);
+    const values = existing?.source_review_id
+      ? placementValues(formData)
+      : reviewValues(formData);
     const { error } = await supabase
       .from("marketing_reviews")
       .update(values)
@@ -130,14 +128,21 @@ export async function updateMarketingReview(id: string, formData: FormData) {
 
 export async function deleteMarketingReview(id: string) {
   const { supabase } = await requireAdmin();
-  const { error } = await supabase.from("marketing_reviews").delete().eq("id", id);
+  const { error } = await supabase
+    .from("marketing_reviews")
+    .delete()
+    .eq("id", id);
   if (error) throw new Error(error.message);
   refreshReviews();
 }
 
 export async function copyBookingReviewToTestimonial(formData: FormData) {
   const reviewId = String(formData.get("reviewId") ?? "");
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reviewId)) {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      reviewId,
+    )
+  ) {
     throw new Error("Invalid review.");
   }
 
@@ -166,7 +171,9 @@ export async function copyBookingReviewToTestimonial(formData: FormData) {
     .maybeSingle();
   if (serviceError) throw new Error(serviceError.message);
   if (!service?.service_type?.includes("clean")) {
-    throw new Error("Only cleaning reviews can be copied into cleaning testimonials.");
+    throw new Error(
+      "Only cleaning reviews can be copied into cleaning testimonials.",
+    );
   }
 
   const { data: existing, error: existingError } = await supabase
@@ -175,14 +182,16 @@ export async function copyBookingReviewToTestimonial(formData: FormData) {
     .eq("source_review_id", reviewId)
     .maybeSingle();
   if (existingError) throw new Error(existingError.message);
-  if (existing) throw new Error("This booking review is already an editable testimonial.");
+  if (existing)
+    throw new Error("This booking review is already an editable testimonial.");
 
   const { error } = await supabase.from("marketing_reviews").insert({
     source_review_id: reviewId,
     service_type: "cleaning",
     service_label: service.name,
     rating: review.rating,
-    comment: review.comment?.trim() || "Rating shared without a written comment.",
+    comment:
+      review.comment?.trim() || "Rating shared without a written comment.",
     customer_name: "Verified customer",
     location: null,
     reviewed_at: review.created_at.slice(0, 10),

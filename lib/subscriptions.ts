@@ -44,7 +44,7 @@ export async function buildSplit(opts: {
   };
 }
 
-/** Create this cycle's visits and queue matching providers one at a time. */
+/** Create this cycle's visits and start ranked offer waves. */
 export async function generateBookings(subId: string, cycleStart: Date) {
   const { data: sub } = await admin
     .from("subscriptions")

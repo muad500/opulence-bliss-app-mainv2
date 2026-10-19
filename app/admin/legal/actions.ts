@@ -1,11 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
-import {
-  isLegalDocumentSlug,
-  sanitizeLegalHtml,
-} from "@/lib/legalDocuments";
+import { requireAdminPage } from "@/lib/adminSession";
+import { isLegalDocumentSlug, sanitizeLegalHtml } from "@/lib/legalDocuments";
 
 export type LegalSaveState = { ok: boolean; message: string };
 
@@ -13,25 +10,14 @@ export async function saveLegalDocument(
   _previousState: LegalSaveState,
   formData: FormData,
 ): Promise<LegalSaveState> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, message: "Sign in as an administrator." };
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") {
-    return { ok: false, message: "Administrators only." };
-  }
+  const { supabase, user } = await requireAdminPage();
 
   const slug = String(formData.get("slug") ?? "");
   const title = String(formData.get("title") ?? "").trim();
   const version = String(formData.get("version") ?? "").trim();
-  const contentHtml = sanitizeLegalHtml(String(formData.get("contentHtml") ?? ""));
+  const contentHtml = sanitizeLegalHtml(
+    String(formData.get("contentHtml") ?? ""),
+  );
 
   if (!isLegalDocumentSlug(slug)) {
     return { ok: false, message: "That legal document is not recognised." };
@@ -40,14 +26,19 @@ export async function saveLegalDocument(
     return { ok: false, message: "Use a title between 3 and 120 characters." };
   }
   if (!/^(?:\d{4}-\d{2}-\d{2}(?:\.\d+)?|\d+\.\d+)$/.test(version)) {
-    return { ok: false, message: "Use a version such as 2.0, 2026-09-20 or 2026-09-20.2." };
+    return {
+      ok: false,
+      message: "Use a version such as 2.0, 2026-09-20 or 2026-09-20.2.",
+    };
   }
   if (contentHtml.replace(/<[^>]*>/g, "").trim().length < 80) {
     return { ok: false, message: "The document is too short to publish." };
   }
 
   const audience =
-    slug === "terms" || slug === "cancellation-refund" || slug === "handyman-terms"
+    slug === "terms" ||
+    slug === "cancellation-refund" ||
+    slug === "handyman-terms"
       ? "customers"
       : slug === "professional-partner-agreement"
         ? "professionals"

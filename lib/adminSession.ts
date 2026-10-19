@@ -2,10 +2,15 @@ import "server-only";
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { hasStaffTotpSession } from "@/lib/staffMfa";
 
-export async function requireAdminPage() {
+/** Identity only: used by the MFA setup page, never by an admin operation. */
+export async function requireStaffIdentity() {
   const supabase = await createClient();
-  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
 
   if (authError || !user) redirect("/staff/login");
 
@@ -20,4 +25,13 @@ export async function requireAdminPage() {
   }
 
   return { supabase, user, profile };
+}
+
+export async function requireAdminPage() {
+  const context = await requireStaffIdentity();
+  const { data, error } = await context.supabase.auth.getClaims();
+  if (error || !hasStaffTotpSession(data?.claims, context.user.factors)) {
+    redirect("/staff/mfa");
+  }
+  return context;
 }

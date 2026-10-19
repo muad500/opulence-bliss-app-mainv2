@@ -211,7 +211,7 @@ export async function cannotAttend(
 
   if (error) return { ok: false, message: error.message };
 
-  // ---- queue everyone else who fits, then ask them one at a time ----
+  // ---- start ranked waves for everyone else who qualifies ----
   const district = servicePostcodeFromText(booking.address)?.slice(0, -3) ?? "";
 
   const { data: areas } = await admin
