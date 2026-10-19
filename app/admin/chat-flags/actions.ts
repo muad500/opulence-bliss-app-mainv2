@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/adminSession";
 
 export async function reviewChatFlag(formData: FormData) {
   const flagId = Number(formData.get("flagId"));
@@ -14,18 +14,7 @@ export async function reviewChatFlag(formData: FormData) {
     throw new Error("Invalid review decision.");
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in.");
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (profile?.role !== "admin") throw new Error("Administrators only.");
+  const { supabase } = await requireAdminPage();
 
   const { error } = await supabase.rpc("review_chat_moderation_flag", {
     p_flag_id: flagId,

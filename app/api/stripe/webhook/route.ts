@@ -13,6 +13,7 @@ import { finalizeCustomerCheckout } from "@/lib/finalizeCustomerCheckout";
 import { finalizeTipCheckout } from "@/lib/finalizeTipCheckout";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
+import { stripePayoutAccountChanged } from "@/lib/accountSecurityAlerts";
 import { createClient } from "@supabase/supabase-js";
 import { createVisitBilling } from "@/lib/visitBillingServer";
 import {
@@ -52,6 +53,34 @@ export async function POST(req: NextRequest) {
   console.log("Stripe webhook:", event.type);
 
   try {
+    if (
+      stripePayoutAccountChanged(
+        event.type,
+        event.data.previous_attributes as Record<string, unknown> | undefined,
+      )
+    ) {
+      const connectedId =
+        event.account ??
+        (event.type === "account.updated"
+          ? (event.data.object as Stripe.Account).id
+          : null);
+      if (connectedId) {
+        const { data: provider, error } = await admin
+          .from("providers")
+          .select("profile_id")
+          .eq("stripe_account_id", connectedId)
+          .maybeSingle();
+        if (error) throw new Error("Payout security alert lookup failed");
+        if (provider) {
+          const queued = await admin.rpc("queue_account_security_alert", {
+            p_user: provider.profile_id,
+            p_event: `stripe:${event.id}`,
+          });
+          if (queued.error)
+            throw new Error("Payout security alert could not be queued");
+        }
+      }
+    }
     if (
       event.type === "customer.updated" &&
       event.data.previous_attributes &&

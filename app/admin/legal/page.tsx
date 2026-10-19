@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import AdminNav from "../AdminNav";
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/adminSession";
 import {
   LEGAL_DOCUMENT_SLUGS,
   defaultLegalDocument,
@@ -21,7 +21,7 @@ type LegalRow = {
 };
 
 export default async function AdminLegalPage() {
-  const supabase = await createClient();
+  const { supabase } = await requireAdminPage();
   const {
     data: { user },
   } = await supabase.auth.getUser();

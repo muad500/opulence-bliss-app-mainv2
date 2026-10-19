@@ -3,7 +3,7 @@
 // Admin data tools. Save at: app/admin/actions.ts
 // Every action checks the caller is an admin first.
 
-import { createClient } from "@/lib/supabase/server";
+import { requireAdminPage } from "@/lib/adminSession";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { rescheduleBookingState } from "@/lib/bookingState";
@@ -22,20 +22,7 @@ const admin = createAdminClient(
 );
 
 async function requireAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) throw new Error("Not signed in");
-
-  const { data: p } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (p?.role !== "admin") throw new Error("Admins only");
-  return supabase;
+  return (await requireAdminPage()).supabase;
 }
 
 const ALL = "00000000-0000-0000-0000-000000000000"; // sentinel for "match everything"
