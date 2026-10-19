@@ -6,6 +6,15 @@ import { handymanEnabled } from "@/lib/handymanMarketplace";
 import { requireAdminPage } from "@/lib/adminSession";
 import { setProviderDirectoryVisibility } from "../actions";
 import { dbsRecheckDate, renewalState } from "@/lib/verificationRenewal";
+import { redirect } from "next/navigation";
+import {
+  ADMIN_PAGE_SIZE,
+  adminPageNumber,
+  adminListHref,
+  pendingProfessionalFilter,
+} from "@/lib/adminDashboard";
+import Pagination from "../Pagination";
+import styles from "../admin.module.css";
 
 function profileOf(value: unknown) {
   if (Array.isArray(value)) return value[0] as { email?: string } | undefined;
@@ -37,25 +46,70 @@ function applicationOf(value: unknown) {
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-export default async function AdminCleanersPage() {
+export default async function AdminCleanersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string; status?: string }>;
+}) {
   const { supabase, user } = await requireAdminPage();
-  const [providersResult, availabilityResult, jobsResult, dbsResult] =
-    await Promise.all([
-      supabase
-        .from("providers")
-        .select(
-          "id, display_name, services, service_approvals, vetting_status, dbs_verified, rating_avg, rating_count, years_experience, is_suspended, show_on_our_pros, profile:profiles!providers_profile_id_fkey(email), application:provider_onboarding_details(preferred_weekly_hours, resident_status, self_employed_confirmed, right_to_work, cleaning_experience_years, max_travel_distance)",
-        )
-        .order("display_name", { ascending: true }),
-      supabase
-        .from("provider_availability")
-        .select("provider_id, weekday, start_time, end_time")
-        .order("weekday", { ascending: true }),
-      supabase.from("bookings").select("provider_id, status"),
-      supabase
-        .from("provider_dbs_checks")
-        .select("provider_id, status, uploaded_at,issue_date"),
-    ]);
+  const params = await searchParams;
+  const currentPage = adminPageNumber(params.page);
+  const selectedStatus = ["pending", "approved", "suspended"].includes(
+    params.status ?? "",
+  )
+    ? params.status
+    : undefined;
+  let providerQuery = supabase
+    .from("providers")
+    .select(
+      "id, display_name, services, service_approvals, vetting_status, dbs_verified, rating_avg, rating_count, years_experience, is_suspended, show_on_our_pros, profile:profiles!providers_profile_id_fkey(email), application:provider_onboarding_details(preferred_weekly_hours, resident_status, self_employed_confirmed, right_to_work, cleaning_experience_years, max_travel_distance)",
+      { count: "exact" },
+    );
+  if (selectedStatus === "pending")
+    providerQuery = providerQuery.or(
+      pendingProfessionalFilter(handymanEnabled()),
+    );
+  if (selectedStatus === "approved")
+    providerQuery = providerQuery
+      .eq("vetting_status", "approved")
+      .eq("is_suspended", false);
+  if (selectedStatus === "suspended")
+    providerQuery = providerQuery.eq("is_suspended", true);
+  const providersResult = await providerQuery
+    .order("created_at", { ascending: selectedStatus === "pending" })
+    .order("id", { ascending: true })
+    .range(
+      (currentPage - 1) * ADMIN_PAGE_SIZE,
+      currentPage * ADMIN_PAGE_SIZE - 1,
+    );
+  const total = providersResult.error ? null : providersResult.count;
+  const lastPage = Math.max(1, Math.ceil((total ?? 0) / ADMIN_PAGE_SIZE));
+  if (total !== null && currentPage > lastPage)
+    redirect(
+      adminListHref("/admin/cleaners", lastPage, { status: selectedStatus }),
+    );
+  const ids = (providersResult.data ?? []).map((provider) => provider.id);
+  const [availabilityResult, jobsResult, dbsResult] = await Promise.all([
+    ids.length
+      ? supabase
+          .from("provider_availability")
+          .select("provider_id, weekday, start_time, end_time")
+          .in("provider_id", ids)
+          .order("weekday", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
+    ids.length
+      ? supabase
+          .from("bookings")
+          .select("provider_id, status")
+          .in("provider_id", ids)
+      : Promise.resolve({ data: [], error: null }),
+    ids.length
+      ? supabase
+          .from("provider_dbs_checks")
+          .select("provider_id, status, uploaded_at,issue_date")
+          .in("provider_id", ids)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
 
   const providers = providersResult.data ?? [];
   const hoursByProvider = new Map<string, string[]>();
@@ -89,18 +143,51 @@ export default async function AdminCleanersPage() {
     <main style={page}>
       <AdminNav email={user.email ?? "Admin"} />
       <div style={inner}>
+        <Link href="/admin" className={styles.backLink}>
+          ← Back to overview
+        </Link>
         <p style={eyebrow}>Workforce</p>
-        <h1 style={title}>Cleaners &amp; professionals</h1>
+        <h1 style={title}>
+          {selectedStatus === "pending" ? "Awaiting approval" : "Professionals"}
+        </h1>
         <p style={lede}>
           Review applications, approval status, skills, availability and current
           workload.
         </p>
 
-        <AdminProfessionalOnboarding handymanEnabled={handymanEnabled()} />
+        <nav className={styles.filters} aria-label="Professional status">
+          {[
+            [undefined, "All professionals"],
+            ["pending", "Awaiting approval"],
+            ["approved", "Approved"],
+            ["suspended", "Suspended"],
+          ].map(([status, label]) => (
+            <Link
+              key={label}
+              className={styles.filter}
+              aria-current={selectedStatus === status ? "page" : undefined}
+              href={adminListHref("/admin/cleaners", 1, { status })}
+            >
+              {label}
+            </Link>
+          ))}
+        </nav>
+        {!selectedStatus && (
+          <details style={{ marginBottom: 20 }}>
+            <summary style={{ cursor: "pointer", fontWeight: 700 }}>
+              Add a professional
+            </summary>
+            <AdminProfessionalOnboarding handymanEnabled={handymanEnabled()} />
+          </details>
+        )}
         {providersResult.error ? (
           <div style={errorBox}>{providersResult.error.message}</div>
         ) : providers.length === 0 ? (
-          <div style={empty}>No cleaner accounts yet.</div>
+          <div style={empty}>
+            {selectedStatus
+              ? "No professionals match this status."
+              : "No professional accounts yet."}
+          </div>
         ) : (
           <div style={{ display: "grid", gap: 12 }}>
             {providers.map((provider) => {
@@ -261,6 +348,14 @@ export default async function AdminCleanersPage() {
               );
             })}
           </div>
+        )}
+        {!providersResult.error && (
+          <Pagination
+            path="/admin/cleaners"
+            page={currentPage}
+            total={total ?? null}
+            filters={{ status: selectedStatus }}
+          />
         )}
       </div>
     </main>
