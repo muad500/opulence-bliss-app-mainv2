@@ -180,7 +180,8 @@ export default function JobActions({
           <button
             onClick={() =>
               perform("Declining…", async () => {
-                await declineJob(id);
+                const result = await declineJob(id);
+                if (result?.taken) setNote("This job has been taken.");
               })
             }
             disabled={pending}
@@ -193,7 +194,7 @@ export default function JobActions({
               perform("Accepting…", async () => {
                 const r = await acceptJob(id, selectedSlot);
                 if (r?.taken) {
-                  setNote("Someone else took this job first.");
+                  setNote("This job has been taken.");
                 } else if (r?.error) {
                   setNote(r.error);
                 }

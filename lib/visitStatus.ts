@@ -361,7 +361,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
           f.openOfferCount > 0
             ? `${f.openOfferCount} available providers`
             : "matching providers"
-        } one at a time. If one doesn't answer, the next provider gets a turn automatically.`,
+        } in ranked waves. The first available cleaner to accept gets the job.`,
         tone: "neutral",
         nextActor: "provider",
         nextActorLabel: ACTOR_LABEL.provider,

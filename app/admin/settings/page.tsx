@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import AdminNav from "../AdminNav";
+import JobOfferSettings from "@/components/admin/JobOfferSettings";
 import SocialLinksSettings from "@/components/admin/SocialLinksSettings";
 import { CLEANING_ADDONS } from "@/lib/cleaningExtras";
 import type { CleaningBillingTerms } from "@/lib/cleaningBillingTerms";
@@ -144,6 +145,7 @@ export default function BillingSettings() {
         ) : (
           <p role="status">Loading settings…</p>
         )}
+        <JobOfferSettings />
         <SocialLinksSettings />
       </main>
       <style jsx>{`

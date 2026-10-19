@@ -30,9 +30,9 @@ export async function GET(req: NextRequest) {
 
   const summary = {
     checked: waiting?.length ?? 0,
-    activated: 0,
+    waves: 0,
+    offered: 0,
     waiting: 0,
-    exhausted: 0,
     skipped: 0,
     errors: [] as { booking_id: string; message: string }[],
   };
@@ -40,9 +40,10 @@ export async function GET(req: NextRequest) {
   for (const booking of waiting ?? []) {
     try {
       const result = await rotateBookingOffer(admin, booking.id);
-      if (result.action === "activated") summary.activated++;
-      else if (result.action === "waiting") summary.waiting++;
-      else if (result.action === "exhausted") summary.exhausted++;
+      if (result.action === "wave_opened") {
+        summary.waves++;
+        summary.offered += result.opened ?? 0;
+      } else if (result.action === "waiting") summary.waiting++;
       else summary.skipped++;
     } catch (cause) {
       summary.errors.push({
