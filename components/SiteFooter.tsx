@@ -142,6 +142,7 @@ export default function SiteFooter() {
             Professional Partner Agreement
           </a>
           <Link href="/faq">Help &amp; FAQ</Link>
+          <Link href="/delete-account">Delete your account</Link>
         </div>
       </div>
     </footer>

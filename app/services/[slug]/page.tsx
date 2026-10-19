@@ -21,6 +21,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { compareCleaningSessions } from "@/lib/cleaningBooking";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
+import CleaningComparison from "@/components/CleaningComparison";
 import {
   cleaningPackageScope,
   CLEANING_SUPPLIES_FAQ,
@@ -577,6 +578,7 @@ export default function ServicePage() {
       </section>
 
       {/* ---------- REASSURANCE ---------- */}
+      <CleaningComparison />
       <section className="business" id="business-cleaning">
         <div className="inner">
           <h2>Cleaning contracts</h2>

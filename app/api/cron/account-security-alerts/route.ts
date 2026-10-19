@@ -2,6 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { deliverAccountSecurityAlerts } from "@/lib/accountSecurityDelivery";
+import { deliverChatMessageEmails } from "@/lib/chatMessageDelivery";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export async function GET(request: NextRequest) {
@@ -20,9 +21,15 @@ export async function GET(request: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
-    return NextResponse.json(await deliverAccountSecurityAlerts(admin), {
-      headers: { "Cache-Control": "no-store" },
-    });
+    const security = await deliverAccountSecurityAlerts(admin);
+    const messages = await deliverChatMessageEmails(admin);
+    return NextResponse.json(
+      { ...security, messages },
+      {
+        status: messages.failed ? 503 : 200,
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
   } catch {
     return NextResponse.json(
       { error: "Security alert delivery needs attention" },

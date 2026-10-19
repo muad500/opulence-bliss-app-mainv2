@@ -102,6 +102,10 @@ test("cron rejects missing/wrong credentials before using any privileged service
           deliverAccountSecurityAlerts: () =>
             assert.fail("delivery must not run"),
         },
+        "@/lib/chatMessageDelivery": {
+          deliverChatMessageEmails: () =>
+            assert.fail("chat delivery must not run"),
+        },
         "@supabase/supabase-js": {
           createClient: () => assert.fail("client must not be created"),
         },

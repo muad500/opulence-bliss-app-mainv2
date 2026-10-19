@@ -1,0 +1,103 @@
+.section {
+  padding: 56px 20px;
+  background: #faf8ff;
+  color: #19202a;
+}
+.inner {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+.eyebrow {
+  color: #6d28d9;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.inner h2 {
+  margin: 0 0 12px;
+  font-size: clamp(26px, 4vw, 38px);
+  line-height: 1.15;
+}
+.help {
+  color: #5c5868;
+  font-size: 14px;
+  max-width: 760px;
+}
+.scroll {
+  overflow-x: auto;
+  border: 1px solid #e5dfee;
+  border-radius: 16px;
+  background: white;
+  margin-top: 24px;
+}
+.scroll:focus-visible {
+  outline: 3px solid #7b2ff7;
+  outline-offset: 4px;
+}
+.scroll table {
+  width: 100%;
+  min-width: 1000px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+.scroll th,
+.scroll td {
+  padding: 16px 14px;
+  border-bottom: 1px solid #ede8f2;
+  text-align: center;
+  vertical-align: middle;
+}
+.scroll thead th {
+  background: #6d28d9;
+  color: white;
+  font-weight: 800;
+  min-width: 112px;
+}
+.scroll th:first-child {
+  position: sticky;
+  left: 0;
+  text-align: left;
+  width: 210px;
+  min-width: 160px;
+  background: #f4effb;
+  z-index: 1;
+}
+.scroll thead th:first-child {
+  background: #5420a8;
+}
+.scroll td[data-value="yes"] {
+  color: #196246;
+  font-weight: 800;
+}
+.scroll td[data-value="no"] {
+  color: #77717f;
+}
+.scroll tr:last-child th,
+.scroll tr:last-child td {
+  border-bottom: 0;
+}
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+@media (max-width: 560px) {
+  .section {
+    padding: 36px 14px;
+  }
+  .scroll th,
+  .scroll td {
+    padding: 13px 12px;
+  }
+  .scroll th:first-child {
+    min-width: 140px;
+    max-width: 155px;
+  }
+}

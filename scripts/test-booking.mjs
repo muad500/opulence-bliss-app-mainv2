@@ -8,6 +8,8 @@ import { execFileSync } from "node:child_process";
 // project's locked TypeScript compiler; no extra runtime dependency is needed.
 const directory = await mkdtemp(join(tmpdir(), "opulence-tests-"));
 const modules = [
+  "chatMessageMail",
+  "cleaningComparison",
   "adminDashboard",
   "jobOfferSettings",
   "staffMfa",
@@ -56,6 +58,11 @@ const modules = [
   "handymanMarketplace",
 ];
 try {
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-chat-message-emails.mjs"],
+    { stdio: "inherit" },
+  );
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-admin-dashboard.mjs"],
