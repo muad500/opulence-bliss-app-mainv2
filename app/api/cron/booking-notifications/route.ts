@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { processBookingSms } from "@/lib/processBookingSms";
+import { notificationLink } from "@/lib/adminHosts";
 
 export const maxDuration = 60;
 type Delivery = {
@@ -96,7 +97,7 @@ export async function GET(req: NextRequest) {
               from,
               to: [delivery.email],
               subject: delivery.title,
-              text: `${delivery.body}\n\nView your booking: ${origin!.replace(/\/$/, "")}${delivery.href}`,
+              text: `${delivery.body}\n\nView your booking: ${notificationLink(delivery.href, origin!, process.env)}`,
             }),
           });
           if (!response.ok)

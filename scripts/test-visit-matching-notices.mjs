@@ -45,6 +45,36 @@ const env = {
   BOOKING_EMAIL_FROM: "sender@example.invalid",
   NEXT_PUBLIC_SITE_URL: "https://staging.example.invalid",
 };
+
+test("admin matching emails link directly to the staff host while staging stays isolated", async () => {
+  for (const configuration of [
+    env,
+    {
+      ...env,
+      VISIT_PAYMENTS_MODE: "staging",
+      STAGING_EMAIL_RECIPIENTS: notice.recipient,
+    },
+  ]) {
+    const h = harness([
+      { ...notice, href: "/admin/bookings", kind: "admin_48h" },
+    ]);
+    const expected =
+      configuration.VISIT_PAYMENTS_MODE === "staging"
+        ? "https://staging.example.invalid/admin/bookings"
+        : "https://admin.opulencebliss.com/admin/bookings";
+    const result = await deliverVisitMatchingNotices(
+      h.admin,
+      configuration,
+      async (_url, request) => {
+        assert.ok(JSON.parse(request.body).text.endsWith(expected));
+        return new Response(JSON.stringify({ id: "fixture-admin-notice" }), {
+          status: 200,
+        });
+      },
+    );
+    assert.equal(result.submitted, 1);
+  }
+});
 function harness(rows = [notice], allowed = true) {
   const calls = [];
   const admin = {

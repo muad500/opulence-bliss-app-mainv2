@@ -7,15 +7,7 @@ import { Nunito } from "next/font/google";
 import "./globals.css";
 import "./mobile-app.css";
 
-import AccountChangeVerification from "@/components/AccountChangeVerification";
-import MobileExperience from "@/components/MobileExperience";
-import TopBar from "@/components/TopBar";
-import SiteHeader from "@/components/SiteHeader";
-import Toaster from "@/components/Toaster";
-import RatingGate from "@/components/RatingGate";
-import SupportChat from "@/components/SupportChat";
-import EnvironmentBanner from "@/components/EnvironmentBanner";
-import MobileAppSupport from "@/components/MobileAppSupport";
+import WebsiteChrome from "@/components/WebsiteChrome";
 import ScopedStyleRegistry from "@/components/StyleRegistry";
 
 // Self-hosted by Next, so no extra request to Google and no flash of
@@ -72,19 +64,7 @@ export default function RootLayout({
           }}
         />
         <ScopedStyleRegistry>
-          <MobileExperience>
-            <MobileAppSupport />
-            <EnvironmentBanner />
-            <TopBar />
-            <SiteHeader />
-            {children}
-            <Toaster />
-            <AccountChangeVerification />
-            <RatingGate />
-            <div data-app-chat>
-              <SupportChat />
-            </div>
-          </MobileExperience>
+          <WebsiteChrome>{children}</WebsiteChrome>
         </ScopedStyleRegistry>
       </body>
     </html>

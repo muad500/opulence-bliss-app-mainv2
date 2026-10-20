@@ -1,10 +1,14 @@
 {
-  "sourceSha256": "dee4c3bf4d8457ce8d2f35c45e33757875373b7b38471b9a6e01f11d7fa86ae5",
+  "sourceSha256": "2f1b5105d2405ec12f4f50c7553d8c3fe16e5c9e1927772580206744caa67e4a",
   "generator": "scripts/build-visit-payment-worker.mjs",
   "generatorSha256": "5b0961440e7d2fe28516fa3f795d51b8b662fa074c630efda795952c10344db5",
   "stripeVersion": "22.3.2",
   "supabaseVersion": "2.110.0",
   "inputs": [
+    {
+      "path": "lib/adminHosts.ts",
+      "sha256": "e91e1b3b548139feb61932e0f1769cee6896734f183fa58ba14461ad08687348"
+    },
     {
       "path": "lib/bookingSms.ts",
       "sha256": "db4aba5dee5f2c570f5f3a94d365e51c5e7b7e76461e11bbed64fb7ddb04b8ff"
@@ -47,7 +51,7 @@
     },
     {
       "path": "lib/visitMatchingNotices.ts",
-      "sha256": "145095d4da8709662e094fc73a8c4e6ec5d010d3b32339f935118252d5033499"
+      "sha256": "b3d4c9ce416367b2e5d6afde535b76a75a589b39e5fb57e6d21a8669ed1b50a7"
     },
     {
       "path": "lib/visitMatchingPolicy.ts",

@@ -5,7 +5,11 @@ import { createClient } from "@/lib/supabase/client";
 import styles from "./page.module.css";
 
 type Factor = { id: string; friendly_name?: string };
-export default function StaffMfa() {
+export default function StaffMfa({
+  destination = "/admin",
+}: {
+  destination?: "/admin" | "/staff/update-password";
+}) {
   const [factors, setFactors] = useState<Factor[]>([]);
   const [factorId, setFactorId] = useState("");
   const [qr, setQr] = useState("");
@@ -101,7 +105,7 @@ export default function StaffMfa() {
       }
       setQr("");
       setSecret("");
-      window.location.assign("/admin");
+      window.location.assign(destination);
     } catch {
       setError("Sign-in could not be verified. Please try again.");
     } finally {

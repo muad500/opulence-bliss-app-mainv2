@@ -7,13 +7,16 @@
 // If RESEND_API_KEY isn't set, these calls quietly do nothing — the app
 // keeps working, you just don't get email.
 
+import { notificationLink } from "./adminHosts";
+
 const DEFAULT_FROM = "Opulence Bliss <onboarding@resend.dev>";
 const CONFIGURED_SENDERS = [
   process.env.BOOKING_EMAIL_FROM,
   process.env.EMAIL_FROM,
   DEFAULT_FROM,
-].filter((sender, index, senders): sender is string =>
-  Boolean(sender) && senders.indexOf(sender) === index
+].filter(
+  (sender, index, senders): sender is string =>
+    Boolean(sender) && senders.indexOf(sender) === index,
 );
 
 type EmailFailureReason =
@@ -31,10 +34,18 @@ export const SITE = (
 
 /** Turn "/account" into a full link; leave absolute URLs alone. */
 function absolute(url: string) {
-  return url.startsWith("/") ? `${SITE}${url}` : url;
+  return url.startsWith("/admin") || url.startsWith("/staff")
+    ? notificationLink(url, SITE, process.env)
+    : url.startsWith("/")
+      ? `${SITE}${url}`
+      : url;
 }
 
-function wrap(title: string, body: string, cta?: { text: string; url: string }) {
+function wrap(
+  title: string,
+  body: string,
+  cta?: { text: string; url: string },
+) {
   return `
 <div style="background:#fbf7f0;padding:32px 16px;font-family:-apple-system,'Segoe UI',sans-serif;">
   <div style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #ece5d8;border-radius:16px;padding:32px 30px;">
@@ -62,7 +73,10 @@ function wrap(title: string, body: string, cta?: { text: string; url: string }) 
 </div>`.trim();
 }
 
-function deliveryFailure(status: number, responseBody: string): EmailFailureReason {
+function deliveryFailure(
+  status: number,
+  responseBody: string,
+): EmailFailureReason {
   const normalized = responseBody.toLowerCase();
   if (
     normalized.includes("domain") &&
@@ -70,7 +84,8 @@ function deliveryFailure(status: number, responseBody: string): EmailFailureReas
   ) {
     return "sender_not_verified";
   }
-  if (status === 401 || normalized.includes("api key")) return "invalid_api_key";
+  if (status === 401 || normalized.includes("api key"))
+    return "invalid_api_key";
   return "delivery_failed";
 }
 
@@ -101,8 +116,8 @@ async function findVerifiedSender(key: string) {
         item.name &&
         item.capabilities?.sending === "enabled" &&
         ["verified", "partially_verified", "partially_failed"].includes(
-          item.status ?? ""
-        )
+          item.status ?? "",
+        ),
     );
     discoveredSender = domain?.name
       ? `Opulence Bliss <no-reply@${domain.name}>`
@@ -124,7 +139,7 @@ async function deliverWithSender(
     title: string;
     body: string;
     cta?: { text: string; url: string };
-  }
+  },
 ) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -159,7 +174,9 @@ export async function sendEmail(opts: {
 }) {
   const key = process.env.RESEND_API_KEY;
   if (!key || !opts.to) {
-    console.error("Email delivery skipped: RESEND_API_KEY or recipient is missing.");
+    console.error(
+      "Email delivery skipped: RESEND_API_KEY or recipient is missing.",
+    );
     return { ok: false as const, reason: "not_configured" as const };
   }
 
@@ -182,7 +199,9 @@ export async function sendEmail(opts: {
         to: opts.to,
       });
     }
-    return lastFailure ?? { ok: false as const, reason: "delivery_failed" as const };
+    return (
+      lastFailure ?? { ok: false as const, reason: "delivery_failed" as const }
+    );
   } catch (e) {
     console.error("Email failed:", e);
     return { ok: false as const, reason: "delivery_failed" as const };
