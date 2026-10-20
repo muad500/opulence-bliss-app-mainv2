@@ -22,11 +22,55 @@ async function load(path, mocks = {}, env = {}) {
     exports: module.exports,
     require: (id) => (id in mocks ? mocks[id] : require(id)),
     URL,
-    process: { env },
+    process: { env, cwd: () => process.cwd() },
   });
   return module.exports;
 }
 const hosts = await load("lib/adminHosts.ts");
+
+test("legacy redirects cannot run before staff host routing", async () => {
+  const { default: config } = await load("next.config.ts");
+  assert.equal(config.redirects, undefined);
+  const { proxy } = await load(
+    "proxy.ts",
+    {
+      "@/lib/adminHosts": hosts,
+      "@/lib/handymanMarketplace": { isHandymanMarketplacePath: () => false },
+      "@/lib/supabase/proxy": {
+        updateSession: () => assert.fail("Redirects must precede auth"),
+      },
+    },
+    { VERCEL_ENV: "production" },
+  );
+  for (const path of [
+    "/",
+    "/services/massage",
+    "/blog/benefits-of-massage-at-home",
+  ])
+    assert.equal(
+      (
+        await proxy(
+          new NextRequest(
+            "https://admin.opulencebliss.com" + path + "?source=test",
+          ),
+        )
+      ).headers.get("location"),
+      "https://www.opulencebliss.com" + path + "?source=test",
+    );
+  for (const [path, target] of [
+    ["/services/massage", "/services/cleaning"],
+    ["/blog/benefits-of-massage-at-home", "/blog"],
+  ]) {
+    const result = await proxy(
+      new NextRequest("https://www.opulencebliss.com" + path + "?source=test"),
+    );
+    assert.equal(result.status, 308);
+    assert.equal(
+      result.headers.get("location"),
+      "https://www.opulencebliss.com" + target + "?source=test",
+    );
+  }
+});
 
 test("host redirects run before auth or marketplace reads, preserve queries and ignore spoofed forwarded hosts", async () => {
   let sessions = 0;
