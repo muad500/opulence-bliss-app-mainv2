@@ -1,5 +1,5 @@
 {
-  "sourceSha256": "b0aeab73242c0ad16dde30de74f648f55d468b42f42637b31f8ba8f8c26b1d28",
+  "sourceSha256": "90dff1e7cc4063163f36405dcfa082dec7c7e9a0182b8bc85e4eabe495c2324c",
   "generator": "scripts/build-visit-payment-worker.mjs",
   "generatorSha256": "5b0961440e7d2fe28516fa3f795d51b8b662fa074c630efda795952c10344db5",
   "stripeVersion": "22.3.2",
@@ -7,7 +7,7 @@
   "inputs": [
     {
       "path": "lib/adminHosts.ts",
-      "sha256": "271aa443cf5add58608ed59a9ea71f092a3814525f49d4da472089e4e806c690"
+      "sha256": "da4af8cfe5871679a2afca30e4606b9aecf0dc98f910446452083b553cbcaee5"
     },
     {
       "path": "lib/bookingSms.ts",

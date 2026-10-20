@@ -8,12 +8,12 @@ function vercelOrigin(host: string | undefined) {
   return `https://${host.toLowerCase()}`;
 }
 
-/** Preview has two hosts on the same isolated deployment: its branch alias is
- * staff-only; its immutable deployment address is the public test website. */
+/** Preview keeps its stable public alias for webhooks and scheduled workers.
+ * Staff tests use that deployment's immutable host, with the same staging DB. */
 export function deploymentOrigins(env: Environment) {
   if (env.VERCEL_ENV === "preview") {
-    const admin = vercelOrigin(env.VERCEL_BRANCH_URL);
-    const website = vercelOrigin(env.VERCEL_URL);
+    const admin = vercelOrigin(env.VERCEL_URL);
+    const website = vercelOrigin(env.VERCEL_BRANCH_URL);
     if (!admin || !website || admin === website)
       throw new Error("Separate Preview staff and website hosts are required.");
     return { admin, website };

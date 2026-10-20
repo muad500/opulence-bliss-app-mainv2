@@ -1066,8 +1066,8 @@ function vercelOrigin(host) {
 }
 function deploymentOrigins(env) {
   if (env.VERCEL_ENV === "preview") {
-    const admin = vercelOrigin(env.VERCEL_BRANCH_URL);
-    const website = vercelOrigin(env.VERCEL_URL);
+    const admin = vercelOrigin(env.VERCEL_URL);
+    const website = vercelOrigin(env.VERCEL_BRANCH_URL);
     if (!admin || !website || admin === website)
       throw new Error("Separate Preview staff and website hosts are required.");
     return { admin, website };
@@ -1402,7 +1402,7 @@ function createVisitPaymentHandler(overrides = {}) {
         ok: true,
         mode,
         source:
-          "b0aeab73242c0ad16dde30de74f648f55d468b42f42637b31f8ba8f8c26b1d28",
+          "90dff1e7cc4063163f36405dcfa082dec7c7e9a0182b8bc85e4eabe495c2324c",
         result,
         notices,
       });
