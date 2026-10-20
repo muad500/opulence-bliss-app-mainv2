@@ -13,6 +13,10 @@ export async function proxy(request: NextRequest) {
       status: 307,
       headers: { "Cache-Control": "no-store" },
     });
+  // Keep public image files public, after enforcing staff-host routing. Excluding
+  // image suffixes in the matcher would also skip /admin/customers/example.png.
+  if (/\.(?:svg|png|jpg|jpeg|gif|webp)$/i.test(request.nextUrl.pathname))
+    return NextResponse.next({ request });
   // Stop before Next streams the disabled layout, which can otherwise yield 200.
   if (
     isHandymanMarketplacePath(request.nextUrl.pathname) &&
@@ -36,9 +40,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico
-     * - images - .svg, .png, .jpg, .jpeg, .gif, .webp
-     * Feel free to modify this pattern to include more paths.
+     * Public images are handled above, after staff host enforcement.
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico).*)",
   ],
 };
