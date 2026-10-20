@@ -27,6 +27,9 @@ test("every public and Vercel host sends staff paths to the sole live admin host
       "/staff/mfa",
       "/staff/callback",
       "/api/admin/billing-settings",
+      "/admin/customers/example.png",
+      "/%61dmin/settings",
+      "/staff%2Flogin",
     ])
       assert.equal(
         adminHostRedirect(new URL(`https://${host}${path}?page=2`), production)

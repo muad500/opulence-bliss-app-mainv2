@@ -51,6 +51,9 @@ test("host redirects run before auth or marketplace reads, preserve queries and 
     "/staff/mfa",
     "/staff/forgot-password",
     "/api/admin/billing-settings",
+    "/admin/customers/example.png",
+    "/%61dmin/settings",
+    "/staff%2Flogin",
   ]) {
     const response = await proxy(
       new NextRequest("https://www.opulencebliss.com" + path, {

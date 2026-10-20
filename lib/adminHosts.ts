@@ -37,7 +37,15 @@ export function adminHostRedirect(url: URL, env: Environment) {
   )
     return null;
   const origins = deploymentOrigins(env);
-  const staff = isStaffPath(url.pathname) || within(url.pathname, "/api/admin");
+  let path = url.pathname;
+  // Next can decode a route before matching it. Encoded staff segments must
+  // receive the same host protection, including a path ending in an image suffix.
+  try {
+    path = decodeURIComponent(path).replaceAll("\\", "/");
+  } catch {
+    // Malformed encodings will be refused by the router; never invent a target.
+  }
+  const staff = isStaffPath(path) || within(path, "/api/admin");
   const onAdmin = url.origin === origins.admin;
   // Admin pages need their own same-origin APIs and framework assets. All other
   // public pages and APIs leave the staff host before session handling runs.
