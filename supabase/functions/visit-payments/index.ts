@@ -1057,6 +1057,45 @@ function createVisitBilling(admin, stripe) {
   };
 }
 
+// lib/adminHosts.ts
+var ADMIN_ORIGIN = "https://admin.opulencebliss.com";
+var WEBSITE_ORIGIN = "https://www.opulencebliss.com";
+function vercelOrigin(host) {
+  if (!host || !/^[a-z0-9-]+\.vercel\.app$/i.test(host)) return null;
+  return `https://${host.toLowerCase()}`;
+}
+function deploymentOrigins(env) {
+  if (env.VERCEL_ENV === "preview") {
+    const admin = vercelOrigin(env.VERCEL_BRANCH_URL);
+    const website = vercelOrigin(env.VERCEL_URL);
+    if (!admin || !website || admin === website)
+      throw new Error("Separate Preview staff and website hosts are required.");
+    return { admin, website };
+  }
+  return { admin: ADMIN_ORIGIN, website: WEBSITE_ORIGIN };
+}
+function within(path, prefix) {
+  return path === prefix || path.startsWith(`${prefix}/`);
+}
+function isStaffPath(path) {
+  return within(path, "/admin") || within(path, "/staff");
+}
+function notificationLink(path, website, env) {
+  if (!/^\/(?!\/)[^\\\u0000-\u0020]*$/.test(path))
+    throw new Error("Invalid notification link.");
+  let origin = website;
+  if (isStaffPath(path.split(/[?#]/)[0])) {
+    origin =
+      env.VISIT_PAYMENTS_MODE === "staging" && !env.VERCEL_ENV
+        ? website
+        : deploymentOrigins(env).admin;
+  }
+  const target = new URL(path, origin);
+  if (target.protocol !== "https:")
+    throw new Error("A secure notification address is required.");
+  return target.toString();
+}
+
 // lib/bookingSms.ts
 import { Buffer } from "node:buffer";
 function bookingSmsConfig(env) {
@@ -1221,7 +1260,7 @@ async function deliverVisitMatchingNotices(admin, env, fetcher = fetch) {
             subject: notice.title,
             text: `${notice.body}
 
-View your booking: ${new URL(notice.href, origin).toString()}`,
+View your booking: ${notificationLink(notice.href, origin, env)}`,
           }),
         });
         if (!response.ok)
@@ -1363,7 +1402,7 @@ function createVisitPaymentHandler(overrides = {}) {
         ok: true,
         mode,
         source:
-          "dee4c3bf4d8457ce8d2f35c45e33757875373b7b38471b9a6e01f11d7fa86ae5",
+          "2f1b5105d2405ec12f4f50c7553d8c3fe16e5c9e1927772580206744caa67e4a",
         result,
         notices,
       });

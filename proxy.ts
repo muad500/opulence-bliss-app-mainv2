@@ -1,13 +1,29 @@
 import { updateSession } from "@/lib/supabase/proxy";
 import { NextResponse, type NextRequest } from "next/server";
-import { handymanEnabled, isHandymanMarketplacePath } from "@/lib/handymanMarketplace";
+import {
+  handymanEnabled,
+  isHandymanMarketplacePath,
+} from "@/lib/handymanMarketplace";
+import { adminHostRedirect } from "@/lib/adminHosts";
 
 export async function proxy(request: NextRequest) {
+  const destination = adminHostRedirect(request.nextUrl, process.env);
+  if (destination)
+    return NextResponse.redirect(destination, {
+      status: 307,
+      headers: { "Cache-Control": "no-store" },
+    });
   // Stop before Next streams the disabled layout, which can otherwise yield 200.
-  if (isHandymanMarketplacePath(request.nextUrl.pathname) && !handymanEnabled()) {
+  if (
+    isHandymanMarketplacePath(request.nextUrl.pathname) &&
+    !handymanEnabled()
+  ) {
     return new NextResponse("Not found", {
       status: 404,
-      headers: { "Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8" },
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/plain; charset=utf-8",
+      },
     });
   }
   return await updateSession(request);

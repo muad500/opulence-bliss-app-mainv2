@@ -14,6 +14,10 @@ export default function AdminLoginPage() {
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("error") === "access") {
       setError("That account does not have administrator access.");
+    } else if (new URLSearchParams(window.location.search).has("error")) {
+      setError(
+        "That staff recovery link is invalid or expired. Request a new one.",
+      );
     }
   }, []);
 
@@ -93,6 +97,9 @@ export default function AdminLoginPage() {
         <button type="button" onClick={() => void submit()} disabled={busy}>
           {busy ? "Checking access…" : "Sign in securely"}
         </button>
+        <p>
+          <Link href="/staff/forgot-password">Forgot your staff password?</Link>
+        </p>
         {error && <p className="error">{error}</p>}
         <p className="security">
           Authenticator sign-in is required for every staff account. If you have

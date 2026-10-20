@@ -34,11 +34,24 @@ export function LoginForm({
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
+      const profile = data.user
+        ? await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", data.user.id)
+            .maybeSingle()
+        : null;
+      if (profile?.error || !profile?.data || profile.data.role === "admin") {
+        await supabase.auth.signOut({ scope: "local" });
+        throw new Error(
+          "This account cannot use customer sign-in. Staff must use the staff sign-in page.",
+        );
+      }
       // Update this route to redirect to an authenticated route. The user already has an active session.
       router.push("/account");
     } catch (error: unknown) {

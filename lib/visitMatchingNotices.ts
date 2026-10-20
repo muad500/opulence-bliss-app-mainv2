@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notificationLink } from "./adminHosts";
 import {
   bookingSmsConfig,
   bookingSmsText,
@@ -101,7 +102,7 @@ export async function deliverVisitMatchingNotices(
             from: sender,
             to: [notice.recipient],
             subject: notice.title,
-            text: `${notice.body}\n\nView your booking: ${new URL(notice.href, origin).toString()}`,
+            text: `${notice.body}\n\nView your booking: ${notificationLink(notice.href, origin, env)}`,
           }),
         });
         if (!response.ok)
