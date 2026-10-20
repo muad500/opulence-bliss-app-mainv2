@@ -16,8 +16,9 @@ const access = JSON.parse(
 );
 const url = env.NEXT_PUBLIC_SUPABASE_URL;
 assert.equal(url, "https://comwdjprdedmsnxtvuuk.supabase.co");
-const staffOrigin =
+const publicOrigin =
   "https://opulence-bliss-app-mainv2-git-codex-staging-muad500s-projects.vercel.app";
+let staffOrigin;
 const headers = {
   "x-vercel-protection-bypass": access.vercelAutomationBypassSecret,
 };
@@ -63,14 +64,18 @@ async function web(origin, path, cookie = "") {
   });
 }
 try {
-  const home = await web(staffOrigin, "/");
-  assert.equal(home.status, 307);
-  const publicOrigin = new URL(home.headers.get("location")).origin;
+  const entry = await web(publicOrigin, "/staff/login");
+  assert.equal(entry.status, 307);
+  staffOrigin = new URL(entry.headers.get("location")).origin;
   assert.match(
-    publicOrigin,
+    staffOrigin,
     /^https:\/\/opulence-bliss-app-mainv2-[a-z0-9]+-muad500s-projects\.vercel\.app$/,
   );
   assert.notEqual(publicOrigin, staffOrigin);
+  assert.equal(
+    (await web(staffOrigin, "/")).headers.get("location"),
+    publicOrigin + "/",
+  );
   pass("Staging has separate staff/public hosts on its own deployment");
   for (const path of [
     "/staff/login",

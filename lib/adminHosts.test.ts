@@ -118,7 +118,7 @@ test("staff notification links use admin while customer and cleaner links retain
   );
   assert.equal(
     notificationLink("/admin/bookings", "https://test.vercel.app", preview),
-    "https://app-git-codex-staging.vercel.app/admin/bookings",
+    "https://app-unique.vercel.app/admin/bookings",
   );
   assert.equal(
     notificationLink("/admin/bookings", "https://isolated.vercel.app", {
