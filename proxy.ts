@@ -13,6 +13,17 @@ export async function proxy(request: NextRequest) {
       status: 307,
       headers: { "Cache-Control": "no-store" },
     });
+  // These legacy public URLs must run after host routing. Framework-configured
+  // redirects run before this proxy and could trap a public page on the staff host.
+  const legacy = new Map([
+    ["/services/massage", "/services/cleaning"],
+    ["/blog/benefits-of-massage-at-home", "/blog"],
+  ]).get(request.nextUrl.pathname);
+  if (legacy) {
+    const target = request.nextUrl.clone();
+    target.pathname = legacy;
+    return NextResponse.redirect(target, 308);
+  }
   // Keep public image files public, after enforcing staff-host routing. Excluding
   // image suffixes in the matcher would also skip /admin/customers/example.png.
   if (/\.(?:svg|png|jpg|jpeg|gif|webp)$/i.test(request.nextUrl.pathname))
