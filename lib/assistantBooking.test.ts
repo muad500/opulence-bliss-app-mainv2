@@ -186,11 +186,13 @@ test("per-visit chat quote saves a card and charges regular visits on acceptance
   assert.equal(draft.total_gbp, 340.2);
   assert.equal(draft.due_now_gbp, 0);
   assert.equal(draft.payment_model, "per_visit");
-  assert.match(draft.payment_summary, /only when a cleaner accepts/);
+  assert.match(draft.payment_summary, /charged once a cleaner accepts/);
+  assert.match(draft.payment_summary, /not charged for that visit/);
   assert.doesNotMatch(draft.payment_summary, /paid upfront/);
   const single = assistantBookingHandoff(pkg, input, now, true);
   assert.equal(single.due_now_gbp, single.total_gbp);
-  assert.match(single.payment_summary, /no card hold/);
+  assert.match(single.payment_summary, /charged when you book/);
+  assert.match(single.payment_summary, /refunded in full automatically/);
   const legacy = assistantBookingHandoff(
     regularPkg,
     { ...input, frequency: "weekly", visits: 6 },

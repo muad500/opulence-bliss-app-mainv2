@@ -3,10 +3,16 @@
 import { useEffect, useState } from "react";
 import type { CleaningBillingTerms } from "@/lib/cleaningBillingTerms";
 import { CLEANING_ADDONS } from "@/lib/cleaningExtras";
+import {
+  LEGACY_SCHEDULED_VISIT_PAYMENT_COPY,
+  ONE_OFF_PAYMENT_COPY,
+  REGULAR_PAYMENT_COPY,
+} from "@/lib/cleaningPaymentCopy";
 import type { CancellationPolicy } from "@/lib/cancellationPolicy";
 
 export type VisitBillingDetails = {
   model: "legacy" | "per_visit";
+  regular?: boolean;
   pricing: Omit<CleaningBillingTerms, "cleanerHourlyPence">;
   chargeOnAcceptance?: boolean;
   revision: number;
@@ -139,8 +145,10 @@ export default function VisitBillingPanel({
       {["unpaid", "failed", "requires_action"].includes(details.status) && (
         <p>
           {details.chargeOnAcceptance
-            ? "Your saved card is charged when a cleaner accepts this visit."
-            : "Your saved card is charged only after a cleaner accepts, at 48 hours before the visit or immediately if closer."}{" "}
+            ? REGULAR_PAYMENT_COPY
+            : details.regular
+              ? LEGACY_SCHEDULED_VISIT_PAYMENT_COPY
+              : ONE_OFF_PAYMENT_COPY}{" "}
           Paused visits are not charged.{" "}
           <a href="/account/profile#payments">Manage your saved card</a>.
         </p>

@@ -7,6 +7,7 @@
 // facts and hands them over. Pages render the result and decide nothing.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { REGULAR_PAYMENT_COPY } from "./cleaningPaymentCopy";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -93,6 +94,7 @@ export type VisitFacts = {
   paymentStatus: string | null;
   grossAmount: number | null;
   refundedAmount: number | null;
+  chargeTiming?: "acceptance" | "checkout_then_48h" | null;
 
   /** Providers who currently have an open offer. */
   openOfferCount: number;
@@ -158,7 +160,9 @@ function projectMoney(f: VisitFacts): VisitStatus["money"] {
         label: "Nothing taken",
         explanation: f.isMembershipVisit
           ? "This visit is covered by your membership."
-          : "No money has been taken or held yet.",
+          : f.chargeTiming === "acceptance"
+            ? REGULAR_PAYMENT_COPY
+            : "No payment has been taken for this visit yet.",
         amount,
         refunded,
       };
@@ -168,7 +172,7 @@ function projectMoney(f: VisitFacts): VisitStatus["money"] {
         state: "authorised",
         label: "Held, not charged",
         explanation:
-          "Your card is held to secure the booking. You're only charged once the visit is finished.",
+          "This older booking has a card hold, not a completed charge. Under its original terms, you're only charged once the visit is finished.",
         amount,
         refunded,
       };
@@ -368,7 +372,9 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
         nextActorDetail: "A provider needs to accept the job.",
         money,
         ifNobodyAccepts:
-          "If nobody accepts, we cancel the booking automatically and release the hold on your card. You won't be charged, and we'll let you know so you can pick another time.",
+          money.state === "authorised"
+            ? "If nobody accepts this older booking, we cancel it automatically and release the hold on your card. You won't be charged, and we'll let you know so you can pick another time."
+            : "If no cleaner accepts, we cancel this visit automatically and refund any payment taken for it in full. We'll let you know so you can pick another time.",
         deadline: f.offerExpiresAt
           ? {
               at: f.offerExpiresAt,
@@ -627,7 +633,7 @@ export async function getVisitStatus(
     .from("bookings")
     .select(
       `id, status, scheduled_at, offer_expires_at, address, package_id,
-       subscription_id,
+       subscription_id, cleaning_extras,
        duration_minutes, property_size_sqm, packages(name, duration_minutes),
        providers(display_name),
        check_ins(arrived_at)`,
@@ -705,6 +711,7 @@ export async function getVisitStatus(
     paymentStatus: pay?.status ?? null,
     grossAmount: pay?.gross_amount ? Number(pay.gross_amount) : null,
     refundedAmount: refundedAmount > 0 ? refundedAmount : null,
+    chargeTiming: b.cleaning_extras?.chargeTiming ?? null,
 
     openOfferCount: Number(safe?.open_offer_count ?? 0),
 

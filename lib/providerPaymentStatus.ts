@@ -53,7 +53,7 @@ export function providerPaymentLabel({
         ? `${money} held until checkout`
         : `${money} secured`;
     case "created":
-      return `${money} awaiting card hold`;
+      return `${money} awaiting payment`;
   }
 
   if (bookingStatus === "completed") return `${money} awaiting payout`;

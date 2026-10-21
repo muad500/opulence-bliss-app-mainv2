@@ -54,6 +54,10 @@ import {
   saveBookingDraft,
 } from "@/lib/bookingDraft";
 import { authLink } from "@/lib/authReturn";
+import {
+  ONE_OFF_PAYMENT_COPY,
+  REGULAR_PAYMENT_COPY,
+} from "@/lib/cleaningPaymentCopy";
 
 const supabase = createClient();
 
@@ -1163,7 +1167,7 @@ export default function BookPage() {
                   <em>✓</em>{" "}
                   {perVisitBilling
                     ? "One-off payment at checkout; regular visits paid individually"
-                    : "One-time card holds; regular plans of 6 to 10 visits paid upfront"}
+                    : "Review the full price and payment details before checkout"}
                 </li>
                 <li>
                   <em>✓</em> No cancellation charge with at least 48 hours&apos;
@@ -1323,7 +1327,7 @@ export default function BookPage() {
               <p className="frequencyNote">
                 A regular booking means 6 to 10 visits booked together.{" "}
                 {perVisitBilling
-                  ? "Save your card at checkout. Each visit is charged when a cleaner accepts it."
+                  ? REGULAR_PAYMENT_COPY
                   : "Pay for the plan at checkout."}{" "}
                 If you prefer separate bookings, choose a one-time session.
               </p>
@@ -1737,7 +1741,7 @@ export default function BookPage() {
                         : "Charged in full now"
                       : perVisitBilling
                         ? "Charged at checkout"
-                        : "Held now, charged after completion"}
+                        : "Payment details confirmed at checkout"}
                   </small>
                 </div>
               </div>
@@ -1916,16 +1920,16 @@ export default function BookPage() {
                       : "Pay for your visit now"
                     : regular
                       ? `Pay for all ${regularVisits} visits now`
-                      : "Your card is held, not charged"}
+                      : "Review your visit payment"}
                 </strong>
                 <span>
                   {perVisitBilling
                     ? regular
-                      ? "No payment is taken at checkout. Each visit is charged when a cleaner accepts it. Unassigned and paused visits are never charged. Two unmatched visits in a row pause the remaining series."
-                      : "Your full visit amount is charged at checkout. If no cleaner accepts, it is refunded in full."
+                      ? REGULAR_PAYMENT_COPY
+                      : ONE_OFF_PAYMENT_COPY
                     : regular
                       ? `This payment covers the ${regularVisits} dates above. Refunds follow the cancellation policy.`
-                      : "You pay once the visit is complete. If no pro accepts, the hold is released."}
+                      : "Review the payment amount and timing at secure checkout before confirming."}
                 </span>
               </div>
 
