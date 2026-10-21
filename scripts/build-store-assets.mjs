@@ -50,7 +50,7 @@ for (const [audience, app] of Object.entries(apps)) {
     await readFile(new URL("../public/icons/" + app.icon, import.meta.url)),
   )
     .resize(512, 512)
-    .flatten({ background: "#ffffff" })
+    .flatten({ background: audience === "customer" ? "#6d28d9" : "#16202a" })
     .png()
     .toBuffer();
   await writeFile(new URL("icon-512.png", dir), icon);
