@@ -117,14 +117,15 @@ export default function ProviderJoinPage() {
     useState<ProviderWeeklyAvailability>(INITIAL_WEEKLY_AVAILABILITY);
   const [skills, setSkills] = useState<ProfessionalService[]>(["cleaning"]);
   const [marketplaceEnabled, setMarketplaceEnabled] = useState(false);
-  const [handymanRates, setHandymanRates] = useState<Record<string, string>>(
+  const [handymanTasks, setHandymanTasks] = useState<Record<string, string>>(
     {},
   );
   const [coveragePostcodes, setCoveragePostcodes] = useState("");
   const [homePostcode, setHomePostcode] = useState("");
   const cleaningSelected = skills.includes("cleaning");
   const handymanSelected = marketplaceEnabled && skills.includes("handyman");
-  const validRates = !handymanSelected || Object.keys(handymanRates).length > 0;
+  const validHandymanTasks =
+    !handymanSelected || Object.keys(handymanTasks).length > 0;
   useEffect(() => {
     let active = true;
     void fetch("/api/handyman/config", { cache: "no-store" })
@@ -341,7 +342,7 @@ export default function ProviderJoinPage() {
   }
 
   function continueToWorkAreas() {
-    if (!skills.length || !validRates) {
+    if (!skills.length || !validHandymanTasks) {
       setErr("Choose a service and at least one property maintenance task.");
       return;
     }
@@ -480,7 +481,7 @@ export default function ProviderJoinPage() {
             maxTravelDistance,
             weeklyAvailability,
             skills,
-            maintenanceTasks: Object.keys(handymanRates),
+            maintenanceTasks: Object.keys(handymanTasks),
             coveragePostcodes: coveragePostcodes
               .split(",")
               .map((code) => code.trim().toUpperCase())
@@ -560,7 +561,7 @@ export default function ProviderJoinPage() {
     currentlySelfEmployed &&
     (!cleaningSelected ||
       (cleaningExperienceYears !== "" && cleaningExperienceTypes.length > 0)) &&
-    validRates &&
+    validHandymanTasks &&
     skills.length &&
     areaIds.length &&
     maxTravelDistance &&
@@ -1304,10 +1305,10 @@ export default function ProviderJoinPage() {
                         >
                           <input
                             type="checkbox"
-                            checked={task in handymanRates}
+                            checked={task in handymanTasks}
                             style={{ width: 18, height: 18 }}
                             onChange={(event) =>
-                              setHandymanRates((old) => {
+                              setHandymanTasks((old) => {
                                 const next = { ...old };
                                 if (event.target.checked) next[task] = "";
                                 else delete next[task];

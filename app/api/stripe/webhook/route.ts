@@ -9,6 +9,12 @@ import { finalizePerVisitCheckout } from "@/lib/finalizePerVisitCheckout";
 // Copy the whsec_... it prints into .env.local as STRIPE_WEBHOOK_SECRET.
 
 import { finalizeHandymanCheckout } from "@/lib/handymanServer";
+import { finalizeHandymanQuoteCheckout } from "@/lib/handymanQuoteServer";
+import { handymanEnabled } from "@/lib/handymanMarketplace";
+import {
+  handleHandymanDispute,
+  isHandymanPayment,
+} from "@/lib/handymanWebhook";
 import { finalizeCustomerCheckout } from "@/lib/finalizeCustomerCheckout";
 import { finalizeTipCheckout } from "@/lib/finalizeTipCheckout";
 import { NextRequest, NextResponse } from "next/server";
@@ -53,6 +59,16 @@ export async function POST(req: NextRequest) {
   console.log("Stripe webhook:", event.type);
 
   try {
+    // A disabled optional marketplace must not retrieve its Stripe objects or
+    // touch its tables, even if a delayed event arrives after it was disabled.
+    const object = event.data.object;
+    if (
+      !handymanEnabled() &&
+      "metadata" in object &&
+      isHandymanPayment(object.metadata?.kind)
+    ) {
+      return NextResponse.json({ received: true });
+    }
     if (
       stripePayoutAccountChanged(
         event.type,
@@ -116,6 +132,13 @@ export async function POST(req: NextRequest) {
         await createVisitBilling(admin, stripe).run(operation.id);
       }
     }
+    if (event.type === "charge.dispute.created") {
+      await handleHandymanDispute(
+        admin,
+        stripe,
+        event.data.object as Stripe.Dispute,
+      );
+    }
     if (event.type === "refund.updated") {
       const refund = event.data.object as Stripe.Refund;
       if (refund.metadata?.visit_operation)
@@ -142,8 +165,15 @@ export async function POST(req: NextRequest) {
             await finalizeCustomerCheckout(session, payment);
           if (payment.metadata.kind === "tip")
             await finalizeTipCheckout(session, payment);
-          if (payment.metadata.kind === "handyman")
+          if (handymanEnabled() && payment.metadata.kind === "handyman")
             await finalizeHandymanCheckout(admin, stripe, session, payment);
+          if (handymanEnabled() && payment.metadata.kind === "handyman_quote")
+            await finalizeHandymanQuoteCheckout(
+              admin,
+              stripe,
+              session,
+              payment,
+            );
         } catch {
           console.error("Booking webhook finalisation failed; retry required.");
           return NextResponse.json(

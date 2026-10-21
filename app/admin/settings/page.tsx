@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import AdminNav from "../AdminNav";
 import JobOfferSettings from "@/components/admin/JobOfferSettings";
 import SocialLinksSettings from "@/components/admin/SocialLinksSettings";
+import HandymanQuoteAdmin from "@/components/admin/HandymanQuoteAdmin";
 import { CLEANING_ADDONS } from "@/lib/cleaningExtras";
 import type { CleaningBillingTerms } from "@/lib/cleaningBillingTerms";
 
@@ -146,6 +147,7 @@ export default function BillingSettings() {
           <p role="status">Loading settings…</p>
         )}
         <JobOfferSettings />
+        <HandymanQuoteAdmin settingsOnly />
         <SocialLinksSettings />
       </main>
       <style jsx>{`

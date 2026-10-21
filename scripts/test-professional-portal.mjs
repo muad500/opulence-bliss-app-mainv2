@@ -31,6 +31,7 @@ async function load(path, mocks = {}) {
   const defaults = {
     "next/link": { default: link },
     "next/navigation": { notFound, redirect },
+    "@/components/HandymanQuoteInvitations": { default: () => null },
     "@/components/WorkerCleaningJobs": {
       default: () => React.createElement("p", null, "Cleaning offers"),
     },

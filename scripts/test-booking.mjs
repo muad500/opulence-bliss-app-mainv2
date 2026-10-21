@@ -39,7 +39,7 @@ const modules = [
   "quotePhotos",
   "cleaningHome",
   "earningsPeriod",
-  "handymanEstimate",
+  "handymanQuotes",
   "legacyDestinationCapture",
   "messageAttachments",
   "payoutDestination",
@@ -59,6 +59,9 @@ const modules = [
   "handymanMarketplace",
 ];
 try {
+  execFileSync(process.execPath, ["--test", "scripts/test-handyman-webhook.mjs"], {
+    stdio: "inherit",
+  });
   execFileSync(process.execPath, ["--test", "scripts/test-admin-host.mjs"], {
     stdio: "inherit",
   });
@@ -136,6 +139,11 @@ try {
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-handyman-payment-recovery.mjs"],
+    { stdio: "inherit" },
+  );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-handyman-quote-marketplace.mjs"],
     { stdio: "inherit" },
   );
   execFileSync(

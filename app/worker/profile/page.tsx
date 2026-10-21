@@ -60,7 +60,6 @@ type Profile = {
     yearsExperience: number | null;
     services: string[];
     equipmentProvided: boolean;
-    handymanRates: Record<string, number>;
     maintenanceTasks: string[];
     ratingAvg: number | null;
     ratingCount: number;

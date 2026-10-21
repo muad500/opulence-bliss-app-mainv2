@@ -1,5 +1,8 @@
 # Handyman marketplace release gate
 
+The hourly marketplace below is historical. For the new staging-only,
+quote-only implementation and release gates, see [I2 quotes](handyman-i2-quotes.md).
+
 Keep `HANDYMAN_MARKETPLACE_ENABLED=false` in Production. Enable only on the isolated `codex/staging` Preview for testing. The existing `/services/handyman` quote page remains available. `/handyman` and its APIs return 404 while disabled; its navigation item is hidden.
 
 Do not enable Production until the client and solicitor approve Terms naming the handyman as the service provider. This release does not amend or obtain acceptance of those Terms. Privacy, Review Policy, statutory cancellation and Partner Agreement wording remain on hold.
