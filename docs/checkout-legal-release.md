@@ -65,3 +65,28 @@ Hosted staging must also verify the real checkbox/links, blocked checkout when
 unticked, one-off and regular test checkout finalisation, per-booking records,
 customer export and staff evidence. Record actual Stripe test results separately
 from isolated fixtures. No claim of paid end-to-end success before it is observed.
+
+## Hosted staging results — 21 October 2026
+
+Preview commit `57d3455` passed the required desktop and mobile form checks.
+The checkbox was unchecked and required, with Terms 2.0, Cancellation & Refund
+1.0 and Privacy 1.0; each link targets its legal page in a separate tab. An
+unchecked checkout request returned 400 before creating a Stripe session.
+
+Using only the existing synthetic staging customer and Stripe sandbox 4242 card:
+
+- One-off checkout authorised £45.98 and created one booking with three policy
+  evidence rows, all with the server acceptance time and that booking ID.
+- The six-visit regular plan paid £227.88 upfront and created six bookings with
+  18 evidence rows. Re-running its normal finalisation did not duplicate rows.
+- Download my data returned all 21 evidence rows and both checkout snapshots.
+- The admin bookings page showed document/version/time/account evidence after
+  TOTP. Before TOTP it redirected to MFA without returning acceptance evidence.
+  Existing bookings explicitly showed that no booking-specific evidence exists.
+- All seven synthetic bookings were cancelled through the existing customer
+  cancellation flow after testing; the 21 evidence records were retained.
+
+No live payment was made. Production policy rows were inspected read-only and
+already contain published Terms 2.0, Cancellation & Refund 1.0 and Privacy 1.0.
+Production release is a narrow cherry-pick from staging, excluding unrelated
+staging helpers and PR #37. The database CI also runs for its main-target PR.

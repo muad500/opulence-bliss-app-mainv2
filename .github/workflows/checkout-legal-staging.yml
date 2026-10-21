@@ -1,7 +1,7 @@
 name: Checkout legal consent database checks
 on:
   pull_request:
-    branches: [codex/staging]
+    branches: [codex/staging, main]
     paths: ['**/*[Ll]egal*', 'app/api/checkout/**', 'supabase/tests/checkout_legal.sql', '.github/workflows/checkout-legal-staging.yml']
 permissions: { contents: read }
 jobs:
