@@ -178,14 +178,14 @@ test("every booking × payment × case combination is well-formed", () => {
         assert.ok(s.money.label.length > 0, `no money label: ${where}`);
         assert.ok(
           s.money.explanation.length > 0,
-          `no money explanation: ${where}`
+          `no money explanation: ${where}`,
         );
 
         // ---- always offers a way forward ----
         assert.ok(s.actions.length > 0, `no actions: ${where}`);
         assert.ok(
           s.actions.every((a) => a.label.length > 0),
-          `unlabelled action: ${where}`
+          `unlabelled action: ${where}`,
         );
 
         // ---- never leaks internals ----
@@ -201,7 +201,7 @@ test("every booking × payment × case combination is well-formed", () => {
         ]) {
           assert.ok(
             !blob.includes(forbidden),
-            `leaked "${forbidden}" in: ${where}`
+            `leaked "${forbidden}" in: ${where}`,
           );
         }
 
@@ -209,7 +209,7 @@ test("every booking × payment × case combination is well-formed", () => {
         if (s.deadline) {
           assert.ok(
             !Number.isNaN(new Date(s.deadline.at).getTime()),
-            `bad deadline: ${where}`
+            `bad deadline: ${where}`,
           );
           assert.ok(s.deadline.label.length > 0, `no deadline label: ${where}`);
         }
@@ -223,14 +223,14 @@ test("every booking × payment × case combination is well-formed", () => {
           if (!openCase) {
             assert.ok(
               s.ifNobodyAccepts && s.ifNobodyAccepts.length > 0,
-              `should explain the no-acceptance path: ${where}`
+              `should explain the no-acceptance path: ${where}`,
             );
           }
         } else {
           assert.equal(
             s.ifNobodyAccepts,
             null,
-            `should not mention acceptance: ${where}`
+            `should not mention acceptance: ${where}`,
           );
         }
 
@@ -238,11 +238,11 @@ test("every booking × payment × case combination is well-formed", () => {
         if (["in_progress", "completed", "cancelled"].includes(bookingStatus)) {
           assert.ok(
             !s.actions.some((a) => a.kind === "cancel"),
-            `offered cancel on ${where}`
+            `offered cancel on ${where}`,
           );
           assert.ok(
             !s.actions.some((a) => a.kind === "reschedule"),
-            `offered reschedule on ${where}`
+            `offered reschedule on ${where}`,
           );
         }
 
@@ -257,7 +257,7 @@ test("every booking × payment × case combination is well-formed", () => {
 
   assert.equal(
     checked,
-    BOOKING_STATUSES.length * PAYMENT_STATUSES.length * CASE_SHAPES.length
+    BOOKING_STATUSES.length * PAYMENT_STATUSES.length * CASE_SHAPES.length,
   );
 });
 
@@ -271,7 +271,7 @@ test("a money-blocking case overrides the payment state", () => {
       bookingStatus: "completed",
       paymentStatus: "succeeded", // would normally read "Charged"
       reviewCase: caseFor("blocking_payment"),
-    })
+    }),
   );
 
   assert.equal(s.money.state, "under_review");
@@ -286,7 +286,7 @@ test("a payout-blocking case is the customer's business too, but not their probl
       bookingStatus: "completed",
       paymentStatus: "succeeded",
       reviewCase: caseFor("blocking_payout"),
-    })
+    }),
   );
 
   assert.equal(s.nextActor, "support");
@@ -304,7 +304,7 @@ test("a resolved case does not hijack the visit", () => {
       paymentStatus: "succeeded",
       reviewCase: caseFor("resolved"),
       hasRated: false,
-    })
+    }),
   );
 
   assert.equal(s.headline, "Completed");
@@ -318,7 +318,11 @@ test("a resolved case does not hijack the visit", () => {
 
 test("waiting for a provider explains what happens if nobody accepts", () => {
   const s = projectVisitStatus(
-    facts({ bookingStatus: "offered", openOfferCount: 4, paymentStatus: "authorised" })
+    facts({
+      bookingStatus: "offered",
+      openOfferCount: 4,
+      paymentStatus: "authorised",
+    }),
   );
 
   assert.equal(s.nextActor, "provider");
@@ -332,11 +336,37 @@ test("held is described as held, not charged", () => {
   const s = projectVisitStatus(facts({ paymentStatus: "authorised" }));
   assert.equal(s.money.label, "Held, not charged");
   assert.match(s.money.explanation, /only charged once the visit is finished/i);
+  assert.match(s.money.explanation, /older booking/);
+});
+
+test("paid visits promise an automatic full refund if no cleaner accepts, never a hold release", () => {
+  const s = projectVisitStatus(
+    facts({ bookingStatus: "offered", paymentStatus: "succeeded" }),
+  );
+  assert.equal(s.money.state, "charged");
+  assert.match(s.ifNobodyAccepts!, /refund.*in full/i);
+  assert.doesNotMatch(s.ifNobodyAccepts!, /hold|won't be charged/i);
+});
+
+test("unpaid regular visit status uses the new acceptance schedule", () => {
+  const s = projectVisitStatus(
+    facts({
+      bookingStatus: "offered",
+      paymentStatus: "created",
+      chargeTiming: "acceptance",
+    }),
+  );
+  assert.match(
+    s.money.explanation,
+    /Each visit is charged once a cleaner accepts/,
+  );
+  assert.match(s.money.explanation, /not charged for that visit/);
+  assert.doesNotMatch(s.money.explanation, /48 hours|hold/i);
 });
 
 test("a released hold reassures rather than alarms", () => {
   const s = projectVisitStatus(
-    facts({ bookingStatus: "cancelled", paymentStatus: "cancelled" })
+    facts({ bookingStatus: "cancelled", paymentStatus: "cancelled" }),
   );
   assert.equal(s.money.state, "released");
   assert.equal(s.money.label, "You weren't charged");
@@ -345,7 +375,7 @@ test("a released hold reassures rather than alarms", () => {
 
 test("a failed capture tells the customer what to do", () => {
   const s = projectVisitStatus(
-    facts({ bookingStatus: "completed", paymentStatus: "capture_failed" })
+    facts({ bookingStatus: "completed", paymentStatus: "capture_failed" }),
   );
   assert.equal(s.money.state, "under_review");
   assert.equal(s.money.label, "Payment failed");
@@ -358,7 +388,7 @@ test("a partial refund states the amount", () => {
       bookingStatus: "completed",
       paymentStatus: "partially_refunded",
       refundedAmount: 25,
-    })
+    }),
   );
   assert.equal(s.money.state, "partially_refunded");
   assert.match(s.money.explanation, /£25\.00/);
@@ -393,7 +423,7 @@ test("a membership visit does not claim money was held", () => {
       bookingStatus: "scheduled",
       paymentStatus: null,
       isMembershipVisit: true,
-    })
+    }),
   );
   assert.equal(s.money.state, "none");
   assert.match(s.money.explanation, /covered by your membership/i);
@@ -405,15 +435,18 @@ test("in progress reports a finish time and asks nothing of the customer", () =>
       bookingStatus: "in_progress",
       arrivedAt: "2026-08-05T11:00:00.000Z",
       durationMinutes: 120,
-    })
+    }),
   );
   assert.equal(s.tone, "live");
   assert.equal(s.nextActor, "provider");
   assert.ok(s.deadline);
-  assert.equal(new Date(s.deadline!.at).toISOString(), "2026-08-05T13:00:00.000Z");
+  assert.equal(
+    new Date(s.deadline!.at).toISOString(),
+    "2026-08-05T13:00:00.000Z",
+  );
   assert.deepEqual(
     s.actions.map((a) => a.kind),
-    ["wait"]
+    ["wait"],
   );
 });
 
@@ -423,7 +456,7 @@ test("a rated, completed visit needs nothing from anyone", () => {
       bookingStatus: "completed",
       paymentStatus: "succeeded",
       hasRated: true,
-    })
+    }),
   );
   assert.equal(s.nextActor, "platform");
   assert.ok(!s.actions.some((a) => a.kind === "rate"));

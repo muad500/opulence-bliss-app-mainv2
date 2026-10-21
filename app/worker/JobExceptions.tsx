@@ -128,7 +128,7 @@ export default function JobExceptions({
             <>
               <p className="says">
                 {hoursOut > 0
-                  ? "We'll take this off your schedule and offer it to other providers. The client's slot and existing card hold stay in place."
+                  ? "We'll take this off your schedule and offer it to other providers. The client's slot and existing payment record stay in place."
                   : "This visit is already due. We'll remove it from your schedule and send it to the resolution team."}
               </p>
               {late && (

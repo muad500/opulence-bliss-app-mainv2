@@ -48,6 +48,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json(
       {
         model: "per_visit",
+        regular: Boolean(booking.regular_series_id),
         pricing: customerBillingTerms(terms),
         chargeOnAcceptance:
           booking.cleaning_extras.chargeTiming === "acceptance",

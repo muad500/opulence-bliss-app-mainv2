@@ -332,7 +332,7 @@ export async function cannotAttend(
             offered > 0
               ? `Your provider can no longer make it, so we've offered your ${
                   pkg?.name ?? "visit"
-                } to ${offered} other provider${offered === 1 ? "" : "s"}. Your booking and card hold remain in place.`
+                } to ${offered} other provider${offered === 1 ? "" : "s"}. Your booking and payment record remain in place.`
               : "Your provider can no longer make it and we don't have a replacement yet. Payment is paused while our team handles it.",
           href: `/account/visit/${bookingId}`,
         })
@@ -352,7 +352,7 @@ export async function cannotAttend(
           ? `<p>Your provider can no longer attend, so we've put your <strong>${
               pkg?.name ?? "visit"
             }</strong> back out to other vetted providers in your area.</p>
-             <p>Your time slot and existing card hold are unchanged. We'll confirm as soon as someone accepts.</p>`
+             <p>Your time slot and existing payment record are unchanged. We'll confirm as soon as someone accepts.</p>`
           : `<p>Your provider can no longer attend your <strong>${
               pkg?.name ?? "visit"
             }</strong>, and we don't yet have a replacement.</p>

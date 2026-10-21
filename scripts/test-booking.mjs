@@ -17,6 +17,7 @@ const modules = [
   "accountSecurityAlerts",
   "socialLinks",
   "cleaningBillingTerms",
+  "cleaningPaymentCopy",
   "bookingPreferences",
   "visitContactPolicy",
   "assistantPresentation",
@@ -59,6 +60,11 @@ const modules = [
   "handymanMarketplace",
 ];
 try {
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-payment-copy-seed.mjs"],
+    { stdio: "inherit" },
+  );
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-checkout-legal.mjs"],
