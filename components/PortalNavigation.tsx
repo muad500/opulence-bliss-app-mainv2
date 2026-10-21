@@ -183,8 +183,10 @@ export default function PortalNavigation({
 
   useEffect(() => {
     try {
+      // Remove the old persistent preference; navigation is session-only now.
+      localStorage.removeItem(`opulence-${mode}-nav`);
       setCollapsed(
-        localStorage.getItem(`opulence-${mode}-nav`) === "collapsed",
+        sessionStorage.getItem(`opulence-${mode}-nav`) === "collapsed",
       );
     } catch {
       /* storage may be disabled */
@@ -383,7 +385,7 @@ export default function PortalNavigation({
               const next = !collapsed;
               setCollapsed(next);
               try {
-                localStorage.setItem(
+                sessionStorage.setItem(
                   `opulence-${mode}-nav`,
                   next ? "collapsed" : "expanded",
                 );
