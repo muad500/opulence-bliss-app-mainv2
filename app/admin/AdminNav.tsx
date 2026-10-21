@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import styles from "./AdminNav.module.css";
 const primary = [
@@ -23,6 +24,14 @@ const tools = [
 ];
 export default function AdminNav({ email }: { email: string }) {
   const path = usePathname();
+  const menu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    menu.current?.removeAttribute("open");
+  }, [path]);
+  async function signOut() {
+    await createClient().auth.signOut();
+    window.location.href = "/staff/login";
+  }
   const active = (href: string) =>
     href === "/admin" || href === "/admin/reviews"
       ? path === href
@@ -30,9 +39,7 @@ export default function AdminNav({ email }: { email: string }) {
   return (
     <nav className={styles.nav} aria-label="Admin navigation">
       <div className={styles.brand}>
-        <Link href="/admin">
-          Opulence Bliss <span>Admin</span>
-        </Link>
+        <Link href="/admin">Admin page</Link>
         <small title={email}>{email}</small>
       </div>
       <div className={styles.links}>
@@ -46,7 +53,16 @@ export default function AdminNav({ email }: { email: string }) {
           </Link>
         ))}
       </div>
-      <details className={styles.more}>
+      <details
+        className={styles.more}
+        ref={menu}
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            menu.current?.removeAttribute("open");
+            menu.current?.querySelector("summary")?.focus();
+          }
+        }}
+      >
         <summary
           className={
             tools.some(([href]) => active(href)) ? styles.active : undefined
@@ -67,16 +83,16 @@ export default function AdminNav({ email }: { email: string }) {
               {label}
             </Link>
           ))}
+          <button
+            type="button"
+            className={styles.mobileSignout}
+            onClick={signOut}
+          >
+            Sign out
+          </button>
         </div>
       </details>
-      <button
-        className={styles.signout}
-        type="button"
-        onClick={async () => {
-          await createClient().auth.signOut();
-          window.location.href = "/staff/login";
-        }}
-      >
+      <button className={styles.signout} type="button" onClick={signOut}>
         Sign out
       </button>
     </nav>

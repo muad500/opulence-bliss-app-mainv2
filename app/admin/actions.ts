@@ -419,6 +419,6 @@ export async function resetPrototypeData() {
 
   const removed = (data as { removed?: { bookings?: number } } | null)?.removed;
   return {
-    message: `Prototype activity cleared${removed?.bookings !== undefined ? ` — ${removed.bookings} booking${removed.bookings === 1 ? "" : "s"} removed` : ""}.`,
+    message: `Prototype activity cleared${removed?.bookings !== undefined ? `. ${removed.bookings} booking${removed.bookings === 1 ? "" : "s"} removed` : ""}.`,
   };
 }

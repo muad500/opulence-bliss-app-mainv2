@@ -19,7 +19,7 @@ export default function Pagination({
       <span>
         {total === 0
           ? "No results"
-          : `${((page - 1) * ADMIN_PAGE_SIZE + 1).toLocaleString("en-GB")}–${Math.min(page * ADMIN_PAGE_SIZE, total).toLocaleString("en-GB")} of ${total.toLocaleString("en-GB")}`}
+          : `${((page - 1) * ADMIN_PAGE_SIZE + 1).toLocaleString("en-GB")} to ${Math.min(page * ADMIN_PAGE_SIZE, total).toLocaleString("en-GB")} of ${total.toLocaleString("en-GB")}`}
       </span>
       <div>
         {page > 1 && (

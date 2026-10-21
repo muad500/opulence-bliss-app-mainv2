@@ -1,5 +1,4 @@
 import Link from "next/link";
-import AdminNav from "../../AdminNav";
 import { requireAdminPage } from "@/lib/adminSession";
 
 function one<T>(value: T | T[] | null | undefined): T | null {
@@ -84,7 +83,6 @@ export default async function CustomerRecordPage({
 
   return (
     <main style={page}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div style={inner}>
         <Link href="/admin/customers" style={back}>
           ← Customers
@@ -96,7 +94,6 @@ export default async function CustomerRecordPage({
               .toUpperCase()}
           </div>
           <div>
-            <p style={eyebrow}>Customer record</p>
             <h1 style={title}>{profile.full_name ?? "Unnamed customer"}</h1>
             <p style={muted}>
               {profile.email ?? "No email"} · {profile.phone ?? "No phone"}
@@ -212,7 +209,6 @@ function Stat({ label, value }: { label: string; value: string }) {
 function RecordMissing({ email, label }: { email: string; label: string }) {
   return (
     <main style={page}>
-      <AdminNav email={email} />
       <div style={inner}>
         <Link href="/admin/customers" style={back}>
           ← Customers
@@ -263,14 +259,6 @@ const avatar: React.CSSProperties = {
   color: "#fff",
   fontSize: 22,
   fontWeight: 900,
-};
-const eyebrow: React.CSSProperties = {
-  margin: "0 0 3px",
-  color: "#6d28d9",
-  fontSize: 10.5,
-  fontWeight: 900,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
 };
 const title: React.CSSProperties = {
   margin: "0 0 4px",

@@ -7,7 +7,6 @@ import {
   adminPageNumber,
   adminListHref,
 } from "@/lib/adminDashboard";
-import AdminNav from "../../AdminNav";
 import ReviewList from "../../ReviewList";
 import Pagination from "../../Pagination";
 import styles from "../../admin.module.css";
@@ -35,14 +34,12 @@ export default async function ReviewActivityPage({
     );
   return (
     <main className={styles.page}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div className={styles.container}>
         <Link href="/admin" className={styles.backLink}>
           ← Back to overview
         </Link>
         <header className={styles.pageHeader}>
           <div>
-            <p className={styles.eyebrow}>Booking feedback</p>
             <h1>Reviews</h1>
             <p>Full reviews from completed bookings, newest first.</p>
           </div>

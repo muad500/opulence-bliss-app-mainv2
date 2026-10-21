@@ -1,5 +1,4 @@
 import Link from "next/link";
-import AdminNav from "../AdminNav";
 import { requireAdminPage } from "@/lib/adminSession";
 import { reviewChatFlag } from "./actions";
 
@@ -56,7 +55,6 @@ export default async function ChatFlagsPage() {
   if (error) {
     return (
       <main style={wrap}>
-        <AdminNav email={user.email ?? "Admin"} />
         <div style={content}>
           <div style={empty}>
             Could not load chat safety flags: {error.message}
@@ -106,7 +104,6 @@ export default async function ChatFlagsPage() {
 
   return (
     <main style={wrap}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div style={content}>
         <div style={headingRow}>
           <div>

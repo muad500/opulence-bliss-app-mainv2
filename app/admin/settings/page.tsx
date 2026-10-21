@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import AdminNav from "../AdminNav";
+import AdminSkeleton from "../AdminSkeleton";
 import JobOfferSettings from "@/components/admin/JobOfferSettings";
 import SocialLinksSettings from "@/components/admin/SocialLinksSettings";
 import HandymanQuoteAdmin from "@/components/admin/HandymanQuoteAdmin";
@@ -83,9 +83,7 @@ export default function BillingSettings() {
   );
   return (
     <>
-      <AdminNav email="Staff settings" />
       <main className="billing-settings">
-        <p className="eyebrow">ADMIN SETTINGS</p>
         <h1>Booking prices and cleaner pay</h1>
         <p>
           Changes apply to new bookings only. Each booking keeps its own prices,
@@ -144,7 +142,7 @@ export default function BillingSettings() {
             </button>
           </form>
         ) : (
-          <p role="status">Loading settings…</p>
+          !message && <AdminSkeleton compact label="Loading booking settings" />
         )}
         <JobOfferSettings />
         <HandymanQuoteAdmin settingsOnly />

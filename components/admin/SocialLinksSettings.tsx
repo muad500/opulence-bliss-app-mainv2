@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AdminSkeleton from "@/app/admin/AdminSkeleton";
 import {
   DEFAULT_SOCIAL_LINKS,
   parseSocialLinks,
@@ -96,7 +97,7 @@ export default function SocialLinksSettings() {
         </p>
       )}
       {!loaded ? (
-        !error && <p role="status">Loading social links…</p>
+        !error && <AdminSkeleton compact label="Loading social links" />
       ) : (
         <form onSubmit={save}>
           <fieldset disabled={busy}>

@@ -4,16 +4,17 @@
 
 import { requireAdminPage } from "@/lib/adminSession";
 import DeskControls, { PrototypeFindingsCleanup } from "./DeskControls";
-import AdminNav from "../AdminNav";
 import { developmentToolsEnabled } from "@/lib/developmentTools";
 import HandymanQuoteAdmin from "@/components/admin/HandymanQuoteAdmin";
 
 function money(n: number | null | undefined) {
-  return n === null || n === undefined ? "—" : "£" + Number(n).toFixed(2);
+  return n === null || n === undefined
+    ? "Not available"
+    : "£" + Number(n).toFixed(2);
 }
 
 function when(iso: string | null) {
-  if (!iso) return "—";
+  if (!iso) return "Not available";
   return new Date(iso).toLocaleString("en-GB", {
     day: "numeric",
     month: "short",
@@ -158,15 +159,14 @@ export default async function ReviewDeskPage() {
 
   return (
     <main style={wrap}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div
         style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 22px 80px" }}
       >
         <h1 style={h1}>Resolution desk</h1>
         <HandymanQuoteAdmin preview />
         <p style={lede}>
-          Nothing here changes on its own. Read the evidence, then act — every
-          action is recorded against your account.
+          Nothing here changes on its own. Read the evidence before acting.
+          Every action is recorded against your account.
         </p>
 
         <div style={stats}>
@@ -195,7 +195,7 @@ export default async function ReviewDeskPage() {
         </h2>
         <p style={note}>
           Raised by the nightly comparison against Stripe. Findings are
-          observations — they never alter a record.
+          observations. They never alter a record.
         </p>
 
         {developmentToolsEnabled(process.env) &&
@@ -359,17 +359,26 @@ export default async function ReviewDeskPage() {
                   </div>
 
                   <dl style={facts}>
-                    <Fact label="Booking" value={c.booking_status ?? "—"} />
-                    <Fact label="Payment" value={c.payment_status ?? "—"} />
+                    <Fact
+                      label="Booking"
+                      value={c.booking_status ?? "Not available"}
+                    />
+                    <Fact
+                      label="Payment"
+                      value={c.payment_status ?? "Not available"}
+                    />
                     <Fact label="Charged" value={money(c.gross_amount)} />
-                    <Fact label="Payout" value={c.payout_status ?? "—"} />
+                    <Fact
+                      label="Payout"
+                      value={c.payout_status ?? "Not available"}
+                    />
                     <Fact label="Provider due" value={money(c.payout_amount)} />
                     <Fact
                       label="Approved refund"
                       value={
                         c.resolution_amount !== null
                           ? money(c.resolution_amount)
-                          : "—"
+                          : "Not available"
                       }
                     />
                     <Fact
@@ -597,5 +606,5 @@ const empty: React.CSSProperties = {
   marginBottom: 30,
 };
 
-export const metadata = { title: "Resolution desk — Opulence Bliss" };
+export const metadata = { title: "Resolution desk | Opulence Bliss" };
 export const dynamic = "force-dynamic";

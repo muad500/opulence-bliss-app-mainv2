@@ -168,6 +168,8 @@ test("active administrator can enter and the shared admin layout enforces the gu
       },
     },
     "@/components/PortalLiveSync": { default: () => null },
+    "./AdminNav": { default: () => null },
+    "./AdminNav.module.css": { default: { shell: "admin-shell" } },
   });
   assert.match(
     renderToStaticMarkup(await AdminLayout({ children: "Private dashboard" })),
@@ -181,6 +183,8 @@ test("active administrator can enter and the shared admin layout enforces the gu
   const { default: DeniedLayout } = await load("app/admin/layout.tsx", {
     "@/lib/adminSession": denied,
     "@/components/PortalLiveSync": { default: () => null },
+    "./AdminNav": { default: () => null },
+    "./AdminNav.module.css": { default: { shell: "admin-shell" } },
   });
   await assert.rejects(
     DeniedLayout({ children: "Private dashboard" }),

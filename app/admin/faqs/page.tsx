@@ -1,4 +1,3 @@
-import AdminNav from "../AdminNav";
 import { requireAdminPage } from "@/lib/adminSession";
 import {
   FAQ_CATEGORIES,
@@ -21,9 +20,7 @@ export default async function AdminFaqsPage() {
 
   return (
     <main className={styles.shell}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div className={styles.page}>
-        <p className={styles.eyebrow}>Website content</p>
         <h1>Frequently asked questions</h1>
         <p className={styles.intro}>
           Add, edit, reorder, publish or hide answers. Cleaning and Property

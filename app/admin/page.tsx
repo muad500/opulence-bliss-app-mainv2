@@ -5,7 +5,6 @@ import { ADMIN_PREVIEW_LIMIT, professionalStatus } from "@/lib/adminDashboard";
 import { handymanEnabled } from "@/lib/handymanMarketplace";
 import { visibleProfessionalServices } from "@/lib/professionalServices";
 import { developmentToolsEnabled } from "@/lib/developmentTools";
-import AdminNav from "./AdminNav";
 import AdminButtons from "./AdminButtons";
 import styles from "./admin.module.css";
 type Professional = {
@@ -138,11 +137,9 @@ export default async function AdminPage() {
   ];
   return (
     <main className={styles.page}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div className={styles.container}>
         <header className={styles.pageHeader}>
           <div>
-            <p className={styles.eyebrow}>Your workspace</p>
             <h1>Overview</h1>
             <p>A quick look at what needs your attention.</p>
           </div>
@@ -155,7 +152,9 @@ export default async function AdminPage() {
             <Link href={stat.href} key={stat.label} className={styles.stat}>
               <span>{stat.label}</span>
               <strong>
-                {stat.value == null ? "—" : stat.value.toLocaleString("en-GB")}
+                {stat.value == null
+                  ? "Not available"
+                  : stat.value.toLocaleString("en-GB")}
               </strong>
               <small>
                 {stat.value == null ? "Could not load this total" : stat.note}

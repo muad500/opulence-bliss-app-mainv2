@@ -1,4 +1,3 @@
-import AdminNav from "../AdminNav";
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/adminSession";
 
@@ -52,9 +51,7 @@ export default async function AdminCustomersPage() {
 
   return (
     <main style={page}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div style={inner}>
-        <p style={eyebrow}>People</p>
         <h1 style={title}>Customers</h1>
         <p style={lede}>
           Contact details, booking history and the next scheduled visit for each
@@ -141,14 +138,6 @@ const inner: React.CSSProperties = {
   maxWidth: 1050,
   margin: "0 auto",
   padding: "0 20px",
-};
-const eyebrow: React.CSSProperties = {
-  margin: "0 0 5px",
-  color: "#6d28d9",
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: "0.13em",
-  textTransform: "uppercase",
 };
 const title: React.CSSProperties = {
   margin: "0 0 6px",

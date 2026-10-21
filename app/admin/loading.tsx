@@ -1,9 +1,4 @@
-import LoadingState from "@/components/LoadingState";
+import AdminSkeleton from "./AdminSkeleton";
 export default function Loading() {
-  return (
-    <LoadingState
-      title="Loading your workspace"
-      detail="Getting the latest bookings and applications…"
-    />
-  );
+  return <AdminSkeleton />;
 }
