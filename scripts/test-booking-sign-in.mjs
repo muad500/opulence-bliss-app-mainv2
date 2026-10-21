@@ -69,7 +69,11 @@ function harness({
   const dependencies = [];
   let index = 0;
   const window = {
-    location: { search: `?resume=${resume}`, href: "" },
+    location: {
+      search: `?resume=${resume}`,
+      href: "",
+      assign(url) { this.href = url; },
+    },
     sessionStorage: tab,
     history: {
       state: null,
@@ -79,11 +83,13 @@ function harness({
     },
   };
   const calls = [];
+  const intervals = new Map();
   const hooks = {
     ...React,
     useState(initial) {
       const key = index++;
-      if (!(key in state)) state[key] = initial;
+      if (!(key in state))
+        state[key] = typeof initial === "function" ? initial() : initial;
       return [
         state[key],
         (value) => {
@@ -212,6 +218,12 @@ function harness({
         Date,
         crypto,
         setTimeout,
+        setInterval(callback, delay) {
+          const id = intervals.size + 1;
+          intervals.set(id, { callback, delay });
+          return id;
+        },
+        clearInterval(id) { intervals.delete(id); },
       },
       { filename: file },
     );

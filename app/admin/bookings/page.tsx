@@ -30,7 +30,7 @@ const STATUS: Record<string, { bg: string; color: string }> = {
 };
 
 export default async function AdminBookingsPage() {
-  const { supabase, user } = await requireAdminPage();
+  const { supabase } = await requireAdminPage();
   const { data, error } = await supabase
     .from("bookings")
     .select(
@@ -46,11 +46,12 @@ export default async function AdminBookingsPage() {
       })
     : { data: [], error: null };
   const seriesControls = new Set<string>();
+  const upcomingCutoff = new Date().getTime() - 86400000;
   const upcoming = bookings.filter(
     (booking) =>
       ["offered", "declined", "scheduled", "in_progress"].includes(
         booking.status,
-      ) && new Date(booking.scheduled_at).getTime() >= Date.now() - 86400000,
+      ) && new Date(booking.scheduled_at).getTime() >= upcomingCutoff,
   );
   const needsReview = bookings.filter(
     (booking) => booking.status === "needs_review",

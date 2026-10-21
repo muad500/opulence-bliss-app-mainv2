@@ -270,6 +270,11 @@ export default function BookPage() {
   const [slots, setSlots] = useState<string[] | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
   const [optionalSlots, setOptionalSlots] = useState<string[]>([]);
+  const [scheduleNow, setScheduleNow] = useState(() => Date.now());
+  useEffect(() => {
+    const clock = setInterval(() => setScheduleNow(Date.now()), 60_000);
+    return () => clearInterval(clock);
+  }, []);
 
   const [howHeard, setHowHeard] = useState("");
   const [confirmationChannel, setConfirmationChannel] = useState<
@@ -816,7 +821,7 @@ export default function BookPage() {
       );
       return;
     }
-    window.location.href = authLink("/login", returnTo);
+    window.location.assign(authLink("/login", returnTo));
   }
 
   const needsPhone =
@@ -903,7 +908,7 @@ export default function BookPage() {
         continueAfterSignIn();
         return;
       }
-      if (data.url) window.location.href = data.url;
+      if (data.url) window.location.assign(data.url);
       else {
         if (data.code === "phone_required") {
           setSavedPhone("");
@@ -1013,7 +1018,7 @@ export default function BookPage() {
         slot,
         frequency as RegularFrequency,
         cleaningMinutes,
-        Date.now(),
+        scheduleNow,
         regularVisits,
       );
     } catch (cause) {
