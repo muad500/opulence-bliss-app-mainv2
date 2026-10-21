@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import AdminNav from "../../AdminNav";
 import DbsReviewButtons from "../../DbsReviewButtons";
 import VerificationReview, {
   type VerificationRecord,
@@ -121,7 +120,6 @@ export default async function ProfessionalRecordPage({
   if (!provider) {
     return (
       <main style={page}>
-        <AdminNav email={user.email ?? "Admin"} />
         <div style={inner}>
           <Link href="/admin/cleaners" style={back}>
             ← Professionals
@@ -250,7 +248,6 @@ export default async function ProfessionalRecordPage({
 
   return (
     <main style={page}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div style={inner}>
         <Link href="/admin/cleaners" style={back}>
           ← Professionals
@@ -262,7 +259,6 @@ export default async function ProfessionalRecordPage({
               .toUpperCase()}
           </div>
           <div>
-            <p style={eyebrow}>Professional record</p>
             <h1 style={title}>
               {provider.display_name ??
                 profile?.full_name ??
@@ -302,7 +298,7 @@ export default async function ProfessionalRecordPage({
                     <Link href={`/admin/cleaners/${match.provider_id}`}>
                       {match.display_name}
                     </Link>{" "}
-                    — matching {match.matched_fields.join(", ")}. Check this
+                    Matching {match.matched_fields.join(", ")}. Check this
                     before approving.
                   </li>
                 ),
@@ -328,7 +324,6 @@ export default async function ProfessionalRecordPage({
 
         <section style={applicationCard}>
           <div>
-            <p style={eyebrow}>Application review</p>
             <h2 style={{ ...sectionTitle, marginBottom: 5 }}>
               Professional onboarding details
             </h2>
@@ -405,7 +400,7 @@ export default async function ProfessionalRecordPage({
               label="Currently self-employed"
               value={
                 application?.current_self_employment_status
-                  ? `${application.current_self_employment_status}${application.current_self_employment_detail ? ` — ${application.current_self_employment_detail}` : ""}`
+                  ? `${application.current_self_employment_status}${application.current_self_employment_detail ? `: ${application.current_self_employment_detail}` : ""}`
                   : "Not supplied"
               }
             />
@@ -429,7 +424,7 @@ export default async function ProfessionalRecordPage({
               label="Experience types"
               value={
                 application?.cleaning_experience_types?.length
-                  ? `${application.cleaning_experience_types.join(", ")}${application.other_cleaning_experience ? ` — ${application.other_cleaning_experience}` : ""}`
+                  ? `${application.cleaning_experience_types.join(", ")}${application.other_cleaning_experience ? `: ${application.other_cleaning_experience}` : ""}`
                   : "Not supplied"
               }
             />
@@ -447,7 +442,6 @@ export default async function ProfessionalRecordPage({
         </section>
 
         <section style={dbsCard}>
-          <p style={eyebrow}>Private document review</p>
           <h2 style={{ ...sectionTitle, marginBottom: 5 }}>
             Right to work, identity and cover
           </h2>
@@ -476,7 +470,6 @@ export default async function ProfessionalRecordPage({
         <section style={dbsCard}>
           <div style={recordTop}>
             <div>
-              <p style={eyebrow}>Identity and safety review</p>
               <h2 style={{ ...sectionTitle, marginBottom: 5 }}>
                 DBS certificate
               </h2>
@@ -715,7 +708,7 @@ export default async function ProfessionalRecordPage({
               ? hoursResult.data
                   .map(
                     (row) =>
-                      `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][row.weekday] ?? row.weekday} ${String(row.start_time).slice(0, 5)}–${String(row.end_time).slice(0, 5)}`,
+                      `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][row.weekday] ?? row.weekday} ${String(row.start_time).slice(0, 5)} to ${String(row.end_time).slice(0, 5)}`,
                   )
                   .join(" · ")
               : "No working hours saved"}
@@ -882,14 +875,6 @@ const avatar: React.CSSProperties = {
   color: "#6d28d9",
   fontSize: 22,
   fontWeight: 900,
-};
-const eyebrow: React.CSSProperties = {
-  margin: "0 0 3px",
-  color: "#6d28d9",
-  fontSize: 10.5,
-  fontWeight: 900,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase",
 };
 const title: React.CSSProperties = {
   margin: "0 0 4px",

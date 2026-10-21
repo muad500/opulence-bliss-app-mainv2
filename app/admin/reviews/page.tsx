@@ -1,5 +1,4 @@
 import AdminPreviousCustomerReviews from "@/components/AdminPreviousCustomerReviews";
-import AdminNav from "../AdminNav";
 import Link from "next/link";
 import ReviewList from "../ReviewList";
 import { requireAdminPage } from "@/lib/adminSession";
@@ -70,9 +69,7 @@ export default async function AdminReviewsPage({
 
   return (
     <main style={page}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div style={inner}>
-        <p style={eyebrow}>App activity</p>
         <h1 style={title}>Website reviews</h1>
         <Link
           href="/admin/reviews/activity"
@@ -104,7 +101,6 @@ export default async function AdminReviewsPage({
         >
           <div className="marketing-heading">
             <div>
-              <p style={eyebrow}>Homepage only</p>
               <h2 id="homepage-highlights">Homepage reviews</h2>
             </div>
             <p>
@@ -210,7 +206,6 @@ export default async function AdminReviewsPage({
         >
           <div className="marketing-heading">
             <div>
-              <p style={eyebrow}>Homepage and cleaning page</p>
               <h2 id="cleaning-testimonials">Customer reviews</h2>
             </div>
             <p>
@@ -464,14 +459,6 @@ const inner: React.CSSProperties = {
   maxWidth: 1050,
   margin: "0 auto",
   padding: "0 20px",
-};
-const eyebrow: React.CSSProperties = {
-  margin: "0 0 5px",
-  color: "#6d28d9",
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: "0.13em",
-  textTransform: "uppercase",
 };
 const title: React.CSSProperties = {
   margin: "0 0 6px",

@@ -1,7 +1,6 @@
 import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { QUOTE_PHOTO_BUCKET } from "@/lib/quotePhotos";
-import AdminNav from "../AdminNav";
 import { requireAdminPage } from "@/lib/adminSession";
 import { updateHandymanQuote } from "./actions";
 
@@ -48,9 +47,7 @@ export default async function AdminQuotesPage() {
 
   return (
     <main className="page">
-      <AdminNav email={user.email ?? "Admin"} />
       <div className="inner">
-        <p className="eyebrow">Property maintenance</p>
         <h1>Quotation requests</h1>
         <p className="lede">
           Review the work requested, contact the customer and record the

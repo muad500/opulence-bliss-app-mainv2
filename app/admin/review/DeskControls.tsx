@@ -71,7 +71,9 @@ export function PrototypeFindingsCleanup({ count }: { count: number }) {
           opacity: pending ? 0.6 : 1,
         }}
       >
-        {pending ? "Checking Stripe…" : `Clear pre-reset test findings (${count})`}
+        {pending
+          ? "Checking Stripe…"
+          : `Clear pre-reset test findings (${count})`}
       </button>
       {result && (
         <p
@@ -142,7 +144,8 @@ export default function DeskControls({
   };
 
   const canCapture =
-    !!paymentId && ["authorised", "capture_failed"].includes(paymentStatus ?? "");
+    !!paymentId &&
+    ["authorised", "capture_failed"].includes(paymentStatus ?? "");
   const canTransfer =
     !!payoutId && ["pending", "failed"].includes(payoutStatus ?? "");
   const canRelease = !!payoutId && payoutStatus === "held";
@@ -159,7 +162,7 @@ export default function DeskControls({
         className="reason"
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        placeholder="Reason — recorded against your account"
+        placeholder="Reason (recorded against your account)"
         aria-label="Reason"
       />
 
@@ -177,7 +180,8 @@ export default function DeskControls({
               className="ghost"
               disabled={pending}
               onClick={() =>
-                needReason() && run(() => closeFinding(findingId, reason, false))
+                needReason() &&
+                run(() => closeFinding(findingId, reason, false))
               }
             >
               Close
@@ -274,8 +278,8 @@ export default function DeskControls({
             inputMode="decimal"
           />
           <p className="hint">
-            This is the total refund approval. Recording it does not move
-            money; the resolved case will remain here until it is paid.
+            This is the total refund approval. Recording it does not move money;
+            the resolved case will remain here until it is paid.
           </p>
           <button
             className="primary wide"
@@ -287,8 +291,8 @@ export default function DeskControls({
                   caseId,
                   reason,
                   "",
-                  amount.trim() ? Number(amount) : undefined
-                )
+                  amount.trim() ? Number(amount) : undefined,
+                ),
               )
             }
           >
@@ -302,19 +306,22 @@ export default function DeskControls({
         <div className="panel">
           <p className="ph">
             Refund against this case
-            {grossAmount ? ` — £${Number(grossAmount).toFixed(2)} was charged` : ""}
+            {grossAmount
+              ? ` (£${Number(grossAmount).toFixed(2)} was charged)`
+              : ""}
           </p>
           <input
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             placeholder={`Amount to refund (£${Number(
-              refundRemaining ?? resolutionAmount ?? 0
+              refundRemaining ?? resolutionAmount ?? 0,
             ).toFixed(2)} remaining)`}
             inputMode="decimal"
           />
           <p className="hint">
             £{Number(resolutionAmount ?? 0).toFixed(2)} was approved. A partial
-            refund can be issued more than once; each gets its own operation key.
+            refund can be issued more than once; each gets its own operation
+            key.
           </p>
           <button
             className="money wide"

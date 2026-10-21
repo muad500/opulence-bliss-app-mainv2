@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AdminSkeleton from "@/app/admin/AdminSkeleton";
 import type { JobOfferSettings as Settings } from "@/lib/jobOfferSettings";
 
 export default function JobOfferSettings() {
@@ -97,7 +98,7 @@ export default function JobOfferSettings() {
           </button>
         </form>
       ) : (
-        <p role="status">Loading offer settings…</p>
+        !message && <AdminSkeleton compact label="Loading offer settings" />
       )}
       <style jsx>{`
         h2 {

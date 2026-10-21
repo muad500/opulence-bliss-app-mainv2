@@ -95,9 +95,7 @@ export default function AdminButtons() {
               start(async () => {
                 try {
                   const result = await j.run();
-                  setDone(
-                    result?.message ?? `Done — ${j.label.toLowerCase()}.`,
-                  );
+                  setDone(result?.message ?? `Done: ${j.label.toLowerCase()}.`);
                   router.refresh();
                 } catch (cause) {
                   setError(

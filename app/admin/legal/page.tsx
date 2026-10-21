@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import AdminNav from "../AdminNav";
 import { requireAdminPage } from "@/lib/adminSession";
 import {
   LEGAL_DOCUMENT_SLUGS,
@@ -54,9 +53,7 @@ export default async function AdminLegalPage() {
 
   return (
     <main className={styles.shell}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div className={styles.page}>
-        <p className={styles.eyebrow}>Website content</p>
         <h1>Legal documents</h1>
         <p className={styles.intro}>
           Edit the wording customers and professionals agree to. Use headings,

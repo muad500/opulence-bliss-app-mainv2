@@ -1,5 +1,4 @@
 import AdminProfessionalOnboarding from "@/components/AdminProfessionalOnboarding";
-import AdminNav from "../AdminNav";
 import Link from "next/link";
 import ServiceReview from "../ServiceReview";
 import { handymanEnabled } from "@/lib/handymanMarketplace";
@@ -116,7 +115,7 @@ export default async function AdminCleanersPage({
   for (const row of availabilityResult.data ?? []) {
     const rows = hoursByProvider.get(row.provider_id) ?? [];
     rows.push(
-      `${DAYS[row.weekday] ?? row.weekday} ${String(row.start_time).slice(0, 5)}–${String(row.end_time).slice(0, 5)}`,
+      `${DAYS[row.weekday] ?? row.weekday} ${String(row.start_time).slice(0, 5)} to ${String(row.end_time).slice(0, 5)}`,
     );
     hoursByProvider.set(row.provider_id, rows);
   }
@@ -141,12 +140,10 @@ export default async function AdminCleanersPage({
 
   return (
     <main style={page}>
-      <AdminNav email={user.email ?? "Admin"} />
       <div style={inner}>
         <Link href="/admin" className={styles.backLink}>
           ← Back to overview
         </Link>
-        <p style={eyebrow}>Workforce</p>
         <h1 style={title}>
           {selectedStatus === "pending" ? "Awaiting approval" : "Professionals"}
         </h1>
@@ -173,12 +170,7 @@ export default async function AdminCleanersPage({
           ))}
         </nav>
         {!selectedStatus && (
-          <details style={{ marginBottom: 20 }}>
-            <summary style={{ cursor: "pointer", fontWeight: 700 }}>
-              Add a professional
-            </summary>
-            <AdminProfessionalOnboarding handymanEnabled={handymanEnabled()} />
-          </details>
+          <AdminProfessionalOnboarding handymanEnabled={handymanEnabled()} />
         )}
         {providersResult.error ? (
           <div style={errorBox}>{providersResult.error.message}</div>
@@ -262,15 +254,15 @@ export default async function AdminCleanersPage({
                     <p style={meta}>
                       <strong>Application:</strong>{" "}
                       {application
-                        ? `${application.right_to_work == null ? "Right-to-work not supplied" : application.right_to_work ? "Right to work: yes" : "Right to work: no"} · ${application.cleaning_experience_years ?? 0} years · ${application.preferred_weekly_hours ?? 0} hr/week · ${application.max_travel_distance ?? "Travel range not supplied"}`
-                        : "Legacy account — no onboarding details submitted"}
+                        ? `${application.right_to_work == null ? "Right to work not supplied" : application.right_to_work ? "Right to work: yes" : "Right to work: no"} · ${application.cleaning_experience_years ?? 0} years · ${application.preferred_weekly_hours ?? 0} hr/week · ${application.max_travel_distance ?? "Travel range not supplied"}`
+                        : "Legacy account. No onboarding details submitted."}
                     </p>
                     <p style={meta}>
                       <strong>DBS:</strong> {dbsLabel}
                       {dbs?.issue_date && (
                         <>
                           {" "}
-                          · Annual re-check {dbsRecheckDate(dbs.issue_date)} (
+                          · Annual check {dbsRecheckDate(dbs.issue_date)} (
                           {renewalState(
                             dbsRecheckDate(dbs.issue_date),
                             new Date().toISOString().slice(0, 10),
@@ -373,14 +365,6 @@ const inner: React.CSSProperties = {
   maxWidth: 1050,
   margin: "0 auto",
   padding: "0 20px",
-};
-const eyebrow: React.CSSProperties = {
-  margin: "0 0 5px",
-  color: "#6d28d9",
-  fontSize: 11,
-  fontWeight: 900,
-  letterSpacing: "0.13em",
-  textTransform: "uppercase",
 };
 const title: React.CSSProperties = {
   margin: "0 0 6px",

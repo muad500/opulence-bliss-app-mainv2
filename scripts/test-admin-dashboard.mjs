@@ -144,8 +144,15 @@ function database({ fail, empty = false } = {}) {
   };
 }
 function cssModule(file) {
-  const prefix = file.endsWith("AdminNav.module.css") ? "nav" : "dashboard";
+  const prefix = cssPrefix(file);
   return new Proxy({}, { get: (_, key) => `${prefix}-${String(key)}` });
+}
+function cssPrefix(file) {
+  if (file.endsWith("AdminNav.module.css")) return "nav";
+  if (file.endsWith("AdminSkeleton.module.css")) return "skeleton";
+  if (file.endsWith("AdminProfessionalOnboarding.module.css"))
+    return "onboarding";
+  return "dashboard";
 }
 function runtime(db, { path = "/admin", guard, overview } = {}) {
   const cache = new Map();
@@ -178,14 +185,9 @@ function runtime(db, { path = "/admin", guard, overview } = {}) {
       "@/lib/supabase/client": {
         createClient: () => ({ auth: { signOut: async () => ({}) } }),
       },
-      "@/components/AdminProfessionalOnboarding": {
+      "@/components/PortalLiveSync": {
         __esModule: true,
-        default: () =>
-          React.createElement(
-            "p",
-            null,
-            "Create a professional from their application details.",
-          ),
+        default: () => null,
       },
     };
     const output = ts.transpileModule(readFileSync(file, "utf8"), {
@@ -410,12 +412,55 @@ test("review navigation does not also mark the resolution desk as active", () =>
   assert.doesNotMatch(html, /href="\/admin\/review" aria-current="page"/);
 });
 
+test("the shared admin shell keeps one navigation around both page and loading content", async () => {
+  const rt = runtime(database());
+  const Layout = rt.load("app/admin/layout.tsx").default;
+  const Loading = rt.load("app/admin/loading.tsx").default;
+  for (const children of [
+    await rt.load("app/admin/page.tsx").default(),
+    React.createElement(Loading),
+  ]) {
+    const html = renderToStaticMarkup(await Layout({ children }));
+    assert.equal(
+      (html.match(/aria-label="Admin navigation"/g) ?? []).length,
+      1,
+    );
+    assert.match(html, />Admin page<.*admin@example.invalid/);
+    assert.doesNotMatch(html, /Your workspace|Workforce/);
+  }
+  const loading = renderToStaticMarkup(React.createElement(Loading));
+  assert.match(loading, /role="status".*aria-busy="true"/);
+  assert.match(loading, /skeleton-row/);
+});
+
+test("professional invitation has one disclosure, required contact fields and service visibility", () => {
+  const Form = runtime(database()).load(
+    "components/AdminProfessionalOnboarding.tsx",
+  ).default;
+  const html = renderToStaticMarkup(
+    React.createElement(Form, { handymanEnabled: false }),
+  );
+  assert.equal((html.match(/<details/g) ?? []).length, 1);
+  assert.match(html, /Add a professional/);
+  assert.match(html, /type="email".*name="email"/);
+  assert.match(html, /type="tel".*name="phone"/);
+  assert.match(html, /account stays pending/);
+  assert.match(html, /Send setup link/);
+  assert.doesNotMatch(html, /Property maintenance/);
+  assert.match(
+    renderToStaticMarkup(React.createElement(Form, { handymanEnabled: true })),
+    /Property maintenance/,
+  );
+});
+
 // Optional local, read-only visual fixture. No app route/auth bypass, credentials
 // or real customer data is created. Used to inspect desktop/mobile/dark layouts.
 if (process.argv.includes("--preview-ui")) {
   const cssFiles = [
     "app/admin/admin.module.css",
     "app/admin/AdminNav.module.css",
+    "app/admin/AdminSkeleton.module.css",
+    "components/AdminProfessionalOnboarding.module.css",
   ];
   const globals = readFileSync(resolve(root, "app/globals.css"), "utf8")
     .split("@layer base")[0]
@@ -423,7 +468,7 @@ if (process.argv.includes("--preview-ui")) {
   const css = cssFiles
     .map((file) => {
       const source = readFileSync(resolve(root, file), "utf8");
-      const prefix = file.endsWith("AdminNav.module.css") ? "nav" : "dashboard";
+      const prefix = cssPrefix(file);
       return source.replace(
         /\.([a-zA-Z_][\w-]*)/g,
         (_, name) => `.${prefix}-${name}`,
@@ -440,10 +485,19 @@ if (process.argv.includes("--preview-ui")) {
           : path === "/admin/cleaners"
             ? "app/admin/cleaners/page.tsx"
             : "app/admin/page.tsx";
-      const Page = runtime(database(), { path }).load(file).default;
+      const rt = runtime(database(), { path });
+      const Page = rt.load(file).default;
+      const Layout = rt.load("app/admin/layout.tsx").default;
+      const Loading = rt.load("app/admin/loading.tsx").default;
       const body = renderToStaticMarkup(
-        await Page({
-          searchParams: Promise.resolve(Object.fromEntries(url.searchParams)),
+        await Layout({
+          children: url.searchParams.has("loading")
+            ? React.createElement(Loading)
+            : await Page({
+                searchParams: Promise.resolve(
+                  Object.fromEntries(url.searchParams),
+                ),
+              }),
         }),
       );
       res.setHeader("Content-Type", "text/html; charset=utf-8");

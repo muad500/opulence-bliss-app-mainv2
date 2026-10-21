@@ -186,7 +186,7 @@ export async function retryCapture(
   if (!["authorised", "capture_failed"].includes(pay.status))
     return {
       ok: false,
-      message: `Nothing to capture — status is ${pay.status}.`,
+      message: `Nothing to capture. Status is ${pay.status}.`,
     };
 
   // Durable identity. The same logical capture, however many attempts.
@@ -211,7 +211,7 @@ export async function retryCapture(
     return {
       ok: false,
       message: `Not run: ${claim?.status}${
-        claim?.message ? ` — ${claim.message}` : ""
+        claim?.message ? `: ${claim.message}` : ""
       }`,
     };
 
@@ -262,7 +262,7 @@ export async function retryCapture(
     return {
       ok: false,
       message:
-        `Outcome unknown — marked ambiguous. Check Stripe for PaymentIntent ` +
+        `Outcome unknown. Marked ambiguous. Check Stripe for PaymentIntent ` +
         `${pay.stripe_payment_ref} before trying again. (${msg})`,
     };
   }
@@ -424,7 +424,7 @@ export async function retryTransfer(
     return {
       ok: false,
       message: `Not run: ${claim?.status}${
-        claim?.message ? ` — ${claim.message}` : ""
+        claim?.message ? `: ${claim.message}` : ""
       }`,
     };
 
@@ -469,7 +469,7 @@ export async function retryTransfer(
     return {
       ok: false,
       message:
-        `Outcome unknown — marked ambiguous. Search Stripe transfers for ` +
+        `Outcome unknown. Marked ambiguous. Search Stripe transfers for ` +
         `metadata.operation_key = ${key} before retrying. (${msg})`,
     };
   }
@@ -548,7 +548,7 @@ export async function releasePayoutHold(
   }
 
   refreshAdmin();
-  return { ok: true, message: "Hold lifted — payout is pending." };
+  return { ok: true, message: "Hold lifted. Payout is pending." };
 }
 
 /* ==========================================================================
@@ -724,7 +724,7 @@ export async function issueRefund(
     return {
       ok: false,
       message:
-        `Outcome unknown — marked ambiguous. Check Stripe refunds for ` +
+        `Outcome unknown. Marked ambiguous. Check Stripe refunds for ` +
         `metadata.operation_key = ${key}. (${msg})`,
     };
   }
@@ -837,7 +837,7 @@ export async function closeCase(
 
     if (po?.status === "held") {
       extra =
-        " The payout is still held — lift it explicitly once you're satisfied.";
+        " The payout is still held. Lift it explicitly once you're satisfied.";
     } else {
       try {
         await maybeReleasePayout(admin, bookingId);

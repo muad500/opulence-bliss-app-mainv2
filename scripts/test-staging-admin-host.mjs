@@ -74,7 +74,7 @@ try {
   assert.notEqual(publicOrigin, staffOrigin);
   assert.equal(
     (await web(staffOrigin, "/")).headers.get("location"),
-    publicOrigin + "/",
+    staffOrigin + "/staff/login",
   );
   pass("Staging has separate staff/public hosts on its own deployment");
   for (const path of [
@@ -201,6 +201,36 @@ try {
   assert.match(await signedPage.text(), /<h1[^>]*>Overview<\/h1>/);
   pass(
     "Actual staging TOTP rejects an invalid code and opens staff pages/APIs after verification",
+  );
+  for (const path of [
+    "/admin",
+    "/admin/cleaners",
+    "/admin/bookings",
+    "/admin/customers",
+    "/admin/review",
+    "/admin/settings",
+    "/admin/faqs",
+  ]) {
+    const response = await web(staffOrigin, path, cookie());
+    assert.equal(response.status, 200, path);
+    const html = await response.text();
+    assert.equal(
+      (html.match(/<nav[^>]*aria-label="Admin navigation"/g) ?? []).length,
+      1,
+      `${path} must have one shared navigation`,
+    );
+    assert.ok(html.includes("Admin page") && html.includes(email), path);
+    assert.doesNotMatch(html, /Your workspace|>Workforce<|>Operations</);
+    if (path === "/admin/cleaners") {
+      assert.equal(
+        (html.match(/<summary[^>]*>[\s\S]*?Add a professional/g) ?? []).length,
+        1,
+      );
+      assert.ok(html.includes("Send setup link"));
+    }
+  }
+  pass(
+    "Seven signed-in admin sections retain one navigation, the staff email and the simplified form",
   );
   const link = await need(
     admin.auth.admin.generateLink({
