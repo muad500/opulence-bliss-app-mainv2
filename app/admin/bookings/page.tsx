@@ -40,6 +40,11 @@ export default async function AdminBookingsPage() {
     .limit(150);
 
   const bookings = data ?? [];
+  const legal = bookings.length
+    ? await supabase.rpc("admin_booking_legal_acceptances", {
+        p_booking_ids: bookings.map((booking) => booking.id),
+      })
+    : { data: [], error: null };
   const seriesControls = new Set<string>();
   const upcoming = bookings.filter(
     (booking) =>
@@ -134,6 +139,50 @@ export default async function AdminBookingsPage() {
                     <small style={reference}>
                       #{booking.id.slice(0, 8).toUpperCase()}
                     </small>
+                    <details
+                      style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6 }}
+                    >
+                      <summary>Booking policy acceptance</summary>
+                      {legal.error ? (
+                        <p>Could not load acceptance evidence.</p>
+                      ) : (legal.data ?? []).some(
+                          (row: { booking_id: string }) =>
+                            row.booking_id === booking.id,
+                        ) ? (
+                        <ul>
+                          {(legal.data ?? [])
+                            .filter(
+                              (row: { booking_id: string }) =>
+                                row.booking_id === booking.id,
+                            )
+                            .map(
+                              (row: {
+                                document_slug: string;
+                                document_title: string;
+                                version: string;
+                                accepted_at: string;
+                                user_id: string;
+                              }) => (
+                                <li key={row.document_slug}>
+                                  {row.document_title} · Version {row.version}
+                                  <br />
+                                  Accepted{" "}
+                                  {new Date(row.accepted_at).toLocaleString(
+                                    "en-GB",
+                                    { timeZone: "Europe/London" },
+                                  )}{" "}
+                                  (London) · Account {row.user_id}
+                                </li>
+                              ),
+                            )}
+                        </ul>
+                      ) : (
+                        <p>
+                          No booking-specific acceptance recorded for this
+                          existing booking.
+                        </p>
+                      )}
+                    </details>
                   </div>
                   {canMove ? (
                     <BookingScheduleControl
