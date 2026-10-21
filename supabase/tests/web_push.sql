@@ -23,7 +23,7 @@ insert into auth.sessions values('20000000-0000-4000-8000-000000000001','1000000
 insert into public.bookings values('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',null,'scheduled');
 select set_config('test.uid','10000000-0000-4000-8000-000000000001',false),set_config('test.session','20000000-0000-4000-8000-000000000001',false);
 select public.test_assert((public.web_push_enrolment()->>'eligible')::boolean,'booked customer is eligible');
-select public.save_web_push_subscription('https://fcm.googleapis.com/fcm/send/demo',repeat('a',22),'B'||repeat('a',86));
+select public.save_web_push_subscription('https://fcm.googleapis.com/fcm/send/demo',repeat('a',22),'B'||repeat('a',86),true);
 select public.save_web_push_subscription('https://fcm.googleapis.com/fcm/send/demo',repeat('a',22),'B'||repeat('a',86));
 select public.test_assert((select count(*)=1 from public.web_push_subscriptions),'subscription retry deduplicated');
 do $$begin
@@ -51,6 +51,29 @@ select public.test_assert((select bool_and(status='sent') from public.web_push_d
 select public.disable_web_push();
 select public.test_assert((select count(*)=0 from public.web_push_subscriptions),'disable removes all device capabilities');
 select public.test_assert((public.web_push_enrolment()->>'optedOut')::boolean,'opt out persists');
+do $$begin
+ begin perform public.save_web_push_subscription('https://fcm.googleapis.com/fcm/send/demo',repeat('a',22),'B'||repeat('a',86));raise exception 'Opt-out overridden';exception when raise_exception then if sqlerrm='Opt-out overridden' then raise;end if;end;
+end$$;
+select public.test_assert((public.web_push_enrolment()->>'optedOut')::boolean,'background refresh cannot override opt-out');
+insert into public.providers values('40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002','pending',false);
+select set_config('test.uid','10000000-0000-4000-8000-000000000002',false);
+select public.test_assert(not (public.web_push_enrolment()->>'eligible')::boolean,'unapproved professional not prompted');
+update public.providers set vetting_status='approved';
+select public.test_assert((public.web_push_enrolment()->>'eligible')::boolean,'approved professional prompted');
+insert into public.provider_profile_settings values('40000000-0000-4000-8000-000000000001',false,true);
+select public.test_assert(not public.web_push_user_allowed(auth.uid(),'taken','/worker'),'job taken respects app-alert opt-out');
+update public.providers set is_suspended=true;
+select public.test_assert(not (public.web_push_enrolment()->>'eligible')::boolean,'suspended professional not eligible');
+select public.test_assert(public.web_push_kind('New cleaning job offer')='offer'
+ and public.web_push_kind('This job has been taken')='taken'
+ and public.web_push_kind('Booking confirmed')='confirmed'
+ and public.web_push_kind('Sam is running late')='late'
+ and public.web_push_kind('Your booking is in 24 hours')='reminder'
+ and public.web_push_kind('Your booking is in 1 hour 30 minutes')='reminder'
+ and public.web_push_kind('30 minutes remaining')='remaining'
+ and public.web_push_kind('We''re still finding a cleaner for your visit')='finding'
+ and public.web_push_kind('Update your saved card')='payment'
+ and public.web_push_kind('Admin investigation') is null,'all requested event categories mapped, staff notices excluded');
 select public.test_assert(not has_table_privilege('authenticated','public.web_push_subscriptions','SELECT'),'subscriptions hidden from clients');
 select public.test_assert(not has_function_privilege('authenticated','public.claim_web_push(integer)','EXECUTE'),'users cannot claim another device');
 select 'Web Push SQL contracts passed' as result;

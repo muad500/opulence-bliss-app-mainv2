@@ -70,10 +70,11 @@ returns jsonb language sql stable security definer set search_path=public as $$
  select jsonb_build_object('eligible', auth.uid() is not null and public.account_is_active() and (
    exists(select 1 from public.bookings where customer_id=auth.uid() and status::text in ('offered','scheduled','in_progress','completed'))
    or exists(select 1 from public.providers where profile_id=auth.uid() and vetting_status::text='approved' and not coalesce(is_suspended,false))),
+  'hasConsent', exists(select 1 from public.web_push_preferences where user_id=auth.uid() and enabled),
   'optedOut', exists(select 1 from public.web_push_preferences where user_id=auth.uid() and not enabled));
 $$;
 
-create function public.save_web_push_subscription(p_endpoint text,p_auth text,p_p256dh text)
+create function public.save_web_push_subscription(p_endpoint text,p_auth text,p_p256dh text,p_opt_in boolean default false)
 returns void language plpgsql security definer set search_path=public,auth as $$
 declare uid uuid:=auth.uid(); sid uuid:=nullif(auth.jwt()->>'session_id','')::uuid;
 begin
@@ -84,10 +85,13 @@ begin
   or length(p_endpoint)>2048 or p_auth !~ '^[A-Za-z0-9_-]{22}$' or p_p256dh !~ '^B[A-Za-z0-9_-]{86}$'
   then raise exception 'Unsupported subscription'; end if;
  perform pg_advisory_xact_lock(hashtextextended('push:'||uid::text,0));
+ if not p_opt_in and not exists(select 1 from public.web_push_preferences where user_id=uid and enabled) then raise exception 'Explicit opt-in required'; end if;
  if exists(select 1 from public.web_push_subscriptions where endpoint=p_endpoint and user_id<>uid) then raise exception 'Device belongs to another account'; end if;
  if (select count(*) from public.web_push_subscriptions where user_id=uid)>=10
   and not exists(select 1 from public.web_push_subscriptions where endpoint=p_endpoint and user_id=uid) then raise exception 'Device limit reached'; end if;
- insert into public.web_push_preferences(user_id,enabled) values(uid,true) on conflict(user_id) do update set enabled=true;
+ if p_opt_in then
+  insert into public.web_push_preferences(user_id,enabled) values(uid,true) on conflict(user_id) do update set enabled=true;
+ end if;
  insert into public.web_push_subscriptions(user_id,session_id,endpoint,auth_key,p256dh) values(uid,sid,p_endpoint,p_auth,p_p256dh)
  on conflict(endpoint) do update set session_id=sid,auth_key=p_auth,p256dh=p_p256dh,updated_at=now() where web_push_subscriptions.user_id=uid;
 end;
@@ -97,6 +101,7 @@ create function public.disable_web_push()
 returns void language plpgsql security definer set search_path=public as $$
 begin
  if auth.uid() is null then raise exception 'Sign in first'; end if;
+ perform pg_advisory_xact_lock(hashtextextended('push:'||auth.uid()::text,0));
  insert into public.web_push_preferences(user_id,enabled) values(auth.uid(),false) on conflict(user_id) do update set enabled=false;
  delete from public.web_push_subscriptions where user_id=auth.uid();
 end;
@@ -166,7 +171,7 @@ begin
 end;
 $$;
 
-revoke all on function public.web_push_kind(text),public.web_push_user_allowed(uuid,text,text),public.queue_web_push(),public.web_push_delivery_allowed(uuid,uuid),public.claim_web_push(integer),public.finish_web_push(uuid,uuid,text),public.web_push_enrolment(),public.save_web_push_subscription(text,text,text),public.disable_web_push() from public,anon,authenticated;
-grant execute on function public.web_push_enrolment(),public.save_web_push_subscription(text,text,text),public.disable_web_push() to authenticated;
+revoke all on function public.web_push_kind(text),public.web_push_user_allowed(uuid,text,text),public.queue_web_push(),public.web_push_delivery_allowed(uuid,uuid),public.claim_web_push(integer),public.finish_web_push(uuid,uuid,text),public.web_push_enrolment(),public.save_web_push_subscription(text,text,text,boolean),public.disable_web_push() from public,anon,authenticated;
+grant execute on function public.web_push_enrolment(),public.save_web_push_subscription(text,text,text,boolean),public.disable_web_push() to authenticated;
 grant execute on function public.web_push_delivery_allowed(uuid,uuid),public.claim_web_push(integer),public.finish_web_push(uuid,uuid,text) to service_role;
 commit;

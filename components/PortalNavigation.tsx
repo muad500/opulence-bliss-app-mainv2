@@ -184,7 +184,8 @@ export default function PortalNavigation({
   useEffect(() => {
     try {
       // Remove the old persistent preference; navigation is session-only now.
-      localStorage.removeItem(`opulence-${mode}-nav`);
+      localStorage.removeItem("opulence-client-nav");
+      localStorage.removeItem("opulence-professional-nav");
       setCollapsed(
         sessionStorage.getItem(`opulence-${mode}-nav`) === "collapsed",
       );

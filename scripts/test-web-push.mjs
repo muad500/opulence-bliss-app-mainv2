@@ -165,6 +165,56 @@ test("disabled push never claims the queue or contacts a push service", async ()
   assert.equal(calls.length, 0);
   assert.equal(payloads.length, 0);
 });
+
+test("subscription API requires authentication, same origin and bounded valid JSON", async () => {
+  let user = { id: "demo" };
+  const calls = [];
+  const { POST, GET } = await load(
+    "app/api/push/route.ts",
+    {
+      "@/lib/webPushPolicy": policy,
+      "@/lib/supabase/server": {
+        createClient: async () => ({
+          auth: { getUser: async () => ({ data: { user } }) },
+          rpc: async (...args) => {
+            calls.push(args);
+            return { data: { eligible: true } };
+          },
+        }),
+      },
+    },
+    { process: { env } },
+  );
+  const post = (body, origin = "https://stage.example") =>
+    POST(
+      new Request("https://stage.example/api/push", {
+        method: "POST",
+        headers: { origin },
+        body,
+      }),
+    );
+  assert.equal((await post("null")).status, 400);
+  assert.equal((await post("not json")).status, 400);
+  assert.equal((await post("{}", "https://evil.test")).status, 403);
+  assert.equal(
+    (
+      await post(
+        JSON.stringify({ subscription: { endpoint: "https://localhost" } }),
+      )
+    ).status,
+    400,
+  );
+  assert.equal(
+    (await post(JSON.stringify({ subscription, optIn: true }))).status,
+    200,
+  );
+  assert.equal(calls.at(-1)[1].p_opt_in, true);
+  assert.equal((await post(JSON.stringify({ action: "disable" }))).status, 200);
+  assert.equal(calls.at(-1)[0], "disable_web_push");
+  user = null;
+  assert.equal((await post("{}")).status, 401);
+  assert.equal((await GET()).status, 401);
+});
 test("service worker hides notifications after logout/account switch and validates click targets", async () => {
   const handlers = new Map(),
     shown = [],

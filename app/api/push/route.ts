@@ -43,6 +43,8 @@ export async function POST(req: Request) {
   } catch {
     return json({ error: "Invalid request" }, 400);
   }
+  if (!body || typeof body !== "object" || Array.isArray(body))
+    return json({ error: "Invalid request" }, 400);
   if (body.action === "disable") {
     const result = await client.rpc("disable_web_push");
     return result.error
@@ -56,6 +58,7 @@ export async function POST(req: Request) {
     p_endpoint: s.endpoint,
     p_auth: s.keys.auth,
     p_p256dh: s.keys.p256dh,
+    p_opt_in: body.optIn === true,
   });
   return result.error
     ? json(

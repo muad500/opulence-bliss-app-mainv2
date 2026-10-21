@@ -8,6 +8,7 @@ type Config = {
   enabled: boolean;
   eligible: boolean;
   optedOut: boolean;
+  hasConsent: boolean;
   publicKey: string;
   userId: string;
 };
@@ -26,13 +27,19 @@ const request = async (body: object) => {
   });
   if (!r.ok) throw new Error("Could not save notifications. Please try again.");
 };
-async function subscribe(key: string) {
+async function subscribe(key: string, optIn = false) {
   const registration = await navigator.serviceWorker.register(
     "/app-worker.js",
     { scope: "/" },
   );
   await navigator.serviceWorker.ready;
   let subscription = await registration.pushManager.getSubscription();
+  // Explicit re-enrolment also repairs rotated keys or another account's old
+  // browser subscription, without silently taking it over on page load.
+  if (optIn && subscription) {
+    await subscription.unsubscribe();
+    subscription = null;
+  }
   if (!subscription) {
     const bytes = Uint8Array.from(
       atob(key.replace(/-/g, "+").replace(/_/g, "/")),
@@ -43,7 +50,7 @@ async function subscribe(key: string) {
       applicationServerKey: bytes,
     });
   }
-  await request({ subscription: subscription.toJSON() });
+  await request({ subscription: subscription.toJSON(), optIn });
 }
 export default function PushNotifications() {
   const path = usePathname() ?? "/";
@@ -66,7 +73,11 @@ export default function PushNotifications() {
             sessionStorage.getItem(`push-later-${c.userId}`) === "true",
           );
         } catch {}
-        if (!c.optedOut && Notification.permission === "granted") {
+        if (
+          c.hasConsent &&
+          !c.optedOut &&
+          Notification.permission === "granted"
+        ) {
           try {
             await subscribe(c.publicKey);
             if (!cancelled) setActive(true);
@@ -121,9 +132,9 @@ export default function PushNotifications() {
         );
         return;
       }
-      await subscribe(config!.publicKey);
+      await subscribe(config!.publicKey, true);
       setActive(true);
-      setConfig((c) => c && { ...c, optedOut: false });
+      setConfig((c) => c && { ...c, optedOut: false, hasConsent: true });
       setMessage("Notifications enabled on this device.");
     } catch {
       setMessage("Could not enable notifications. Please try again.");
@@ -141,7 +152,7 @@ export default function PushNotifications() {
         type: "CLEAR_ACCOUNT_NOTIFICATIONS",
       });
       setActive(false);
-      setConfig((c) => c && { ...c, optedOut: true });
+      setConfig((c) => c && { ...c, optedOut: true, hasConsent: false });
       setMessage(
         "Push notifications disabled on all your devices. Emails are unchanged.",
       );
