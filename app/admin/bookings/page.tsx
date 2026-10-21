@@ -30,7 +30,7 @@ const STATUS: Record<string, { bg: string; color: string }> = {
 };
 
 export default async function AdminBookingsPage() {
-  const { supabase, user } = await requireAdminPage();
+  const { supabase } = await requireAdminPage();
   const { data, error } = await supabase
     .from("bookings")
     .select(
@@ -40,12 +40,18 @@ export default async function AdminBookingsPage() {
     .limit(150);
 
   const bookings = data ?? [];
+  const legal = bookings.length
+    ? await supabase.rpc("admin_booking_legal_acceptances", {
+        p_booking_ids: bookings.map((booking) => booking.id),
+      })
+    : { data: [], error: null };
   const seriesControls = new Set<string>();
+  const upcomingCutoff = new Date().getTime() - 86400000;
   const upcoming = bookings.filter(
     (booking) =>
       ["offered", "declined", "scheduled", "in_progress"].includes(
         booking.status,
-      ) && new Date(booking.scheduled_at).getTime() >= Date.now() - 86400000,
+      ) && new Date(booking.scheduled_at).getTime() >= upcomingCutoff,
   );
   const needsReview = bookings.filter(
     (booking) => booking.status === "needs_review",
@@ -134,6 +140,50 @@ export default async function AdminBookingsPage() {
                     <small style={reference}>
                       #{booking.id.slice(0, 8).toUpperCase()}
                     </small>
+                    <details
+                      style={{ marginTop: 10, fontSize: 13, lineHeight: 1.6 }}
+                    >
+                      <summary>Booking policy acceptance</summary>
+                      {legal.error ? (
+                        <p>Could not load acceptance evidence.</p>
+                      ) : (legal.data ?? []).some(
+                          (row: { booking_id: string }) =>
+                            row.booking_id === booking.id,
+                        ) ? (
+                        <ul>
+                          {(legal.data ?? [])
+                            .filter(
+                              (row: { booking_id: string }) =>
+                                row.booking_id === booking.id,
+                            )
+                            .map(
+                              (row: {
+                                document_slug: string;
+                                document_title: string;
+                                version: string;
+                                accepted_at: string;
+                                user_id: string;
+                              }) => (
+                                <li key={row.document_slug}>
+                                  {row.document_title} · Version {row.version}
+                                  <br />
+                                  Accepted{" "}
+                                  {new Date(row.accepted_at).toLocaleString(
+                                    "en-GB",
+                                    { timeZone: "Europe/London" },
+                                  )}{" "}
+                                  (London) · Account {row.user_id}
+                                </li>
+                              ),
+                            )}
+                        </ul>
+                      ) : (
+                        <p>
+                          No booking-specific acceptance recorded for this
+                          existing booking.
+                        </p>
+                      )}
+                    </details>
                   </div>
                   {canMove ? (
                     <BookingScheduleControl

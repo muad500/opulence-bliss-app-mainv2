@@ -480,7 +480,7 @@ export async function POST(req: NextRequest) {
         version: professionalAgreementVersion,
         accepted_at: acceptedAt,
       },
-      { onConflict: "user_id,document_slug,version" },
+      { onConflict: "user_id,document_slug,version,booking_id" },
     );
 
     // 3. Provider record — work access begins after the admin approves it.
