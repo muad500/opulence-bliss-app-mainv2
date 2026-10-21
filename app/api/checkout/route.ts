@@ -1,5 +1,10 @@
 import { currentCleaningBillingTerms } from "@/lib/cleaningBillingSettings";
 import {
+  validCheckoutLegalDocuments,
+  checkoutLegalMatches,
+} from "@/lib/checkoutLegal";
+import { currentCheckoutLegal } from "@/lib/checkoutLegalServer";
+import {
   DEFAULT_CLEANING_BILLING_TERMS,
   cleanerPayPence,
 } from "@/lib/cleaningBillingTerms";
@@ -77,7 +82,17 @@ export async function POST(req: NextRequest) {
       petsAtHome,
       visitExtras,
       saveCardConsent,
+      legalAccepted,
+      legalDocuments,
     } = await req.json();
+    if (legalAccepted !== true || !validCheckoutLegalDocuments(legalDocuments))
+      return NextResponse.json(
+        {
+          error: "Read and accept the booking policies before paying.",
+          code: "legal_consent_required",
+        },
+        { status: 400 },
+      );
     let preferences;
     try {
       preferences = parseBookingPreferences(bookingPreferences);
@@ -357,6 +372,33 @@ export async function POST(req: NextRequest) {
         { status: 403 },
       );
 
+    const legalNow = await currentCheckoutLegal(supabaseAdmin);
+    if (!checkoutLegalMatches(legalDocuments, legalNow.documents))
+      return NextResponse.json(
+        {
+          error: "The booking policies have changed. Please review them again.",
+          code: "legal_documents_changed",
+        },
+        { status: 409 },
+      );
+    const { data: legalConsentId, error: legalError } = await supabaseAdmin.rpc(
+      "prepare_booking_legal_consent",
+      {
+        p_user: user.id,
+        p_documents: legalDocuments,
+        p_fallbacks: legalNow.fallbacks,
+      },
+    );
+    if (legalError || !legalConsentId)
+      return NextResponse.json(
+        {
+          error:
+            "The booking policies have changed or are being updated. Please review them again before paying.",
+          code: "legal_documents_changed",
+        },
+        { status: 409 },
+      );
+
     // Legacy accounts must add a private phone number before checkout.
     // before a paid booking can be created.
     if (!isStoredUkPhone(profile.phone)) {
@@ -625,6 +667,7 @@ export async function POST(req: NextRequest) {
       upfront_regular: regular ? "1" : "0",
       regular_visit_count: String(visitCount),
       customer_id: user.id,
+      legal_consent_id: String(legalConsentId),
       duration_minutes: String(minutes),
       base_duration_minutes: String(baseMinutes),
       cleaning_extras_version: "1",
@@ -696,6 +739,8 @@ export async function POST(req: NextRequest) {
       .from("booking_checkout_time_choices")
       .upsert({
         checkout_session_id: session.id,
+        legal_consent_id: legalConsentId,
+        legal_consent_required: true,
         customer_id: user.id,
         preferred_scheduled_at: slot,
         optional_scheduled_at: alternativeTimes,

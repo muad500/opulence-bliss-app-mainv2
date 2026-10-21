@@ -1,0 +1,48 @@
+.box {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #e5dcf4;
+  border-radius: 12px;
+  background: #faf8ff;
+  color: #16202a;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.label input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin: 3px 0;
+  accent-color: #6d28d9;
+}
+.label a {
+  color: #6d28d9;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.box p {
+  margin: 0;
+}
+.box button {
+  min-height: 44px;
+  border: 1px solid #6d28d9;
+  background: white;
+  color: #6d28d9;
+  border-radius: 9px;
+  padding: 6px 14px;
+  font: inherit;
+  font-weight: 800;
+  margin-top: 8px;
+  cursor: pointer;
+}
+.box :focus-visible {
+  outline: 3px solid #b795f3;
+  outline-offset: 3px;
+}
