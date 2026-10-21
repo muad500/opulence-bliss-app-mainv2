@@ -8,6 +8,16 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const require = createRequire(import.meta.url);
+const paymentCopy = { exports: {} };
+vm.runInNewContext(
+  ts.transpileModule(readFileSync("lib/cleaningPaymentCopy.ts", "utf8"), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText,
+  { module: paymentCopy, exports: paymentCopy.exports },
+);
 async function confirmation({
   status = "succeeded",
   amount = 4598,
@@ -44,6 +54,7 @@ async function confirmation({
     module,
     exports: module.exports,
     require(id) {
+      if (id === "@/lib/cleaningPaymentCopy") return paymentCopy.exports;
       return id === "stripe"
         ? class {
             checkout = {
@@ -84,7 +95,10 @@ test("an uncaptured booking shows the authorised customer total without claiming
   const html = await confirmation({ status: "requires_capture", received: 0 });
   assert.match(html, /Amount authorised/);
   assert.match(html, /£45.98/);
-  assert.match(html, /held, not charged/);
+  assert.match(
+    html,
+    /older booking has a card authorisation, not a completed charge/,
+  );
   assert.doesNotMatch(
     html,
     /Amount paid|provider will receive|platform keeps/i,
@@ -108,7 +122,8 @@ test("upfront plans and first-only regular payments accurately describe the amou
   });
   assert.match(first, /First visit paid/);
   assert.match(first, /£37.98/);
-  assert.match(first, /Each later visit is charged 48 hours/);
+  assert.match(first, /Later visits are charged 48 hours/);
+  assert.match(first, /once a cleaner has accepted/);
   assert.doesNotMatch(first, /all 6 visits are booked and paid upfront/);
 });
 
@@ -138,6 +153,7 @@ test("new regular confirmation saves the card and states zero paid today", async
   assert.match(html, /Card saved/);
   assert.match(html, /Amount paid today/);
   assert.match(html, /£0.00/);
-  assert.match(html, /Each visit is charged when a cleaner accepts/);
+  assert.match(html, /Each visit is charged once a cleaner accepts/);
+  assert.match(html, /not charged for that visit/);
   assert.doesNotMatch(html, /first visit is paid|48 hours|card is held/);
 });

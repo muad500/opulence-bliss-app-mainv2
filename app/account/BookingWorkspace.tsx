@@ -28,6 +28,11 @@ import { cancelBooking } from "./actions";
 import VisitBillingPanel, {
   type VisitBillingDetails,
 } from "./VisitBillingPanel";
+import {
+  LEGACY_SCHEDULED_VISIT_PAYMENT_COPY,
+  ONE_OFF_PAYMENT_COPY,
+  REGULAR_PAYMENT_COPY,
+} from "@/lib/cleaningPaymentCopy";
 
 export type ClientBookingWorkspaceData = {
   id: string;
@@ -166,7 +171,7 @@ function nextSteps(booking: ClientBookingWorkspaceData, perVisit = false) {
         "Payment",
         perVisit
           ? "This visit has already been paid."
-          : "Your card is charged after the visit finishes.",
+          : booking.paymentExplanation,
         null,
       ],
     ];
@@ -180,13 +185,7 @@ function nextSteps(booking: ClientBookingWorkspaceData, perVisit = false) {
       ],
       ["Arriving", "Your professional will message before arrival.", arrival],
       ["Visit in progress", "They check in when they reach the address.", null],
-      [
-        "Visit complete",
-        perVisit
-          ? "Your cleaner completes the visit checklist."
-          : "Payment is handled after check-out.",
-        end,
-      ],
+      ["Visit complete", "Your cleaner completes the visit checklist.", end],
     ];
   }
   return [
@@ -201,11 +200,7 @@ function nextSteps(booking: ClientBookingWorkspaceData, perVisit = false) {
       null,
     ],
     ["Visit in progress", "They check in, and the live timer starts.", null],
-    [
-      "Visit complete",
-      "You are only charged after the visit is finished.",
-      end,
-    ],
+    ["Visit complete", "Your cleaner completes the visit checklist.", end],
   ];
 }
 
@@ -239,8 +234,10 @@ export default function BookingWorkspace({
   const modalOpen = chatOpen || cancelOpen;
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("chat") === "1") setChatOpen(true);
-    if (params.get("cancel") === "1" && canCancel) setCancelOpen(true);
+    void Promise.resolve().then(() => {
+      if (params.get("chat") === "1") setChatOpen(true);
+      if (params.get("cancel") === "1" && canCancel) setCancelOpen(true);
+    });
   }, [canCancel]);
 
   useEffect(() => {
@@ -431,8 +428,10 @@ export default function BookingWorkspace({
               <Info size={14} />{" "}
               {visitBilling?.model === "per_visit"
                 ? visitBilling.chargeOnAcceptance
-                  ? "Each regular visit is charged when a cleaner accepts. Unassigned and paused visits are not charged."
-                  : "One-off visits are paid at checkout. Existing regular bookings keep their agreed charging schedule."
+                  ? REGULAR_PAYMENT_COPY
+                  : visitBilling.regular
+                    ? LEGACY_SCHEDULED_VISIT_PAYMENT_COPY
+                    : ONE_OFF_PAYMENT_COPY
                 : booking.paymentExplanation}
             </small>
           </SummaryCard>
@@ -577,12 +576,9 @@ export default function BookingWorkspace({
                 badge
               />
               <DetailRow
-                label="You’ll be charged"
+                label="Payment details"
                 value={
-                  visitStatus?.money.state === "authorised"
-                    ? "After the visit is complete"
-                    : (visitStatus?.money.explanation ??
-                      booking.paymentExplanation)
+                  visitStatus?.money.explanation ?? booking.paymentExplanation
                 }
               />
             </section>

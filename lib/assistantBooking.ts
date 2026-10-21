@@ -1,4 +1,8 @@
 import {
+  ONE_OFF_PAYMENT_COPY,
+  REGULAR_PAYMENT_COPY,
+} from "./cleaningPaymentCopy";
+import {
   appointmentFitsWindow,
   appointmentWithinBookingHorizon,
   londonDateKey,
@@ -160,10 +164,10 @@ export function assistantPaymentSummary(
 ) {
   if (perVisitBilling) {
     return visits > 1
-      ? "Save your card at checkout. Each regular visit is charged only when a cleaner accepts it. Unassigned or paused visits are not charged. Extras are confirmed at checkout."
-      : "The full visit amount is charged at checkout, with no card hold. Extras are confirmed at checkout.";
+      ? `${REGULAR_PAYMENT_COPY} Extras are confirmed at checkout.`
+      : `${ONE_OFF_PAYMENT_COPY} Extras are confirmed at checkout.`;
   }
   return visits > 1
     ? "The regular series is paid upfront. Checkout confirms the final amount."
-    : "Checkout authorises a card hold; the visit is charged after completion.";
+    : "Secure checkout confirms the payment amount and timing before you pay.";
 }

@@ -1,4 +1,9 @@
 import Stripe from "stripe";
+import {
+  LEGACY_SCHEDULED_VISIT_PAYMENT_COPY,
+  ONE_OFF_PAYMENT_COPY,
+  REGULAR_PAYMENT_COPY,
+} from "@/lib/cleaningPaymentCopy";
 
 export const dynamic = "force-dynamic";
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
@@ -48,18 +53,20 @@ export default async function Success({
   const canRetry = ok && !persisted && Boolean(session_id);
   const paymentState = captured
     ? "Your payment was received"
-    : "Your card was authorised";
+    : savedCard
+      ? "Your card was saved securely"
+      : "This older booking's card payment was authorised";
   const statusMessage =
     ok && persisted
       ? savedCard
-        ? `${name} — your card is saved and all ${regularVisitCount} dates are booked. Each visit is charged when a cleaner accepts it. Unassigned or paused visits are not charged. You can see every date in My Bookings.`
+        ? `${name} — all ${regularVisitCount} dates are booked. ${REGULAR_PAYMENT_COPY} You can see every date in My Bookings.`
         : captured
           ? upfrontRegular
             ? perVisit
-              ? `${name} — your first visit is paid and all ${regularVisitCount} dates are booked. Each later visit is charged 48 hours before it starts. You can see each date in My Bookings.`
+              ? `${name} — your first visit is paid and all ${regularVisitCount} dates are booked. ${LEGACY_SCHEDULED_VISIT_PAYMENT_COPY} You can see each date in My Bookings.`
               : `${name} — all ${regularVisitCount} visits are booked and paid upfront. You can see each date in My Bookings.`
-            : `${name} — your payment has been received. You can find your visit in My Bookings.`
-          : `${name} — your card is held, not charged. You'll only be charged once the visit is complete.`
+            : `${name} — your payment has been received. ${ONE_OFF_PAYMENT_COPY} You can find your visit in My Bookings.`
+          : `${name} — this older booking has a card authorisation, not a completed charge. Its original payment terms still apply. See My Bookings for its payment status.`
       : error === "booking_update_pending"
         ? `${paymentState}, but the booking system update is still being applied. Do not pay again. Retry saving this booking once the update is complete.`
         : error === "finalize_failed"

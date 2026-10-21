@@ -7,6 +7,7 @@
 // facts and hands them over. Pages render the result and decide nothing.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { REGULAR_PAYMENT_COPY } from "./cleaningPaymentCopy";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -93,6 +94,7 @@ export type VisitFacts = {
   paymentStatus: string | null;
   grossAmount: number | null;
   refundedAmount: number | null;
+  chargeTiming?: "acceptance" | "checkout_then_48h" | null;
 
   /** Providers who currently have an open offer. */
   openOfferCount: number;
@@ -121,7 +123,8 @@ const CASE_SUMMARY: Record<string, string> = {
   client_unavailable:
     "Your provider couldn't get access. We're reviewing what happens next.",
   late_cancellation: "This visit was cancelled close to the start time.",
-  work_stopped: "The visit was stopped part-way through. We're looking into it.",
+  work_stopped:
+    "The visit was stopped part-way through. We're looking into it.",
   unsafe_property:
     "Your provider raised a safety concern and stopped work. Our team is reviewing it.",
   damage_or_injury:
@@ -157,7 +160,9 @@ function projectMoney(f: VisitFacts): VisitStatus["money"] {
         label: "Nothing taken",
         explanation: f.isMembershipVisit
           ? "This visit is covered by your membership."
-          : "No money has been taken or held yet.",
+          : f.chargeTiming === "acceptance"
+            ? REGULAR_PAYMENT_COPY
+            : "No payment has been taken for this visit yet.",
         amount,
         refunded,
       };
@@ -167,7 +172,7 @@ function projectMoney(f: VisitFacts): VisitStatus["money"] {
         state: "authorised",
         label: "Held, not charged",
         explanation:
-          "Your card is held to secure the booking. You're only charged once the visit is finished.",
+          "This older booking has a card hold, not a completed charge. Under its original terms, you're only charged once the visit is finished.",
         amount,
         refunded,
       };
@@ -304,8 +309,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
   const reviewCase = f.reviewCase
     ? {
         category: f.reviewCase.category,
-        summary:
-          CASE_SUMMARY[f.reviewCase.category] ?? CASE_SUMMARY.other,
+        summary: CASE_SUMMARY[f.reviewCase.category] ?? CASE_SUMMARY.other,
         status: f.reviewCase.resolved ? "resolved" : "being handled",
         resolved: f.reviewCase.resolved,
       }
@@ -336,7 +340,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
             at: openCase.resolutionDueAt,
             label: `We aim to update you by ${friendlyTime(
               openCase.resolutionDueAt,
-              f.now
+              f.now,
             )}`,
           }
         : null,
@@ -352,7 +356,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       actions.push(
         { kind: "wait", label: "We'll let you know", primary: true },
         { kind: "cancel", label: "Cancel booking" },
-        { kind: "reschedule", label: "Modify booking" }
+        { kind: "reschedule", label: "Modify booking" },
       );
 
       return {
@@ -368,7 +372,9 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
         nextActorDetail: "A provider needs to accept the job.",
         money,
         ifNobodyAccepts:
-          "If nobody accepts, we cancel the booking automatically and release the hold on your card. You won't be charged, and we'll let you know so you can pick another time.",
+          money.state === "authorised"
+            ? "If nobody accepts this older booking, we cancel it automatically and release the hold on your card. You won't be charged, and we'll let you know so you can pick another time."
+            : "If no cleaner accepts, we cancel this visit automatically and refund any payment taken for it in full. We'll let you know so you can pick another time.",
         deadline: f.offerExpiresAt
           ? {
               at: f.offerExpiresAt,
@@ -384,7 +390,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       actions.push(
         { kind: "wait", label: "Nothing to do", primary: true },
         { kind: "reschedule", label: "Modify booking" },
-        { kind: "cancel", label: "Cancel booking" }
+        { kind: "cancel", label: "Cancel booking" },
       );
 
       return {
@@ -413,7 +419,7 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       const finish =
         f.arrivedAt && f.durationMinutes
           ? new Date(
-              new Date(f.arrivedAt).getTime() + f.durationMinutes * 60000
+              new Date(f.arrivedAt).getTime() + f.durationMinutes * 60000,
             ).toISOString()
           : null;
 
@@ -452,7 +458,10 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       if (money.state === "charged" || money.state === "none") {
         actions.push({ kind: "tip", label: "Add a tip" });
       }
-      if (money.state === "under_review" && f.paymentStatus === "capture_failed") {
+      if (
+        money.state === "under_review" &&
+        f.paymentStatus === "capture_failed"
+      ) {
         actions.push({
           kind: "update_card",
           label: "Sort out payment",
@@ -506,17 +515,17 @@ export function projectVisitStatus(f: VisitFacts): VisitStatus {
       return {
         headline: "Cancelled",
         detail:
-           money.state === "released"
-             ? "This visit was cancelled and the hold was released. You weren't charged."
-             : money.state === "refunded"
-               ? "This visit was cancelled and your payment was refunded."
+          money.state === "released"
+            ? "This visit was cancelled and the hold was released. You weren't charged."
+            : money.state === "refunded"
+              ? "This visit was cancelled and your payment was refunded."
               : money.state === "partially_refunded"
                 ? `This visit was cancelled and £${(money.refunded ?? 0).toFixed(2)} was refunded under the cancellation policy.`
                 : money.state === "charged"
                   ? `This visit was cancelled. The cancellation charge was £${(money.amount ?? 0).toFixed(2)}.`
                   : money.state === "under_review"
                     ? "This visit was cancelled and its payment adjustment is being processed."
-               : "This visit was cancelled.",
+                    : "This visit was cancelled.",
         tone: "neutral",
         nextActor: "client",
         nextActorLabel: ACTOR_LABEL.client,
@@ -618,16 +627,16 @@ function unavailableVisitStatus(bookingId: string): VisitStatus {
  */
 export async function getVisitStatus(
   supabase: SupabaseClient,
-  bookingId: string
+  bookingId: string,
 ): Promise<VisitStatus | null> {
   const { data: b, error: bookingError } = await supabase
     .from("bookings")
     .select(
       `id, status, scheduled_at, offer_expires_at, address, package_id,
-       subscription_id,
+       subscription_id, cleaning_extras,
        duration_minutes, property_size_sqm, packages(name, duration_minutes),
        providers(display_name),
-       check_ins(arrived_at)`
+       check_ins(arrived_at)`,
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -635,14 +644,16 @@ export async function getVisitStatus(
   if (bookingError) return unavailableVisitStatus(bookingId);
   if (!b) return null;
 
-  const one = <T,>(v: T | T[] | null | undefined): T | null =>
-    !v ? null : Array.isArray(v) ? v[0] ?? null : v;
+  const one = <T>(v: T | T[] | null | undefined): T | null =>
+    !v ? null : Array.isArray(v) ? (v[0] ?? null) : v;
 
   const pkg = one(b.packages as never) as {
     name: string;
     duration_minutes: number | null;
   } | null;
-  const prv = one(b.providers as never) as { display_name: string | null } | null;
+  const prv = one(b.providers as never) as {
+    display_name: string | null;
+  } | null;
   const ci = one(b.check_ins as never) as { arrived_at: string | null } | null;
 
   const [paymentResult, privateResult, ratingResult] = await Promise.all([
@@ -668,8 +679,7 @@ export async function getVisitStatus(
   const hasSubmittedClientReview = (
     (ratingResult.data ?? []) as Array<{ booking_id: string; reviewer: string }>
   ).some(
-    (review) =>
-      review.booking_id === bookingId && review.reviewer === "client",
+    (review) => review.booking_id === bookingId && review.reviewer === "client",
   );
   const privateRows = privateResult.data as
     | {
@@ -701,19 +711,21 @@ export async function getVisitStatus(
     paymentStatus: pay?.status ?? null,
     grossAmount: pay?.gross_amount ? Number(pay.gross_amount) : null,
     refundedAmount: refundedAmount > 0 ? refundedAmount : null,
+    chargeTiming: b.cleaning_extras?.chargeTiming ?? null,
 
     openOfferCount: Number(safe?.open_offer_count ?? 0),
 
-    reviewCase: safe?.review_category && safe.review_status
-      ? {
-          category: safe.review_category,
-          status: safe.review_status,
-          blocksPayment: !!safe.blocks_payment,
-          blocksPayout: !!safe.blocks_payout,
-          resolutionDueAt: safe.resolution_due_at,
-          resolved: safe.review_status === "resolved",
-        }
-      : null,
+    reviewCase:
+      safe?.review_category && safe.review_status
+        ? {
+            category: safe.review_category,
+            status: safe.review_status,
+            blocksPayment: !!safe.blocks_payment,
+            blocksPayout: !!safe.blocks_payout,
+            resolutionDueAt: safe.resolution_due_at,
+            resolved: safe.review_status === "resolved",
+          }
+        : null,
 
     hasRated: hasSubmittedClientReview,
     now: new Date().toISOString(),
