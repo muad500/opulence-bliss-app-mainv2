@@ -27,6 +27,10 @@ Schedule an HTTPS GET to `/api/cron/web-push` every minute with
 `Authorization: Bearer <WEB_PUSH_CRON_SECRET>`. On a protected Preview, also
 pass the staging deployment-protection bypass as a request header. Keep both
 in Vault/hosting secrets, not in the scheduler URL, logs or screenshots.
+`supabase/staging/web_push_scheduler.sql` provides the guarded, named staging
+job, using `opulence_staging_web_push_origin`, `opulence_staging_web_push_cron`
+and `opulence_staging_vercel_bypass` from staging Vault. It is deliberately an
+operations script, not a production migration.
 The handoff report/PR records whether hosted configuration and scheduling
 were completed. Move the Preview-specific configuration to `codex/staging`
 only when this PR is approved and merged; do not activate a second concurrent
