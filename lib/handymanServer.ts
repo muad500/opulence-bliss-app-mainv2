@@ -28,7 +28,6 @@ export type HandymanJob = {
   postcode: string;
   scheduled_at: string;
   estimated_minutes: number;
-  hourly_rate_pence: number;
   vat_bps: number;
   materials_budget_pence: number;
   held_pence: number;

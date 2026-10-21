@@ -59,6 +59,9 @@ const modules = [
   "handymanMarketplace",
 ];
 try {
+  execFileSync(process.execPath, ["--test", "scripts/test-handyman-webhook.mjs"], {
+    stdio: "inherit",
+  });
   execFileSync(process.execPath, ["--test", "scripts/test-admin-host.mjs"], {
     stdio: "inherit",
   });
