@@ -4,10 +4,17 @@ import {
   handymanEnabled,
   isHandymanMarketplacePath,
 } from "@/lib/handymanMarketplace";
-import { adminHostRedirect } from "@/lib/adminHosts";
+import { adminHostRedirect, deploymentOrigins } from "@/lib/adminHosts";
 
 export async function proxy(request: NextRequest) {
-  const destination = adminHostRedirect(request.nextUrl, process.env);
+  let destination = adminHostRedirect(request.nextUrl, process.env);
+  if (
+    request.nextUrl.pathname === "/" &&
+    request.nextUrl.origin === deploymentOrigins(process.env).admin
+  ) {
+    destination = request.nextUrl.clone();
+    destination.pathname = "/staff/login";
+  }
   if (destination)
     return NextResponse.redirect(destination, {
       status: 307,
