@@ -73,7 +73,8 @@ try {
   );
   assert.notEqual(publicOrigin, staffOrigin);
   assert.equal(
-    (await web(staffOrigin, "/")).headers.get("location"),
+    new URL((await web(staffOrigin, "/")).headers.get("location"), staffOrigin)
+      .href,
     staffOrigin + "/staff/login",
   );
   pass("Staging has separate staff/public hosts on its own deployment");
@@ -247,9 +248,12 @@ try {
     "Supabase accepts the staff recovery callback without falling back to the public site",
   );
   assert.equal(
-    (await web(staffOrigin, "/staff/callback?code=invalid")).headers.get(
-      "location",
-    ),
+    new URL(
+      (await web(staffOrigin, "/staff/callback?code=invalid")).headers.get(
+        "location",
+      ),
+      staffOrigin,
+    ).href,
     staffOrigin + "/staff/login?error=recovery",
   );
   pass("Invalid staff recovery links fail closed on the staff host");
