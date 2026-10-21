@@ -210,7 +210,7 @@ export async function GET(req: NextRequest) {
         );
       ids.set(doc.title, doc.id);
     }
-    const prepared = [];
+    const prepared: Array<{ id: string; title: string; content: string; embedding: number[] }> = [];
     for (const doc of all) {
       const vector = await embed(`${doc.title}. ${doc.content}`);
       if (
