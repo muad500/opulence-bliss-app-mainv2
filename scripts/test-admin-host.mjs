@@ -42,11 +42,7 @@ test("legacy redirects cannot run before staff host routing", async () => {
     },
     { VERCEL_ENV: "production" },
   );
-  for (const path of [
-    "/",
-    "/services/massage",
-    "/blog/benefits-of-massage-at-home",
-  ])
+  for (const path of ["/services/massage", "/blog/benefits-of-massage-at-home"])
     assert.equal(
       (
         await proxy(
@@ -57,6 +53,14 @@ test("legacy redirects cannot run before staff host routing", async () => {
       ).headers.get("location"),
       "https://www.opulencebliss.com" + path + "?source=test",
     );
+  assert.equal(
+    (
+      await proxy(
+        new NextRequest("https://admin.opulencebliss.com/?source=test"),
+      )
+    ).headers.get("location"),
+    "https://admin.opulencebliss.com/staff/login?source=test",
+  );
   for (const [path, target] of [
     ["/services/massage", "/services/cleaning"],
     ["/blog/benefits-of-massage-at-home", "/blog"],
