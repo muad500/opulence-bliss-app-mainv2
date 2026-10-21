@@ -226,7 +226,7 @@ export function BookingTools({
     const params = new URLSearchParams(window.location.search);
     if (params.get("reschedule") !== "1") return;
     openedFromLink.current = true;
-    void loadSlots();
+    void Promise.resolve().then(() => loadSlots());
     // loadSlots is intentionally run once for the explicit dashboard link.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -345,7 +345,8 @@ export function BookingTools({
             </span>
             {paymentAmount !== null && (
               <span>
-                <CreditCard size={15} /> £{paymentAmount.toFixed(2)} held
+                <CreditCard size={15} /> Visit amount: £
+                {paymentAmount.toFixed(2)}
               </span>
             )}
           </div>

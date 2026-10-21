@@ -41,10 +41,10 @@ export const blogPosts: BlogPost[] = [
         ],
       },
       {
-        heading: "What happens to a card hold",
+        heading: "How payments and refunds work",
         paragraphs: [
-          "For a normal one-off visit, your card is authorised when you book and is usually charged after the work is complete. If you cancel, we release the refundable part of that hold and charge only the cancellation amount that applies. If the payment was already captured, the eligible refund is sent back through Stripe.",
-          "Banks can take a few working days to remove a released hold or show a refund on your statement.",
+          "For a new one-off visit, you're charged when you book. If no cleaner accepts, you're refunded in full automatically. If you cancel, the confirmation screen shows any cancellation charge and eligible refund before you confirm.",
+          "Refunds are returned through Stripe to the original payment method. Your bank may take a few working days to show them. Older bookings with an existing card authorisation keep their original payment terms; any released authorisation may also take time to disappear.",
         ],
       },
       {
@@ -72,7 +72,7 @@ export const blogPosts: BlogPost[] = [
           "Every cleaning session can be booked for two to eight hours in 30-minute steps. The price scales with the time you choose, and the booking form shows the full total before payment.",
         ],
         points: [
-          "Essential Clean — six to ten weekly, fortnightly or monthly visits booked and paid together. Our regular standard clean covers dusting, floors, bedroom, kitchen and bathroom.",
+          "Essential Clean — six to ten weekly, fortnightly or monthly visits booked together. Your card is saved securely and each visit is charged once a cleaner accepts it; unassigned visits are not charged. Our regular standard clean covers dusting, floors, bedroom, kitchen and bathroom.",
           "One-Time Essential Clean — a single standard clean with no ongoing commitment, perfect for a one-off refresh.",
           "Express Clean — a same-day standard clean for when time is tight, subject to available cleaners and time slots.",
           "Signature Deep Clean — a thorough, top-to-bottom clean that reaches the spots regular cleaning misses, ideal for a seasonal reset or before hosting.",
