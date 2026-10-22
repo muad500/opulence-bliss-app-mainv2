@@ -1,0 +1,79 @@
+-- Isolated PostgreSQL fixture only. Never run this bootstrap on a hosted DB.
+\set ON_ERROR_STOP on
+create role anon; create role authenticated; create role service_role;
+create schema auth;
+create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('test.uid',true),'')::uuid$$;
+create function auth.role() returns text language sql stable as $$select coalesce(nullif(current_setting('test.role',true),''),'authenticated')$$;
+create function auth.jwt() returns jsonb language sql stable as $$select jsonb_build_object('session_id',current_setting('test.session',true))$$;
+create function public.account_is_active() returns boolean language sql stable as $$select true$$;
+create table auth.users(id uuid primary key,deleted_at timestamptz,banned_until timestamptz);
+create table auth.sessions(id uuid primary key,user_id uuid,not_after timestamptz);
+create table public.profiles(id uuid primary key,account_deleted_at timestamptz);
+create table public.providers(id uuid primary key,profile_id uuid,vetting_status text,is_suspended boolean);
+create table public.provider_profile_settings(provider_id uuid,alert_app boolean,notify_messages boolean);
+create table public.account_profile_details(user_id uuid,notify_bookings boolean,notify_messages boolean);
+create table public.bookings(id uuid primary key,customer_id uuid,provider_id uuid,status text);
+create table public.booking_offer_queue(booking_id uuid,provider_id uuid);
+create table public.notifications(id uuid primary key default gen_random_uuid(),user_id uuid,title text,body text,href text,read boolean default false);
+\ir ../migrations/20261021000100_web_push.sql
+create function public.test_assert(ok boolean,label text) returns void language plpgsql as $$begin if ok is distinct from true then raise exception 'FAILED: %',label;end if;end$$;
+insert into auth.users(id) values('10000000-0000-4000-8000-000000000001'),('10000000-0000-4000-8000-000000000002');
+insert into public.profiles(id) select id from auth.users;
+insert into auth.sessions values('20000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',null);
+insert into public.bookings values('30000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000001',null,'scheduled');
+select set_config('test.uid','10000000-0000-4000-8000-000000000001',false),set_config('test.session','20000000-0000-4000-8000-000000000001',false);
+select public.test_assert((public.web_push_enrolment()->>'eligible')::boolean,'booked customer is eligible');
+select public.save_web_push_subscription('https://fcm.googleapis.com/fcm/send/demo',repeat('a',22),'B'||repeat('a',86),true);
+select public.save_web_push_subscription('https://fcm.googleapis.com/fcm/send/demo',repeat('a',22),'B'||repeat('a',86));
+select public.test_assert((select count(*)=1 from public.web_push_subscriptions),'subscription retry deduplicated');
+do $$begin
+ begin perform public.save_web_push_subscription('https://localhost/private',repeat('a',22),'B'||repeat('a',86));raise exception 'SSRF accepted';exception when raise_exception then if sqlerrm='SSRF accepted' then raise;end if;end;
+end$$;
+insert into public.notifications(user_id,title,href) values(auth.uid(),'Message from Demo','/account/visit/30000000-0000-4000-8000-000000000001');
+select public.test_assert((select count(*)=1 from public.web_push_deliveries),'notification queues once per device');
+select set_config('test.role','service_role',false);
+create temp table first_claim as select * from public.claim_web_push();
+select public.test_assert((select count(*)=1 from first_claim),'service worker claims delivery');
+select public.test_assert((select count(*)=0 from public.claim_web_push()),'parallel worker cannot claim same lease');
+select public.test_assert((select public.web_push_delivery_allowed(id,claim_token) from first_claim),'eligible unread notification can send');
+update public.notifications set read=true;
+select public.test_assert((select not public.web_push_delivery_allowed(id,claim_token) from first_claim),'read notifications suppressed');
+update public.notifications set read=false;
+insert into public.account_profile_details values(auth.uid(),true,false);
+select public.test_assert((select not public.web_push_delivery_allowed(id,claim_token) from first_claim),'changed message preference honoured');
+update public.account_profile_details set notify_messages=true;
+update auth.sessions set not_after=now()-interval '1 second';
+select public.test_assert((select not public.web_push_delivery_allowed(id,claim_token) from first_claim),'expired session cannot receive');
+update auth.sessions set not_after=null;
+select public.finish_web_push(id,claim_token,'sent') from first_claim;
+select public.finish_web_push(id,claim_token,'retry') from first_claim;
+select public.test_assert((select bool_and(status='sent') from public.web_push_deliveries),'duplicate finish cannot change sent state');
+select public.disable_web_push();
+select public.test_assert((select count(*)=0 from public.web_push_subscriptions),'disable removes all device capabilities');
+select public.test_assert((public.web_push_enrolment()->>'optedOut')::boolean,'opt out persists');
+do $$begin
+ begin perform public.save_web_push_subscription('https://fcm.googleapis.com/fcm/send/demo',repeat('a',22),'B'||repeat('a',86));raise exception 'Opt-out overridden';exception when raise_exception then if sqlerrm='Opt-out overridden' then raise;end if;end;
+end$$;
+select public.test_assert((public.web_push_enrolment()->>'optedOut')::boolean,'background refresh cannot override opt-out');
+insert into public.providers values('40000000-0000-4000-8000-000000000001','10000000-0000-4000-8000-000000000002','pending',false);
+select set_config('test.uid','10000000-0000-4000-8000-000000000002',false);
+select public.test_assert(not (public.web_push_enrolment()->>'eligible')::boolean,'unapproved professional not prompted');
+update public.providers set vetting_status='approved';
+select public.test_assert((public.web_push_enrolment()->>'eligible')::boolean,'approved professional prompted');
+insert into public.provider_profile_settings values('40000000-0000-4000-8000-000000000001',false,true);
+select public.test_assert(not public.web_push_user_allowed(auth.uid(),'taken','/worker'),'job taken respects app-alert opt-out');
+update public.providers set is_suspended=true;
+select public.test_assert(not (public.web_push_enrolment()->>'eligible')::boolean,'suspended professional not eligible');
+select public.test_assert(public.web_push_kind('New cleaning job offer')='offer'
+ and public.web_push_kind('This job has been taken')='taken'
+ and public.web_push_kind('Booking confirmed')='confirmed'
+ and public.web_push_kind('Sam is running late')='late'
+ and public.web_push_kind('Your booking is in 24 hours')='reminder'
+ and public.web_push_kind('Your booking is in 1 hour 30 minutes')='reminder'
+ and public.web_push_kind('30 minutes remaining')='remaining'
+ and public.web_push_kind('We''re still finding a cleaner for your visit')='finding'
+ and public.web_push_kind('Update your saved card')='payment'
+ and public.web_push_kind('Admin investigation') is null,'all requested event categories mapped, staff notices excluded');
+select public.test_assert(not has_table_privilege('authenticated','public.web_push_subscriptions','SELECT'),'subscriptions hidden from clients');
+select public.test_assert(not has_function_privilege('authenticated','public.claim_web_push(integer)','EXECUTE'),'users cannot claim another device');
+select 'Web Push SQL contracts passed' as result;

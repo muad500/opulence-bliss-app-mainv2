@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { accountContext, isAccountError } from "@/lib/accountApi";
+import { webPushEnabled } from "@/lib/webPushPolicy";
 
 type Row = Record<string, unknown>;
 
@@ -53,6 +54,14 @@ export async function GET(request: NextRequest) {
   try {
     const userId = ctx.user.id;
     const providerId = ctx.providerId;
+    const notificationPreferences = webPushEnabled(process.env)
+      ? await allFor(
+          ctx.admin,
+          "notification_channel_preferences",
+          "user_id",
+          userId,
+        )
+      : [];
     const [
       profile,
       details,
@@ -234,6 +243,7 @@ export async function GET(request: NextRequest) {
         checkoutLegal,
         consents,
         marketingConsents,
+        notificationPreferences,
         deletionRequests,
       },
       client: {

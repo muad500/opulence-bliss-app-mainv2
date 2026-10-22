@@ -29,6 +29,7 @@ test("Android association matches the signing certificate and excludes the admin
   );
   const { GET } = await loadModule("app/.well-known/assetlinks.json/route.ts", {
     "@/mobile/android/signing-certificate.json": certificate,
+    "@/lib/androidStagingAssociation": { stagingAndroidAssociation: () => null },
   });
   const response = GET(
     new Request("https://www.opulencebliss.com/.well-known/assetlinks.json"),
