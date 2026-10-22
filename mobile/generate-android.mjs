@@ -33,7 +33,7 @@ const data = {
   navigationDividerColor: "#ffffff",
   navigationDividerColorDark: "#16202a",
   backgroundColor: "#ffffff",
-  enableNotifications: false,
+  enableNotifications: true,
   enableSiteSettingsShortcut: true,
   splashScreenFadeOutDuration: 250,
   appVersion: "1.1.0",

@@ -11,6 +11,7 @@ import RatingGate from "./RatingGate";
 import SupportChat from "./SupportChat";
 import EnvironmentBanner from "./EnvironmentBanner";
 import MobileAppSupport from "./MobileAppSupport";
+import PushNotifications from "./PushNotifications";
 
 export default function WebsiteChrome({
   children,
@@ -32,6 +33,7 @@ export default function WebsiteChrome({
       <EnvironmentBanner />
       <TopBar />
       <SiteHeader />
+      <PushNotifications />
       {children}
       <Toaster />
       <AccountChangeVerification />

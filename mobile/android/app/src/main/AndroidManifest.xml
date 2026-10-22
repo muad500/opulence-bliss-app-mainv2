@@ -20,6 +20,7 @@
      application, the package attribute will need to reflect the correct path in order to use
      the abbreviated format. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
 
 
@@ -39,6 +40,11 @@
 
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Translucent.NoTitleBar">
+        <!-- Chrome delegates the permission request only after the website's
+             user-initiated request. Do not prompt unconditionally at launch. -->
+        <activity
+            android:name="com.google.androidbrowserhelper.trusted.NotificationPermissionRequestActivity"
+            android:exported="false" />
 
         <meta-data
             android:name="asset_statements"
