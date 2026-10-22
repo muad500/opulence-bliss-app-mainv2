@@ -54,3 +54,77 @@ select public.test_assert(not has_function_privilege('authenticated','public.ope
 select public.test_assert(not has_function_privilege('authenticated','public.web_push_delivery_allowed_before_channels(uuid,uuid)','EXECUTE'),'cannot bypass new delivery gate');
 select public.test_assert(public.notification_essential_email('Annual DBS re-check') and public.notification_essential_email('Insurance expiry warning') and public.notification_essential_email('Your security code'),'all essential warning types forced');
 select 'Notification channel contracts passed' as result;
+
+-- Manual customer opt-in does not require a booking or bypass work approval.
+\ir ../migrations/20261023000100_customer_push_opt_in.sql
+create or replace function public.account_is_active()
+returns boolean language sql stable as $$
+  select current_setting('test.active', true) is distinct from 'false';
+$$;
+insert into auth.users(id) values ('10000000-0000-4000-8000-000000000003');
+insert into public.profiles(id) values ('10000000-0000-4000-8000-000000000003');
+insert into auth.sessions values (
+  '20000000-0000-4000-8000-000000000003',
+  '10000000-0000-4000-8000-000000000003', null
+);
+select set_config('test.uid', '10000000-0000-4000-8000-000000000003', false),
+  set_config('test.session', '20000000-0000-4000-8000-000000000003', false),
+  set_config('test.role', 'authenticated', false);
+select public.test_assert(
+  (public.web_push_enrolment()->>'customerCanEnable')::boolean
+  and not (public.web_push_enrolment()->>'customerEligible')::boolean,
+  'unbooked customer can manually opt in but is not prompted'
+);
+do $$
+begin
+  begin
+    perform public.save_web_push_device(
+      'https://fcm.googleapis.com/fcm/send/unbooked', repeat('c',22),
+      'B'||repeat('c',86), '50000000-0000-4000-8000-000000000003', 'Phone', false
+    );
+    raise exception 'Automatic enrolment accepted';
+  exception when raise_exception then
+    if sqlerrm = 'Automatic enrolment accepted' then raise; end if;
+  end;
+end;
+$$;
+select public.save_web_push_device(
+  'https://fcm.googleapis.com/fcm/send/unbooked', repeat('c',22),
+  'B'||repeat('c',86), '50000000-0000-4000-8000-000000000003', 'Phone', true
+);
+select public.test_assert(
+  (select count(*) = 1 from public.web_push_subscriptions where user_id=auth.uid()),
+  'manual opt-in before booking records this device'
+);
+select public.test_web_push_device('50000000-0000-4000-8000-000000000003');
+insert into public.providers values (
+  '40000000-0000-4000-8000-000000000003', auth.uid(), 'pending', false
+);
+select public.test_assert(
+  not (public.web_push_enrolment()->>'professional')::boolean
+  and not public.web_push_user_allowed(auth.uid(),'offer','/worker/jobs'),
+  'pending professional still cannot receive work notifications'
+);
+update public.providers set vetting_status='approved' where profile_id=auth.uid();
+select public.test_assert(
+  (public.web_push_enrolment()->>'professional')::boolean,
+  'approved professional remains eligible'
+);
+update public.providers set is_suspended=true where profile_id=auth.uid();
+select public.test_assert(
+  not (public.web_push_enrolment()->>'professional')::boolean
+  and not public.web_push_user_allowed(auth.uid(),'offer','/worker/jobs'),
+  'suspended professional remains blocked from work notifications'
+);
+select set_config('test.active','false',false);
+select public.test_assert(
+  not (public.web_push_enrolment()->>'eligible')::boolean
+  and not (public.web_push_enrolment()->>'customerCanEnable')::boolean,
+  'inactive accounts cannot enable notifications'
+);
+select set_config('test.active','true',false), set_config('test.uid','',false);
+select public.test_assert(
+  not (public.web_push_enrolment()->>'eligible')::boolean,
+  'signed-out callers cannot enable notifications'
+);
+select 'Manual notification opt-in contracts passed' as result;
