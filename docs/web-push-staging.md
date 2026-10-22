@@ -109,7 +109,13 @@ build/lint tasks. Hosted Preview checks pass for both synthetic accounts: type/
 channel saves, 14-day snooze, device isolation/removal, refusal to silently enrol a
 removed device, Updates retention, preference export and read-before-dispatch
 suppression. Hosted SQL confirms optional emails off while security, cancellations
-and payment-problem emails remain allowed. This is not proof of mailbox delivery.
+and payment-problem emails remain allowed. The deployed feature Preview outbox
+also sent a clearly labelled essential cancellation-notice test while the
+authorised recipient's optional booking/payment emails were off. Receipt was
+verified in that user's Gmail inbox on 22 October 2026; original preferences were
+restored. No booking, charge or cancellation was changed by that test. The
+feature branch's Preview-only recipient allowlist contains only that authorised
+test mailbox; Production configuration was not read or changed.
 
 The only live deployment used is the feature branch **Preview**, not Production
 and not a merge into `codex/staging`. PR #37 remains open.
@@ -140,14 +146,29 @@ is user-confirmed visible delivery, not merely provider acceptance. It does not
 establish delivery with all site tabs closed. No Android device was connected.
 Read-only browser screens were verified separately.
 
-**Still required:** desktop closed-tab/background delivery and interactive
-allow/deny/opt-out checks; Chrome Android and both installed TWAs on an actual
-Android 13+ phone (including background delivery, opening system settings and app
-identity with both installed). The staging
+The desktop Chrome **Messages: push on this device** switch was tested through
+the actual settings page. With it off, the new message's push delivery was
+cancelled before external sending and the in-app update remained unread/available.
+With it back on, the next message push was sent after one attempt. These checks
+used only the existing synthetic test customer and its real Chrome subscription.
+
+**Web acceptance still open:** the user closed every staging tab without signing
+out. The background test reached the push service after one attempt, and the
+worker's background `/api/push` request returned 200. The user reported that the
+notification did **not** appear. A diagnostic retry was also sent; visible
+closed-tab delivery is not marked passed. The Mac subsequently locked, blocking
+further inspection of Chrome's worker console and OS notification display.
+
+**Android — to do on production:** on 22 October 2026 the user explicitly changed
+the release plan to web-only staging acceptance, with physical Android testing
+deferred to the live apps after the other developer's production release. This
+deferral is not a claim that Android tests passed. Check Chrome Android and both
+installed TWAs on an actual Android 13+ phone, including background delivery,
+allow/deny, system settings and app identity with both apps installed. The staging
 app association file returns **302 to Vercel sign-in without a bypass**, versus
 200 with authorised automation. Android verification cannot send the private
-bypass header. **Physical TWA tests are blocked until the owner provides a
-staging origin whose `/.well-known/assetlinks.json` is publicly accessible.**
+bypass header. If staging Android tests are resumed, the owner must provide a
+staging origin whose `/.well-known/assetlinks.json` is publicly accessible.
 Do not embed a bypass credential in an APK or disable protection without approval.
 
 1. `npm test`, `npx tsc --noEmit`, website build and isolated SQL fixture.
