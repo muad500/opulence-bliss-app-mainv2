@@ -321,3 +321,188 @@ test("Production delivers allowed operational email without a staging recipient 
     );
   }
 });
+
+test("manual customer opt-in works before booking while professional approval stays required", async () => {
+  for (const [audience, active, professional, disabled] of [
+    ["customer", true, false, false],
+    ["professional", true, false, true],
+    ["professional", true, true, false],
+    ["customer", false, false, true],
+  ]) {
+    let index = 0;
+    const state = [],
+      effects = [],
+      subscriptions = [];
+    let permissionRequests = 0;
+    const jsx = (type, props) => ({ type, props });
+    const config = {
+      enabled: true,
+      eligible: active,
+      customerCanEnable: active,
+      customerEligible: false,
+      professional,
+      optedOut: false,
+      userId: "owner",
+      publicKey: "fixture",
+      hasConsent: false,
+    };
+    const { default: Panel } = await load(
+      "components/NotificationSettings.tsx",
+      {
+        react: {
+          useState: (initial) => {
+            const i = index++;
+            if (!(i in state)) state[i] = initial;
+            return [
+              state[i],
+              (value) => {
+                state[i] = value;
+              },
+            ];
+          },
+          useEffect: (effect) => effects.push(effect),
+        },
+        "react/jsx-runtime": { jsx, jsxs: jsx },
+        "@/lib/notificationSettings": policy,
+        "@/lib/pushBrowser": {
+          blockedInstructions: "Open notification settings.",
+          notificationDeviceId: () => "device",
+          pushSupported: () => true,
+          pushRequest: async () => {},
+          subscribeDevice: async (...args) => subscriptions.push(args),
+        },
+        "./NotificationSettings.module.css": {},
+      },
+      {
+        fetch: async (url) => ({
+          ok: true,
+          json: async () =>
+            url === "/api/push"
+              ? config
+              : { devices: [], preferences: [], smsEnabled: false },
+        }),
+        window: {
+          addEventListener() {},
+          removeEventListener() {},
+          dispatchEvent() {},
+        },
+        Notification: {
+          permission: "default",
+          requestPermission: async () => {
+            permissionRequests++;
+            return "granted";
+          },
+        },
+        Event: class {},
+      },
+    );
+    const render = () => {
+      index = 0;
+      effects.length = 0;
+      return Panel({ audience });
+    };
+    render();
+    for (const effect of [...effects]) effect();
+    await new Promise((resolve) => setImmediate(resolve));
+    const flatten = (node) =>
+      !node || typeof node !== "object"
+        ? []
+        : [node, ...[node.props?.children].flat(Infinity).flatMap(flatten)];
+    const button = flatten(render()).find(
+      (node) => node.type === "button" && node.props.children === "Turn on",
+    );
+    assert.ok(button);
+    assert.equal(button.props.disabled, disabled);
+    assert.equal(
+      permissionRequests,
+      0,
+      "settings never requests permission automatically",
+    );
+    if (!disabled) {
+      button.props.onClick();
+      await new Promise((resolve) => setImmediate(resolve));
+      assert.equal(permissionRequests, 1);
+      assert.equal(
+        subscriptions[0][2],
+        true,
+        "manual turn-on records explicit opt-in",
+      );
+    }
+  }
+});
+
+test("a customer without a booking can opt in manually but is never automatically prompted", async () => {
+  let index = 0;
+  const state = [],
+    effects = [];
+  const jsx = (type, props) => ({ type, props });
+  const { default: Card } = await load(
+    "components/PushNotifications.tsx",
+    {
+      react: {
+        useState: (initial) => {
+          const i = index++;
+          if (!(i in state)) state[i] = initial;
+          return [
+            state[i],
+            (value) => {
+              state[i] = value;
+            },
+          ];
+        },
+        useEffect: (effect) => effects.push(effect),
+      },
+      "react/jsx-runtime": { jsx, jsxs: jsx },
+      "next/navigation": { usePathname: () => "/account" },
+      "@/lib/supabase/client": {
+        createClient: () => ({
+          auth: {
+            onAuthStateChange: () => ({
+              data: { subscription: { unsubscribe() {} } },
+            }),
+          },
+        }),
+      },
+      "@/lib/pushBrowser": {
+        pushSupported: () => true,
+        blockedInstructions: "",
+        notificationDeviceId: () => "device",
+        pushRequest: async () => {},
+        subscribeDevice: async () => {},
+      },
+      "@/lib/notificationSettings": policy,
+      "./PushNotifications.module.css": {},
+    },
+    {
+      fetch: async () => ({
+        ok: true,
+        json: async () => ({
+          enabled: true,
+          eligible: true,
+          customerCanEnable: true,
+          customerEligible: false,
+          professional: false,
+          hasConsent: false,
+          optedOut: false,
+          promptAfter: null,
+        }),
+      }),
+      window: { addEventListener() {}, removeEventListener() {} },
+      Notification: {
+        permission: "default",
+        requestPermission: () => {
+          assert.fail("Unbooked customers must not be automatically prompted");
+        },
+      },
+    },
+  );
+  const render = () => {
+    index = 0;
+    effects.length = 0;
+    return Card();
+  };
+  render();
+  for (const effect of [...effects]) effect();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(render(), null);
+});
