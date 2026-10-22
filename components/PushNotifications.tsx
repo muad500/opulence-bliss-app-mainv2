@@ -20,6 +20,7 @@ export type PushConfig = {
   userId: string;
   professional: boolean;
   customerEligible: boolean;
+  customerCanEnable: boolean;
   promptAfter: string | null;
 };
 export default function PushNotifications() {

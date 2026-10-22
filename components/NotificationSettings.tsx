@@ -97,7 +97,9 @@ export default function NotificationSettings({
     return message ? <p role="status">{message}</p> : null;
   const current = settings.devices.find((d) => d.current);
   const eligible =
-    audience === "professional" ? config.professional : config.customerEligible;
+    audience === "professional"
+      ? config.professional
+      : config.customerCanEnable;
   const on = Boolean(current && permission === "granted" && !config.optedOut);
   function change(
     kind: string,
@@ -198,8 +200,9 @@ export default function NotificationSettings({
         )}
         {!eligible && (
           <p>
-            Customers can turn on push after their first booking. Professionals
-            can turn it on after approval.
+            {audience === "professional"
+              ? "Professional job notifications become available after approval."
+              : "Sign in to an active customer account to turn on notifications."}
           </p>
         )}
       </div>
