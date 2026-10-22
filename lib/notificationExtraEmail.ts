@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { webPushEnabled } from "./webPushPolicy";
+import { webPushEnabled, webPushEnvironment } from "./webPushPolicy";
 import { notificationLink } from "./adminHosts";
 export async function deliverExtraNotificationEmails(admin: SupabaseClient) {
   if (!webPushEnabled(process.env)) return { sent: 0, failed: 0 };
@@ -8,7 +8,9 @@ export async function deliverExtraNotificationEmails(admin: SupabaseClient) {
   const origin = process.env.NEXT_PUBLIC_SITE_URL;
   if (!key || !from || !origin?.startsWith("https://"))
     return { sent: 0, failed: 0, configured: false };
-  // Staging only: never mail real accounts from a synthetic test run.
+  // Only isolated staging is recipient-restricted. Production still checks the
+  // account's channel choice and essential-email override before every send.
+  const staging = webPushEnvironment(process.env) === "staging";
   const recipients = new Set(
     (process.env.STAGING_EMAIL_RECIPIENTS ?? "")
       .split(",")
@@ -27,7 +29,10 @@ export async function deliverExtraNotificationEmails(admin: SupabaseClient) {
         p_token: row.claim_token,
       });
       if (check.error) throw new Error();
-      if (check.data && recipients.has(String(row.email).toLowerCase())) {
+      if (
+        check.data &&
+        (!staging || recipients.has(String(row.email).toLowerCase()))
+      ) {
         const response = await fetch("https://api.resend.com/emails", {
           method: "POST",
           signal: AbortSignal.timeout(8000),

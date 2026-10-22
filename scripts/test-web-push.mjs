@@ -39,7 +39,7 @@ const subscription = {
   endpoint: "https://fcm.googleapis.com/fcm/send/test",
   keys: { auth: "a".repeat(22), p256dh: "B" + "a".repeat(86) },
 };
-test("production and non-staging databases cannot enable push, even with the flag", () => {
+test("push activation keeps staging and Production databases isolated", () => {
   assert.equal(policy.webPushEnabled(env), true);
   for (const changes of [
     { VERCEL_ENV: "production" },
@@ -48,6 +48,63 @@ test("production and non-staging databases cannot enable push, even with the fla
     { WEB_PUSH_ENABLED: "false" },
   ])
     assert.equal(policy.webPushEnabled({ ...env, ...changes }), false);
+  assert.equal(
+    policy.webPushEnabled({
+      ...env,
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_SUPABASE_URL: "https://uiqcsihgqaktpjumyeap.supabase.co",
+    }),
+    true,
+  );
+  assert.equal(
+    policy.webPushEnabled({
+      ...env,
+      VERCEL_ENV: "preview",
+      APP_ENV: "production",
+      NEXT_PUBLIC_SUPABASE_URL: "https://uiqcsihgqaktpjumyeap.supabase.co",
+    }),
+    false,
+  );
+  assert.equal(
+    policy.webPushEnabled({
+      ...env,
+      VERCEL_ENV: "production",
+      NEXT_PUBLIC_SUPABASE_URL: "https://other.supabase.co",
+    }),
+    false,
+  );
+});
+test("Production never publishes the staging Android debug association", async () => {
+  const hostname =
+    "opulence-bliss-app-mainv2-git-codex-staging-muad500s-projects.vercel.app";
+  for (const production of [false, true]) {
+    const { stagingAndroidAssociation } = await load(
+      "lib/androidStagingAssociation.ts",
+      { "./webPushPolicy": policy },
+      {
+        process: {
+          env: production
+            ? {
+                ...env,
+                VERCEL_ENV: "production",
+                NEXT_PUBLIC_SUPABASE_URL:
+                  "https://uiqcsihgqaktpjumyeap.supabase.co",
+              }
+            : env,
+        },
+      },
+    );
+    const association = stagingAndroidAssociation(hostname);
+    if (production) assert.equal(association, null);
+    else {
+      assert.equal(association.length, 2);
+      assert.ok(
+        association.every((item) =>
+          item.target.package_name.endsWith(".staging"),
+        ),
+      );
+    }
+  }
 });
 test("subscription validation rejects SSRF, Apple, ports, credentials and invalid keys", () => {
   assert.equal(policy.validPushSubscription(subscription), true);
@@ -167,6 +224,55 @@ test("disabled push never claims the queue or contacts a push service", async ()
   assert.equal(payloads.length, 0);
 });
 
+test("Production scheduler accepts only its existing Production bearer", async () => {
+  let sends = 0;
+  const { GET } = await load(
+    "app/api/cron/web-push/route.ts",
+    {
+      "@/lib/webPushPolicy": policy,
+      "@supabase/supabase-js": { createClient: () => ({}) },
+      "@/lib/webPushDelivery": {
+        deliverWebPush: async () => {
+          sends++;
+          return { enabled: true, sent: 0, failed: 0 };
+        },
+      },
+      "@/lib/notificationExtraEmail": {
+        deliverExtraNotificationEmails: async () => ({ sent: 0, failed: 0 }),
+      },
+    },
+    {
+      process: {
+        env: {
+          VERCEL_ENV: "production",
+          NEXT_PUBLIC_SUPABASE_URL: "https://uiqcsihgqaktpjumyeap.supabase.co",
+          CRON_SECRET: "production-fixture",
+          WEB_PUSH_CRON_SECRET: "staging-fixture",
+        },
+      },
+    },
+  );
+  for (const bearer of ["", "staging-fixture"])
+    assert.equal(
+      (
+        await GET(
+          new Request("https://www.example.invalid/api/cron/web-push", {
+            headers: { Authorization: `Bearer ${bearer}` },
+          }),
+        )
+      ).status,
+      401,
+    );
+  assert.equal(sends, 0);
+  const response = await GET(
+    new Request("https://www.example.invalid/api/cron/web-push", {
+      headers: { Authorization: "Bearer production-fixture" },
+    }),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(sends, 1);
+});
+
 test("subscription API requires authentication, same origin and bounded valid JSON", async () => {
   let user = { id: "demo" };
   const calls = [];
@@ -207,11 +313,29 @@ test("subscription API requires authentication, same origin and bounded valid JS
     400,
   );
   assert.equal(
-    (await post(JSON.stringify({ subscription, optIn: true, deviceId: "10000000-0000-4000-8000-000000000001" }))).status,
+    (
+      await post(
+        JSON.stringify({
+          subscription,
+          optIn: true,
+          deviceId: "10000000-0000-4000-8000-000000000001",
+        }),
+      )
+    ).status,
     200,
   );
   assert.equal(calls.at(-1)[1].p_opt_in, true);
-  assert.equal((await post(JSON.stringify({ action: "disable", deviceId: "10000000-0000-4000-8000-000000000001" }))).status, 200);
+  assert.equal(
+    (
+      await post(
+        JSON.stringify({
+          action: "disable",
+          deviceId: "10000000-0000-4000-8000-000000000001",
+        }),
+      )
+    ).status,
+    200,
+  );
   assert.equal(calls.at(-1)[0], "remove_web_push_device");
   user = null;
   assert.equal((await post("{}")).status, 401);
@@ -270,7 +394,10 @@ test("permission prompts are click-only; Apple is excluded; nav preference is se
     new URL("../components/PushNotifications.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(await readFile(new URL("../lib/pushBrowser.ts", import.meta.url), "utf8"), /iPhone\|iPad\|iPod/);
+  assert.match(
+    await readFile(new URL("../lib/pushBrowser.ts", import.meta.url), "utf8"),
+    /iPhone\|iPad\|iPod/,
+  );
   assert.match(
     source,
     /async function enable\(\)[\s\S]*Notification.requestPermission/,

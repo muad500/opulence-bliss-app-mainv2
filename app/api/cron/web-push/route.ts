@@ -1,13 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { deliverWebPush } from "@/lib/webPushDelivery";
 import { deliverExtraNotificationEmails } from "@/lib/notificationExtraEmail";
+import { webPushEnvironment } from "@/lib/webPushPolicy";
 export const maxDuration = 60;
 export async function GET(req: Request) {
-  if (
-    !process.env.WEB_PUSH_CRON_SECRET ||
-    req.headers.get("authorization") !==
-      `Bearer ${process.env.WEB_PUSH_CRON_SECRET}`
-  )
+  // Production's scheduler already holds this credential in Vault. Keep the
+  // separate Preview credential and never copy a Preview bypass into Production.
+  const secret =
+    webPushEnvironment(process.env) === "production"
+      ? process.env.CRON_SECRET
+      : process.env.WEB_PUSH_CRON_SECRET;
+  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`)
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const admin = createClient(

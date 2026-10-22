@@ -1,14 +1,24 @@
 type Environment = Record<string, string | undefined>;
 
-// This PR is staging-only. A production release must deliberately review and
-// remove this guard; setting the flag on Production cannot activate delivery.
-export function webPushEnabled(env: Environment) {
-  return (
-    env.WEB_PUSH_ENABLED === "true" &&
-    env.VERCEL_ENV !== "production" &&
-    env.APP_ENV !== "production" &&
+// Each deployed environment may send only against its own database. A Preview
+// cannot activate Production delivery by setting APP_ENV or copying its URL.
+export function webPushEnvironment(env: Environment) {
+  if (env.VERCEL_ENV === "production") {
+    return [
+      "https://uiqcsihgqaktpjumyeap.supabase.co",
+      "https://auth.opulencebliss.com",
+    ].includes(env.NEXT_PUBLIC_SUPABASE_URL ?? "")
+      ? "production"
+      : null;
+  }
+  return env.APP_ENV !== "production" &&
     env.NEXT_PUBLIC_SUPABASE_URL === "https://comwdjprdedmsnxtvuuk.supabase.co"
-  );
+    ? "staging"
+    : null;
+}
+
+export function webPushEnabled(env: Environment) {
+  return env.WEB_PUSH_ENABLED === "true" && webPushEnvironment(env) !== null;
 }
 
 export function validPushSubscription(value: unknown): value is {
@@ -61,9 +71,18 @@ export function pushHref(href: unknown) {
 
 export const pushCopy: Record<string, [string, string]> = {
   test: ["Opulence Bliss", "Notifications work on this device."],
-  schedule: ["Booking update", "A booking has changed. Open your account for details."],
-  earnings: ["Earnings update", "There is an update in your earnings. Open your account."],
-  checks: ["Account check reminder", "An account check needs attention. Open your profile."],
+  schedule: [
+    "Booking update",
+    "A booking has changed. Open your account for details.",
+  ],
+  earnings: [
+    "Earnings update",
+    "There is an update in your earnings. Open your account.",
+  ],
+  checks: [
+    "Account check reminder",
+    "An account check needs attention. Open your profile.",
+  ],
   remaining: [
     "30 minutes remaining",
     "Your session has around 30 minutes remaining. Open your booking for details.",

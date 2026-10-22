@@ -236,7 +236,10 @@ test("extra email honours preference and avoids external sending when disabled",
   const { deliverExtraNotificationEmails } = await load(
     "lib/notificationExtraEmail.ts",
     {
-      "./webPushPolicy": { webPushEnabled: () => true },
+      "./webPushPolicy": {
+        webPushEnabled: () => true,
+        webPushEnvironment: () => "staging",
+      },
       "./adminHosts": { notificationLink: () => "" },
     },
     {
@@ -258,4 +261,63 @@ test("extra email honours preference and avoids external sending when disabled",
   await deliverExtraNotificationEmails(admin);
   assert.equal(sent.length, 0);
   assert.equal(calls.at(-1)[1].p_outcome, "cancelled");
+});
+
+test("Production delivers allowed operational email without a staging recipient restriction", async () => {
+  for (const environment of ["staging", "production"]) {
+    const sent = [];
+    const outcomes = [];
+    const admin = {
+      rpc: async (name, args) => {
+        if (name === "claim_extra_notification_emails")
+          return {
+            data: [
+              {
+                id: "release-fixture",
+                claim_token: "lease",
+                email: "customer@example.invalid",
+                title: "Payment needs attention",
+                href: "/account",
+              },
+            ],
+          };
+        if (name === "extra_notification_email_allowed") return { data: true };
+        outcomes.push(args.p_outcome);
+        return {};
+      },
+    };
+    const { deliverExtraNotificationEmails } = await load(
+      "lib/notificationExtraEmail.ts",
+      {
+        "./webPushPolicy": {
+          webPushEnabled: () => true,
+          webPushEnvironment: () => environment,
+        },
+        "./adminHosts": {
+          notificationLink: () => "https://www.example.invalid/account",
+        },
+      },
+      {
+        process: {
+          env: {
+            RESEND_API_KEY: "fixture",
+            EMAIL_FROM: "hello@example.invalid",
+            NEXT_PUBLIC_SITE_URL: "https://www.example.invalid",
+            STAGING_EMAIL_RECIPIENTS: "tester@example.invalid",
+          },
+        },
+        fetch: async (...args) => {
+          sent.push(args);
+          return { ok: true };
+        },
+        AbortSignal,
+      },
+    );
+    await deliverExtraNotificationEmails(admin);
+    assert.equal(sent.length, environment === "production" ? 1 : 0);
+    assert.equal(
+      outcomes[0],
+      environment === "production" ? "sent" : "cancelled",
+    );
+  }
 });
