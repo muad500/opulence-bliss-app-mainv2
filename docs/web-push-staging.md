@@ -101,7 +101,7 @@ Two TWAs share the site's browser push origin: Android/Chrome controls which
 installed app receives delegation. Verify this with **both apps installed**;
 do not claim two independent native FCM channels or guaranteed dual delivery.
 
-## Tests before approving
+## Web acceptance passed — ready for release-owner review
 
 Current automated checks: **410 passing tests**, TypeScript, Next.js 16.4.2 build,
 changed-file lint (no errors), isolated PostgreSQL 17 CI, and both Android debug
@@ -118,7 +118,9 @@ feature branch's Preview-only recipient allowlist contains only that authorised
 test mailbox; Production configuration was not read or changed.
 
 The only live deployment used is the feature branch **Preview**, not Production
-and not a merge into `codex/staging`. PR #37 remains open.
+and not a merge into `codex/staging`. PR #37 is ready for the other developer's
+production-release review under the user's web-only acceptance plan; it remains
+open and unmerged. Android runtime testing is explicitly deferred below.
 
 For physical Android testing, build separate debug-only `.staging` apps with:
 
@@ -142,9 +144,8 @@ reported **Push is on**, the real browser subscription was saved, and the
 **Send a test notification** action reached the push service: the staging outbox
 records `sent` after one attempt. On 22 October 2026, the user confirmed that
 the Chrome notification **"Notifications work on this device"** appeared. This
-is user-confirmed visible delivery, not merely provider acceptance. It does not
-establish delivery with all site tabs closed. No Android device was connected.
-Read-only browser screens were verified separately.
+is user-confirmed visible delivery, not merely provider acceptance. The later
+closed-tab test is documented below. No Android device was connected.
 
 The desktop Chrome **Messages: push on this device** switch was tested through
 the actual settings page. With it off, the new message's push delivery was
@@ -152,12 +153,46 @@ cancelled before external sending and the in-app update remained unread/availabl
 With it back on, the next message push was sent after one attempt. These checks
 used only the existing synthetic test customer and its real Chrome subscription.
 
-**Web acceptance still open:** the user closed every staging tab without signing
-out. The background test reached the push service after one attempt, and the
-worker's background `/api/push` request returned 200. The user reported that the
-notification did **not** appear. A diagnostic retry was also sent; visible
-closed-tab delivery is not marked passed. The Mac subsequently locked, blocking
-further inspection of Chrome's worker console and OS notification display.
+**Closed-tab delivery passed:** the initial failure was traced to Google Chrome
+notifications being switched off in macOS. The background worker still recognised
+the correct account and reached `showNotification` without logged errors. With
+the user's explicit approval, Chrome's macOS notifications were enabled. The
+worker debugger was closed, the registered staging worker was stopped, and the
+diagnostic tab was closed; no staging site tab remained open and Chrome stayed
+running. A fresh test reached the push service after one attempt. On 22 October
+2026 the user confirmed that it arrived with the staging tabs closed ("yes arrived
+all messages"). This is a user-confirmed cold-worker, closed-tab delivery pass,
+not an inference from provider acceptance. Browser and OS notification permissions
+must both be allowed. No website code or sign-in safeguards were bypassed to
+obtain this result.
+
+## Production handoff — actions for the release owner, not performed here
+
+- Review the staging-only `webPushEnabled` guard in `lib/webPushPolicy.ts` and
+  deliberately implement production activation. Merely setting the flag cannot
+  enable Production in this branch. Keep the explicit opt-in, auth-session,
+  approval, preference and sign-out safeguards.
+- Adapt `lib/notificationExtraEmail.ts` so the staging recipient allowlist stays
+  staging-only; do not copy the feature Preview's single test recipient into
+  Production or silently cancel legitimate production email. Verify the real
+  sender and essential-email delivery after activation.
+- Check the production migration ledger before applying
+  `20261021000100_web_push.sql` and
+  `20261022000100_notification_channels.sql` in order. Compare already-applied
+  sources instead of overwriting them. SQL fixtures are for isolated CI only.
+- Configure separate, stable production VAPID keys and cron secret securely;
+  never copy staging credentials or print private keys. Install and verify one
+  authenticated production outbox scheduler; do not duplicate staging jobs or
+  reuse a Preview deployment-protection bypass.
+- Update from the current release branch, rerun tests/typecheck/build, deploy and
+  run production web smoke checks. Confirm settings/card, push opt-out, essential
+  email, scheduler health and existing payment/webhook readiness. Keep the
+  unrelated handyman marketplace switched off.
+- Android runtime acceptance remains **to do on production**, by the user on the
+  live apps. The build and artwork checks are not Android delivery evidence.
+
+No Production environment, key, database, scheduler or deployment was accessed
+or changed by this task. No merge into `codex/staging` or `main` was performed.
 
 **Android — to do on production:** on 22 October 2026 the user explicitly changed
 the release plan to web-only staging acceptance, with physical Android testing
