@@ -134,11 +134,13 @@ native permission prompt. Clicking **Not now** removes it and saves a timestamp
 **Show notifications** permission prompt. After permission was allowed, the UI
 reported **Push is on**, the real browser subscription was saved, and the
 **Send a test notification** action reached the push service: the staging outbox
-records `sent` after one attempt. Provider acceptance is not proof of an OS banner;
-the Mac locked again before the banner could be observed. No Android device was
-connected. Read-only browser screens were verified separately.
+records `sent` after one attempt. On 22 October 2026, the user confirmed that
+the Chrome notification **"Notifications work on this device"** appeared. This
+is user-confirmed visible delivery, not merely provider acceptance. It does not
+establish delivery with all site tabs closed. No Android device was connected.
+Read-only browser screens were verified separately.
 
-**Still required:** desktop OS-level display/background delivery and interactive
+**Still required:** desktop closed-tab/background delivery and interactive
 allow/deny/opt-out checks; Chrome Android and both installed TWAs on an actual
 Android 13+ phone (including background delivery, opening system settings and app
 identity with both installed). The staging
