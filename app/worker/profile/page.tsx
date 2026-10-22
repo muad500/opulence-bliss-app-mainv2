@@ -1,6 +1,7 @@
 "use client";
 import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 import { accountFetch } from "@/lib/accountFetch";
+import NotificationSettings from "@/components/NotificationSettings";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -966,42 +967,9 @@ export default function WorkerProfilePage() {
               id="settings"
               eyebrow="Your choices"
               title="Alerts and security"
-              intro="Choose how you hear about new jobs. Email and in-app alerts follow these settings; SMS is not available yet."
+              intro="Choose how you hear about your work. Updates always stay on; essential emails cannot be switched off."
             >
-              <h3>New job offers</h3>
-              <div className={styles.choiceGrid}>
-                {(["app", "sms", "email"] as const).map((channel) => (
-                  <label className={styles.checkLine} key={channel}>
-                    <input
-                      type="checkbox"
-                      checked={p.alerts.jobOffers[channel]}
-                      onChange={(e) =>
-                        edit("alerts", {
-                          jobOffers: {
-                            ...p.alerts.jobOffers,
-                            [channel]: e.target.checked,
-                          },
-                        })
-                      }
-                    />
-                    {channel === "app" ? "In-app" : channel.toUpperCase()}
-                  </label>
-                ))}
-              </div>
-              <label className={styles.checkLine}>
-                <input
-                  type="checkbox"
-                  checked={p.alerts.notifications.messages}
-                  onChange={(e) =>
-                    edit("alerts", {
-                      notifications: { messages: e.target.checked },
-                    })
-                  }
-                />
-                Message notifications
-              </label>
-              {saveButton("alerts", () => void save("alerts"))}
-              {message("alerts")}
+              <NotificationSettings audience="professional" />
               <div className={styles.divider} />
               <h3>Change password</h3>
               <form onSubmit={(e) => void changePassword(e)}>

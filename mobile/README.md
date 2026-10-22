@@ -2,8 +2,8 @@
 
 Two separately installable Android apps use the same secure booking backend:
 
-- **Opulence Bliss**: `com.opulencebliss.app`, version 1.1.0 (code 2), starts at `/mobile/customer`. Home, Bookings, Inbox and Account. Customer sign-up has no professional recruitment or role switch.
-- **Opulence Bliss Pro**: `com.opulencebliss.worker`, version 1.0.0 (code 1), starts at `/mobile/worker`. Today, Jobs, Inbox and Account, with availability, earnings and application details. Job tools remain protected by server approval checks.
+- **Opulence Bliss**: `com.opulencebliss.app`, version 1.2.0 (code 3), starts at `/mobile/customer`. Home, Bookings, Inbox and Account. Customer sign-up has no professional recruitment or role switch.
+- **Opulence Bliss Pro**: `com.opulencebliss.worker`, version 1.1.0 (code 2), starts at `/mobile/worker`. Today, Jobs, Inbox and Account, with availability, earnings and application details. Job tools remain protected by server approval checks.
 
 The customer package and signing certificate are retained so it updates the first APK. The Pro app has a distinct launcher name, icon, shortcuts and verified link path, so both apps can be installed together. The apps do not change the user's shared website account or stored account mode.
 
@@ -63,4 +63,5 @@ OAuth client or extra API keys are required by this browser-based app.
 An APK/AAB build is not a phone test or Play Store approval. Publishing still needs
 the client's Play Console account, app signing setup, store artwork, privacy and
 data-safety declarations, and an account-deletion web link. Held legal wording is
-not changed by this app work. Notifications are not enabled in this first version.
+not changed by this app work. Notifications require an explicit in-app opt-in and
+browser/system permission; neither app requests permission merely on launch.

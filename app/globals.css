@@ -1170,8 +1170,13 @@ dd,
 
   /* Keep support reachable without covering the portal's bottom tabs. */
   body:has(.portal-shell) .support-chat-fab,
-  body:has(.portal-shell) .support-chat-panel {
+  body:has(.portal-shell) .support-chat-panel,
+  html[data-opulence-app] .support-chat-fab,
+  html[data-opulence-app] .support-chat-panel {
     bottom: calc(80px + env(safe-area-inset-bottom)) !important;
+  }
+  html[data-opulence-app] .support-chat-panel {
+    max-height: calc(100dvh - 155px - env(safe-area-inset-bottom)) !important;
   }
 }
 

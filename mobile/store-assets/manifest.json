@@ -1,0 +1,89 @@
+{
+  "capturedAt": "2026-10-22",
+  "refreshedAt": "2026-10-22",
+  "origin": "https://opulence-bliss-app-mainv2-git-codex-staging-muad500s-projects.vercel.app",
+  "data": "Synthetic staging accounts only. Alex / Sam. No production access. Pro earnings include labelled database-only artwork fixtures, not real transfers.",
+  "source": "Real in-app browser phone viewport captures, 412 × 824 CSS pixels. No UI has been generated or retouched.",
+  "files": [
+    {
+      "audience": "customer",
+      "file": "customer/01-customer-home.png",
+      "source": "source/customer-home.jpg",
+      "path": "/mobile/customer",
+      "caption": "A little more time for you",
+      "capturedAt": "2026-10-22",
+      "origin": "https://opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app",
+      "sha256": "dba087623a958b2d2c8500819ba144d5e57458956aed57c976b8cee1039bb518"
+    },
+    {
+      "audience": "customer",
+      "file": "customer/02-customer-services.png",
+      "source": "source/customer-services.jpg",
+      "path": "/services/cleaning",
+      "caption": "Find your cleaning session",
+      "capturedAt": "2026-10-22",
+      "origin": "https://opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app",
+      "sha256": "60194e043d153cb0e167391ce9820aea69ba3010119c7774222e6e06912f42aa"
+    },
+    {
+      "audience": "customer",
+      "file": "customer/03-customer-session.png",
+      "source": "source/customer-session.jpg",
+      "path": "/account",
+      "caption": "All your visits, together",
+      "capturedAt": "2026-10-22",
+      "origin": "https://opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app",
+      "sha256": "80f2fe623773ab24e36b4f134809157ec10101d19a385dfcb68cbc17b723c596"
+    },
+    {
+      "audience": "customer",
+      "file": "customer/04-customer-frequency.png",
+      "source": "source/customer-frequency.jpg",
+      "path": "/book?type=clean",
+      "caption": "Make it fit your routine",
+      "capturedAt": "2026-10-22",
+      "origin": "https://opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app",
+      "sha256": "0de214bd5ace39b9e70f62c665341a090072c44094130d3d8571e880f5565a3d"
+    },
+    {
+      "audience": "professional",
+      "file": "professional/01-pro-today.png",
+      "source": "source/pro-today.jpg",
+      "path": "/worker",
+      "caption": "Your day at a glance",
+      "capturedAt": "2026-10-22",
+      "origin": "https://opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app",
+      "sha256": "e21e1012ee8c86534d05bbbe54988db46154b4a14d90b95f60e9a223be4e57b1"
+    },
+    {
+      "audience": "professional",
+      "file": "professional/02-pro-availability.png",
+      "source": "source/pro-availability.jpg",
+      "path": "/worker/availability",
+      "caption": "Set your availability",
+      "capturedAt": "2026-10-22",
+      "origin": "https://opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app",
+      "sha256": "9ad2afba6ee54dfd0e11eda8b65fea7639a1192374dd274b881fb8d0ebfca123"
+    },
+    {
+      "audience": "professional",
+      "file": "professional/03-pro-earnings.png",
+      "source": "source/pro-earnings.jpg",
+      "path": "/worker/earnings",
+      "caption": "Keep track of earnings",
+      "capturedAt": "2026-10-22",
+      "origin": "https://opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app",
+      "sha256": "ee5a041c78c32eca9a349bffa58cbf6749d87101457282d6ebdf7ee8d1a08801"
+    },
+    {
+      "audience": "professional",
+      "file": "professional/04-pro-inbox.png",
+      "source": "source/pro-inbox.jpg",
+      "path": "/mobile/worker/inbox",
+      "caption": "Keep booking chats together",
+      "capturedAt": "2026-10-22",
+      "origin": "https://opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app",
+      "sha256": "9312a560e28d60e7b4b167b34019592780d822a45a8ff19757a5bba0da551fb0"
+    }
+  ]
+}
