@@ -2,8 +2,9 @@
 
 Branch: `codex/push-and-store-assets`. PR target: `codex/staging` only.
 Production is explicitly blocked by `webPushEnabled`, even if someone sets the
-flag there. No Apple/iPhone push is implemented. Emails, SMS, billing and
-existing notification producers are unchanged.
+flag there. No Apple/iPhone push is implemented. Billing is unchanged; existing
+notification producers remain in place, with channel-preference checks added
+to delivery and a supplementary email outbox for previously uncovered events.
 
 ## Configuration (server environment only)
 
@@ -127,11 +128,20 @@ These do not replace Production apps. The matching public debug certificate is
 served only on the guarded staging Preview; Production's association stays
 unchanged. No release task/signing is allowed with `stagingHost`.
 
-**Still required:** Chrome desktop permission/delivery, Chrome Android, and both
-installed TWAs on an actual Android 13+ phone (including background delivery,
-allow/deny, opening system settings and app identity with both installed).
-The local Mac was locked during the interactive click check; no Android device
-was connected. Read-only browser screens were verified separately. The staging
+Real desktop Chrome confirms that the friendly customer card appears without a
+native permission prompt. Clicking **Not now** removes it and saves a timestamp
+14 days ahead in staging. Clicking **Turn on** in settings opens Chrome's native
+**Show notifications** permission prompt. After permission was allowed, the UI
+reported **Push is on**, the real browser subscription was saved, and the
+**Send a test notification** action reached the push service: the staging outbox
+records `sent` after one attempt. Provider acceptance is not proof of an OS banner;
+the Mac locked again before the banner could be observed. No Android device was
+connected. Read-only browser screens were verified separately.
+
+**Still required:** desktop OS-level display/background delivery and interactive
+allow/deny/opt-out checks; Chrome Android and both installed TWAs on an actual
+Android 13+ phone (including background delivery, opening system settings and app
+identity with both installed). The staging
 app association file returns **302 to Vercel sign-in without a bypass**, versus
 200 with authorised automation. Android verification cannot send the private
 bypass header. **Physical TWA tests are blocked until the owner provides a
