@@ -8,7 +8,7 @@ begin
     select 1
     from vault.decrypted_secrets
     where name = 'opulence_cron_secret'
-      and length(decrypted_secret) >= 32
+      and length(btrim(decrypted_secret)) > 0
   ) then
     raise exception 'The existing production cron credential is required';
   end if;
@@ -33,7 +33,7 @@ begin
   from vault.decrypted_secrets
   where name = 'opulence_cron_secret';
 
-  if bearer is null or length(bearer) < 32 then
+  if bearer is null or length(btrim(bearer)) = 0 then
     raise exception 'The production cron credential is unavailable';
   end if;
 
@@ -56,3 +56,4 @@ select cron.schedule(
 );
 
 commit;
+
