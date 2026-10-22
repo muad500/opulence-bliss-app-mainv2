@@ -50,8 +50,28 @@ device only after authentication and eligibility checks.
 Push is opt-in after a customer's first real booking or a professional's
 approval. Permission is requested only by the Enable button, not on page load
 or Android launch. The account/profile screen exposes the same control and a
-global push opt-out. Existing booking/message/app-alert preferences are checked
-both when queuing and immediately before delivery. Email/SMS consent is separate.
+per-device on/off control. A friendly card precedes the system prompt; only
+"Turn on" asks for permission. "Not now" records a server-side 14-day snooze.
+Blocked permission shows settings instructions, not another permission request.
+Account profile settings contain the customer/professional type-by-channel matrix,
+device list/removal and a rate-limited own-device test. Push choices are scoped to
+this device; email and SMS choices are account-wide. Legacy opt-outs are preserved
+until explicitly changed. **Updates always stay on**; the old suppressing trigger
+is removed. Essential security, payment-problem, booking-change/cancellation and
+verification-expiry emails bypass optional choices. Marketing stays separate,
+off by default, with the existing consent audit. SMS remains off on staging.
+All active email/SMS senders recheck preferences before sending; the new small
+email outbox covers job-taken, checks, payout and payment notices not already
+handled by the existing booking/matching/chat/direct mail producers. New staging
+outbox emails are restricted to `STAGING_EMAIL_RECIPIENTS`.
+
+Migration `20261022000100_notification_channels.sql` follows staging's newest
+`20261021000300`. It is applied only on `comwdjprdedmsnxtvuuk`, with exact source
+stored/checked in the migration ledger. It adds per-device preferences and retains
+the existing auth-session, account, approval, offer freshness and delivery leases.
+Insurance expiry notices extend the existing daily verification scheduler, without
+changing insurance approval or job eligibility. Device removal is serialized with
+enrolment; background refresh cannot silently restore a removed subscription.
 Existing access-control/DBS/service checks remain the authority for working.
 
 Endpoints and encryption keys have RLS with no client table access. Only narrow
@@ -81,6 +101,42 @@ installed app receives delegation. Verify this with **both apps installed**;
 do not claim two independent native FCM channels or guaranteed dual delivery.
 
 ## Tests before approving
+
+Current automated checks: **410 passing tests**, TypeScript, Next.js 16.4.2 build,
+changed-file lint (no errors), isolated PostgreSQL 17 CI, and both Android debug
+build/lint tasks. Hosted Preview checks pass for both synthetic accounts: type/
+channel saves, 14-day snooze, device isolation/removal, refusal to silently enrol a
+removed device, Updates retention, preference export and read-before-dispatch
+suppression. Hosted SQL confirms optional emails off while security, cancellations
+and payment-problem emails remain allowed. This is not proof of mailbox delivery.
+
+The only live deployment used is the feature branch **Preview**, not Production
+and not a merge into `codex/staging`. PR #37 remains open.
+
+For physical Android testing, build separate debug-only `.staging` apps with:
+
+```
+cd mobile/android
+JAVA_HOME=/opt/homebrew/opt/openjdk@17 ANDROID_HOME="$ANDROID_SDK_ROOT" bash ./gradlew \
+  :app:assembleCustomerDebug :app:assembleWorkerDebug \
+  -PstagingHost=opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app
+```
+
+Packages: `com.opulencebliss.app.staging` and `com.opulencebliss.worker.staging`.
+These do not replace Production apps. The matching public debug certificate is
+served only on the guarded staging Preview; Production's association stays
+unchanged. No release task/signing is allowed with `stagingHost`.
+
+**Still required:** Chrome desktop permission/delivery, Chrome Android, and both
+installed TWAs on an actual Android 13+ phone (including background delivery,
+allow/deny, opening system settings and app identity with both installed).
+The local Mac was locked during the interactive click check; no Android device
+was connected. Read-only browser screens were verified separately. The staging
+app association file returns **302 to Vercel sign-in without a bypass**, versus
+200 with authorised automation. Android verification cannot send the private
+bypass header. **Physical TWA tests are blocked until the owner provides a
+staging origin whose `/.well-known/assetlinks.json` is publicly accessible.**
+Do not embed a bypass credential in an APK or disable protection without approval.
 
 1. `npm test`, `npx tsc --noEmit`, website build and isolated SQL fixture.
 2. Build/lint customer and worker Android debug variants (no release signing).

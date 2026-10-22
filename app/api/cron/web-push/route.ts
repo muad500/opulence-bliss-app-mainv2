@@ -14,8 +14,12 @@ export async function GET(req: Request) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
-    const result = await deliverWebPush(admin);
-    const email = await deliverExtraNotificationEmails(admin);
+    // Independent bounded outboxes must fit within the cron's 60s ceiling,
+    // including when provider requests take their full timeout.
+    const [result, email] = await Promise.all([
+      deliverWebPush(admin),
+      deliverExtraNotificationEmails(admin),
+    ]);
     return Response.json(
       { ...result, email },
       {

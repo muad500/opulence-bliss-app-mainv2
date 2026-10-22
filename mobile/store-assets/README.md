@@ -6,16 +6,20 @@ Bliss; `professional/` is Opulence Bliss Pro. These use the current exact site
 icons, pending the client's high-resolution logo. Nothing is uploaded to Play.
 
 `source/` contains **real staging browser screenshots**, captured at a phone
-viewport on 21 October 2026. They are not generated/mock app interfaces and are
+viewport on 22 October 2026. They are not generated/mock app interfaces and are
 not photographs of an Android device. The framing adds only branding, a caption
-and a Demo account / Test data label; the captured UI remains unchanged.
-Screens use synthetic private QA accounts, demo names and a labelled fictional
-address. Pro payment amounts are existing Stripe **test-mode** fixture results.
+without a "Demo account · Test data" label; the captured UI remains unchanged.
+Screens use synthetic private QA accounts and fictional fixtures. The refreshed
+Pro workday has scheduled visits, a normal working week and a populated inbox.
+Earnings use explicitly marked **database-only staging artwork fixtures**; no
+real charge or transfer was made to create the screenshots. Those fixtures must
+not be treated as Stripe end-to-end payment test evidence.
 There are no real customer names, emails, addresses, private keys or tokens.
-The blank Pro inbox is an honest empty state, not a fabricated conversation.
+The conversation was sent through the real staging booking-chat function between
+the two synthetic accounts, not painted onto a screenshot.
 
 `manifest.json` records source paths, screen routes and SHA-256 hashes. The
-origin is the protected staging alias, never the live production site. Auth
+origin is the protected feature-branch staging Preview, never the live production site. Auth
 confirmation URLs and deployment-protection secrets are deliberately excluded.
 Rebuild the PNG exports from these captures with:
 

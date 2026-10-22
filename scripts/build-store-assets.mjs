@@ -17,7 +17,7 @@ const apps = {
     screens: [
       ["customer-home", "A little more time for you", "/mobile/customer"],
       ["customer-services", "Find your cleaning session", "/services/cleaning"],
-      ["customer-session", "Choose the clean you need", "/book?type=clean"],
+      ["customer-session", "All your visits, together", "/account"],
       ["customer-frequency", "Make it fit your routine", "/book?type=clean"],
     ],
   },
@@ -36,9 +36,10 @@ const apps = {
 };
 const manifest = {
   capturedAt: "2026-10-22",
+  refreshedAt: "2026-10-22",
   origin:
     "https://opulence-bliss-app-mainv2-git-codex-staging-muad500s-projects.vercel.app",
-  data: "Synthetic staging accounts only. Alex (Demo) / Sam (Demo). No production access.",
+  data: "Synthetic staging accounts only. Alex / Sam. No production access. Pro earnings include labelled database-only artwork fixtures, not real transfers.",
   source:
     "Real in-app browser phone viewport captures, 412 × 824 CSS pixels. No UI has been generated or retouched.",
   files: [],
@@ -93,6 +94,8 @@ for (const [audience, app] of Object.entries(apps)) {
       source: `source/${source}.jpg`,
       path,
       caption,
+      capturedAt: "2026-10-22",
+      origin: "https://opulence-bliss-app-mainv2-git-codex-pu-969797-muad500s-projects.vercel.app",
       sha256: createHash("sha256").update(raw).digest("hex"),
     });
   }
