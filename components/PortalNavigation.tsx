@@ -182,20 +182,27 @@ export default function PortalNavigation({
     });
 
   useEffect(() => {
-    try {
-      // Remove the old persistent preference; navigation is session-only now.
-      localStorage.removeItem("opulence-client-nav");
-      localStorage.removeItem("opulence-professional-nav");
-      setCollapsed(
-        sessionStorage.getItem(`opulence-${mode}-nav`) === "collapsed",
-      );
-    } catch {
-      /* storage may be disabled */
-    }
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      try {
+        // Remove the old persistent preference; navigation is session-only now.
+        localStorage.removeItem("opulence-client-nav");
+        localStorage.removeItem("opulence-professional-nav");
+        setCollapsed(
+          sessionStorage.getItem(`opulence-${mode}-nav`) === "collapsed",
+        );
+      } catch {
+        /* storage may be disabled */
+      }
+    });
+    return () => {
+      active = false;
+    };
   }, [mode]);
 
   useEffect(() => {
-    setDrawerOpen(false);
+    void Promise.resolve().then(() => setDrawerOpen(false));
   }, [path]);
 
   useEffect(() => {

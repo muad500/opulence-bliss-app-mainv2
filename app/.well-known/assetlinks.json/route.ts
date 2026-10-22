@@ -1,4 +1,5 @@
 import certificate from "@/mobile/android/signing-certificate.json";
+import { stagingAndroidAssociation } from "@/lib/androidStagingAssociation";
 
 export const dynamic = "force-dynamic";
 
@@ -7,6 +8,8 @@ export function GET(request: Request) {
     .split(":")[0]
     .toLowerCase();
   if (host !== "www.opulencebliss.com") {
+    const staging = stagingAndroidAssociation(host);
+    if (staging) return Response.json(staging, { headers: { "Cache-Control": "public, max-age=300" } });
     return new Response("Not found", { status: 404 });
   }
 

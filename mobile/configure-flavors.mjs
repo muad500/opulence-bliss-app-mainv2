@@ -35,6 +35,7 @@ gradle = gradle.replace(
     // END APP FLAVORS
     buildTypes {`,
 );
+if (!gradle.includes("apply from: 'staging.gradle'")) gradle += "\napply from: 'staging.gradle'\n";
 await writeFile(gradleFile, gradle);
 const manifestFile = new URL(
   "./android/app/src/main/AndroidManifest.xml",

@@ -1,5 +1,6 @@
 "use client";
 import { accountFetch } from "@/lib/accountFetch";
+import NotificationSettings from "@/components/NotificationSettings";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -231,27 +232,27 @@ export default function ClientProfilePage() {
 
   useEffect(() => {
     let active = true;
-    void Promise.allSettled([
-      refresh(),
-      refreshReviews(),
-      refreshActivity(),
-    ]).then(([profileResult, reviewResult, activityResult]) => {
-      if (!active) return;
-      if (profileResult.status === "rejected")
-        setLoadError(
-          profileResult.reason instanceof Error
-            ? profileResult.reason.message
-            : "Account details could not be loaded.",
-        );
-      if (
-        reviewResult.status === "rejected" ||
-        activityResult.status === "rejected"
+    void Promise.resolve()
+      .then(() =>
+        Promise.allSettled([refresh(), refreshReviews(), refreshActivity()]),
       )
-        setActivityError(
-          "Some activity could not be loaded. Please refresh to try again.",
-        );
-      setLoading(false);
-    });
+      .then(([profileResult, reviewResult, activityResult]) => {
+        if (!active) return;
+        if (profileResult.status === "rejected")
+          setLoadError(
+            profileResult.reason instanceof Error
+              ? profileResult.reason.message
+              : "Account details could not be loaded.",
+          );
+        if (
+          reviewResult.status === "rejected" ||
+          activityResult.status === "rejected"
+        )
+          setActivityError(
+            "Some activity could not be loaded. Please refresh to try again.",
+          );
+        setLoading(false);
+      });
     return () => {
       active = false;
     };
@@ -1144,29 +1145,7 @@ export default function ClientProfilePage() {
                 available.
               </p>
               <div className={styles.divider} />
-              <h3 className={styles.subheading}>Notifications</h3>
-              <Toggle
-                title="Booking reminders"
-                detail="Upcoming visit reminders; essential confirmations and changes still arrive"
-                checked={prefs.notifications.bookings}
-                onChange={(value) =>
-                  setPrefs({
-                    ...prefs,
-                    notifications: { ...prefs.notifications, bookings: value },
-                  })
-                }
-              />
-              <Toggle
-                title="Messages"
-                detail="Replies from your professional"
-                checked={prefs.notifications.messages}
-                onChange={(value) =>
-                  setPrefs({
-                    ...prefs,
-                    notifications: { ...prefs.notifications, messages: value },
-                  })
-                }
-              />
+              <NotificationSettings audience="customer" />
               <div className={styles.divider} />
               <Toggle
                 title="Marketing emails"

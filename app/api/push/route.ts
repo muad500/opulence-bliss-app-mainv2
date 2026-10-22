@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { validPushSubscription, webPushEnabled } from "@/lib/webPushPolicy";
+import { uuidPattern } from "@/lib/notificationSettings";
 
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "private, no-store" };
@@ -45,8 +46,21 @@ export async function POST(req: Request) {
   }
   if (!body || typeof body !== "object" || Array.isArray(body))
     return json({ error: "Invalid request" }, 400);
-  if (body.action === "disable") {
-    const result = await client.rpc("disable_web_push");
+  if (body.action === "snooze") {
+    const result = await client.rpc("snooze_web_push_prompt");
+    return result.error
+      ? json({ error: "Could not save preference" }, 503)
+      : json({ ok: true });
+  }
+  if (typeof body.deviceId !== "string" || !uuidPattern.test(body.deviceId))
+    return json({ error: "Device required" }, 400);
+  if (body.action === "disable" || body.action === "test") {
+    const result = await client.rpc(
+      body.action === "test"
+        ? "test_web_push_device"
+        : "remove_web_push_device",
+      { p_device: body.deviceId },
+    );
     return result.error
       ? json({ error: "Could not disable notifications" }, 503)
       : json({ ok: true });
@@ -54,11 +68,16 @@ export async function POST(req: Request) {
   if (!validPushSubscription(body.subscription))
     return json({ error: "Unsupported subscription" }, 400);
   const s = body.subscription;
-  const result = await client.rpc("save_web_push_subscription", {
+  const result = await client.rpc("save_web_push_device", {
     p_endpoint: s.endpoint,
     p_auth: s.keys.auth,
     p_p256dh: s.keys.p256dh,
     p_opt_in: body.optIn === true,
+    p_device: body.deviceId,
+    p_name:
+      typeof body.deviceName === "string"
+        ? body.deviceName.slice(0, 60)
+        : "Browser",
   });
   return result.error
     ? json(

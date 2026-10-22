@@ -26,6 +26,7 @@ async function load(file, mocks = {}, context = {}) {
   return module.exports;
 }
 const policy = await load("lib/webPushPolicy.ts");
+const settingsPolicy = await load("lib/notificationSettings.ts");
 const env = {
   WEB_PUSH_ENABLED: "true",
   NEXT_PUBLIC_SUPABASE_URL: "https://comwdjprdedmsnxtvuuk.supabase.co",
@@ -173,6 +174,7 @@ test("subscription API requires authentication, same origin and bounded valid JS
     "app/api/push/route.ts",
     {
       "@/lib/webPushPolicy": policy,
+      "@/lib/notificationSettings": settingsPolicy,
       "@/lib/supabase/server": {
         createClient: async () => ({
           auth: { getUser: async () => ({ data: { user } }) },
@@ -205,12 +207,12 @@ test("subscription API requires authentication, same origin and bounded valid JS
     400,
   );
   assert.equal(
-    (await post(JSON.stringify({ subscription, optIn: true }))).status,
+    (await post(JSON.stringify({ subscription, optIn: true, deviceId: "10000000-0000-4000-8000-000000000001" }))).status,
     200,
   );
   assert.equal(calls.at(-1)[1].p_opt_in, true);
-  assert.equal((await post(JSON.stringify({ action: "disable" }))).status, 200);
-  assert.equal(calls.at(-1)[0], "disable_web_push");
+  assert.equal((await post(JSON.stringify({ action: "disable", deviceId: "10000000-0000-4000-8000-000000000001" }))).status, 200);
+  assert.equal(calls.at(-1)[0], "remove_web_push_device");
   user = null;
   assert.equal((await post("{}")).status, 401);
   assert.equal((await GET()).status, 401);
@@ -268,7 +270,7 @@ test("permission prompts are click-only; Apple is excluded; nav preference is se
     new URL("../components/PushNotifications.tsx", import.meta.url),
     "utf8",
   );
-  assert.match(source, /iPhone\|iPad\|iPod/);
+  assert.match(await readFile(new URL("../lib/pushBrowser.ts", import.meta.url), "utf8"), /iPhone\|iPad\|iPod/);
   assert.match(
     source,
     /async function enable\(\)[\s\S]*Notification.requestPermission/,

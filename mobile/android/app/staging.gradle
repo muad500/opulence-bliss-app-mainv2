@@ -1,0 +1,22 @@
+// Opt-in debug-only wrappers. Never change Production origins/signing.
+def stagingHost = project.findProperty('stagingHost')
+if (stagingHost != null) {
+    if (!(stagingHost ==~ /opulence-bliss-app-mainv2-[a-z0-9-]+-muad500s-projects\.vercel\.app/)) {
+        throw new GradleException('Use the explicit Opulence Bliss staging Preview hostname')
+    }
+    if (gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
+        throw new GradleException('Staging wrappers are debug-only; no release signing')
+    }
+    android.productFlavors.all { flavor ->
+        def audience = flavor.name == 'worker' ? 'worker' : 'customer'
+        flavor.applicationId = flavor.applicationId + '.staging'
+        flavor.resValue 'string', 'appName', audience == 'worker' ? 'Bliss Pro Staging' : 'Bliss Staging'
+        flavor.resValue 'string', 'launcherName', audience == 'worker' ? 'Bliss Pro Staging' : 'Bliss Staging'
+        flavor.resValue 'string', 'hostName', stagingHost
+        flavor.resValue 'string', 'launchUrl', "https://${stagingHost}/mobile/${audience}"
+        flavor.resValue 'string', 'webManifestUrl', "https://${stagingHost}/mobile/${audience}/manifest.webmanifest"
+        flavor.resValue 'string', 'fullScopeUrl', "https://${stagingHost}/"
+        flavor.resValue 'string', 'providerAuthority', flavor.applicationId + '.fileprovider'
+        flavor.resValue 'string', 'assetStatements', '[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"https://' + stagingHost + '"}}]'
+    }
+}

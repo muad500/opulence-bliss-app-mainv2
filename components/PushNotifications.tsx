@@ -2,93 +2,82 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import {
+  blockedInstructions,
+  notificationDeviceId,
+  pushRequest,
+  pushSupported,
+  subscribeDevice,
+} from "@/lib/pushBrowser";
+import { promptDue } from "@/lib/notificationSettings";
 import styles from "./PushNotifications.module.css";
-
-type Config = {
+export type PushConfig = {
   enabled: boolean;
   eligible: boolean;
   optedOut: boolean;
   hasConsent: boolean;
   publicKey: string;
   userId: string;
+  professional: boolean;
+  customerEligible: boolean;
+  promptAfter: string | null;
 };
-const supported = () =>
-  window.isSecureContext &&
-  "serviceWorker" in navigator &&
-  "PushManager" in window &&
-  "Notification" in window &&
-  !/iPhone|iPad|iPod/.test(navigator.userAgent) &&
-  !(navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const request = async (body: object) => {
-  const r = await fetch("/api/push", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!r.ok) throw new Error("Could not save notifications. Please try again.");
-};
-async function subscribe(key: string, optIn = false) {
-  const registration = await navigator.serviceWorker.register(
-    "/app-worker.js",
-    { scope: "/" },
-  );
-  await navigator.serviceWorker.ready;
-  let subscription = await registration.pushManager.getSubscription();
-  // Explicit re-enrolment also repairs rotated keys or another account's old
-  // browser subscription, without silently taking it over on page load.
-  if (optIn && subscription) {
-    await subscription.unsubscribe();
-    subscription = null;
-  }
-  if (!subscription) {
-    const bytes = Uint8Array.from(
-      atob(key.replace(/-/g, "+").replace(/_/g, "/")),
-      (c) => c.charCodeAt(0),
-    );
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: bytes,
-    });
-  }
-  await request({ subscription: subscription.toJSON(), optIn });
-}
 export default function PushNotifications() {
   const path = usePathname() ?? "/";
-  const [config, setConfig] = useState<Config | null>(null);
+  const [config, setConfig] = useState<PushConfig | null>(null);
   const [active, setActive] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [blocked, setBlocked] = useState(false);
   useEffect(() => {
-    if (!supported() || !/^\/(account|worker|mobile|book)(\/|$)/.test(path))
+    if (!pushSupported() || !/^\/(account|worker|mobile|book)(\/|$)/.test(path))
       return;
-    let cancelled = false;
-    void fetch("/api/push", { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then(async (c: Config | null) => {
-        if (cancelled || !c?.enabled || !c.eligible || !c.publicKey) return;
-        setConfig(c);
-        try {
-          setDismissed(
-            sessionStorage.getItem(`push-later-${c.userId}`) === "true",
-          );
-        } catch {}
+    let alive = true;
+    const load = async () => {
+      try {
+        const response = await fetch("/api/push", { cache: "no-store" });
+        const c: PushConfig | null = response.ok ? await response.json() : null;
+        if (!alive) return;
+        const eligible = /^\/(worker|mobile\/worker)(\/|$)/.test(path)
+          ? c?.professional
+          : c?.customerEligible;
+        setConfig(c?.enabled && eligible ? c : null);
+        setBlocked(Notification.permission === "denied");
+        if (!c?.eligible || !c.enabled) return;
+        setDismissed(!promptDue(c.promptAfter));
         if (
           c.hasConsent &&
           !c.optedOut &&
           Notification.permission === "granted"
         ) {
-          try {
-            await subscribe(c.publicKey);
-            if (!cancelled) setActive(true);
-          } catch {
-            /* Show the manual retry control. */
-          }
-        }
-      })
-      .catch(() => undefined);
+          // Refresh an EXISTING device only; never reverse a removed device.
+          const r = await navigator.serviceWorker.getRegistration("/");
+          const s = await r?.pushManager.getSubscription();
+          const device = notificationDeviceId(c.userId);
+          const settings = await fetch(
+            `/api/notification-settings?device=${device}`,
+            { cache: "no-store" },
+          ).then((r) => r.json());
+          if (
+            s &&
+            settings.devices?.some((d: { current: boolean }) => d.current)
+          ) {
+            await subscribeDevice(c.publicKey, c.userId);
+            if (alive) setActive(true);
+          } else if (alive) setActive(false);
+        } else setActive(false);
+      } catch {
+        /* Never request permission or enrol on failure. */
+      }
+    };
+    void load();
+    window.addEventListener("focus", load);
+    window.addEventListener("opulence:notifications-changed", load);
     return () => {
-      cancelled = true;
+      alive = false;
+      window.removeEventListener("focus", load);
+      window.removeEventListener("opulence:notifications-changed", load);
     };
   }, [path]);
   useEffect(() => {
@@ -97,102 +86,83 @@ export default function PushNotifications() {
       setConfig(null);
       setActive(false);
       if ("serviceWorker" in navigator)
-        void navigator.serviceWorker
-          .getRegistration("/")
-          .then(async (registration) => {
-            await (
-              await registration?.pushManager.getSubscription()
-            )?.unsubscribe();
-            registration?.active?.postMessage({
-              type: "CLEAR_ACCOUNT_NOTIFICATIONS",
-            });
-          });
+        void navigator.serviceWorker.getRegistration("/").then(async (r) => {
+          await (await r?.pushManager.getSubscription())?.unsubscribe();
+          r?.active?.postMessage({ type: "CLEAR_ACCOUNT_NOTIFICATIONS" });
+        });
     });
     return () => data.subscription.unsubscribe();
   }, []);
-  const settings = /\/(profile|account|settings)$/.test(path);
   if (
     !config ||
-    (!settings &&
-      (dismissed ||
-        active ||
-        config.optedOut ||
-        Notification.permission === "denied"))
+    /\/(profile|settings)(\/|$)/.test(path) ||
+    active ||
+    config.optedOut ||
+    dismissed
   )
     return null;
   async function enable() {
     setBusy(true);
     setMessage("");
     try {
-      // Permission is requested only from this explicit click, never on launch.
+      // The ONLY permission request is directly in the user's click handler.
+      // Chrome delegates it to Android 13+ through the verified TWA service.
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        setMessage(
-          "Notifications are off. You can change this in your browser or Android app settings.",
-        );
+        setBlocked(permission === "denied");
+        setMessage(blockedInstructions);
         return;
       }
-      await subscribe(config!.publicKey, true);
+      await subscribeDevice(config!.publicKey, config!.userId, true);
       setActive(true);
-      setConfig((c) => c && { ...c, optedOut: false, hasConsent: true });
-      setMessage("Notifications enabled on this device.");
+      window.dispatchEvent(new Event("opulence:notifications-changed"));
     } catch {
-      setMessage("Could not enable notifications. Please try again.");
+      setMessage("Could not turn on notifications. Please try again.");
     } finally {
       setBusy(false);
     }
   }
-  async function disable() {
+  async function later() {
     setBusy(true);
     try {
-      await request({ action: "disable" });
-      const registration = await navigator.serviceWorker.getRegistration("/");
-      await (await registration?.pushManager.getSubscription())?.unsubscribe();
-      registration?.active?.postMessage({
-        type: "CLEAR_ACCOUNT_NOTIFICATIONS",
-      });
-      setActive(false);
-      setConfig((c) => c && { ...c, optedOut: true, hasConsent: false });
-      setMessage(
-        "Push notifications disabled on all your devices. Emails are unchanged.",
-      );
+      await pushRequest({ action: "snooze" });
+      setDismissed(true);
     } catch {
-      setMessage("Could not disable notifications. Please try again.");
+      setMessage("Could not save your choice. Please try again.");
     } finally {
       setBusy(false);
     }
   }
   return (
-    <section className={styles.panel} aria-label="Push notifications">
+    <section className={styles.panel} aria-label="Notifications">
       <div>
         <strong>
-          {active
-            ? "Device notifications are on"
-            : "Keep up with your bookings and jobs"}
+          {blocked
+            ? "Notifications are blocked"
+            : "A useful update, right when you need it"}
         </strong>
         <p>
-          Optional alerts for visits, messages and job offers. Your existing
-          notification preferences still apply.
+          {blocked
+            ? blockedInstructions
+            : /^\/(worker|mobile\/worker)(\/|$)/.test(path)
+              ? "Turn on notifications for new job offers, changes to your jobs and customer messages."
+              : "Turn on notifications to know when a cleaner accepts, is on the way, or messages you."}
         </p>
         {message && <p role="status">{message}</p>}
       </div>
       <div className={styles.actions}>
-        <button disabled={busy} onClick={active ? disable : enable}>
-          {busy ? "Saving…" : active ? "Turn off push" : "Enable notifications"}
-        </button>
-        {!settings && (
-          <button
-            className={styles.later}
-            onClick={() => {
-              setDismissed(true);
-              try {
-                sessionStorage.setItem(`push-later-${config.userId}`, "true");
-              } catch {}
-            }}
-          >
-            Not now
+        {!blocked && (
+          <button disabled={busy} onClick={() => void enable()}>
+            Turn on
           </button>
         )}
+        <button
+          className={styles.later}
+          disabled={busy}
+          onClick={() => void later()}
+        >
+          {blocked ? "Dismiss for 14 days" : "Not now"}
+        </button>
       </div>
     </section>
   );

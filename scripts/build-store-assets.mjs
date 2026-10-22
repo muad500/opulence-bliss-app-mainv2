@@ -35,7 +35,7 @@ const apps = {
   },
 };
 const manifest = {
-  capturedAt: "2026-10-21",
+  capturedAt: "2026-10-22",
   origin:
     "https://opulence-bliss-app-mainv2-git-codex-staging-muad500s-projects.vercel.app",
   data: "Synthetic staging accounts only. Alex (Demo) / Sam (Demo). No production access.",
@@ -76,7 +76,7 @@ for (const [audience, app] of Object.entries(apps)) {
     const canvas = svg(
       1080,
       1920,
-      `<rect width="1080" height="1920" fill="#faf8ff"/><rect x="0" y="0" width="1080" height="270" fill="url(#bg)"/><text x="64" y="79" font-family="Arial,sans-serif" font-size="30" fill="#e6d8f8" font-weight="700">${app.name}</text><text x="64" y="156" font-family="Arial,sans-serif" font-size="50" fill="white" font-weight="700">${esc(caption)}</text><text x="64" y="219" font-family="Arial,sans-serif" font-size="25" fill="#e6d8f8">Demo account · Test data</text><rect x="130" y="294" width="820" height="1576" rx="24" fill="#16202a"/>`,
+      `<rect width="1080" height="1920" fill="#faf8ff"/><rect x="0" y="0" width="1080" height="270" fill="url(#bg)"/><text x="64" y="79" font-family="Arial,sans-serif" font-size="30" fill="#e6d8f8" font-weight="700">${app.name}</text><text x="64" y="156" font-family="Arial,sans-serif" font-size="50" fill="white" font-weight="700">${esc(caption)}</text><rect x="130" y="294" width="820" height="1576" rx="24" fill="#16202a"/>`,
     );
     const capture = await sharp(raw)
       .resize(796, 1552, { fit: "contain", background: "#ffffff" })

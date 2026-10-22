@@ -2,7 +2,7 @@ name: Web Push staging checks
 on:
   pull_request:
     branches: [codex/staging]
-    paths: ['**/*[Pp]ush*', 'supabase/tests/web_push.sql', 'public/app-worker.js', '.github/workflows/web-push-staging.yml']
+    paths: ['**/*[Pp]ush*', '**/*[Nn]otification*', 'public/app-worker.js', '.github/workflows/web-push-staging.yml']
 permissions:
   contents: read
 jobs:
@@ -17,5 +17,5 @@ jobs:
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
-      - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/web_push.sql
+      - run: psql -v ON_ERROR_STOP=1 -f supabase/tests/notification_channels.sql
         env: { PGHOST: localhost, PGDATABASE: push_contracts, PGUSER: postgres, PGPASSWORD: isolated-ci-only }

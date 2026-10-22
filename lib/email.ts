@@ -8,6 +8,7 @@
 // keeps working, you just don't get email.
 
 import { notificationLink } from "./adminHosts";
+import { operationalEmailAllowed } from "./operationalEmailPreferences";
 
 const DEFAULT_FROM = "Opulence Bliss <onboarding@resend.dev>";
 const CONFIGURED_SENDERS = [
@@ -181,6 +182,8 @@ export async function sendEmail(opts: {
   }
 
   try {
+    if (!(await operationalEmailAllowed(opts.to, `${opts.subject} ${opts.title}`, opts.cta?.url)))
+      return { ok: true as const, skipped: "notification_preference" as const };
     let lastFailure: { ok: false; reason: EmailFailureReason } | null = null;
     for (const sender of CONFIGURED_SENDERS) {
       const delivery = await deliverWithSender(key, sender, {

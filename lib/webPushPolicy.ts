@@ -60,6 +60,10 @@ export function pushHref(href: unknown) {
 }
 
 export const pushCopy: Record<string, [string, string]> = {
+  test: ["Opulence Bliss", "Notifications work on this device."],
+  schedule: ["Booking update", "A booking has changed. Open your account for details."],
+  earnings: ["Earnings update", "There is an update in your earnings. Open your account."],
+  checks: ["Account check reminder", "An account check needs attention. Open your profile."],
   remaining: [
     "30 minutes remaining",
     "Your session has around 30 minutes remaining. Open your booking for details.",

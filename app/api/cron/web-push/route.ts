@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { deliverWebPush } from "@/lib/webPushDelivery";
+import { deliverExtraNotificationEmails } from "@/lib/notificationExtraEmail";
 export const maxDuration = 60;
 export async function GET(req: Request) {
   if (
@@ -9,16 +10,19 @@ export async function GET(req: Request) {
   )
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const result = await deliverWebPush(
-      createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      ),
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
     );
-    return Response.json(result, {
-      status: result.failed ? 503 : 200,
-      headers: { "Cache-Control": "no-store" },
-    });
+    const result = await deliverWebPush(admin);
+    const email = await deliverExtraNotificationEmails(admin);
+    return Response.json(
+      { ...result, email },
+      {
+        status: result.failed || email.failed ? 503 : 200,
+        headers: { "Cache-Control": "no-store" },
+      },
+    );
   } catch {
     return Response.json(
       { error: "Push processing unavailable" },
