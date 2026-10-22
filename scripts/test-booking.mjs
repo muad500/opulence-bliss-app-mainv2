@@ -17,6 +17,7 @@ const modules = [
   "accountSecurityAlerts",
   "socialLinks",
   "cleaningBillingTerms",
+  "cleaningPaymentCopy",
   "bookingPreferences",
   "visitContactPolicy",
   "assistantPresentation",
@@ -65,6 +66,16 @@ try {
   execFileSync(process.execPath, ["--test", "scripts/test-web-push.mjs"], {
     stdio: "inherit",
   });
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-payment-copy-seed.mjs"],
+    { stdio: "inherit" },
+  );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-checkout-legal.mjs"],
+    { stdio: "inherit" },
+  );
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-handyman-webhook.mjs"],

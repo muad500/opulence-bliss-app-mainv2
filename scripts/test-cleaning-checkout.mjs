@@ -11,14 +11,22 @@ function harness({
   stageError = false,
   perVisit = false,
   regular = false,
+  legalError = false,
 } = {}) {
   const calls = { sessions: [], staged: [], expired: [] };
   const db = {
-    rpc: async () => ({ data: ready }),
+    rpc: async (name) =>
+      name === "prepare_booking_legal_consent"
+        ? {
+            data: legalError ? null : "00000000-0000-4000-8000-000000000001",
+            error: legalError ? { code: "40001" } : null,
+          }
+        : { data: ready },
     from(table) {
       const q = {
         select: () => q,
         eq: () => q,
+        in: () => q,
         maybeSingle: () => q,
         order: () => q,
         limit: () => q,
@@ -39,11 +47,18 @@ function harness({
                     duration_minutes: 120,
                     service_type: "cleaning",
                   }
-                : table === "profiles"
-                  ? { role: "customer", phone: "+447400123456" }
-                  : table === "service_areas"
-                    ? [{ postcode_prefixes: ["EC1V"] }]
-                    : null,
+                : table === "legal_documents"
+                  ? ["terms", "privacy", "cancellation-refund"].map((slug) => ({
+                      slug,
+                      version: "1.0",
+                      updated_at: "2026-10-21T00:00:00Z",
+                      content_html: "<p>Fixture</p>",
+                    }))
+                  : table === "profiles"
+                    ? { role: "customer", phone: "+447400123456" }
+                    : table === "service_areas"
+                      ? [{ postcode_prefixes: ["EC1V"] }]
+                      : null,
           });
         },
       };
@@ -147,6 +162,14 @@ function harness({
             frequency: regular ? "weekly" : "one_time",
             regularVisits: 6,
             saveCardConsent: true,
+            legalAccepted: true,
+            legalDocuments: ["terms", "cancellation-refund", "privacy"].map(
+              (slug) => ({
+                slug,
+                version: "1.0",
+                updatedAt: "2026-10-21T00:00:00Z",
+              }),
+            ),
             durationMinutes: 120,
             home: { propertyType: "flat", bedrooms: 1, bathrooms: 1 },
             slot: "2026-10-20T09:00:00.000Z",
@@ -172,10 +195,36 @@ test("new one-off checkout charges in full automatically and saves consent witho
   assert.equal(session.payment_intent_data.setup_future_usage, "off_session");
   assert.equal(session.payment_intent_data.transfer_data, undefined);
   assert.equal(session.payment_intent_data.metadata.provider_amount, "0");
+  assert.equal(h.calls.staged[0].legal_consent_required, true);
+  assert.equal(
+    h.calls.staged[0].legal_consent_id,
+    session.metadata.legal_consent_id,
+  );
   assert.equal(
     h.calls.staged[0].cleaning_extras[0].cardConsentVersion,
     "visit-billing-v1",
   );
+});
+test("checkout cannot create a Stripe session without the required legal tick or valid document versions", async () => {
+  for (const overrides of [
+    { legalAccepted: false },
+    { legalAccepted: undefined },
+    { legalDocuments: [] },
+    { legalDocuments: [{ slug: "terms", version: "forged" }] },
+  ]) {
+    const h = harness({ perVisit: true });
+    const response = await h.checkout(overrides);
+    assert.equal(response.status, 400);
+    assert.equal((await response.json()).code, "legal_consent_required");
+    assert.equal(h.calls.sessions.length, 0);
+  }
+});
+test("published-version changes block payment and require a fresh tick", async () => {
+  const h = harness({ perVisit: true, legalError: true });
+  const response = await h.checkout();
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).code, "legal_documents_changed");
+  assert.equal(h.calls.sessions.length, 0);
 });
 test("new regular checkout saves a card without charging, with £5 products on each visit", async () => {
   const h = harness({ perVisit: true, regular: true });

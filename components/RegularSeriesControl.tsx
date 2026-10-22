@@ -76,8 +76,8 @@ export default function RegularSeriesControl({
         <>
           <p>
             Resume matching for the remaining visits? Cancelled visits stay
-            cancelled. Later visits are charged only after a cleaner accepts, at
-            48 hours before or immediately if closer.
+            cancelled. Unpaid visits are charged only after a cleaner accepts,
+            following the payment schedule recorded for this booking.
           </p>
           <button disabled={busy} onClick={() => void resume()}>
             {busy ? "Resuming…" : "Confirm and resume visits"}

@@ -1,4 +1,8 @@
 "use client";
+import {
+  ONE_OFF_PAYMENT_COPY,
+  REGULAR_PAYMENT_COPY,
+} from "@/lib/cleaningPaymentCopy";
 import { serviceTextWithoutPrices } from "@/lib/assistantPresentation";
 
 // SETUP: mkdir -p "app/services/[slug]" && code "app/services/[slug]/page.tsx"
@@ -306,10 +310,12 @@ export default function ServicePage() {
   useEffect(() => {
     if (!items.length) return;
     if (isNarrow) return;
-    setPicked((prev) =>
-      prev && items.some((i) => i.id === prev)
-        ? prev
-        : (items.find((i) => i.name === POPULAR) ?? items[0]).id,
+    void Promise.resolve().then(() =>
+      setPicked((prev) =>
+        prev && items.some((i) => i.id === prev)
+          ? prev
+          : (items.find((i) => i.name === POPULAR) ?? items[0]).id,
+      ),
     );
   }, [items, isNarrow]);
 
@@ -610,9 +616,9 @@ export default function ServicePage() {
               [
                 "We're fair",
                 perVisitBilling === true
-                  ? "One-time visits are charged at checkout. For regular cleaning, pay for the first visit at checkout; later visits are charged 48 hours before only when assigned, or when a cleaner accepts later."
+                  ? `${ONE_OFF_PAYMENT_COPY} ${REGULAR_PAYMENT_COPY}`
                   : perVisitBilling === false
-                    ? "One-time visits are charged after completion; regular plans are paid upfront. Providers are paid after their visits."
+                    ? "Review the payment amount and timing at checkout. Existing bookings keep their original payment terms. Providers are paid after their visits."
                     : "See your visit price and payment details before confirming checkout.",
               ],
             ].map(([t, s]) => (

@@ -39,6 +39,9 @@ import {
   type AssistantPackage,
 } from "@/lib/assistantBooking";
 import { CANCELLATION_REFUND_URL } from "@/lib/legal";
+import BookingLegalConsent, {
+  type BookingLegalState,
+} from "@/components/BookingLegalConsent";
 import { visitDiscounts } from "@/lib/visitLineItems";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
 import { cleaningPackageScope } from "@/lib/cleaningScope";
@@ -51,6 +54,10 @@ import {
   saveBookingDraft,
 } from "@/lib/bookingDraft";
 import { authLink } from "@/lib/authReturn";
+import {
+  ONE_OFF_PAYMENT_COPY,
+  REGULAR_PAYMENT_COPY,
+} from "@/lib/cleaningPaymentCopy";
 
 const supabase = createClient();
 
@@ -157,6 +164,11 @@ export default function BookPage() {
   const [smsAvailable, setSmsAvailable] = useState(false);
   const [perVisitBilling, setPerVisitBilling] = useState(false);
   const [saveCardConsent, setSaveCardConsent] = useState(false);
+  const [bookingLegal, setBookingLegal] = useState<BookingLegalState>({
+    accepted: false,
+    documents: null,
+  });
+  const [legalRefresh, setLegalRefresh] = useState(0);
   useEffect(() => {
     void fetch("/api/visit-billing-config", { cache: "no-store" })
       .then((response) => response.json())
@@ -262,6 +274,11 @@ export default function BookPage() {
   const [slots, setSlots] = useState<string[] | null>(null);
   const [slot, setSlot] = useState<string | null>(null);
   const [optionalSlots, setOptionalSlots] = useState<string[]>([]);
+  const [scheduleNow, setScheduleNow] = useState(() => Date.now());
+  useEffect(() => {
+    const clock = setInterval(() => setScheduleNow(Date.now()), 60_000);
+    return () => clearInterval(clock);
+  }, []);
 
   const [howHeard, setHowHeard] = useState("");
   const [confirmationChannel, setConfirmationChannel] = useState<
@@ -808,7 +825,7 @@ export default function BookPage() {
       );
       return;
     }
-    window.location.href = authLink("/login", returnTo);
+    window.location.assign(authLink("/login", returnTo));
   }
 
   const needsPhone =
@@ -843,6 +860,10 @@ export default function BookPage() {
     }
     if (needsEarlyStart && !earlyStartAgreed) return;
     if (perVisitBilling && !saveCardConsent) return;
+    if (!bookingLegal.accepted || !bookingLegal.documents) {
+      setPayError("Please read and accept the booking policies before paying.");
+      return;
+    }
     const policyError = bookingPolicyError(selected.name, frequency);
     if (policyError) {
       setPayError(policyError);
@@ -861,6 +882,8 @@ export default function BookPage() {
           bringsProducts: extras.bringsProducts,
           petsAtHome,
           saveCardConsent,
+          legalAccepted: bookingLegal.accepted,
+          legalDocuments: bookingLegal.documents,
           bookingPreferences: {
             howHeard,
             confirmationChannel,
@@ -889,13 +912,17 @@ export default function BookPage() {
         continueAfterSignIn();
         return;
       }
-      if (data.url) window.location.href = data.url;
+      if (data.url) window.location.assign(data.url);
       else {
         if (data.code === "phone_required") {
           setSavedPhone("");
           setPhoneTouched(true);
         }
         if (data.code === "early_start_required") setEarlyStartForced(true);
+        if (data.code === "legal_documents_changed") {
+          setBookingLegal({ accepted: false, documents: null });
+          setLegalRefresh((value) => value + 1);
+        }
         throw new Error(data.error || "Could not start checkout");
       }
     } catch (e) {
@@ -995,7 +1022,7 @@ export default function BookPage() {
         slot,
         frequency as RegularFrequency,
         cleaningMinutes,
-        Date.now(),
+        scheduleNow,
         regularVisits,
       );
     } catch (cause) {
@@ -1140,7 +1167,7 @@ export default function BookPage() {
                   <em>✓</em>{" "}
                   {perVisitBilling
                     ? "One-off payment at checkout; regular visits paid individually"
-                    : "One-time card holds; regular plans of 6 to 10 visits paid upfront"}
+                    : "Review the full price and payment details before checkout"}
                 </li>
                 <li>
                   <em>✓</em> No cancellation charge with at least 48 hours&apos;
@@ -1300,7 +1327,7 @@ export default function BookPage() {
               <p className="frequencyNote">
                 A regular booking means 6 to 10 visits booked together.{" "}
                 {perVisitBilling
-                  ? "Save your card at checkout. Each visit is charged when a cleaner accepts it."
+                  ? REGULAR_PAYMENT_COPY
                   : "Pay for the plan at checkout."}{" "}
                 If you prefer separate bookings, choose a one-time session.
               </p>
@@ -1714,7 +1741,7 @@ export default function BookPage() {
                         : "Charged in full now"
                       : perVisitBilling
                         ? "Charged at checkout"
-                        : "Held now, charged after completion"}
+                        : "Payment details confirmed at checkout"}
                   </small>
                 </div>
               </div>
@@ -1893,16 +1920,16 @@ export default function BookPage() {
                       : "Pay for your visit now"
                     : regular
                       ? `Pay for all ${regularVisits} visits now`
-                      : "Your card is held, not charged"}
+                      : "Review your visit payment"}
                 </strong>
                 <span>
                   {perVisitBilling
                     ? regular
-                      ? "No payment is taken at checkout. Each visit is charged when a cleaner accepts it. Unassigned and paused visits are never charged. Two unmatched visits in a row pause the remaining series."
-                      : "Your full visit amount is charged at checkout. If no cleaner accepts, it is refunded in full."
+                      ? REGULAR_PAYMENT_COPY
+                      : ONE_OFF_PAYMENT_COPY
                     : regular
                       ? `This payment covers the ${regularVisits} dates above. Refunds follow the cancellation policy.`
-                      : "You pay once the visit is complete. If no pro accepts, the hold is released."}
+                      : "Review the payment amount and timing at secure checkout before confirming."}
                 </span>
               </div>
 
@@ -2065,6 +2092,13 @@ export default function BookPage() {
                 </p>
               </div>
             )}
+            {step === 5 && signedIn !== false && (
+              <BookingLegalConsent
+                value={bookingLegal}
+                onChange={setBookingLegal}
+                refreshKey={legalRefresh}
+              />
+            )}
             {step === 5 && signedIn === true && needsEarlyStart && (
               <label className="early-start" htmlFor="early-start">
                 <input
@@ -2094,6 +2128,8 @@ export default function BookPage() {
                 disabled={
                   paying ||
                   !pricesReady ||
+                  (signedIn !== false &&
+                    (!bookingLegal.accepted || !bookingLegal.documents)) ||
                   (signedIn !== false && perVisitBilling && !saveCardConsent) ||
                   !slot ||
                   !addressValid ||
