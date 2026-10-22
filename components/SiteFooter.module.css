@@ -139,6 +139,16 @@
   line-height: 1.45;
 }
 
+.company a {
+  color: #bdb8c5;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.company a:hover {
+  color: #fff;
+}
+
 .legal {
   display: flex;
   flex-wrap: wrap;

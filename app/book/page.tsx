@@ -2053,7 +2053,9 @@ export default function BookPage() {
                   </span>
                   <strong>{money(total)}</strong>
                 </div>
-                <p className="fee">Service fee included</p>
+                <p className="fee">
+                  Service fee included · No VAT is charged
+                </p>
               </>
             )}
 
@@ -2150,7 +2152,7 @@ export default function BookPage() {
                       ? perVisitBilling
                         ? "Save card and book visits"
                         : `Pay ${money(total)} for ${regularVisits} visits`
-                      : "Confirm & pay"}
+                      : `Book and pay ${money(total)}`}
               </button>
             )}
 
