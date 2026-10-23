@@ -304,8 +304,9 @@ function notificationCronHarness({
   allowed = false,
   production = false,
   optional = true,
+  envOverrides = {},
 } = {}) {
-  const calls = { requests: [], rpc: [], contracts: 0 };
+  const calls = { requests: [], rpc: [], contracts: 0, sms: 0 };
   const env = {
     CRON_SECRET: "fixture-cron",
     RESEND_API_KEY: "re_fixture",
@@ -316,6 +317,7 @@ function notificationCronHarness({
       : "https://comwdjprdedmsnxtvuuk.supabase.co",
     VERCEL_ENV: production ? "production" : "preview",
     STAGING_EMAIL_RECIPIENTS: allowed ? "tester@example.invalid" : "",
+    ...envOverrides,
   };
   const admin = {
     rpc: async (name, args) => {
@@ -348,11 +350,10 @@ function notificationCronHarness({
       },
       "@supabase/supabase-js": { createClient: () => admin },
       "@/lib/processBookingSms": {
-        processBookingSms: async () => ({
-          enabled: false,
-          submitted: 0,
-          failed: 0,
-        }),
+        processBookingSms: async () => {
+          calls.sms++;
+          return { enabled: false, submitted: 0, failed: 0 };
+        },
       },
       "@/lib/bookingLegalMail": {
         deliverBookingLegalEmails: async () => {
@@ -413,6 +414,29 @@ test("booking cron requires its secret and keeps essential contracts independent
   assert.ok(
     optedOut.calls.rpc.some((call) => call.name === "skip_booking_email"),
   );
+});
+
+test("policy-only smoke delivery is authenticated, staging-only and never touches reminder or SMS queues", async () => {
+  const url = "https://staging.example.invalid/api/cron/booking-notifications?legal_only=1";
+  for (const [options, status] of [
+    [{ allowed: true }, 200],
+    [{ production: true }, 404],
+    [{ envOverrides: { VERCEL_ENV: "development" } }, 404],
+    [{ envOverrides: { NEXT_PUBLIC_SUPABASE_URL: "https://other.example.invalid" } }, 404],
+  ]) {
+    const h = notificationCronHarness(options);
+    const response = await h.route.GET(new Request(url, {
+      headers: { authorization: "Bearer fixture-cron" },
+    }));
+    assert.equal(response.status, status);
+    assert.equal(h.calls.contracts, status === 200 ? 1 : 0);
+    assert.equal(h.calls.rpc.length, 0);
+    assert.equal(h.calls.sms, 0);
+    assert.equal(h.calls.requests.length, 0);
+  }
+  const unauthorized = notificationCronHarness({ allowed: true });
+  assert.equal((await unauthorized.route.GET(new Request(url))).status, 401);
+  assert.equal(unauthorized.calls.contracts, 0);
 });
 
 test("download route requires sign-in and delegates ownership/MFA to the database", async () => {
