@@ -11,6 +11,8 @@ with expected(version, source_md5) as (values
   select e.version,
     case when m.version is null then 'not applied'
       when md5(array_to_string(m.statements, E'\n')) = e.source_md5 then 'exact source match'
+      when md5(replace(array_to_string(m.statements, E'\n'), E'\r\n', E'\n')) = e.source_md5
+        then 'CRLF line endings only; SQL source matches'
       else 'inspect source mismatch before any write' end as source_status,
     md5(array_to_string(m.statements, E'\n')) as recorded_source_md5,
     cardinality(m.statements) as statement_count

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { processBookingSms } from "@/lib/processBookingSms";
 import { notificationLink } from "@/lib/adminHosts";
 import { deliverBookingLegalEmails } from "@/lib/bookingLegalMail";
+import { securityMailRecipientAllowed } from "@/lib/accountSecurityAlerts";
 
 export const maxDuration = 60;
 type Delivery = {
@@ -94,6 +95,8 @@ export async function GET(req: NextRequest) {
               "Configure RESEND_API_KEY, a verified no-reply BOOKING_EMAIL_FROM, and HTTPS NEXT_PUBLIC_SITE_URL.",
             );
           if (!delivery.email) throw new Error("Customer email is missing.");
+          if (!securityMailRecipientAllowed(delivery.email, process.env))
+            throw new Error("Staging recipient is not allowlisted.");
           const response = await fetch("https://api.resend.com/emails", {
             method: "POST",
             signal: AbortSignal.timeout(8000),

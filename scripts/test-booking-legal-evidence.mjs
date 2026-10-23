@@ -7,7 +7,7 @@ import ts from "typescript";
 import { PDFDocument } from "pdf-lib";
 
 const native = createRequire(import.meta.url);
-function loader(mocks = {}) {
+function loader(mocks = {}, env = {}, transport = fetch) {
   const cache = new Map();
   function load(file) {
     if (cache.has(file)) return cache.get(file);
@@ -22,7 +22,7 @@ function loader(mocks = {}) {
     }).outputText;
     // Use the same realm as pdf-lib (its runtime checks use instanceof Array).
     const run = vm.runInThisContext(
-      `(function(module,exports,require,process){${code}\n})`,
+      `(function(module,exports,require,process,fetch){${code}\n})`,
     );
     run(
       loaded,
@@ -34,7 +34,8 @@ function loader(mocks = {}) {
         if (id.startsWith("./")) return load(`lib/${id.slice(2)}.ts`);
         return native(id);
       },
-      { env: {} },
+      { env },
+      transport,
     );
     return loaded.exports;
   }
@@ -297,6 +298,121 @@ test("uncertain retries reuse the saved email bytes and the same idempotency key
     false,
   );
   assert.equal(h.calls.rpc.at(-1).args.p_ok, false);
+});
+
+function notificationCronHarness({
+  allowed = false,
+  production = false,
+  optional = true,
+} = {}) {
+  const calls = { requests: [], rpc: [], contracts: 0 };
+  const env = {
+    CRON_SECRET: "fixture-cron",
+    RESEND_API_KEY: "re_fixture",
+    BOOKING_EMAIL_FROM: "Opulence Bliss <no-reply@example.invalid>",
+    NEXT_PUBLIC_SITE_URL: "https://staging.example.invalid",
+    NEXT_PUBLIC_SUPABASE_URL: production
+      ? "https://production.example.invalid"
+      : "https://comwdjprdedmsnxtvuuk.supabase.co",
+    VERCEL_ENV: production ? "production" : "preview",
+    STAGING_EMAIL_RECIPIENTS: allowed ? "tester@example.invalid" : "",
+  };
+  const admin = {
+    rpc: async (name, args) => {
+      calls.rpc.push({ name, args });
+      if (name === "claim_booking_emails")
+        return {
+          data: [
+            {
+              id: "notice",
+              claim_token: "lease",
+              email: "tester@example.invalid",
+              title: "Fixture booking",
+              body: "Test only",
+              href: "/account",
+            },
+          ],
+        };
+      if (name === "preferred_confirmation_sms_sent") return { data: false };
+      if (name === "booking_email_preference_allowed")
+        return { data: optional };
+      if (["finish_booking_email", "skip_booking_email"].includes(name))
+        return { data: true };
+      throw Error(`Unexpected RPC ${name}`);
+    },
+  };
+  const route = loader(
+    {
+      "next/server": {
+        NextResponse: { json: (body, init) => Response.json(body, init) },
+      },
+      "@supabase/supabase-js": { createClient: () => admin },
+      "@/lib/processBookingSms": {
+        processBookingSms: async () => ({
+          enabled: false,
+          submitted: 0,
+          failed: 0,
+        }),
+      },
+      "@/lib/bookingLegalMail": {
+        deliverBookingLegalEmails: async () => {
+          calls.contracts++;
+          return { configured: true, sent: 1, failed: 0 };
+        },
+      },
+    },
+    env,
+    async (url, init) => {
+      calls.requests.push({ url, init });
+      return new Response("{}");
+    },
+  )("app/api/cron/booking-notifications/route.ts");
+  return { route, calls };
+}
+
+test("booking cron cannot send old staging emails outside the test allowlist", async () => {
+  for (const [options, expectedRequests] of [
+    [{}, 0],
+    [{ allowed: true }, 1],
+    [{ production: true }, 1],
+  ]) {
+    const h = notificationCronHarness(options);
+    const response = await h.route.GET(
+      new Request(
+        "https://staging.example.invalid/api/cron/booking-notifications",
+        { headers: { authorization: "Bearer fixture-cron" } },
+      ),
+    );
+    assert.equal(h.calls.requests.length, expectedRequests);
+    assert.equal(response.status, expectedRequests ? 200 : 503);
+    assert.equal(h.calls.contracts, 1);
+  }
+});
+
+test("booking cron requires its secret and keeps essential contracts independent of optional notices", async () => {
+  const unauthorized = notificationCronHarness();
+  assert.equal(
+    (
+      await unauthorized.route.GET(
+        new Request("https://staging.example.invalid"),
+      )
+    ).status,
+    401,
+  );
+  assert.equal(unauthorized.calls.rpc.length, 0);
+  assert.equal(unauthorized.calls.contracts, 0);
+  const optedOut = notificationCronHarness({ allowed: true, optional: false });
+  const response = await optedOut.route.GET(
+    new Request("https://staging.example.invalid", {
+      headers: { authorization: "Bearer fixture-cron" },
+    }),
+  );
+  assert.equal(response.status, 200);
+  assert.equal(optedOut.calls.requests.length, 0);
+  assert.equal(optedOut.calls.contracts, 1);
+  assert.ok(
+    optedOut.calls.rpc.some((call) => call.name === "skip_booking_email"),
+  );
 });
 
 test("download route requires sign-in and delegates ownership/MFA to the database", async () => {

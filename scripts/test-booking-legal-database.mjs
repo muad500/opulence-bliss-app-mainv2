@@ -475,6 +475,20 @@ try {
   // The hosted preflight must report configuration, not invoke a scheduler or
   // disclose Vault values. These schemas contain only offline test metadata.
   await jwt();
+  const counts = async () =>
+    (
+      await db.query(
+        "select (select count(*) from booking_checkout_legal_consents) consents, (select count(*) from bookings) bookings, (select count(*) from booking_legal_email_deliveries) emails",
+      )
+    ).rows[0];
+  const beforeSmoke = await counts();
+  await db.exec(
+    readFileSync("supabase/staging/booking-legal-smoke.sql", "utf8"),
+  );
+  assert.deepEqual(await counts(), beforeSmoke);
+  check(
+    "hosted smoke query rolls back every synthetic acceptance and creates no booking or email",
+  );
   await db.exec(`
     create schema supabase_migrations;
     create table supabase_migrations.schema_migrations(version text primary key,statements text[]);
@@ -519,6 +533,22 @@ try {
   assert.equal(report.scheduler_handles_preview_protection, false);
   assert.equal(report.booking_email_jobs[0].active, true);
   assert.ok(!JSON.stringify(report).includes("never-report"));
+  await db.query(
+    "update supabase_migrations.schema_migrations set statements=array[$1] where version='20261023000100'",
+    [
+      readFileSync(
+        "supabase/migrations/20261023000100_customer_push_opt_in.sql",
+        "utf8",
+      ).replace(/\n/g, "\r\n"),
+    ],
+  );
+  const lineEndings = (await db.query(preflight)).rows[0].staging_preflight;
+  assert.equal(
+    lineEndings.migration_ledger.find(
+      (entry) => entry.version === "20261023000100",
+    ).source_status,
+    "CRLF line endings only; SQL source matches",
+  );
   await db.query(
     "update supabase_migrations.schema_migrations set statements=array['different source'] where version=$1",
     ["20261023000200"],

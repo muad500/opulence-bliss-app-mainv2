@@ -2,7 +2,7 @@
 
 Source: the client's updated policy/checklist pack dated 1 October 2026. This is a **code audit of `codex/staging` at `b28ba005`**, not a claim that production configuration, database migrations, external contracts, or live payment flows have been verified. “Partial” means a related feature exists but the new requirement is not fully evidenced.
 
-23 October scope: prepare the essential customer-website changes first. The branch now includes immutable checkout wording/document snapshots, customer/staff policy downloads and a separate contract-email queue. See [the release handoff](website-launch-essentials.md) for migration order and verification. These changes are not yet deployed or applied to a hosted database.
+23 October scope: prepare the essential customer-website changes first. The branch now includes immutable checkout wording/document snapshots, customer/staff policy downloads and a separate contract-email queue. See [the release handoff](website-launch-essentials.md) for migration order and verification. A branch Preview is built and migration `20261023000200` is installed on staging only. The hosted rollback-only safeguard checks passed; browser checkout and real email delivery checks remain pending. Production is untouched.
 
 The attached pack did **not** include the full Cleaner Terms and Conditions PDF, although other documents refer to it and the checklist requires it for cleaner registration. This does **not** block the independent customer-facing website work below; it does block treating the new cleaner sign-up terms as complete.
 
@@ -30,4 +30,4 @@ The attached pack did **not** include the full Cleaner Terms and Conditions PDF,
 3. Run staging payment/refund/legal-acceptance tests on phone, keyboard and screen reader. Verify migration ledger and actual staged legal rows; check the same production ledger/rows immediately before a controlled release by the production owner.
 4. Keep business contracts, partner rewards and the handyman marketplace inactive or clearly described as enquiry-only until their own terms and financial rules are implemented and tested.
 
-This branch includes migration `20261023000200_booking_legal_evidence.sql` but has not applied it to a hosted database. It does **not** publish the new client PDFs, change payment or cancellation mechanics, or deploy production.
+This branch includes migration `20261023000200_booking_legal_evidence.sql`, now applied to the isolated staging database with source/ledger verification. It does **not** publish the new client PDFs, change payment or cancellation mechanics, or deploy production.
