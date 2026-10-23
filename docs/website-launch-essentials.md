@@ -22,7 +22,7 @@ The email attaches the versions served by the current legal pages. This PR does 
 4. Use the existing verified no-reply sender, `RESEND_API_KEY`, HTTPS `NEXT_PUBLIC_SITE_URL` and booking-notifications scheduler. No new key or schedule is required. Staging contract mail additionally requires the exact test mailbox in `STAGING_EMAIL_RECIPIENTS`.
 5. Complete the hosted checks below before merging/releasing. The production operator must repeat ledger/source checks and apply the additive migration before the web release in their own coordinated release window.
 
-No hosted migration, Preview deployment, production access, real payment or external email send was performed from this checkout. Saved staging credentials and a connected staging dashboard were unavailable. The code is prepared for the deployment owner to run those checks.
+The branch push triggered a successful automatic Vercel Preview build. No hosted migration, direct deployment, production access, real payment or external email send was performed from this checkout. Saved staging credentials and a connected staging dashboard were unavailable. The code is prepared for the deployment owner to run those checks.
 
 ## Verification
 
@@ -33,6 +33,8 @@ Completed locally:
 - Offline PostgreSQL integration: apply both original consent migrations and the new migration; reject browser calls and altered documents; preserve built-in fallback without publishing a legal row; one-off and six-visit series linkage; immutable snapshots; other-customer and password-only staff rejection; TOTP staff access; claim/retry/token handling; old-checkout compatibility.
 - Email transport tests with a stub provider: four valid PDF attachments, exact persisted payload reuse, stable idempotency key, configuration/allowlist failure, optional-email preference independence, customer and staff download gates.
 - Generated current-policy copies and cancellation form rendered and inspected on first/middle/last pages. PDF creation is deterministic for retries and long-document tests cover pagination.
+
+PR #47 also passed the GitHub security and isolated-database checks; its automatic Vercel Preview build passed. Those checks do not replace testing against the hosted staging database and email service.
 
 To rerun the PostgreSQL test, install `@electric-sql/pglite@0.5.11` into a temporary directory (not the app) and pass its absolute `dist/index.js` path:
 
