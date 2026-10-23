@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   validCheckoutLegalDocuments,
+  checkoutLegalConsentParts,
   type CheckoutLegalDocument,
 } from "@/lib/checkoutLegal";
 import styles from "./BookingLegalConsent.module.css";
@@ -68,13 +69,6 @@ export default function BookingLegalConsent({
       window.removeEventListener("focus", focus);
     };
   }, [load, refreshKey]);
-  const version = (slug: string) =>
-    value.documents?.find((d) => d.slug === slug)?.version;
-  const link = (slug: string, title: string) => (
-    <a href={`/legal/${slug}`} target="_blank" rel="noopener noreferrer">
-      {title}
-    </a>
-  );
   return (
     <section className={styles.box} aria-label="Booking policies">
       {value.documents ? (
@@ -87,11 +81,20 @@ export default function BookingLegalConsent({
             onChange={(e) => onChange({ ...value, accepted: e.target.checked })}
           />
           <span>
-            I accept the {link("terms", "Terms & Conditions")} (Version{" "}
-            {version("terms")}) and the{" "}
-            {link("cancellation-refund", "Cancellation & Refund Policy")}{" "}
-            (Version {version("cancellation-refund")}), and I have read the{" "}
-            {link("privacy", "Privacy Policy")} (Version {version("privacy")}).
+            {checkoutLegalConsentParts(value.documents).map((part, index) =>
+              part.slug ? (
+                <a
+                  key={index}
+                  href={`/legal/${part.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {part.text}
+                </a>
+              ) : (
+                part.text
+              ),
+            )}
           </span>
         </label>
       ) : (

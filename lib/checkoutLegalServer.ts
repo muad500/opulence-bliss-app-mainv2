@@ -1,7 +1,14 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { defaultLegalDocument } from "./legalDocuments";
+import {
+  defaultLegalDocument,
+  publicLegalPresentation,
+} from "./legalDocuments";
+import {
+  legalContentHash,
+  type BookingLegalSnapshot,
+} from "./bookingLegalEvidence";
 import {
   CHECKOUT_LEGAL_SLUGS,
   type CheckoutLegalDocument,
@@ -13,7 +20,7 @@ import {
 export async function currentCheckoutLegal(client: SupabaseClient) {
   const { data, error } = await client
     .from("legal_documents")
-    .select("slug,version,updated_at,content_html")
+    .select("slug,title,version,updated_at,content_html")
     .in("slug", [...CHECKOUT_LEGAL_SLUGS])
     .eq("published", true);
   if (error) throw new Error("Booking policies unavailable");
@@ -46,5 +53,23 @@ export async function currentCheckoutLegal(client: SupabaseClient) {
           };
     },
   );
-  return { documents, fallbacks };
+  const snapshots: BookingLegalSnapshot[] = CHECKOUT_LEGAL_SLUGS.map((slug) => {
+    const row = data?.find((d) => d.slug === slug);
+    const fallback = defaultLegalDocument(slug);
+    const metadata = documents.find((d) => d.slug === slug)!;
+    const source = row?.content_html || fallback.contentHtml;
+    // Fallback pages have always displayed their built-in wording directly.
+    const presentation = row?.content_html
+      ? publicLegalPresentation(row.title || fallback.title, source)
+      : { title: fallback.title, contentHtml: source };
+    return {
+      ...metadata,
+      isFallback: Boolean(metadata.isFallback),
+      ...presentation,
+      sourceContentHtml: source,
+      contentHash: legalContentHash(source),
+      displayContentHash: legalContentHash(presentation.contentHtml),
+    };
+  });
+  return { documents, fallbacks, snapshots };
 }

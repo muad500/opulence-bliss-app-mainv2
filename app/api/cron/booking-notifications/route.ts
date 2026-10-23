@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { processBookingSms } from "@/lib/processBookingSms";
 import { notificationLink } from "@/lib/adminHosts";
+import { deliverBookingLegalEmails } from "@/lib/bookingLegalMail";
 
 export const maxDuration = 60;
 type Delivery = {
@@ -22,6 +23,12 @@ export async function GET(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+  // Keep both queues inside the existing 60-second scheduler request budget.
+  const legalEmailsPending = deliverBookingLegalEmails(admin).catch(() => ({
+    configured: false,
+    sent: 0,
+    failed: 1,
+  }));
   const key = process.env.RESEND_API_KEY;
   const from = process.env.BOOKING_EMAIL_FROM ?? process.env.EMAIL_FROM;
   const origin = process.env.NEXT_PUBLIC_SITE_URL;
@@ -40,11 +47,13 @@ export async function GET(req: NextRequest) {
   const { data, error } = await admin.rpc("claim_booking_emails", {
     p_email_ready: ready,
   });
-  if (error)
+  if (error) {
+    const legalEmails = await legalEmailsPending;
     return NextResponse.json(
-      { error: "Could not process notifications." },
+      { error: "Could not process notifications.", legalEmails },
       { status: 500 },
     );
+  }
   let sent = 0;
   let failed = 0;
   const deliveries = (data ?? []) as Delivery[];
@@ -118,8 +127,11 @@ export async function GET(req: NextRequest) {
       }),
     );
   }
+  const legalEmails = await legalEmailsPending;
   return NextResponse.json(
-    { sent, failed, emailConfigured: ready, sms },
-    { status: failed || sms.failed || !ready ? 503 : 200 },
+    { sent, failed, emailConfigured: ready, sms, legalEmails },
+    {
+      status: failed || sms.failed || legalEmails.failed || !ready ? 503 : 200,
+    },
   );
 }
