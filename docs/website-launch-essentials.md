@@ -22,6 +22,10 @@ The email attaches the versions served by the current legal pages. This PR does 
 4. Use the existing verified no-reply sender, `RESEND_API_KEY`, HTTPS `NEXT_PUBLIC_SITE_URL` and booking-notifications scheduler. No new key or schedule is required. Staging contract mail additionally requires the exact test mailbox in `STAGING_EMAIL_RECIPIENTS`.
 5. Complete the hosted checks below before merging/releasing. The production operator must repeat ledger/source checks and apply the additive migration before the web release in their own coordinated release window.
 
+For the first staging inspection, run `supabase/staging/booking-legal-preflight.sql` in the named staging dashboard. It is read-only and reports ledger source hashes, installed functions, published versions, scheduler and Vault presence without revealing secret values. Any ledger mismatch requires inspection, not a repair or an automatic skip. This Preview and the stable staging URL currently redirect unauthenticated requests to Vercel protection; keep that protection enabled and use the existing staging session/bypass for tests.
+
+The 19 October staging configuration report records `Opulence Bliss Staging <staging@opulencebliss.com>`, whereas both the existing booking-email route and this contract queue deliberately require a no-reply sender. Verify the deployed setting and, if still necessary, set only the Preview sender to a verified `no-reply@opulencebliss.com` address before the delivery check. No sender or key was changed here. Also check the actual booking-email scheduler includes the existing Preview bypass; an HTTP redirect is not a successful delivery. The new branch Preview does not replace the stable staging cron target, so test its protected route explicitly before changing or merging the stable release.
+
 The branch push triggered a successful automatic Vercel Preview build. No hosted migration, direct deployment, production access, real payment or external email send was performed from this checkout. Saved staging credentials and a connected staging dashboard were unavailable. The code is prepared for the deployment owner to run those checks.
 
 ## Verification

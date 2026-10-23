@@ -471,6 +471,66 @@ try {
   check(
     "legacy checkout sessions keep their existing acceptances without invented documents or new emails",
   );
+
+  // The hosted preflight must report configuration, not invoke a scheduler or
+  // disclose Vault values. These schemas contain only offline test metadata.
+  await jwt();
+  await db.exec(`
+    create schema supabase_migrations;
+    create table supabase_migrations.schema_migrations(version text primary key,statements text[]);
+    create schema cron;
+    create table cron.job(jobname text,schedule text,active boolean);
+    insert into cron.job values('opulence-booking-notifications','* * * * *',true);
+    create schema vault;
+    create table vault.secrets(name text);
+    insert into vault.secrets values('opulence_cron_secret'),('opulence_app_origin'),('opulence_staging_vercel_bypass');
+    create table vault.decrypted_secrets(name text,decrypted_secret text);
+    insert into vault.decrypted_secrets values
+      ('opulence_cron_secret','fixture-secret-never-report'),
+      ('opulence_staging_vercel_bypass','fixture-bypass-never-report'),
+      ('opulence_app_origin','https://opulence-bliss-app-mainv2-git-codex-staging-muad500s-projects.vercel.app');
+  `);
+  for (const file of [
+    "20261021000200_checkout_legal_acceptance",
+    "20261021000300_activate_checkout_legal_acceptance",
+    "20261023000100_customer_push_opt_in",
+    "20261023000200_booking_legal_evidence",
+  ])
+    await db.query(
+      "insert into supabase_migrations.schema_migrations values($1,$2)",
+      [
+        file.slice(0, 14),
+        [readFileSync(`supabase/migrations/${file}.sql`, "utf8")],
+      ],
+    );
+  const preflight = readFileSync(
+    "supabase/staging/booking-legal-preflight.sql",
+    "utf8",
+  );
+  const report = (await db.query(preflight)).rows[0].staging_preflight;
+  assert.ok(
+    report.migration_ledger.every(
+      (entry) => entry.source_status === "exact source match",
+    ),
+  );
+  assert.equal(report.evidence_writer_installed, true);
+  assert.equal(report.contract_reader_installed, true);
+  assert.equal(report.scheduler_origin_is_staging, true);
+  assert.equal(report.scheduler_handles_preview_protection, false);
+  assert.equal(report.booking_email_jobs[0].active, true);
+  assert.ok(!JSON.stringify(report).includes("never-report"));
+  await db.query(
+    "update supabase_migrations.schema_migrations set statements=array['different source'] where version=$1",
+    ["20261023000200"],
+  );
+  const mismatch = (await db.query(preflight)).rows[0].staging_preflight;
+  assert.equal(
+    mismatch.migration_ledger.at(-1).source_status,
+    "inspect source mismatch before any write",
+  );
+  check(
+    "read-only staging preflight checks source/configuration without exposing secrets or invoking jobs",
+  );
 } finally {
   await db.close();
 }
