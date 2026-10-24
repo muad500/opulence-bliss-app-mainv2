@@ -39,6 +39,18 @@ Deploy the matching Preview application and **staging** visit-payment worker tog
 
 Read-only staging preflight on 24 October: newest recorded migration `20261023000200`; both stored check-in coordinate-column counts were zero. No production checks or mutations were performed.
 
+### Staging progress — 24 October 2026
+
+- All six migrations are installed on `comwdjprdedmsnxtvuuk`, with exact source hashes matched in `supabase_migrations.schema_migrations`.
+- The first batch stopped safely on a CRLF/LF difference in an existing function and rolled back entirely (zero migrations committed). The unapplied migration was corrected to normalise line endings only, a regression assertion was added, and the corrected atomic batch succeeded. Applied migration sources are now immutable.
+- Postflight: zero precise coordinates in check-ins, check-in challenges or booking-event metadata; safeguarding Version 1.0 published; onboarding access list empty as intended.
+- Matching staging `visit-payments` worker deployed with source SHA `306fa34f90d025b30ed7ec43585d93eb096963759ff2f8fb6905d2fa52e06941`. The existing five-minute scheduler returned HTTP 200 with that exact source at `2026-10-24T18:55:00Z`.
+- The branch Preview and safeguarding page load. Admin settings correctly require staff password plus authenticator sign-in. Live named-staff, registration acceptance and Stripe Sandbox scenarios remain pending; do not mark them passed from isolated tests.
+- Automated checks: 428 application tests and 36 isolated PostgreSQL assertions pass; typecheck, Next.js 16.4.2 build and all GitHub checks pass.
+- Stable branch Preview: <https://opulence-bliss-app-mainv2-git-codex-la-bd07f8-muad500s-projects.vercel.app>.
+
 ## Release gates
 
 Live staging results must pass; publish/approve consistent customer-policy wording from `launch-policy-wording-checklist.md`; explicitly name onboarding staff in Settings; obtain the user's production “go”; coordinate the release slot with the other bot. Keep the handyman marketplace off in production. The other bot's PR #47 is separate and must not be released concurrently.
+
+The user specifically requires confirmation of the Production DBS onboarding list immediately before release. It must include the requester's admin account and the client's verifying admin account once that account exists. An empty list is acceptable for the present restricted staging test, **not** for Production launch. Do not infer or silently grant other staff access.
