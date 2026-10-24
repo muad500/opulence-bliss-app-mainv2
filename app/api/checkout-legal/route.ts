@@ -6,7 +6,7 @@ export async function GET() {
   const headers = { "Cache-Control": "no-store" };
   try {
     const client = await createClient();
-    const ready = await client.rpc("checkout_legal_consent_ready");
+    const ready = await client.rpc("checkout_legal_evidence_ready");
     const { documents } = await currentCheckoutLegal(client);
     if (
       ready.error ||

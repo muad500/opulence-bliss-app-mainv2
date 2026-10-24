@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { processBookingSms } from "@/lib/processBookingSms";
 import { notificationLink } from "@/lib/adminHosts";
+import { deliverBookingLegalEmails } from "@/lib/bookingLegalMail";
+import { securityMailRecipientAllowed } from "@/lib/accountSecurityAlerts";
 
 export const maxDuration = 60;
 type Delivery = {
@@ -18,10 +20,33 @@ export async function GET(req: NextRequest) {
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const legalOnly = new URL(req.url).searchParams.get("legal_only") === "1";
+  // A protected staging smoke test must not wake copied reminder/SMS queues.
+  // Never offer this diagnostic mode against Production or another database.
+  if (
+    legalOnly &&
+    (process.env.VERCEL_ENV !== "preview" ||
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "") !==
+        "https://comwdjprdedmsnxtvuuk.supabase.co")
+  )
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
   );
+  // Keep both queues inside the existing 60-second scheduler request budget.
+  const legalEmailsPending = deliverBookingLegalEmails(admin).catch(() => ({
+    configured: false,
+    sent: 0,
+    failed: 1,
+  }));
+  if (legalOnly) {
+    const legalEmails = await legalEmailsPending;
+    return NextResponse.json(
+      { legalEmails },
+      { status: legalEmails.configured && !legalEmails.failed ? 200 : 503 },
+    );
+  }
   const key = process.env.RESEND_API_KEY;
   const from = process.env.BOOKING_EMAIL_FROM ?? process.env.EMAIL_FROM;
   const origin = process.env.NEXT_PUBLIC_SITE_URL;
@@ -40,11 +65,13 @@ export async function GET(req: NextRequest) {
   const { data, error } = await admin.rpc("claim_booking_emails", {
     p_email_ready: ready,
   });
-  if (error)
+  if (error) {
+    const legalEmails = await legalEmailsPending;
     return NextResponse.json(
-      { error: "Could not process notifications." },
+      { error: "Could not process notifications.", legalEmails },
       { status: 500 },
     );
+  }
   let sent = 0;
   let failed = 0;
   const deliveries = (data ?? []) as Delivery[];
@@ -85,6 +112,8 @@ export async function GET(req: NextRequest) {
               "Configure RESEND_API_KEY, a verified no-reply BOOKING_EMAIL_FROM, and HTTPS NEXT_PUBLIC_SITE_URL.",
             );
           if (!delivery.email) throw new Error("Customer email is missing.");
+          if (!securityMailRecipientAllowed(delivery.email, process.env))
+            throw new Error("Staging recipient is not allowlisted.");
           const response = await fetch("https://api.resend.com/emails", {
             method: "POST",
             signal: AbortSignal.timeout(8000),
@@ -118,8 +147,11 @@ export async function GET(req: NextRequest) {
       }),
     );
   }
+  const legalEmails = await legalEmailsPending;
   return NextResponse.json(
-    { sent, failed, emailConfigured: ready, sms },
-    { status: failed || sms.failed || !ready ? 503 : 200 },
+    { sent, failed, emailConfigured: ready, sms, legalEmails },
+    {
+      status: failed || sms.failed || legalEmails.failed || !ready ? 503 : 200,
+    },
   );
 }
