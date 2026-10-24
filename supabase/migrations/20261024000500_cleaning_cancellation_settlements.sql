@@ -210,7 +210,9 @@ do $migration$
 declare v_oid regprocedure:='public.prepare_visit_money_operation(uuid,uuid,text,integer,jsonb)'::regprocedure;
   v_definition text; v_old text; v_new text;
 begin
-  select pg_get_functiondef(v_oid) into v_definition;
+  -- Dashboard-applied staging functions retain CRLF line endings. Normalise
+  -- whitespace only; the exact audited call below must still match or stop.
+  select replace(pg_get_functiondef(v_oid),E'\r\n',E'\n') into v_definition;
   v_old:='if v_booking.status::text not in (''offered'', ''declined'', ''scheduled'') and p_type not in (''late_refund'', ''policy_refund'') then';
   v_new:='if v_booking.status::text not in (''offered'', ''declined'', ''scheduled'') and p_type not in (''late_refund'', ''policy_refund'')
     and not (p_type=''cancel'' and v_booking.status::text=''needs_review'' and coalesce((p_parameters->>''noAccess'')::boolean,false) and p_parameters ? ''staffActor'') then';
