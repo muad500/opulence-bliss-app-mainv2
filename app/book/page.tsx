@@ -42,6 +42,7 @@ import { CANCELLATION_REFUND_URL } from "@/lib/legal";
 import BookingLegalConsent, {
   type BookingLegalState,
 } from "@/components/BookingLegalConsent";
+import { SAVED_CARD_CONSENT_TEXT } from "@/lib/checkoutLegal";
 import { visitDiscounts } from "@/lib/visitLineItems";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
 import { cleaningPackageScope } from "@/lib/cleaningScope";
@@ -1942,10 +1943,7 @@ export default function BookPage() {
                       setSaveCardConsent(event.target.checked)
                     }
                   />{" "}
-                  I authorise Opulence Bliss to save my card with Stripe, charge
-                  each regular visit when a cleaner accepts it, and charge any
-                  add-on changes I confirm. Add-ons can be changed until 24
-                  hours before the visit.
+                  {SAVED_CARD_CONSENT_TEXT}
                 </label>
               )}
               {payError && <p className="flash no">{payError}</p>}
@@ -2053,7 +2051,7 @@ export default function BookPage() {
                   </span>
                   <strong>{money(total)}</strong>
                 </div>
-                <p className="fee">Service fee included</p>
+                <p className="fee">Service fee included · No VAT is charged</p>
               </>
             )}
 
@@ -2150,7 +2148,7 @@ export default function BookPage() {
                       ? perVisitBilling
                         ? "Save card and book visits"
                         : `Pay ${money(total)} for ${regularVisits} visits`
-                      : "Confirm & pay"}
+                      : `Book and pay ${money(total)}`}
               </button>
             )}
 

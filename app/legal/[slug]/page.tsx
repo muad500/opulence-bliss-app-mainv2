@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   defaultLegalDocument,
   isLegalDocumentSlug,
-  sanitizeLegalHtml,
+  publicLegalPresentation,
   type LegalDocument,
 } from "@/lib/legalDocuments";
 import styles from "./page.module.css";
@@ -37,15 +37,8 @@ const loadDocument = cache(async (slug: string) => {
     if (!row?.content_html) return fallback;
     return {
       slug,
-      title: row.title.replace(/Handyman/gi, "Property maintenance"),
+      ...publicLegalPresentation(row.title, row.content_html),
       audience: row.audience,
-      contentHtml: sanitizeLegalHtml(row.content_html).replace(
-        />[^<]+</g,
-        (text) =>
-          text
-            .replace(/Handyman/gi, "Property maintenance")
-            .replace(/Minor decorating/gi, "Painting &amp; decoration"),
-      ),
       version: row.version,
       updatedAt: row.updated_at,
     } satisfies LegalDocument;
