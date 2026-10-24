@@ -1,4 +1,4 @@
-# Customer website launch essentials — 23 October 2026
+# Customer website launch essentials — 23–24 October 2026
 
 New cleaning checkouts record the exact policy wording and document copies accepted, and email those copies to the account email address. One regular checkout creates one contract email listing its visits. The existing operational confirmation/reminder emails retain their own preferences and delivery path.
 
@@ -41,6 +41,10 @@ The owner then ticked the policies and completed the **£45.98 Stripe Sandbox** 
 The owner approved the signed-in test account's email for this policy-mail test. After the owner completed Vercel's authenticator check, that mailbox was added alongside the original approved mailbox **only to this branch's Preview allowlist**. No account email has been changed or redirected.
 
 The owner also completed the **Stripe Sandbox card setup, £0 charged today**, for six fictional fortnightly visits starting 9 November. The saved acceptance `8c190b84-0df5-4494-ab8a-4685c41d2b45` links all six visits to the same three document snapshots (18 acceptance rows) and queues exactly one contract email. It records the policy and saved-card boxes; no early-start box is recorded because the visits start outside that period. The account's downloaded JSON export includes all seven QA bookings, 21 booking-linked policy records, both full acceptance snapshots, exact checked wording, request evidence and original/displayed document HTML with matching hashes. No exported personal data is committed to Git. Both contract emails remain pending with no successful delivery yet.
+
+### 24 October configuration follow-up
+
+The owner saved a new Secret `CRON_SECRET` with **Preview → `codex/website-launch-essentials` only**. The dashboard confirms that branch-specific entry separately from the unchanged 3 October `codex/staging` entry and the unchanged 5 September Production/shared entry. The secret value is not included in source or reports. A fresh automatic branch Preview build and the authenticated policy-only delivery check are next; the presence of a saved variable alone does not establish that the credential matches or that email delivery works.
 
 ## Verification
 
