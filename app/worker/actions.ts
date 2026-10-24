@@ -370,8 +370,10 @@ export async function checkInJob(
     {
       p_booking_id: id,
       p_provider_profile_id: user.id,
-      p_gps_lat: lat,
-      p_gps_lng: lng,
+      // Coordinates are used only for the in-memory geofence calculation.
+      // Keep the RPC arguments for rolling-deploy compatibility, never the data.
+      p_gps_lat: null,
+      p_gps_lng: null,
       p_distance_metres: distance,
     },
   );

@@ -2148,11 +2148,12 @@ export default function BookPage() {
                     ? "Sign in to continue"
                     : regular
                       ? perVisitBilling
-                        ? "Save card and book visits"
-                        : `Pay ${money(total)} for ${regularVisits} visits`
-                      : "Confirm & pay"}
+                        ? "Book and pay £0 today (save card)"
+                        : `Book and pay ${money(total)} for ${regularVisits} visits`
+                      : `Book and pay ${money(total)}`}
               </button>
             )}
+            {step === 5 && <p className="alt">No VAT is charged.</p>}
 
             <p className="alt">
               Need another visit? You can book again whenever it suits you.

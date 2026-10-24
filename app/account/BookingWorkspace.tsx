@@ -286,12 +286,13 @@ export default function BookingWorkspace({
     stage >= 2 ? "Arrived" : "Arriving",
     "Done",
   ];
-  const cancellationPolicy = calculateCancellationPolicy(
-    booking.scheduledAt,
+  const cancellationPolicy =
     visitBilling?.model === "per_visit"
-      ? visitBilling.paidPence / 100
-      : (booking.paymentAmount ?? 0),
-  );
+      ? visitBilling.cancellationPolicy
+      : calculateCancellationPolicy(
+          booking.scheduledAt,
+          booking.paymentAmount ?? 0,
+        );
 
   function closeDialogs() {
     setChatOpen(false);

@@ -7,6 +7,7 @@ import SocialLinksSettings from "@/components/admin/SocialLinksSettings";
 import HandymanQuoteAdmin from "@/components/admin/HandymanQuoteAdmin";
 import { CLEANING_ADDONS } from "@/lib/cleaningExtras";
 import type { CleaningBillingTerms } from "@/lib/cleaningBillingTerms";
+import DbsStaffSettings from "@/components/admin/DbsStaffSettings";
 
 export default function BillingSettings() {
   const [terms, setTerms] = useState<CleaningBillingTerms | null>(null);
@@ -35,6 +36,9 @@ export default function BillingSettings() {
         body: JSON.stringify({
           version: terms.version,
           cleanerHourlyPence: pence("pay"),
+          deepCleanerHourlyPence: pence("deepPay"),
+          productsCleanerPayPence: pence("productsPay"),
+          cancellationBasis: "cleaning_hours",
           addonPrices: Object.fromEntries(
             CLEANING_ADDONS.map((addon) => [addon.id, pence(addon.id)]),
           ),
@@ -90,9 +94,9 @@ export default function BillingSettings() {
           pay rate, tip minimum and refund percentages.
         </p>
         <p>
-          Add-ons and products are retained by the business. Tips go to the
-          cleaner in full. Cleaner pay covers booked cleaning hours, excluding
-          extra time reserved for add-ons.
+          Tips go to the cleaner in full. Cleaner pay covers booked cleaning
+          hours, plus the products payment where selected. Extra time reserved
+          for add-ons does not change the cleaning-hours pay calculation.
         </p>
         {message && <p role="status">{message}</p>}
         {terms ? (
@@ -104,6 +108,16 @@ export default function BillingSettings() {
                 "Cleaner pay per booked cleaning hour",
                 terms.cleanerHourlyPence,
               )}
+              {field(
+                "deepPay",
+                "Deep clean / End of Tenancy cleaner pay per hour",
+                terms.deepCleanerHourlyPence ?? 1750,
+              )}
+              {field(
+                "productsPay",
+                "Cleaner receives for bringing products",
+                terms.productsCleanerPayPence ?? 400,
+              )}
               {CLEANING_ADDONS.map((addon) =>
                 field(addon.id, addon.label, terms.addonPrices[addon.id]),
               )}
@@ -111,7 +125,11 @@ export default function BillingSettings() {
               {field("tip", "Minimum tip", terms.tipMinimumPence)}
             </fieldset>
             <fieldset disabled={busy}>
-              <legend>Cancellation refunds</legend>
+              <legend>Cancellation refunds (cleaning hours only)</legend>
+              <p>
+                Add-ons, products and tips are refunded in full. The late charge
+                is capped at 70%; staff may reduce it for a booking.
+              </p>
               {field(
                 "full",
                 "At least 48 hours before",
@@ -126,13 +144,13 @@ export default function BillingSettings() {
               )}
               {field(
                 "half",
-                "Under 24 hours, before the visit day",
+                "12 to 24 hours before (not the same day)",
                 terms.cancellationRefundPercent.half,
                 true,
               )}
               {field(
                 "none",
-                "On the day / no access",
+                "Under 12 hours / on the day / no access after 15 minutes",
                 terms.cancellationRefundPercent.none,
                 true,
               )}
@@ -147,6 +165,7 @@ export default function BillingSettings() {
         <JobOfferSettings />
         <HandymanQuoteAdmin settingsOnly />
         <SocialLinksSettings />
+        <DbsStaffSettings />
       </main>
       <style jsx>{`
         .billing-settings {

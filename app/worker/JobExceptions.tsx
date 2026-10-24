@@ -166,7 +166,7 @@ export default function JobExceptions({
                 value={reason}
                 maxLength={1000}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="What happened? e.g. rang the bell and called twice, no answer after 30 minutes"
+                placeholder="What happened? e.g. rang the bell and called twice, no answer after 15 minutes"
               />
               <button
                 className="go"

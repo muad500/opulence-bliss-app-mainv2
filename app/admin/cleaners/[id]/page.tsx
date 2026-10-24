@@ -21,6 +21,18 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
+type DbsRecord = {
+  provider_id: string;
+  certificate_number: string;
+  issue_date: string;
+  certificate_storage_path: string | null;
+  certificate_original_name: string;
+  status: "pending" | "verified" | "failed";
+  uploaded_at: string | null;
+  certificate_deleted_at: string | null;
+  review_note: string | null;
+};
+
 function money(value: number | null | undefined) {
   return `£${Number(value ?? 0).toFixed(2)}`;
 }
@@ -69,7 +81,7 @@ export default async function ProfessionalRecordPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { supabase, user } = await requireAdminPage();
+  const { supabase } = await requireAdminPage();
   const serviceAdmin = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -107,13 +119,19 @@ export default async function ProfessionalRecordPage({
       .eq("provider_id", id)
       .order("created_at", { ascending: false })
       .limit(20),
-    supabase
-      .from("provider_dbs_checks")
-      .select(
-        "provider_id, certificate_number, issue_date, certificate_storage_path, certificate_original_name, certificate_mime_type, status, review_note, submitted_at, uploaded_at, reviewed_at, certificate_deleted_at",
-      )
-      .eq("provider_id", id)
-      .maybeSingle(),
+    supabase.rpc("can_view_dbs").then(async (access) => {
+      if (access.error || !access.data)
+        return {
+          data: null,
+          error: { message: "Restricted to named onboarding staff." },
+        };
+      return supabase
+        .rpc("staff_view_dbs_record", {
+          p_provider: id,
+          p_action: "record_view",
+        })
+        .maybeSingle<DbsRecord>();
+    }),
   ]);
 
   const provider = providerResult.data;
@@ -204,13 +222,10 @@ export default async function ProfessionalRecordPage({
       };
     }),
   );
-  let dbsCertificateUrl: string | null = null;
-  if (dbs?.uploaded_at && dbs.certificate_storage_path) {
-    const { data: signedCertificate } = await supabase.storage
-      .from("provider-dbs")
-      .createSignedUrl(dbs.certificate_storage_path, 10 * 60);
-    dbsCertificateUrl = signedCertificate?.signedUrl ?? null;
-  }
+  const dbsCertificateUrl =
+    dbs?.uploaded_at && dbs.certificate_storage_path
+      ? `/api/admin/dbs/${id}/certificate`
+      : null;
   const bookings = bookingsResult.data ?? [];
   const bookingIds = bookings.map((booking) => booking.id);
   const [paymentsResult, payoutsResult, eventsResult] = await Promise.all([
@@ -571,8 +586,9 @@ export default async function ProfessionalRecordPage({
             </>
           ) : (
             <p style={uploadMissing}>
-              No DBS details exist for this professional. Approval remains
-              unavailable.
+              {dbsResult.error
+                ? "DBS evidence is restricted to named onboarding staff. Manage access in Settings."
+                : "No DBS details exist for this professional. Approval remains unavailable."}
             </p>
           )}
 

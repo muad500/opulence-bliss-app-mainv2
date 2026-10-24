@@ -76,7 +76,7 @@ const DOCS: { title: string; content: string }[] = [
   {
     title: "Cancelling and rescheduling",
     content:
-      "You can cancel or modify a visit from My bookings in your account or ask the assistant to prepare a time change. The assistant always shows a confirmation button before changing anything. A new time must meet the permitted appointment window. Under the cancellation policy, more than 48 hours' notice normally has no cancellation charge; 24 to 48 hours may incur up to 25%; less than 24 hours may incur up to 50%; and a same-day cancellation, no-access visit or missed appointment may incur up to 100%. The cancellation screen shows the exact amount before confirmation. Every modification keeps its audited history and the customer, provider and admin schedule are updated.",
+      "You can cancel or modify a visit from My bookings in your account or ask the assistant to prepare a time change. The assistant always shows a confirmation button before changing anything. For new launch cleaning terms: at least 48 hours has no charge; 24 to 48 hours has a 25% charge; 12 to 24 hours has a 50% charge; under 12 hours or on the London booking day has a charge of up to 70%, default 70%, which staff can reduce. Charges apply only to cleaning hours. Tips, add-ons and products are refunded in full. No access requires a 15-minute wait and staff review, with the same 70% cap. The cleaner receives the same proportion of their normal cleaning-hours pay, and may waive compensation to increase the customer refund. Existing bookings retain their agreed terms; always use the live cancellation preview for that booking rather than assuming its bands. Every modification keeps an audited history.",
   },
   {
     title: "Tipping",
@@ -210,7 +210,12 @@ export async function GET(req: NextRequest) {
         );
       ids.set(doc.title, doc.id);
     }
-    const prepared: Array<{ id: string; title: string; content: string; embedding: number[] }> = [];
+    const prepared: Array<{
+      id: string;
+      title: string;
+      content: string;
+      embedding: number[];
+    }> = [];
     for (const doc of all) {
       const vector = await embed(`${doc.title}. ${doc.content}`);
       if (

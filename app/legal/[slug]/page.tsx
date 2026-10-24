@@ -39,13 +39,14 @@ const loadDocument = cache(async (slug: string) => {
       slug,
       title: row.title.replace(/Handyman/gi, "Property maintenance"),
       audience: row.audience,
-      contentHtml: sanitizeLegalHtml(row.content_html).replace(
-        />[^<]+</g,
-        (text) =>
-          text
-            .replace(/Handyman/gi, "Property maintenance")
-            .replace(/Minor decorating/gi, "Painting &amp; decoration"),
-      ),
+      contentHtml:
+        slug === "safeguarding"
+          ? sanitizeLegalHtml(row.content_html)
+          : sanitizeLegalHtml(row.content_html).replace(/>[^<]+</g, (text) =>
+              text
+                .replace(/Handyman/gi, "Property maintenance")
+                .replace(/Minor decorating/gi, "Painting &amp; decoration"),
+            ),
       version: row.version,
       updatedAt: row.updated_at,
     } satisfies LegalDocument;

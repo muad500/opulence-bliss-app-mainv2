@@ -18,6 +18,7 @@ const modules = [
   "accountSecurityAlerts",
   "socialLinks",
   "cleaningBillingTerms",
+  "cleaningSettlement",
   "cleaningPaymentCopy",
   "bookingPreferences",
   "visitContactPolicy",
@@ -61,7 +62,16 @@ const modules = [
   "handymanMarketplace",
 ];
 try {
-  execFileSync(process.execPath, ["--test", "scripts/test-notification-settings.mjs"], { stdio: "inherit" });
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-cleaning-settlement.mjs"],
+    { stdio: "inherit" },
+  );
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-notification-settings.mjs"],
+    { stdio: "inherit" },
+  );
   execFileSync(process.execPath, ["--test", "scripts/test-store-assets.mjs"], {
     stdio: "inherit",
   });

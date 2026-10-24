@@ -174,6 +174,13 @@ export async function setProviderDbsStatus(
   } = await s.auth.getUser();
   if (!user) throw new Error("Not signed in");
 
+  const { error: accessError } = await s.rpc("staff_view_dbs_record", {
+    p_provider: id,
+    p_action: "review",
+  });
+  if (accessError)
+    throw new Error("Only named onboarding staff can review DBS records.");
+
   const { data: check, error: checkError } = await admin
     .from("provider_dbs_checks")
     .select("certificate_storage_path, uploaded_at")

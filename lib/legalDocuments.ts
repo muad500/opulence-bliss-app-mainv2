@@ -1,4 +1,5 @@
 import sanitizeHtml from "sanitize-html";
+import { SAFEGUARDING_POLICY_HTML } from "@/lib/safeguardingPolicy";
 import { CUSTOMER_TERMS_HTML } from "@/lib/customerTerms";
 import {
   CANCELLATION_REFUND_POLICY_HTML,
@@ -12,6 +13,7 @@ export const LEGAL_DOCUMENT_SLUGS = [
   "cancellation-refund",
   "handyman-terms",
   "professional-partner-agreement",
+  "safeguarding",
 ] as const;
 
 export type LegalDocumentSlug = (typeof LEGAL_DOCUMENT_SLUGS)[number];
@@ -27,6 +29,13 @@ export type LegalDocument = {
 };
 
 const DEFAULTS: Record<LegalDocumentSlug, Omit<LegalDocument, "slug">> = {
+  safeguarding: {
+    title: "Safeguarding, Lone Working and Incident Reporting Policy",
+    audience: "professionals",
+    version: "1.0",
+    updatedAt: "2026-10-01T00:00:00.000Z",
+    contentHtml: SAFEGUARDING_POLICY_HTML,
+  },
   terms: {
     title: "Customer Terms & Conditions",
     audience: "customers",
