@@ -514,7 +514,12 @@ try {
       "insert into supabase_migrations.schema_migrations values($1,$2)",
       [
         file.slice(0, 14),
-        [readFileSync(`supabase/migrations/${file}.sql`, "utf8")],
+        [
+          readFileSync(`supabase/migrations/${file}.sql`, "utf8").replace(
+            /\r\n/g,
+            "\n",
+          ),
+        ],
       ],
     );
   const preflight = readFileSync(
@@ -539,7 +544,9 @@ try {
       readFileSync(
         "supabase/migrations/20261023000100_customer_push_opt_in.sql",
         "utf8",
-      ).replace(/\n/g, "\r\n"),
+      )
+        .replace(/\r\n/g, "\n")
+        .replace(/\n/g, "\r\n"),
     ],
   );
   const lineEndings = (await db.query(preflight)).rows[0].staging_preflight;
