@@ -279,7 +279,8 @@ test("sign-in returns to confirmation with the entered booking rather than accou
   );
   assert.equal(
     elements(tree).find(
-      (node) => node.type === "button" && text(node) === "Confirm & pay",
+      (node) =>
+        node.type === "button" && text(node) === "Book and pay £70.98",
     ).props.disabled,
     true,
     "saved-card consent must be confirmed again",
