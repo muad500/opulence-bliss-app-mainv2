@@ -4,14 +4,13 @@ import Stripe from "stripe";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cleaningQuote, cleaningExtrasNotes } from "./cleaningExtras";
 import { visitLineItems } from "./visitLineItems";
-import {
-  calculateCancellationPolicy,
-  type CancellationPolicyTier,
-} from "./cancellationPolicy";
+import { type CancellationPolicyTier } from "./cancellationPolicy";
+import { createCleaningSettlement } from "./cleaningSettlementServer";
 import {
   changedVisitLines,
   cancellationRefunds,
   removedLineRefunds,
+  visitCancellationPolicy,
   type VisitCharge,
   type VisitRefundPlan,
 } from "./visitAdjustments";
@@ -22,7 +21,7 @@ import {
 } from "./visitMatchingPolicy";
 
 type MoneyResult = {
-  type: "charge" | "refund";
+  type: "charge" | "refund" | "reversal";
   id: string;
   status: string;
   amountPence: number;
@@ -44,6 +43,8 @@ type Operation = {
     lines?: VisitLine[];
     added?: VisitLine[];
     refunds?: VisitRefundPlan[];
+    reversals?: { chargeId: string; transferId: string; amountPence: number }[];
+    requestedBy?: string;
     oldStatus: string;
     method?: string;
     scheduledAt: string;
@@ -64,8 +65,6 @@ function check(result: { error: { message: string } | null }) {
 }
 const idOf = (value: string | { id: string } | null | undefined) =>
   typeof value === "string" ? value : value?.id;
-const paidTotal = (charges: VisitCharge[]) =>
-  charges.reduce((sum, c) => sum + c.amount_pence - c.refunded_pence, 0);
 
 export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
   async function load(bookingId: string, customerId?: string) {
@@ -73,7 +72,7 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
       await admin
         .from("bookings")
         .select(
-          "id,customer_id,status,scheduled_at,provider_id,regular_series_id,cleaning_extras,duration_minutes,household_notes",
+          "id,customer_id,status,scheduled_at,provider_id,regular_series_id,cleaning_extras,duration_minutes,household_notes,created_at",
         )
         .eq("id", bookingId)
         .single(),
@@ -311,6 +310,7 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
     unfilled = false,
     expectedTier?: CancellationPolicyTier,
     latePayment = false,
+    staff?: { actorId: string; chargePercent: number; noAccess?: boolean },
   ) {
     const { booking, bill, charges, terms } = await load(
       bookingId,
@@ -319,11 +319,12 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
     if (unfilled && (await chargeGate(bookingId)).paused)
       return {
         status: "blocked",
-        policy: calculateCancellationPolicy(
+        policy: visitCancellationPolicy(
           booking.scheduled_at,
-          paidTotal(charges) / 100,
+          charges,
+          terms,
           new Date(),
-          terms.cancellationRefundPercent,
+          booking.created_at,
         ),
       };
     if (
@@ -333,25 +334,22 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
     )
       return {
         status: "succeeded",
-        policy: calculateCancellationPolicy(
-          booking.scheduled_at,
-          paidTotal(charges) / 100,
-          new Date(),
-          terms.cancellationRefundPercent,
-        ),
+        policy: visitCancellationPolicy(booking.scheduled_at, charges, terms),
       };
-    const policy = calculateCancellationPolicy(
+    const policy = visitCancellationPolicy(
       booking.scheduled_at,
-      paidTotal(charges) / 100,
+      charges,
+      terms,
       new Date(),
-      terms.cancellationRefundPercent,
+      staff?.noAccess ? null : booking.created_at,
     );
     if (expectedTier && expectedTier !== policy.tier)
       throw new Error(
         "The cancellation window changed. Review the updated refund before confirming.",
       );
-    const refundPercent =
-      unfilled || latePayment
+    const refundPercent = staff
+      ? 100 - staff.chargePercent
+      : unfilled || latePayment
         ? 100
         : customerId === null
           ? 0
@@ -363,8 +361,19 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
       bill.revision,
       {
         refundPercent,
-        refunds: cancellationRefunds(charges, refundPercent),
+        refunds: cancellationRefunds(
+          charges,
+          refundPercent,
+          terms.cancellationBasis === "cleaning_hours",
+        ),
         latePayment,
+        ...(staff
+          ? {
+              staffActor: staff.actorId,
+              staffChargePercent: staff.chargePercent,
+              noAccess: staff.noAccess === true,
+            }
+          : {}),
       },
     );
     return { ...(await run(operation.id)), policy };
@@ -559,6 +568,56 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
           throw new Error("Stripe payment is still processing.");
         await checkpoint();
       }
+      // Refunds from an already-paid cancellation first recover the cleaner's
+      // waived share. Every reversal is checkpointed/reconciled like a refund.
+      for (const [index, plan] of (op.parameters.reversals ?? []).entries()) {
+        if (
+          results.some(
+            (result) =>
+              result.type === "reversal" && result.chargeId === plan.chargeId,
+          )
+        )
+          continue;
+        const existing = await stripe.transfers.listReversals(plan.transferId, {
+          limit: 100,
+        });
+        let reversal = existing.data.find(
+          (item) =>
+            item.metadata?.visit_operation === op.id &&
+            item.metadata?.visit_step === String(index),
+        );
+        if (!reversal) {
+          if (Date.now() - new Date(op.created_at).getTime() >= 23 * 3_600_000)
+            throw new Error(
+              "Unknown old transfer reversal needs reconciliation.",
+            );
+          reversal = await stripe.transfers.createReversal(
+            plan.transferId,
+            {
+              amount: plan.amountPence,
+              metadata: {
+                visit_operation: op.id,
+                visit_step: String(index),
+                booking_id: op.booking_id,
+              },
+            },
+            { idempotencyKey: `${op.idempotency_key}:reversal:${index}` },
+          );
+        }
+        if (
+          reversal.amount !== plan.amountPence ||
+          idOf(reversal.transfer) !== plan.transferId
+        )
+          throw new Error("Cleaner transfer reversal needs reconciliation.");
+        results.push({
+          type: "reversal",
+          id: reversal.id,
+          status: "succeeded",
+          amountPence: plan.amountPence,
+          chargeId: plan.chargeId,
+        });
+        await checkpoint();
+      }
       for (const [index, plan] of (op.parameters.refunds ?? []).entries()) {
         if (
           results.some(
@@ -626,6 +685,25 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
         error instanceof Stripe.errors.StripeInvalidRequestError;
       const hasMoney = results.some((r) => r.status === "succeeded");
       if (definite && !hasMoney && !results.some((r) => r.type === "refund")) {
+        if (op.operation_type === "cancellation_adjustment") {
+          await finish(
+            "failed",
+            "The cleaner compensation reversal was not completed; no additional customer refund was made.",
+          );
+          check(
+            await admin.rpc("open_review_case", {
+              p_booking_id: op.booking_id,
+              p_category: "payout_failure",
+              p_priority: "high",
+              p_blocks_payment: false,
+              p_blocks_payout: true,
+              p_notes:
+                "Cancellation compensation reversal failed. Review the source transfer before retrying the customer refund.",
+              p_created_by: op.parameters.requestedBy ?? null,
+            }),
+          );
+          return { status: "failed" };
+        }
         const charge = results.find((r) => r.type === "charge");
         if (charge) {
           const intent = await stripe.paymentIntents
@@ -726,6 +804,40 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
       }),
     ) as { booking_id: string }[];
     for (const row of due) await chargeVisit(row.booking_id);
+    let settlements = admin
+      .from("cleaning_cancellation_settlements")
+      .select("booking_id")
+      .is("payout_settled_at", null)
+      .gt("cleaner_pay_pence", 0)
+      .order("created_at")
+      .limit(limit);
+    if (bookingIds) settlements = settlements.in("booking_id", bookingIds);
+    for (const row of must(await settlements)) {
+      try {
+        await createCleaningSettlement(admin, stripe).settle(row.booking_id);
+      } catch {
+        /* Keep the durable ledger pending; the next scheduler run retries. */
+      }
+    }
+    // A completed source transfer can commit before its final local checkpoint.
+    // Recover those known per-charge plans too, without replaying legacy payouts.
+    let payoutRecovery = admin
+      .from("payouts")
+      .select("booking_id,cleaning_payout_parts!inner(charge_id)")
+      .is("payment_id", null)
+      .in("status", ["pending", "processing", "failed"])
+      .order("created_at")
+      .limit(limit);
+    if (bookingIds)
+      payoutRecovery = payoutRecovery.in("booking_id", bookingIds);
+    for (const row of must(await payoutRecovery)) {
+      if (!row.booking_id) continue;
+      try {
+        await createCleaningSettlement(admin, stripe).settle(row.booking_id);
+      } catch {
+        /* Preserve the known plan for the next retry / resolution desk. */
+      }
+    }
     check(
       await admin
         .from("visit_billing_runtime")

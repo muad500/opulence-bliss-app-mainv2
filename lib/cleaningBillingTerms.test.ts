@@ -5,6 +5,7 @@ import {
   DEFAULT_CLEANING_BILLING_TERMS as defaults,
   parseCleaningBillingTerms,
   customerBillingTerms,
+  cleaningTermsForPackage,
 } from "./cleaningBillingTerms";
 import { cleaningQuote } from "./cleaningExtras";
 import { calculateCancellationPolicy } from "./cancellationPolicy";
@@ -27,6 +28,52 @@ test("cleaner pay uses booked cleaning hours, excluding reserved add-on time", (
   );
   assert.equal(cleanerPayPence(150, defaults), 3750);
   assert.equal(cleanerPayPence(480, defaults), 12000);
+});
+
+test("launch rates select both deep services and keep product pay private", () => {
+  const terms = parseCleaningBillingTerms({
+    ...defaults,
+    version: "launch",
+    deepCleanerHourlyPence: 1750,
+    productsCleanerPayPence: 400,
+    cancellationBasis: "cleaning_hours",
+    cancellationRefundPercent: {
+      full: 100,
+      three_quarter: 75,
+      half: 50,
+      none: 30,
+    },
+  });
+  for (const name of ["Signature Deep Clean", "End of Tenancy / Move-In Clean"])
+    assert.equal(
+      cleanerPayPence(120, cleaningTermsForPackage(terms, name)),
+      3500,
+    );
+  assert.equal(
+    cleanerPayPence(120, cleaningTermsForPackage(terms, "Essential Clean")),
+    3000,
+  );
+  assert.equal(terms.productsCleanerPayPence, 400);
+  assert.equal("productsCleanerPayPence" in customerBillingTerms(terms), false);
+  assert.equal("deepCleanerHourlyPence" in customerBillingTerms(terms), false);
+  assert.throws(() =>
+    parseCleaningBillingTerms({ ...terms, productsCleanerPayPence: 501 }),
+  );
+  assert.throws(() =>
+    parseCleaningBillingTerms({
+      ...terms,
+      cancellationRefundPercent: {
+        ...terms.cancellationRefundPercent,
+        none: 29,
+      },
+    }),
+  );
+  assert.equal(
+    cleaningTermsForPackage(defaults, "Signature Deep Clean")
+      .cleanerHourlyPence,
+    1500,
+    "old snapshots are unchanged",
+  );
 });
 
 test("saved terms keep old prices, pay, tips and refund bands after a settings edit", () => {

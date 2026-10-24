@@ -283,7 +283,8 @@ test("sign-in returns to confirmation with the entered booking rather than accou
   );
   assert.equal(
     elements(tree).find(
-      (node) => node.type === "button" && text(node) === "Book and pay £70.98",
+      (node) =>
+        node.type === "button" && text(node).startsWith("Book and pay £"),
     ).props.disabled,
     true,
     "saved-card consent must be confirmed again",
@@ -352,7 +353,8 @@ test("regular visit count and individual extras survive while prices are recalcu
   });
   const tree = await app.settle();
   assert.match(text(tree), /Step 6 of 6/);
-  assert.match(text(tree), /Save card and book visits/);
+  assert.match(text(tree), /Book and pay £0 today \(save card\)/);
+  assert.match(text(tree), /No VAT is charged/);
   assert.match(text(tree), /£408.84/);
   assert.match(text(tree), /8 visits/);
   const changed = harness({ packageList: [{ ...packages[0], price: 55.98 }] });

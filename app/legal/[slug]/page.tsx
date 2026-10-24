@@ -37,7 +37,9 @@ const loadDocument = cache(async (slug: string) => {
     if (!row?.content_html) return fallback;
     return {
       slug,
-      ...publicLegalPresentation(row.title, row.content_html),
+      ...(slug === "safeguarding"
+        ? { title: row.title, contentHtml: sanitizeLegalHtml(row.content_html) }
+        : publicLegalPresentation(row.title, row.content_html)),
       audience: row.audience,
       version: row.version,
       updatedAt: row.updated_at,

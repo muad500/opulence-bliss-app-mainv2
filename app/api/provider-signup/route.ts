@@ -75,6 +75,8 @@ export async function POST(req: NextRequest) {
       homePostcode,
       areaIds,
       professionalAgreementAccepted,
+      safeguardingAccepted,
+      safeguardingVersion,
       dbsCertificateNumber,
       dbsIssueDate,
       dbsCertificateFileName,
@@ -359,6 +361,18 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+    if (
+      safeguardingAccepted !== true ||
+      typeof safeguardingVersion !== "string"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Read and accept the Safeguarding, Lone Working and Incident Reporting Policy.",
+        },
+        { status: 400 },
+      );
+    }
 
     const dbsNumber = normalizeDbsCertificateNumber(dbsCertificateNumber);
     const dbsExtension = dbsCertificateExtension(
@@ -384,11 +398,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: legalRows } = await admin
+    const { data: legalRows, error: legalError } = await admin
       .from("legal_documents")
       .select("slug, version")
-      .in("slug", ["professional-partner-agreement", "privacy"])
+      .in("slug", ["professional-partner-agreement", "privacy", "safeguarding"])
       .eq("published", true);
+    if (legalError)
+      return NextResponse.json(
+        { error: "Policies could not be checked. Please try again." },
+        { status: 503 },
+      );
+    const currentSafeguardingVersion =
+      legalRows?.find((row) => row.slug === "safeguarding")?.version ??
+      LEGAL_VERSIONS.safeguarding;
+    if (safeguardingVersion !== currentSafeguardingVersion)
+      return NextResponse.json(
+        {
+          error:
+            "The safeguarding policy changed. Refresh, read it and confirm again.",
+        },
+        { status: 409 },
+      );
     const agreementRow = legalRows?.find(
       (row) => row.slug === "professional-partner-agreement",
     );
@@ -473,15 +503,33 @@ export async function POST(req: NextRequest) {
         { error: "Could not save your personal details." },
         { status: 503 },
       );
-    await admin.from("account_legal_acceptances").upsert(
-      {
-        user_id: userId,
-        document_slug: "professional-partner-agreement",
-        version: professionalAgreementVersion,
-        accepted_at: acceptedAt,
-      },
-      { onConflict: "user_id,document_slug,version,booking_id" },
-    );
+    const { error: acceptanceError } = await admin
+      .from("account_legal_acceptances")
+      .upsert(
+        [
+          {
+            user_id: userId,
+            document_slug: "professional-partner-agreement",
+            version: professionalAgreementVersion,
+            accepted_at: acceptedAt,
+          },
+          {
+            user_id: userId,
+            document_slug: "safeguarding",
+            version: currentSafeguardingVersion,
+            accepted_at: acceptedAt,
+          },
+        ],
+        { onConflict: "user_id,document_slug,version,booking_id" },
+      );
+    if (acceptanceError)
+      return NextResponse.json(
+        {
+          error:
+            "Your policy acceptance could not be saved. Please sign in and retry the application.",
+        },
+        { status: 503 },
+      );
 
     // 3. Provider record — work access begins after the admin approves it.
     const { data: prov, error: provErr } = await admin

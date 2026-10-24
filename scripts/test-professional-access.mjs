@@ -21,10 +21,10 @@ async function load(path, mocks = {}) {
       },
     },
   ).outputText;
-  const module = { exports: {} };
+  const compiledModule = { exports: {} };
   vm.runInNewContext(code, {
-    module,
-    exports: module.exports,
+    module: compiledModule,
+    exports: compiledModule.exports,
     require: (id) => {
       if (id.endsWith("MobileExperience"))
         return { useAppAudience: () => null };
@@ -62,7 +62,7 @@ async function load(path, mocks = {}) {
     URL,
     Response,
   });
-  return module.exports;
+  return compiledModule.exports;
 }
 const services = await load("lib/professionalServices.ts");
 const access = await load("lib/professionalAccess.ts");
@@ -321,6 +321,8 @@ const validSignup = {
   skills: ["cleaning"],
   areaIds: ["area"],
   professionalAgreementAccepted: true,
+  safeguardingAccepted: true,
+  safeguardingVersion: "1.0",
   dbsCertificateNumber: "123456789012",
   dbsIssueDate: "2026-10-01",
   dbsCertificateFileName: "certificate.pdf",
@@ -365,7 +367,7 @@ async function signup(body) {
   const { POST } = await load("app/api/provider-signup/route.ts", {
     "@/lib/providerOnboarding": onboarding,
     "@/lib/accountApi": { isSameOriginMutation: () => true },
-    "@/lib/legal": { LEGAL_VERSIONS: {} },
+    "@/lib/legal": { LEGAL_VERSIONS: { safeguarding: "1.0" } },
     "@/lib/ukPhone": { normalizeUkPhone: (x) => x, isValidUkPhone: () => true },
     "@/lib/providerDbs": {
       normalizeDbsCertificateNumber: (x) => x,
@@ -417,6 +419,26 @@ test("restricted statuses, no work permission and malformed UTR fail before any 
     assert.equal(response.status, 400);
     assert.equal(writes.length, 0);
   }
+});
+
+test("cleaner and handyman registration require the displayed safeguarding version and save its time", async () => {
+  for (const change of [
+    { safeguardingAccepted: false },
+    { safeguardingAccepted: undefined },
+    { safeguardingVersion: undefined },
+    { safeguardingVersion: "0.9" },
+  ]) {
+    const { response, writes } = await signup({ ...validSignup, ...change });
+    assert.ok([400, 409].includes(response.status));
+    assert.equal(writes.length, 0);
+  }
+  const { response, writes } = await signup(validSignup);
+  assert.equal(response.status, 200);
+  const evidence = writes
+    .find((write) => write.table === "account_legal_acceptances")
+    .value.find((row) => row.document_slug === "safeguarding");
+  assert.equal(evidence.version, "1.0");
+  assert.ok(Number.isFinite(Date.parse(evidence.accepted_at)));
 });
 
 test("payout and earnings endpoints deny an unapproved applicant before Stripe or payment reads", async () => {

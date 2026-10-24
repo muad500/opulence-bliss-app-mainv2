@@ -40,7 +40,7 @@ export async function saveLegalDocument(
     slug === "cancellation-refund" ||
     slug === "handyman-terms"
       ? "customers"
-      : slug === "professional-partner-agreement"
+      : slug === "professional-partner-agreement" || slug === "safeguarding"
         ? "professionals"
         : "everyone";
 

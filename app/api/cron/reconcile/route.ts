@@ -17,6 +17,11 @@ import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import { isRegularVisitCount } from "@/lib/regularBooking";
 import { developmentToolsEnabled } from "@/lib/developmentTools";
+import {
+  auditCleaningPayout,
+  type CleaningPayoutAuditPart,
+  type CleaningPayoutAuditTransfer,
+} from "@/lib/cleaningSettlement";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -303,20 +308,40 @@ export async function GET(req: NextRequest) {
           .select("id, booking_id, gross_amount, status")
           .eq("stripe_payment_ref", pi.id)
           .or("kind.is.null,kind.neq.tip");
-        throwOnQueryError(`Reading regular-visit allocations for ${pi.id}`, allocationsError);
+        throwOnQueryError(
+          `Reading regular-visit allocations for ${pi.id}`,
+          allocationsError,
+        );
         const rows = allocations ?? [];
         const expectedVisitCount = Number(pi.metadata.regular_visit_count);
-        const allocatedPence = rows.reduce((sum, row) => sum + Math.round(Number(row.gross_amount) * 100), 0);
-        if (!isRegularVisitCount(expectedVisitCount) || rows.length !== expectedVisitCount ||
-            pi.status !== "succeeded" || received !== pi.amount || allocatedPence !== pi.amount) {
+        const allocatedPence = rows.reduce(
+          (sum, row) => sum + Math.round(Number(row.gross_amount) * 100),
+          0,
+        );
+        if (
+          !isRegularVisitCount(expectedVisitCount) ||
+          rows.length !== expectedVisitCount ||
+          pi.status !== "succeeded" ||
+          received !== pi.amount ||
+          allocatedPence !== pi.amount
+        ) {
           findings.push({
             finding_type: "operation_ambiguous",
             severity: "critical",
             booking_id: p.booking_id,
             payment_id: p.id,
             stripe_object_id: pi.id,
-            expected: { visit_count: expectedVisitCount, allocations_pence: pi.amount, status: "succeeded" },
-            actual: { allocation_count: rows.length, allocated_pence: allocatedPence, stripe_status: pi.status, amount_received: received },
+            expected: {
+              visit_count: expectedVisitCount,
+              allocations_pence: pi.amount,
+              status: "succeeded",
+            },
+            actual: {
+              allocation_count: rows.length,
+              allocated_pence: allocatedPence,
+              stripe_status: pi.status,
+              amount_received: received,
+            },
           });
         }
         let approvedRefundPence = 0;
@@ -325,34 +350,64 @@ export async function GET(req: NextRequest) {
           if (!allocation.booking_id) continue;
           refundInProgress ||= allocation.status === "refund_pending";
           const [caseResult, operationResult] = await Promise.all([
-            admin.from("review_cases")
+            admin
+              .from("review_cases")
               .select("resolution_amount")
               .eq("booking_id", allocation.booking_id)
               .eq("status", "resolved")
               .eq("resolution_currency", "gbp")
               .gt("resolution_amount", 0),
-            admin.from("money_operations")
+            admin
+              .from("money_operations")
               .select("amount")
               .eq("booking_id", allocation.booking_id)
               .eq("operation_type", "refund")
               .eq("status", "succeeded")
-              .like("operation_key", `refund:booking:${allocation.booking_id}:%`),
+              .like(
+                "operation_key",
+                `refund:booking:${allocation.booking_id}:%`,
+              ),
           ]);
-          throwOnQueryError(`Reading approved refunds for ${allocation.booking_id}`, caseResult.error);
-          throwOnQueryError(`Reading refund operations for ${allocation.booking_id}`, operationResult.error);
-          const allocationRefundPence = (caseResult.data ?? []).reduce((sum, row) => sum + Math.round(Number(row.resolution_amount) * 100), 0)
-            + (operationResult.data ?? []).reduce((sum, row) => sum + Math.round(Number(row.amount) * 100), 0);
+          throwOnQueryError(
+            `Reading approved refunds for ${allocation.booking_id}`,
+            caseResult.error,
+          );
+          throwOnQueryError(
+            `Reading refund operations for ${allocation.booking_id}`,
+            operationResult.error,
+          );
+          const allocationRefundPence =
+            (caseResult.data ?? []).reduce(
+              (sum, row) =>
+                sum + Math.round(Number(row.resolution_amount) * 100),
+              0,
+            ) +
+            (operationResult.data ?? []).reduce(
+              (sum, row) => sum + Math.round(Number(row.amount) * 100),
+              0,
+            );
           approvedRefundPence += allocationRefundPence;
           if (allocation.status !== "refund_pending") {
-            const grossPence = Math.round(Number(allocation.gross_amount) * 100);
-            const expectedStatus = allocationRefundPence === 0 ? "succeeded"
-              : allocationRefundPence >= grossPence ? "refunded" : "partially_refunded";
+            const grossPence = Math.round(
+              Number(allocation.gross_amount) * 100,
+            );
+            const expectedStatus =
+              allocationRefundPence === 0
+                ? "succeeded"
+                : allocationRefundPence >= grossPence
+                  ? "refunded"
+                  : "partially_refunded";
             if (allocation.status !== expectedStatus) {
               findings.push({
-                finding_type: "operation_ambiguous", severity: "critical",
-                booking_id: allocation.booking_id, payment_id: allocation.id,
+                finding_type: "operation_ambiguous",
+                severity: "critical",
+                booking_id: allocation.booking_id,
+                payment_id: allocation.id,
                 stripe_object_id: pi.id,
-                expected: { status: expectedStatus, refunded_pence: allocationRefundPence },
+                expected: {
+                  status: expectedStatus,
+                  refunded_pence: allocationRefundPence,
+                },
                 actual: { status: allocation.status },
               });
             }
@@ -360,8 +415,11 @@ export async function GET(req: NextRequest) {
         }
         if (!refundInProgress && approvedRefundPence !== refunded) {
           findings.push({
-            finding_type: "refund_amount_mismatch", severity: "critical",
-            booking_id: p.booking_id, payment_id: p.id, stripe_object_id: pi.id,
+            finding_type: "refund_amount_mismatch",
+            severity: "critical",
+            booking_id: p.booking_id,
+            payment_id: p.id,
+            stripe_object_id: pi.id,
             expected: { amount_refunded_pence: approvedRefundPence },
             actual: { amount_refunded_pence: refunded },
           });
@@ -634,6 +692,54 @@ export async function GET(req: NextRequest) {
         });
       }
 
+      if (["paid", "reversed"].includes(po.status)) {
+        const partResult = await admin
+          .from("cleaning_payout_parts")
+          .select(
+            "charge_id,amount_pence,reversed_pence,transfer_ref,destination_account",
+          )
+          .eq("payout_id", po.id);
+        throwOnQueryError(
+          "Reading cleaning payout source transfers",
+          partResult.error,
+        );
+        const parts = (partResult.data ?? []) as CleaningPayoutAuditPart[];
+        if (parts.length) {
+          const sourceTransfers: CleaningPayoutAuditTransfer[] = [];
+          for (const part of parts) {
+            if (!part.transfer_ref) continue;
+            try {
+              sourceTransfers.push(
+                (await stripe.transfers.retrieve(
+                  part.transfer_ref,
+                )) as CleaningPayoutAuditTransfer,
+              );
+            } catch (error) {
+              if (!isStripeNotFound(error)) throw error;
+            }
+          }
+          for (const issue of auditCleaningPayout(
+            po.booking_id!,
+            Math.round(Number(po.amount) * 100),
+            parts,
+            sourceTransfers,
+          ))
+            findings.push({
+              finding_type: "payout_amount_mismatch",
+              severity: "critical",
+              booking_id: po.booking_id,
+              payout_id: po.id,
+              stripe_object_id: issue.transferId,
+              expected: {
+                amount_pence: Math.round(Number(po.amount) * 100),
+                source_transfers:
+                  "match each captured charge and recorded reversal",
+              },
+              actual: { reason: issue.reason },
+            });
+          continue;
+        }
+      }
       if (po.status !== "paid") continue;
 
       // Marked paid locally — prove it.
@@ -825,6 +931,16 @@ export async function GET(req: NextRequest) {
 
       if ((count ?? 0) > 0) continue;
 
+      const partMatch = await admin
+        .from("cleaning_payout_parts")
+        .select("charge_id", { count: "exact", head: true })
+        .eq("transfer_ref", tr.id);
+      throwOnQueryError(
+        "Looking up a cleaning source transfer",
+        partMatch.error,
+      );
+      if ((partMatch.count ?? 0) > 0) continue;
+
       // metadata.operation_key is the durable handle — Stripe keeps it, unlike
       // idempotency keys which may be pruned after ~24 hours.
       const opKey = tr.metadata?.operation_key ?? null;
@@ -911,9 +1027,10 @@ export async function GET(req: NextRequest) {
       ) {
         // One visit transfer and one tip transfer on the same booking are
         // legitimate; only duplicate operations of the same purpose are not.
-        const k = op.operation_type === "transfer"
-          ? op.operation_key.replace(/:provider:[^:]+$/, "")
-          : `${op.operation_type}:${op.booking_id}`;
+        const k =
+          op.operation_type === "transfer"
+            ? op.operation_key.replace(/:provider:[^:]+(?::r\d+)?$/, "")
+            : `${op.operation_type}:${op.booking_id}`;
         succeeded.set(k, [...(succeeded.get(k) ?? []), op.id]);
       }
     }
