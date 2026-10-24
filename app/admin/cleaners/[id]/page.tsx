@@ -510,7 +510,7 @@ export default async function ProfessionalRecordPage({
                       : "#8a5a00",
               }}
             >
-              {dbs?.status ?? "not submitted"}
+              {dbsResult.error ? "Restricted" : (dbs?.status ?? "not submitted")}
             </span>
           </div>
 
