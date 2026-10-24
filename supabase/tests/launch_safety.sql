@@ -502,6 +502,11 @@ insert into public.bookings(id,customer_id,provider_id,status,scheduled_at) valu
 insert into public.check_in_challenges(booking_id,gps_lat,gps_lng,distance_metres,geofence_pass) values('20000000-0000-4000-8000-000000000001',51.5,-0.1,25,true);
 insert into public.check_ins(booking_id,gps_lat,gps_lng,geofence_pass) values('20000000-0000-4000-8000-000000000001',51.5,-0.1,true);
 insert into public.booking_events(booking_id,to_status,meta) values('20000000-0000-4000-8000-000000000001','scheduled','{"gps_lat":51.5,"nested":{"gps_lng":-0.1,"distance_metres":25}}');
+-- Reproduce the staging SQL Editor's CRLF function body; migration patches
+-- must preserve the audit checks without depending on an editor's line ending.
+do $$begin
+ execute replace(pg_get_functiondef('public.prepare_visit_money_operation(uuid,uuid,text,integer,jsonb)'::regprocedure),E'\n',E'\r\n');
+end$$;
 \ir ../migrations/20261024000100_checkin_location_minimisation.sql
 \ir ../migrations/20261024000200_named_dbs_onboarding_access.sql
 \ir ../migrations/20261024000300_professional_safeguarding.sql
@@ -514,6 +519,7 @@ create function public.assert_launch(p_ok boolean,p_message text) returns void l
  raise notice 'PASS: %',p_message;
 end$$;
 select public.assert_launch(not exists(select 1 from check_ins where gps_lat is not null or gps_lng is not null),'old check-in coordinates deleted');
+select public.assert_launch(strpos(pg_get_functiondef('public.prepare_visit_money_operation(uuid,uuid,text,integer,jsonb)'::regprocedure),E'\r')=0,'CRLF staging function patched without changing audit guards');
 select public.assert_launch((select distance_metres=25 and geofence_pass from check_ins limit 1),'old non-precise distance/result preserved');
 select public.assert_launch(not exists(select 1 from check_in_challenges where gps_lat is not null or gps_lng is not null),'old OTP challenge coordinates deleted');
 select public.assert_launch((select meta='{"nested":{"distance_metres":25}}'::jsonb from booking_events limit 1),'coordinates removed from historical event metadata only');
