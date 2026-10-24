@@ -5,6 +5,8 @@ import { createRequire } from "node:module";
 import vm from "node:vm";
 import ts from "typescript";
 import { PDFDocument } from "pdf-lib";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const native = createRequire(import.meta.url);
 function loader(mocks = {}, env = {}, transport = fetch) {
@@ -18,6 +20,7 @@ function loader(mocks = {}, env = {}, transport = fetch) {
         module: ts.ModuleKind.CommonJS,
         target: ts.ScriptTarget.ES2022,
         esModuleInterop: true,
+        jsx: ts.JsxEmit.ReactJSX,
       },
     }).outputText;
     // Use the same realm as pdf-lib (its runtime checks use instanceof Array).
@@ -417,17 +420,27 @@ test("booking cron requires its secret and keeps essential contracts independent
 });
 
 test("policy-only smoke delivery is authenticated, staging-only and never touches reminder or SMS queues", async () => {
-  const url = "https://staging.example.invalid/api/cron/booking-notifications?legal_only=1";
+  const url =
+    "https://staging.example.invalid/api/cron/booking-notifications?legal_only=1";
   for (const [options, status] of [
     [{ allowed: true }, 200],
     [{ production: true }, 404],
     [{ envOverrides: { VERCEL_ENV: "development" } }, 404],
-    [{ envOverrides: { NEXT_PUBLIC_SUPABASE_URL: "https://other.example.invalid" } }, 404],
+    [
+      {
+        envOverrides: {
+          NEXT_PUBLIC_SUPABASE_URL: "https://other.example.invalid",
+        },
+      },
+      404,
+    ],
   ]) {
     const h = notificationCronHarness(options);
-    const response = await h.route.GET(new Request(url, {
-      headers: { authorization: "Bearer fixture-cron" },
-    }));
+    const response = await h.route.GET(
+      new Request(url, {
+        headers: { authorization: "Bearer fixture-cron" },
+      }),
+    );
     assert.equal(response.status, status);
     assert.equal(h.calls.contracts, status === 200 ? 1 : 0);
     assert.equal(h.calls.rpc.length, 0);
@@ -490,5 +503,76 @@ test("staff downloads stay on the staff API and require its authenticator gate",
     );
     assert.equal(response.status, permitted ? 200 : 403);
     assert.equal(downloads, permitted ? 1 : 0);
+  }
+});
+
+test("staff evidence page gates access and renders sent, failed and review-required email states", async () => {
+  const id = contract.bookings[0].id;
+  const file = "app/admin/bookings/[id]/legal/page.tsx";
+  const blocked = loader({
+    "@/lib/adminSession": {
+      requireAdminPage: async () => {
+        throw new Error("Authenticator sign-in required");
+      },
+    },
+    "next/link": ({ children, ...props }) =>
+      createElement("a", props, children),
+  })(file);
+  await assert.rejects(
+    blocked.default({ params: Promise.resolve({ id }) }),
+    /Authenticator sign-in required/,
+  );
+
+  for (const status of ["sent", "failed", "needs_review"]) {
+    const calls = [];
+    const page = loader({
+      "@/lib/adminSession": {
+        requireAdminPage: async () => ({
+          supabase: {
+            rpc: async (name, args) => {
+              calls.push(name);
+              assert.equal(args.p_booking, id);
+              if (name === "booking_legal_contract") return { data: contract };
+              assert.equal(name, "admin_booking_legal_email_status");
+              return {
+                data: {
+                  status,
+                  attempts: status === "sent" ? 1 : 8,
+                  sentAt: status === "sent" ? "2026-10-24T07:02:20Z" : null,
+                  lastError:
+                    status === "sent" ? null : "Synthetic delivery failure",
+                },
+              };
+            },
+          },
+        }),
+      },
+      "next/link": ({ children, ...props }) =>
+        createElement("a", props, children),
+    })(file);
+    const html = renderToStaticMarkup(
+      await page.default({ params: Promise.resolve({ id }) }),
+    );
+    assert.deepEqual(calls, [
+      "booking_legal_contract",
+      "admin_booking_legal_email_status",
+    ]);
+    assert.ok(html.includes(`Status: ${status.replaceAll("_", " ")}`));
+    assert.ok(html.includes(`Attempts: ${status === "sent" ? 1 : 8}`));
+    assert.equal(
+      html.includes("Synthetic delivery failure"),
+      status !== "sent",
+    );
+    assert.equal(
+      html.includes("Check the email provider delivery log before retrying."),
+      status === "needs_review",
+    );
+    assert.equal(
+      html.includes("Submitted 2026-10-24T07:02:20.000Z"),
+      status === "sent",
+    );
+    assert.ok(html.includes(`/api/admin/bookings/${id}/legal-documents`));
+    assert.ok(!html.includes(`/api/bookings/${id}/legal-documents`));
+    assert.ok(!html.includes("Retry now"));
   }
 });
