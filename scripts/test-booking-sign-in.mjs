@@ -72,7 +72,9 @@ function harness({
     location: {
       search: `?resume=${resume}`,
       href: "",
-      assign(url) { this.href = url; },
+      assign(url) {
+        this.href = url;
+      },
     },
     sessionStorage: tab,
     history: {
@@ -185,8 +187,8 @@ function harness({
   const cache = new Map();
   function load(file) {
     if (cache.has(file)) return cache.get(file);
-    const module = { exports: {} };
-    cache.set(file, module.exports);
+    const loaded = { exports: {} };
+    cache.set(file, loaded.exports);
     const compiled = ts.transpileModule(readFileSync(file, "utf8"), {
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
@@ -198,8 +200,8 @@ function harness({
     vm.runInNewContext(
       compiled,
       {
-        module,
-        exports: module.exports,
+        module: loaded,
+        exports: loaded.exports,
         require(id) {
           if (id === "react") return hooks;
           if (id === "@/lib/supabase/client")
@@ -223,11 +225,13 @@ function harness({
           intervals.set(id, { callback, delay });
           return id;
         },
-        clearInterval(id) { intervals.delete(id); },
+        clearInterval(id) {
+          intervals.delete(id);
+        },
       },
       { filename: file },
     );
-    return module.exports;
+    return loaded.exports;
   }
   const drafts = load("lib/bookingDraft.ts");
   if (!tab.getItem("opulence-booking-sign-in-draft"))
@@ -279,7 +283,7 @@ test("sign-in returns to confirmation with the entered booking rather than accou
   );
   assert.equal(
     elements(tree).find(
-      (node) => node.type === "button" && text(node) === "Confirm & pay",
+      (node) => node.type === "button" && text(node) === "Book and pay £70.98",
     ).props.disabled,
     true,
     "saved-card consent must be confirmed again",

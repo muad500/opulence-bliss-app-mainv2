@@ -16,7 +16,7 @@ function harness({
   const calls = { sessions: [], staged: [], expired: [] };
   const db = {
     rpc: async (name) =>
-      name === "prepare_booking_legal_consent"
+      name === "prepare_booking_legal_consent_v2"
         ? {
             data: legalError ? null : "00000000-0000-4000-8000-000000000001",
             error: legalError ? { code: "40001" } : null,
@@ -68,8 +68,8 @@ function harness({
   const cache = new Map();
   function load(path) {
     if (cache.has(path)) return cache.get(path);
-    const module = { exports: {} };
-    cache.set(path, module.exports);
+    const loaded = { exports: {} };
+    cache.set(path, loaded.exports);
     const code = ts.transpileModule(readFileSync(path, "utf8"), {
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
@@ -129,8 +129,8 @@ function harness({
       }
     }
     vm.runInNewContext(code, {
-      module,
-      exports: module.exports,
+      module: loaded,
+      exports: loaded.exports,
       require: resolve,
       process: {
         env: {
@@ -144,8 +144,8 @@ function harness({
       Date: FixtureDate,
       console: { error: () => {} },
     });
-    cache.set(path, module.exports);
-    return module.exports;
+    cache.set(path, loaded.exports);
+    return loaded.exports;
   }
   const route = load("app/api/checkout/route.ts");
   return {

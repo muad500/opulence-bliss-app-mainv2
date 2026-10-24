@@ -111,3 +111,15 @@ export function sanitizeLegalHtml(value: string) {
     },
   }).trim();
 }
+
+/** Keep policy snapshots and the public page's existing presentation identical. */
+export function publicLegalPresentation(title: string, contentHtml: string) {
+  return {
+    title: title.replace(/Handyman/gi, "Property maintenance"),
+    contentHtml: sanitizeLegalHtml(contentHtml).replace(/>[^<]+</g, (text) =>
+      text
+        .replace(/Handyman/gi, "Property maintenance")
+        .replace(/Minor decorating/gi, "Painting &amp; decoration"),
+    ),
+  };
+}

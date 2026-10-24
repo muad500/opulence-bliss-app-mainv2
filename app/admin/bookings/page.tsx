@@ -150,33 +150,38 @@ export default async function AdminBookingsPage() {
                           (row: { booking_id: string }) =>
                             row.booking_id === booking.id,
                         ) ? (
-                        <ul>
-                          {(legal.data ?? [])
-                            .filter(
-                              (row: { booking_id: string }) =>
-                                row.booking_id === booking.id,
-                            )
-                            .map(
-                              (row: {
-                                document_slug: string;
-                                document_title: string;
-                                version: string;
-                                accepted_at: string;
-                                user_id: string;
-                              }) => (
-                                <li key={row.document_slug}>
-                                  {row.document_title} · Version {row.version}
-                                  <br />
-                                  Accepted{" "}
-                                  {new Date(row.accepted_at).toLocaleString(
-                                    "en-GB",
-                                    { timeZone: "Europe/London" },
-                                  )}{" "}
-                                  (London) · Account {row.user_id}
-                                </li>
-                              ),
-                            )}
-                        </ul>
+                        <>
+                          <ul>
+                            {(legal.data ?? [])
+                              .filter(
+                                (row: { booking_id: string }) =>
+                                  row.booking_id === booking.id,
+                              )
+                              .map(
+                                (row: {
+                                  document_slug: string;
+                                  document_title: string;
+                                  version: string;
+                                  accepted_at: string;
+                                  user_id: string;
+                                }) => (
+                                  <li key={row.document_slug}>
+                                    {row.document_title} · Version {row.version}
+                                    <br />
+                                    Accepted{" "}
+                                    {new Date(row.accepted_at).toLocaleString(
+                                      "en-GB",
+                                      { timeZone: "Europe/London" },
+                                    )}{" "}
+                                    (London) · Account {row.user_id}
+                                  </li>
+                                ),
+                              )}
+                          </ul>
+                          <a href={`/admin/bookings/${booking.id}/legal`}>
+                            View saved policy copies and evidence
+                          </a>
+                        </>
                       ) : (
                         <p>
                           No booking-specific acceptance recorded for this
