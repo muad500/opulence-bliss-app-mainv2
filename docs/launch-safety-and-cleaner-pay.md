@@ -45,7 +45,11 @@ Read-only staging preflight on 24 October: newest recorded migration `2026102300
 - The first batch stopped safely on a CRLF/LF difference in an existing function and rolled back entirely (zero migrations committed). The unapplied migration was corrected to normalise line endings only, a regression assertion was added, and the corrected atomic batch succeeded. Applied migration sources are now immutable.
 - Postflight: zero precise coordinates in check-ins, check-in challenges or booking-event metadata; safeguarding Version 1.0 published; onboarding access list empty as intended.
 - Matching staging `visit-payments` worker deployed with source SHA `306fa34f90d025b30ed7ec43585d93eb096963759ff2f8fb6905d2fa52e06941`. The existing five-minute scheduler returned HTTP 200 with that exact source at `2026-10-24T18:55:00Z`.
-- The branch Preview and safeguarding page load. Admin settings correctly require staff password plus authenticator sign-in. Live named-staff, registration acceptance and Stripe Sandbox scenarios remain pending; do not mark them passed from isolated tests.
+- The branch Preview and safeguarding page load. Staff password plus authenticator sign-in was completed, and authenticated settings display the agreed £15 / £17.50 pay, £4 of £5 products payment and 100/75/50/30 refund percentages.
+- Four real staging public-key probes pass: anonymous access to DBS evidence, onboarding staff, access audit and the audited viewing RPC is denied. Run `node --env-file=.env.staging.local scripts/test-staging-launch-anonymous.mjs`; this tool refuses a non-staging URL and never uses or logs a service-role key.
+- Before any named grant, the signed-in admin sees the restricted DBS notice and cannot open the synthetic professional's certificate endpoint. The access selection is prepared but must not be saved without the user's action-time approval.
+- Two further automatic worker runs at `2026-10-24T19:40:00Z` and `19:45:00Z` returned HTTP 200 with the exact new source SHA, no timeouts and mode `staging`.
+- Live named-staff/audit success cases, registration acceptance and Stripe Sandbox scenarios remain pending; do not mark them passed from isolated tests. Production remains untouched.
 - Automated checks: 428 application tests and 36 isolated PostgreSQL assertions pass; typecheck, Next.js 16.4.2 build and all GitHub checks pass.
 - Stable branch Preview: <https://opulence-bliss-app-mainv2-git-codex-la-bd07f8-muad500s-projects.vercel.app>.
 
