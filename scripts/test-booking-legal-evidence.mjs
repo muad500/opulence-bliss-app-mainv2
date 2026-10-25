@@ -9,6 +9,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const native = createRequire(import.meta.url);
+const { NextResponse } = native("next/server");
 function loader(mocks = {}, env = {}, transport = fetch) {
   const cache = new Map();
   function load(file) {
@@ -575,4 +576,333 @@ test("staff evidence page gates access and renders sent, failed and review-requi
     assert.ok(!html.includes(`/api/bookings/${id}/legal-documents`));
     assert.ok(!html.includes("Retry now"));
   }
+});
+
+test("payment-free test uses the normal template and identical four PDF bytes, clearly marked TEST", async () => {
+  const { bookingLegalEmailPayload } = load("lib/bookingLegalEmailPayload.ts");
+  const options = {
+    from: "Opulence Bliss <no-reply@example.invalid>",
+    origin: "https://example.invalid",
+  };
+  const normal = await bookingLegalEmailPayload(
+    contract,
+    "tester@example.invalid",
+    options,
+  );
+  const sample = await bookingLegalEmailPayload(
+    { ...contract, bookings: [] },
+    "tester@example.invalid",
+    { ...options, test: true },
+  );
+  assert.deepEqual(sample.attachments, normal.attachments);
+  assert.equal(sample.attachments.length, 4);
+  assert.equal(sample.from, normal.from);
+  assert.equal(sample.reply_to, normal.reply_to);
+  assert.match(sample.subject, /^TEST ONLY/);
+  assert.match(
+    sample.text,
+    /No booking, charge or new policy acceptance has been created/,
+  );
+  assert.ok(
+    sample.text.includes(`/api/account/checkout-policies/${contract.id}`),
+  );
+  assert.ok(!sample.text.includes("Thank you for booking"));
+  assert.ok(!sample.text.includes("/account/visit/"));
+  assert.equal(normal.subject, "Your Opulence Bliss booking policies");
+  assert.ok(
+    normal.text.startsWith("Thank you for booking with Opulence Bliss."),
+  );
+  for (const attachment of sample.attachments)
+    assert.ok(
+      (
+        await PDFDocument.load(Buffer.from(attachment.content, "base64"))
+      ).getPageCount() > 0,
+    );
+});
+
+function checkoutCopyDatabase({
+  missing = false,
+  invalidOwner = false,
+  linked = 0,
+  verified = true,
+} = {}) {
+  const calls = [];
+  const row = {
+    id: contract.id,
+    user_id: contract.evidence.account.userId,
+    accepted_at: contract.acceptedAt,
+    documents: contract.documents,
+    evidence: contract.evidence,
+  };
+  if (invalidOwner)
+    row.evidence = {
+      ...row.evidence,
+      account: { ...row.evidence.account, userId: "different-owner" },
+    };
+  return {
+    calls,
+    from(table) {
+      calls.push(["from", table]);
+      assert.ok(
+        [
+          "booking_checkout_legal_consents",
+          "account_legal_acceptances",
+        ].includes(table),
+      );
+      const filters = [];
+      const query = {
+        select(...args) {
+          calls.push(["select", ...args]);
+          return query;
+        },
+        eq(...args) {
+          filters.push(args);
+          calls.push(["eq", ...args]);
+          return query;
+        },
+        not(...args) {
+          calls.push(["not", ...args]);
+          return query;
+        },
+        async maybeSingle() {
+          const owner = filters.find(([key]) => key === "user_id")?.[1];
+          return {
+            data: missing || (owner && owner !== row.user_id) ? null : row,
+          };
+        },
+        then(resolve) {
+          return Promise.resolve({ count: linked, error: null }).then(resolve);
+        },
+      };
+      return query;
+    },
+    auth: {
+      admin: {
+        async getUserById(id) {
+          assert.equal(id, row.user_id);
+          return {
+            data: {
+              user: {
+                email: contract.evidence.account.email,
+                email_confirmed_at: verified ? contract.acceptedAt : null,
+              },
+            },
+          };
+        },
+      },
+    },
+  };
+}
+
+test("checkout-copy reader filters the customer owner, validates evidence, and does not fabricate bookings", async () => {
+  const { loadCheckoutPolicyCopy } = load("lib/checkoutPolicyCopy.ts");
+  const database = checkoutCopyDatabase();
+  const copy = await loadCheckoutPolicyCopy(
+    database,
+    contract.id,
+    contract.evidence.account.userId,
+  );
+  assert.deepEqual(copy.bookings, []);
+  assert.deepEqual(copy.documents, contract.documents);
+  assert.ok(
+    database.calls.some(
+      ([operation, column, value]) =>
+        operation === "eq" &&
+        column === "user_id" &&
+        value === contract.evidence.account.userId,
+    ),
+  );
+  assert.equal(
+    await loadCheckoutPolicyCopy(database, contract.id, "other-customer"),
+    null,
+  );
+  assert.equal(
+    await loadCheckoutPolicyCopy(
+      checkoutCopyDatabase({ invalidOwner: true }),
+      contract.id,
+    ),
+    null,
+  );
+});
+
+test("customer payment-free downloads require sign-in and return the owner's real PDF and cancellation form", async () => {
+  const path = "app/api/account/checkout-policies/[id]/route.ts";
+  const context = { params: Promise.resolve({ id: contract.id }) };
+  const blocked = loader({
+    "@/lib/accountApi": {
+      accountContext: async () => new NextResponse(null, { status: 401 }),
+      isAccountError: (value) => value instanceof NextResponse,
+    },
+  })(path);
+  assert.equal(
+    (
+      await blocked.GET(
+        new Request(
+          "https://example.invalid/api/account/checkout-policies/" +
+            contract.id,
+        ),
+        context,
+      )
+    ).status,
+    401,
+  );
+  for (const owner of [
+    contract.evidence.account.userId,
+    "different-customer",
+  ]) {
+    const database = checkoutCopyDatabase();
+    const route = loader({
+      "@/lib/accountApi": {
+        accountContext: async () => ({ admin: database, user: { id: owner } }),
+        isAccountError: (value) => value instanceof NextResponse,
+      },
+    })(path);
+    for (const suffix of ["", "?form=cancellation"]) {
+      const result = await route.GET(
+        new Request(
+          "https://example.invalid/api/account/checkout-policies/" +
+            contract.id +
+            suffix,
+        ),
+        context,
+      );
+      assert.equal(
+        result.status,
+        owner === contract.evidence.account.userId ? 200 : 404,
+      );
+      assert.equal(result.headers.get("cache-control"), "private, no-store");
+      if (result.status === 200) {
+        assert.equal(result.headers.get("content-type"), "application/pdf");
+        assert.ok(
+          (await PDFDocument.load(await result.arrayBuffer())).getPageCount() >
+            0,
+        );
+      }
+    }
+  }
+});
+
+test("admin payment-free downloads preserve the staff authenticator gate", async () => {
+  for (const status of [401, 403, 200]) {
+    const database = checkoutCopyDatabase();
+    const route = loader({
+      "@/lib/adminApi": {
+        adminApi: async () =>
+          status === 200
+            ? { admin: database }
+            : new NextResponse(null, { status }),
+      },
+    })("app/api/admin/checkout-policies/[id]/route.ts");
+    const response = await route.GET(
+      new Request(
+        "https://admin.example.invalid/api/admin/checkout-policies/" +
+          contract.id,
+      ),
+      { params: Promise.resolve({ id: contract.id }) },
+    );
+    assert.equal(response.status, status);
+    if (status === 200)
+      assert.equal(response.headers.get("content-type"), "application/pdf");
+    else assert.equal(database.calls.length, 0);
+  }
+});
+
+function paymentFreeEmailHarness(options = {}) {
+  const database = checkoutCopyDatabase(options);
+  const requests = [];
+  const route = loader(
+    {
+      "@supabase/supabase-js": { createClient: () => database },
+    },
+    {
+      CRON_SECRET: "fixture-cron",
+      RESEND_API_KEY: "fixture-resend",
+      BOOKING_EMAIL_FROM: "Opulence Bliss <no-reply@example.invalid>",
+      NEXT_PUBLIC_SITE_URL: "https://example.invalid",
+      NEXT_PUBLIC_SUPABASE_URL: "https://production.example.invalid",
+      SUPABASE_SERVICE_ROLE_KEY: "fixture-service",
+      VERCEL_ENV: "production",
+    },
+    async (url, init) => {
+      requests.push({ url, ...init, body: JSON.parse(init.body) });
+      return Response.json(
+        { id: "fixture-provider-id" },
+        { status: options.providerStatus ?? 200 },
+      );
+    },
+  )("app/api/cron/policy-email-test/route.ts");
+  const request = (overrides = {}, authorized = true) =>
+    new Request("https://example.invalid/api/cron/policy-email-test", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(authorized ? { Authorization: "Bearer fixture-cron" } : {}),
+      },
+      body: JSON.stringify({
+        consentId: contract.id,
+        recipient: contract.evidence.account.email,
+        ...overrides,
+      }),
+    });
+  return { route, database, requests, request };
+}
+
+test("payment-free mail rejects missing auth, other recipients, unverified owners and linked bookings before transport", async () => {
+  const unauthorized = paymentFreeEmailHarness();
+  assert.equal(
+    (await unauthorized.route.POST(unauthorized.request({}, false))).status,
+    401,
+  );
+  assert.equal(unauthorized.database.calls.length, 0);
+  for (const [options, overrides, expected] of [
+    [{}, { recipient: "another@example.invalid" }, 403],
+    [{ verified: false }, {}, 403],
+    [{ linked: 1 }, {}, 409],
+    [{ missing: true }, {}, 403],
+    [{}, { consentId: "bad-id" }, 400],
+  ]) {
+    const harness = paymentFreeEmailHarness(options);
+    assert.equal(
+      (await harness.route.POST(harness.request(overrides))).status,
+      expected,
+    );
+    assert.equal(harness.requests.length, 0);
+  }
+});
+
+test("payment-free mail sends only to the verified owner, uses four PDFs and stable retry idempotency without any database writes", async () => {
+  const harness = paymentFreeEmailHarness();
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const response = await harness.route.POST(harness.request());
+    assert.equal(response.status, 200);
+    const result = await response.json();
+    assert.equal(result.testOnly, true);
+    assert.equal(result.attachments.length, 4);
+    assert.ok(!JSON.stringify(result).includes("fixture-resend"));
+  }
+  assert.equal(harness.requests.length, 2);
+  assert.equal(
+    harness.requests[0].headers["Idempotency-Key"],
+    harness.requests[1].headers["Idempotency-Key"],
+  );
+  assert.deepEqual(harness.requests[0].body, harness.requests[1].body);
+  assert.deepEqual(harness.requests[0].body.to, [
+    contract.evidence.account.email,
+  ]);
+  assert.match(harness.requests[0].body.subject, /^TEST ONLY/);
+  assert.ok(
+    harness.database.calls.every(([operation]) =>
+      ["from", "select", "eq", "not"].includes(operation),
+    ),
+  );
+});
+
+test("payment-free provider failure is reported without leaking credentials or creating booking data", async () => {
+  const harness = paymentFreeEmailHarness({ providerStatus: 500 });
+  const response = await harness.route.POST(harness.request());
+  assert.equal(response.status, 503);
+  const body = await response.text();
+  assert.match(body, /provider returned 500/);
+  assert.ok(!body.includes("fixture-resend"));
+  assert.ok(!body.includes("fixture-service"));
 });

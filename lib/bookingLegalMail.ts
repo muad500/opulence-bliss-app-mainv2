@@ -1,9 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { BookingLegalContract } from "./bookingLegalEvidence";
-import {
-  generateAcceptedPolicyPdf,
-  generateCancellationFormPdf,
-} from "./bookingLegalPdf";
+import { bookingLegalEmailPayload } from "./bookingLegalEmailPayload";
 import { securityMailRecipientAllowed } from "./accountSecurityAlerts";
 
 type Delivery = {
@@ -46,38 +43,10 @@ export async function deliverBookingLegalEmails(
         throw new Error("Accepted policy snapshots are unavailable");
       let payload = delivery.payload;
       if (!payload) {
-        const attachments: Array<{ filename: string; content: string }> = [];
-        for (const document of contract.documents)
-          attachments.push({
-            filename: `${document.slug}-version-${document.version.replace(/[^a-z0-9.-]/gi, "_")}.pdf`,
-            content: Buffer.from(
-              await generateAcceptedPolicyPdf(document, contract.acceptedAt),
-            ).toString("base64"),
-          });
-        attachments.push({
-          filename: "model-cancellation-form.pdf",
-          content: Buffer.from(
-            await generateCancellationFormPdf(contract.acceptedAt),
-          ).toString("base64"),
+        payload = await bookingLegalEmailPayload(contract, delivery.email, {
+          from: from!,
+          origin: origin!,
         });
-        payload = {
-          from,
-          to: [delivery.email],
-          reply_to: "hello@opulencebliss.com",
-          subject: "Your Opulence Bliss booking policies",
-          text: [
-            "Thank you for booking with Opulence Bliss.",
-            "Attached are the Terms & Conditions, Cancellation & Refund Policy and Privacy Policy versions you accepted, plus a model cancellation form. Keep these documents for your records.",
-            `Accepted: ${new Date(contract.acceptedAt).toISOString()} (UTC).`,
-            ...contract.bookings.map(
-              (booking) =>
-                `${booking.service} — ${new Date(booking.scheduledAt).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "long", timeStyle: "short" })} (London time). Reference: ${booking.id}.`,
-            ),
-            `View your booking: ${origin!.replace(/\/$/, "")}/account/visit/${contract.bookings[0].id}`,
-            "You do not have to use the attached form to cancel. Your accepted policies explain your cancellation rights. Contact hello@opulencebliss.com if you need help.",
-          ].join("\n\n"),
-          attachments,
-        };
         // Save the exact request before sending; retries reuse identical bytes.
         const stored = await admin.rpc("store_booking_legal_email_payload", {
           p_id: delivery.id,

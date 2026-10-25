@@ -208,13 +208,21 @@ export function generateAcceptedPolicyPdf(
   ]);
 }
 
-export function generateBookingLegalPdf(contract: BookingLegalContract) {
-  return render("Your booking policies", contract.acceptedAt, [
+export function generateBookingLegalPdf(
+  contract: BookingLegalContract,
+  options: { checkoutOnly?: boolean } = {},
+) {
+  const title = options.checkoutOnly
+    ? "Your checkout policy copy"
+    : "Your booking policies";
+  return render(title, contract.acceptedAt, [
     {
-      title: "Your booking policies",
+      title,
       metadata: `Accepted ${new Date(contract.acceptedAt).toISOString()} (UTC)`,
       paragraphs: [
-        "These are the policy versions displayed and accepted at checkout. Keep this copy with your booking confirmation.",
+        options.checkoutOnly
+          ? "These policy copies were saved during checkout. This PDF does not confirm a booking or payment and does not record any new acceptance."
+          : "These are the policy versions displayed and accepted at checkout. Keep this copy with your booking confirmation.",
         ...contract.bookings.map(
           (booking) =>
             `Booking ${booking.id}: ${booking.service}, ${new Date(booking.scheduledAt).toLocaleString("en-GB", { timeZone: "Europe/London", dateStyle: "long", timeStyle: "short" })} (London time).`,
