@@ -60,4 +60,9 @@ Read-only staging preflight on 24 October: newest recorded migration `2026102300
 
 Live staging results must pass; publish/approve consistent customer-policy wording from `launch-policy-wording-checklist.md`; explicitly name onboarding staff in Settings; obtain the user's production “go”; coordinate the release slot with the other bot. Keep the handyman marketplace off in production. The other bot's PR #47 is separate and must not be released concurrently.
 
-The user specifically requires confirmation of the Production DBS onboarding list immediately before release. It must include the requester's admin account and the client's verifying admin account once that account exists. An empty list is acceptable for the present restricted staging test, **not** for Production launch. Do not infer or silently grant other staff access.
+The user confirmed on 25 October that the Production onboarding list must be **`syedmouad+admin@gmail.com`**, not `syedmouad@gmail.com` (a professional account on Production). Confirm the final list immediately before the separately authorised release, adding the client's verifying admin only once that account exists and the owner confirms it. Staging uses the explicitly approved `syedmouad@gmail.com` staff account. Do not copy the staging list to Production or silently grant other staff access.
+
+### Follow-up — 25 October 2026
+
+- DBS record access is now an explicit client-side Open/Close action backed by a POST-only, named-staff/MFA-checked endpoint. Page rendering, 30-second automatic refresh, link prefetch and certificate HEAD requests cannot create record-view events. An intentional re-open logs a new access. Seven regression checks cover initial render, polling, double-clicks, reopening, rejected access and endpoint behaviour.
+- The owner approved a temporary STAGING-only Sandbox test runner, protected by the existing staging scheduler secret and removed immediately after testing. Its source will remain in the ignored `.local-secrets/` directory: **no runner commits are to be merged or released**. Deployment and removal evidence must be recorded here before declaring live payment tests complete.
