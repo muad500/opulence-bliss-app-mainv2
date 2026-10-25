@@ -319,6 +319,7 @@ export function BookingTools({
             <X size={22} />
           </button>
         </header>
+        <p>Date and time changes are free up to 24 hours before the visit, subject to availability. Within 24 hours, contact support.</p>
 
         <div className="booking-summary">
           <span className="calendar-icon">
@@ -554,10 +555,25 @@ export function BookingTools({
           <button
             style={{ ...linkBtn, color: "#B0384F" }}
             disabled={pending}
-            onClick={() => {
-              const policy = scheduledAt
+            onClick={async () => {
+              let policy = scheduledAt
                 ? calculateCancellationPolicy(scheduledAt, paymentAmount ?? 0)
                 : null;
+              try {
+                const response = await fetch(
+                  `/api/account/visits/${id}/billing`,
+                  { cache: "no-store" },
+                );
+                const data = await response.json();
+                if (!response.ok) throw new Error();
+                if (data.model === "per_visit")
+                  policy = data.cancellationPolicy;
+              } catch {
+                setMessage(
+                  "The current refund could not be checked. Please refresh before cancelling.",
+                );
+                return;
+              }
               const confirmation = policy
                 ? cancellationConfirmation(policy)
                 : "Cancel this booking?";

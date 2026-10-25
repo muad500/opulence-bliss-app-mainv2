@@ -7,6 +7,7 @@ import { currentCheckoutLegal } from "@/lib/checkoutLegalServer";
 import {
   DEFAULT_CLEANING_BILLING_TERMS,
   cleanerPayPence,
+  cleaningTermsForPackage,
 } from "@/lib/cleaningBillingTerms";
 // Platform checkout. A completed visit is paid to its assigned cleaner later.
 // Save at: app/api/checkout/route.ts
@@ -209,7 +210,10 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     const billingTerms = perVisit
-      ? await currentCleaningBillingTerms(supabaseAdmin)
+      ? cleaningTermsForPackage(
+          await currentCleaningBillingTerms(supabaseAdmin),
+          pkg.name,
+        )
       : DEFAULT_CLEANING_BILLING_TERMS;
     let quote;
     try {

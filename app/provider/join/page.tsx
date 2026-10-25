@@ -19,7 +19,11 @@ import {
   isSupportedDbsCertificate,
   normalizeDbsCertificateNumber,
 } from "@/lib/providerDbs";
-import { PRIVACY_URL, PROFESSIONAL_PARTNER_AGREEMENT_URL } from "@/lib/legal";
+import {
+  PRIVACY_URL,
+  PROFESSIONAL_PARTNER_AGREEMENT_URL,
+  SAFEGUARDING_URL,
+} from "@/lib/legal";
 import {
   estimateProviderMonthlyEarnings,
   isOptionalUtrNumber,
@@ -152,6 +156,28 @@ export default function ProviderJoinPage() {
   const [err, setErr] = useState<string | null>(null);
   const [professionalAgreementAccepted, setProfessionalAgreementAccepted] =
     useState(false);
+  const [safeguardingAccepted, setSafeguardingAccepted] = useState(false);
+  const [safeguardingEnabled, setSafeguardingEnabled] = useState<
+    boolean | null
+  >(null);
+  const [safeguardingVersion, setSafeguardingVersion] = useState<string | null>(
+    null,
+  );
+  useEffect(() => {
+    let active = true;
+    fetch("/api/provider-safeguarding", { cache: "no-store" })
+      .then(async (response) => {
+        const data = await response.json();
+        if (active && response.ok && typeof data.enabled === "boolean") {
+          setSafeguardingEnabled(data.enabled);
+          setSafeguardingVersion(data.version);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   const [dbsCertificateNumber, setDbsCertificateNumber] = useState("");
   const [dbsIssueDate, setDbsIssueDate] = useState("");
   const [dbsCertificate, setDbsCertificate] = useState<File | null>(null);
@@ -441,6 +467,15 @@ export default function ProviderJoinPage() {
       );
       return;
     }
+    if (
+      safeguardingEnabled === null ||
+      (safeguardingEnabled && (!safeguardingAccepted || !safeguardingVersion))
+    ) {
+      setErr(
+        "Read and accept the Safeguarding, Lone Working and Incident Reporting Policy to continue.",
+      );
+      return;
+    }
     setBusy(true);
     setErr(null);
 
@@ -489,6 +524,8 @@ export default function ProviderJoinPage() {
             homePostcode: homePostcode.trim().toUpperCase(),
             areaIds,
             professionalAgreementAccepted,
+            safeguardingAccepted,
+            safeguardingVersion,
             dbsCertificateNumber:
               normalizeDbsCertificateNumber(dbsCertificateNumber),
             dbsIssueDate,
@@ -574,7 +611,9 @@ export default function ProviderJoinPage() {
       dbsCertificate.type,
       dbsCertificate.size,
     ) &&
-    professionalAgreementAccepted,
+    professionalAgreementAccepted &&
+    safeguardingEnabled !== null &&
+    (!safeguardingEnabled || (safeguardingAccepted && safeguardingVersion)),
   );
   const monthlyEstimate = estimateProviderMonthlyEarnings(weeklyHours);
 
@@ -1581,6 +1620,34 @@ export default function ProviderJoinPage() {
                   {DBS_CERTIFICATE_MAX_BYTES / 1024 / 1024} MB.
                   {dbsCertificate ? ` Selected: ${dbsCertificate.name}` : ""}
                 </p>
+
+                {safeguardingEnabled && (
+                  <label className="legal-consent">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={safeguardingAccepted}
+                      disabled={!safeguardingVersion}
+                      onChange={(event) =>
+                        setSafeguardingAccepted(event.target.checked)
+                      }
+                    />
+                    <span>
+                      I have read and agree to follow the{" "}
+                      <a
+                        href={SAFEGUARDING_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Safeguarding, Lone Working and Incident Reporting Policy
+                      </a>
+                      {safeguardingVersion
+                        ? ` (Version ${safeguardingVersion})`
+                        : " (loading…)"}
+                      .
+                    </span>
+                  </label>
+                )}
 
                 <label className="legal-consent">
                   <input

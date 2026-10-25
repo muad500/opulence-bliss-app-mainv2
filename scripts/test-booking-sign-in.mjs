@@ -72,7 +72,9 @@ function harness({
     location: {
       search: `?resume=${resume}`,
       href: "",
-      assign(url) { this.href = url; },
+      assign(url) {
+        this.href = url;
+      },
     },
     sessionStorage: tab,
     history: {
@@ -185,8 +187,8 @@ function harness({
   const cache = new Map();
   function load(file) {
     if (cache.has(file)) return cache.get(file);
-    const module = { exports: {} };
-    cache.set(file, module.exports);
+    const compiledModule = { exports: {} };
+    cache.set(file, compiledModule.exports);
     const compiled = ts.transpileModule(readFileSync(file, "utf8"), {
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
@@ -198,8 +200,8 @@ function harness({
     vm.runInNewContext(
       compiled,
       {
-        module,
-        exports: module.exports,
+        module: compiledModule,
+        exports: compiledModule.exports,
         require(id) {
           if (id === "react") return hooks;
           if (id === "@/lib/supabase/client")
@@ -223,11 +225,13 @@ function harness({
           intervals.set(id, { callback, delay });
           return id;
         },
-        clearInterval(id) { intervals.delete(id); },
+        clearInterval(id) {
+          intervals.delete(id);
+        },
       },
       { filename: file },
     );
-    return module.exports;
+    return compiledModule.exports;
   }
   const drafts = load("lib/bookingDraft.ts");
   if (!tab.getItem("opulence-booking-sign-in-draft"))
@@ -279,7 +283,8 @@ test("sign-in returns to confirmation with the entered booking rather than accou
   );
   assert.equal(
     elements(tree).find(
-      (node) => node.type === "button" && text(node) === "Confirm & pay",
+      (node) =>
+        node.type === "button" && text(node).startsWith("Book and pay £"),
     ).props.disabled,
     true,
     "saved-card consent must be confirmed again",
@@ -348,7 +353,8 @@ test("regular visit count and individual extras survive while prices are recalcu
   });
   const tree = await app.settle();
   assert.match(text(tree), /Step 6 of 6/);
-  assert.match(text(tree), /Save card and book visits/);
+  assert.match(text(tree), /Book and pay £0 today \(save card\)/);
+  assert.match(text(tree), /No VAT is charged/);
   assert.match(text(tree), /£408.84/);
   assert.match(text(tree), /8 visits/);
   const changed = harness({ packageList: [{ ...packages[0], price: 55.98 }] });

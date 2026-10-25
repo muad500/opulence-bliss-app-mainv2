@@ -21,10 +21,10 @@ async function load(path, mocks = {}) {
       },
     },
   ).outputText;
-  const module = { exports: {} };
+  const compiledModule = { exports: {} };
   vm.runInNewContext(code, {
-    module,
-    exports: module.exports,
+    module: compiledModule,
+    exports: compiledModule.exports,
     require: (id) => {
       if (id.endsWith("MobileExperience"))
         return { useAppAudience: () => null };
@@ -63,7 +63,7 @@ async function load(path, mocks = {}) {
     URL,
     Response,
   });
-  return module.exports;
+  return compiledModule.exports;
 }
 const sessionOptions = await load("lib/supabase/sessionOptions.ts");
 const services = await load("lib/professionalServices.ts");
@@ -323,12 +323,14 @@ const validSignup = {
   skills: ["cleaning"],
   areaIds: ["area"],
   professionalAgreementAccepted: true,
+  safeguardingAccepted: true,
+  safeguardingVersion: "1.0",
   dbsCertificateNumber: "123456789012",
   dbsIssueDate: "2026-10-01",
   dbsCertificateFileName: "certificate.pdf",
   dbsCertificateMimeType: "application/pdf",
 };
-async function signup(body) {
+async function signup(body, safeguardingEnabled = true) {
   const writes = [];
   const db = {
     auth: {
@@ -365,9 +367,15 @@ async function signup(body) {
     },
   };
   const { POST } = await load("app/api/provider-signup/route.ts", {
+    "@/lib/safeguardingRegistration": {
+      safeguardingRegistration: async () => ({
+        enabled: safeguardingEnabled,
+        version: safeguardingEnabled ? "1.0" : null,
+      }),
+    },
     "@/lib/providerOnboarding": onboarding,
     "@/lib/accountApi": { isSameOriginMutation: () => true },
-    "@/lib/legal": { LEGAL_VERSIONS: {} },
+    "@/lib/legal": { LEGAL_VERSIONS: { safeguarding: "1.0" } },
     "@/lib/ukPhone": { normalizeUkPhone: (x) => x, isValidUkPhone: () => true },
     "@/lib/providerDbs": {
       normalizeDbsCertificateNumber: (x) => x,
@@ -418,6 +426,65 @@ test("restricted statuses, no work permission and malformed UTR fail before any 
     const { response, writes } = await signup({ ...validSignup, ...change });
     assert.equal(response.status, 400);
     assert.equal(writes.length, 0);
+  }
+});
+
+test("cleaner and handyman registration require the displayed safeguarding version and save its time", async () => {
+  for (const skills of [["cleaning"], ["handyman"], ["cleaning", "handyman"]]) {
+    const application = {
+      ...validSignup,
+      skills,
+      maintenanceTasks: ["Furniture assembly"],
+      coveragePostcodes: ["SW1A"],
+    };
+    for (const change of [
+      { safeguardingAccepted: false },
+      { safeguardingAccepted: undefined },
+      { safeguardingAccepted: "true" },
+      { safeguardingVersion: undefined },
+      { safeguardingVersion: "0.9" },
+    ]) {
+      const { response, writes } = await signup({ ...application, ...change });
+      assert.ok([400, 409].includes(response.status), skills.join("/"));
+      assert.equal(
+        writes.length,
+        0,
+        "no account changes before valid acceptance",
+      );
+    }
+    const { response, writes } = await signup(application);
+    assert.equal(response.status, 200, skills.join("/"));
+    const evidence = writes
+      .find((write) => write.table === "account_legal_acceptances")
+      .value.find((row) => row.document_slug === "safeguarding");
+    assert.equal(evidence.version, "1.0");
+    assert.ok(Number.isFinite(Date.parse(evidence.accepted_at)));
+    const provider = writes.find((write) => write.table === "providers").value;
+    assert.deepEqual(Array.from(provider.services), skills);
+    assert.equal(provider.vetting_status, "pending");
+  }
+});
+
+test("safeguarding OFF permits signup without fabricated policy acceptance for either service", async () => {
+  for (const skills of [["cleaning"], ["handyman"], ["cleaning", "handyman"]]) {
+    const { response, writes } = await signup(
+      {
+        ...validSignup,
+        skills,
+        maintenanceTasks: ["Furniture assembly"],
+        coveragePostcodes: ["SW1A"],
+        safeguardingAccepted: false,
+        safeguardingVersion: undefined,
+      },
+      false,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(
+      writes
+        .find((write) => write.table === "account_legal_acceptances")
+        .value.some((row) => row.document_slug === "safeguarding"),
+      false,
+    );
   }
 });
 

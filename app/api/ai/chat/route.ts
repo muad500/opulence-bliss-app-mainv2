@@ -22,6 +22,11 @@ import {
   rescheduleCustomerBooking,
 } from "@/lib/customerBookingOperations";
 import { calculateCancellationPolicy } from "@/lib/cancellationPolicy";
+import {
+  visitCancellationPolicy,
+  type VisitCharge,
+} from "@/lib/visitAdjustments";
+import { bookingCleaningBillingTerms } from "@/lib/cleaningBillingSettings";
 import { getRescheduleWindow } from "@/lib/bookingState";
 import { getVisitStatus } from "@/lib/visitStatus";
 import {
@@ -381,7 +386,7 @@ async function ownClientBooking(context: AgentContext, bookingId: string) {
   const { data, error } = await context.client
     .from("bookings")
     .select(
-      "id, customer_id, status, scheduled_at, address, package_id, duration_minutes, packages(name, service_type, duration_minutes)",
+      "id, customer_id, status, scheduled_at, created_at, address, package_id, duration_minutes, packages(name, service_type, duration_minutes)",
     )
     .eq("id", bookingId)
     .eq("customer_id", context.user.id)
@@ -676,10 +681,33 @@ async function runTool(
         String(args.reason ?? "")
           .trim()
           .slice(0, 240) || null;
-      const cancellationPolicy = calculateCancellationPolicy(
+      let cancellationPolicy = calculateCancellationPolicy(
         owned.booking.scheduled_at,
         status?.money.amount ?? 0,
       );
+      const billing = await admin
+        .from("booking_visit_billing")
+        .select("booking_id")
+        .eq("booking_id", bookingId)
+        .maybeSingle();
+      if (billing.error)
+        throw new Error("The current cancellation terms could not be checked.");
+      if (billing.data) {
+        const charges = await admin
+          .from("booking_visit_charges")
+          .select("*")
+          .eq("booking_id", bookingId)
+          .order("created_at");
+        if (charges.error)
+          throw new Error("The paid cancellation amount could not be checked.");
+        cancellationPolicy = visitCancellationPolicy(
+          owned.booking.scheduled_at,
+          charges.data as VisitCharge[],
+          await bookingCleaningBillingTerms(admin, bookingId),
+          new Date(),
+          owned.booking.created_at,
+        );
+      }
       const token = signAssistantMutation(
         {
           type: "cancel_booking",

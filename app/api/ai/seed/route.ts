@@ -76,7 +76,7 @@ const DOCS: { title: string; content: string }[] = [
   {
     title: "Cancelling and rescheduling",
     content:
-      "You can cancel or modify a visit from My bookings in your account or ask the assistant to prepare a time change. The assistant always shows a confirmation button before changing anything. A new time must meet the permitted appointment window. Under the cancellation policy, more than 48 hours' notice normally has no cancellation charge; 24 to 48 hours may incur up to 25%; less than 24 hours may incur up to 50%; and a same-day cancellation, no-access visit or missed appointment may incur up to 100%. The cancellation screen shows the exact amount before confirmation. Every modification keeps its audited history and the customer, provider and admin schedule are updated.",
+      "Date and time changes are free up to 24 hours before the visit, subject to availability. Within 24 hours contact support. You can modify a visit from My bookings or ask the assistant to prepare a change; a confirmation button is always required. Cancellation follows each booking's agreed policy: the current published policy uses 0/25/50/up to 100% charges, with no separate 12-hour band and a 30-minute no-access wait. A separately enabled future policy uses 0/25/50/up to 70% on cleaning hours only, refunds extras/products/tips, and has a 12-hour band and 15-minute wait. Never assume that future policy is active: always use the live cancellation preview for the booking. Cleaner compensation is the corresponding proportion of cleaning-hours pay; waivers increase the refund. Every modification is audited.",
   },
   {
     title: "Tipping",
@@ -210,7 +210,12 @@ export async function GET(req: NextRequest) {
         );
       ids.set(doc.title, doc.id);
     }
-    const prepared: Array<{ id: string; title: string; content: string; embedding: number[] }> = [];
+    const prepared: Array<{
+      id: string;
+      title: string;
+      content: string;
+      embedding: number[];
+    }> = [];
     for (const doc of all) {
       const vector = await embed(`${doc.title}. ${doc.content}`);
       if (

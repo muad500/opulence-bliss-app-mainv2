@@ -34,23 +34,24 @@ const loadDocument = cache(async (slug: string) => {
       .eq("published", true)
       .maybeSingle();
     const row = data as LegalRow | null;
-    if (!row?.content_html) return fallback;
+    if (!row?.content_html) return slug === "safeguarding" ? null : fallback;
     return {
       slug,
       title: row.title.replace(/Handyman/gi, "Property maintenance"),
       audience: row.audience,
-      contentHtml: sanitizeLegalHtml(row.content_html).replace(
-        />[^<]+</g,
-        (text) =>
-          text
-            .replace(/Handyman/gi, "Property maintenance")
-            .replace(/Minor decorating/gi, "Painting &amp; decoration"),
-      ),
+      contentHtml:
+        slug === "safeguarding"
+          ? sanitizeLegalHtml(row.content_html)
+          : sanitizeLegalHtml(row.content_html).replace(/>[^<]+</g, (text) =>
+              text
+                .replace(/Handyman/gi, "Property maintenance")
+                .replace(/Minor decorating/gi, "Painting &amp; decoration"),
+            ),
       version: row.version,
       updatedAt: row.updated_at,
     } satisfies LegalDocument;
   } catch {
-    return fallback;
+    return slug === "safeguarding" ? null : fallback;
   }
 });
 

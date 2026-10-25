@@ -335,9 +335,9 @@ export const PRIVACY_POLICY_HTML = `
 
 export const CANCELLATION_REFUND_POLICY_HTML = `
   <p><strong>Happy Cleaners. Happier Homes.</strong></p>
-  <p><strong>Version:</strong> 1.0</p>
+  <p><strong>Version:</strong> 1.1</p>
   <p><strong>Effective Date:</strong> August 2026</p>
-  <p><strong>Last Updated:</strong> August 2026</p>
+  <p><strong>Last Updated:</strong> 25 October 2026</p>
   <h2>1. Purpose</h2>
   <p>At Opulence Bliss Ltd, we understand that plans can change.</p>
   <p>This Cancellation &amp; Refund Policy explains what happens when a customer needs to cancel or change a cleaning booking, when a cleaner is unable to attend, and when a refund may be available.</p>
@@ -379,8 +379,7 @@ export const CANCELLATION_REFUND_POLICY_HTML = `
   <p>Customers are encouraged to reschedule rather than cancel where possible.</p>
   <p>Requests to reschedule should be made as early as possible.</p>
   <p>We will make reasonable efforts to accommodate the new date and time, subject to cleaner availability.</p>
-  <p>Where a customer provides sufficient notice, we will normally try to reschedule the booking without a cancellation charge.</p>
-  <p>Repeated changes or very late requests may be treated as cancellations.</p>
+  <p>Date and time changes for cleaning visits are free up to 24 hours before the visit, subject to availability. Within 24 hours, contact support; the website does not automatically apply a rescheduling fee.</p>
   <h2>5. Cleaner Cancellation</h2>
   <p>We understand that unexpected circumstances can affect a cleaner's ability to attend a booking.</p>
   <p>Where a cleaner cannot attend, they must notify Opulence Bliss as soon as reasonably possible.</p>
@@ -417,8 +416,7 @@ export const CANCELLATION_REFUND_POLICY_HTML = `
   <p>If access cannot be provided within that period, a cancellation charge may apply.</p>
   <h2>8. Refunds</h2>
   <p>Where a refund is approved, Opulence Bliss will normally return the applicable amount to the original payment method where reasonably possible.</p>
-  <p>Because we currently accept payment by bank transfer, refunds will normally be made by bank transfer.</p>
-  <p>Customers may be asked to provide the bank details required to process the refund.</p>
+  <p>Website cleaning payments and refunds use Stripe. One-off visits are charged when booked. Regular visits are charged once a cleaner accepts each visit; card setup itself is free. Refunds return to the original payment method. If no cleaner accepts, any payment already taken for that visit is refunded in full automatically; unpaid visits are not charged.</p>
   <p>Customers should not send bank details by unsecured or inappropriate means.</p>
   <h2>9. Cleaning Quality and Refund Requests</h2>
   <p>A customer should not automatically cancel a booking or request a full refund because they are dissatisfied with part of the cleaning service.</p>
