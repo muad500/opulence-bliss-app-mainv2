@@ -103,7 +103,7 @@ test("missing published Terms resolves to the exact built-in Terms page version,
   );
   const terms = result.documents.find((d) => d.slug === "terms");
   assert.equal(terms.version, defaultLegalDocument("terms").version);
-  assert.equal(terms.version, "2.0");
+  assert.equal(terms.version, "2.1");
   assert.equal(terms.isFallback, true);
   assert.equal(terms.updatedAt, null);
   assert.equal(policy.validCheckoutLegalDocuments(result.documents), true);

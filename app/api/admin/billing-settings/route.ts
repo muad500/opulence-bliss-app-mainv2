@@ -25,6 +25,42 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const terms = parseCleaningBillingTerms(body);
     const latest = await currentCleaningBillingTerms(context.admin);
+    if (
+      terms.cancellationBasis === "cleaning_hours" &&
+      latest.cancellationBasis !== "cleaning_hours"
+    ) {
+      const { data: policy, error } = await context.admin
+        .from("legal_documents")
+        .select("version,content_html")
+        .eq("slug", "cancellation-refund")
+        .eq("published", true)
+        .maybeSingle();
+      if (
+        error ||
+        !policy?.content_html ||
+        body.confirmPolicyPublished !== true
+      )
+        throw new Error(
+          "Publish the matching cancellation policy and confirm it before switching on the new rules.",
+        );
+    }
+    if (
+      !terms.cancellationBasis &&
+      !Object.entries({
+        full: 100,
+        three_quarter: 75,
+        half: 50,
+        none: 0,
+      }).every(
+        ([key, value]) =>
+          terms.cancellationRefundPercent[
+            key as keyof typeof terms.cancellationRefundPercent
+          ] === value,
+      )
+    )
+      throw new Error(
+        "The currently published cancellation bands must remain 0/25/50/100%.",
+      );
     if (terms.version !== latest.version)
       return NextResponse.json(
         {

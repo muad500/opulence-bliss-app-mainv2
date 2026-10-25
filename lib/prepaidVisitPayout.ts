@@ -23,8 +23,8 @@ export async function settleCompletedVisitPayout(
   requestedBy?: string,
 ) {
   if (
-    (await bookingCleaningBillingTerms(admin, bookingId)).cancellationBasis ===
-    "cleaning_hours"
+    (await bookingCleaningBillingTerms(admin, bookingId))
+      .productsCleanerPayPence !== undefined
   )
     return createCleaningSettlement(admin, stripe).settle(
       bookingId,

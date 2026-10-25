@@ -1,6 +1,6 @@
 export const CUSTOMER_TERMS_HTML = String.raw`
       <p><strong>Better Services. Happier Homes.</strong></p>
-      <p><strong>Version:</strong> 2.0<br><strong>Effective Date:</strong> September 2026<br><strong>Last Updated:</strong> September 2026</p>
+      <p><strong>Version:</strong> 2.1<br><strong>Effective Date:</strong> September 2026<br><strong>Last Updated:</strong> 25 October 2026</p>
       <h2>Company Information</h2>
       <p><strong>Company Name:</strong> Opulence Bliss Ltd</p>
       <p><strong>Company Registration Number:</strong> 15894675</p>
@@ -187,9 +187,7 @@ export const CUSTOMER_TERMS_HTML = String.raw`
         <li>Parking, access or other reasonable costs associated with the Service</li>
       </ul>
       <h2>10. Payment</h2>
-      <p>At present, Opulence Bliss Ltd accepts payment by bank transfer only.</p>
-      <p>Payment instructions will be provided after your booking has been confirmed or as otherwise agreed.</p>
-      <p>Unless otherwise agreed, payment must be received before the scheduled appointment.</p>
+      <p>Website cleaning bookings are paid securely by card through Stripe. One-off visits are charged when booked. For regular visits, your card is saved securely with nothing charged at setup; each visit is charged once a cleaner accepts it. If no cleaner accepts, an unpaid visit is not charged and any payment already taken for that visit is refunded in full automatically.</p>
       <p>Failure to make payment when required may result in the cancellation or postponement of the booking.</p>
       <p>Where Additional Work, Materials or other agreed costs arise during or following a Service, payment may be required in addition to the original booking price.</p>
       <p>We reserve the right to introduce additional payment methods in the future.</p>
@@ -198,7 +196,7 @@ export const CUSTOMER_TERMS_HTML = String.raw`
       <h2>11. Cancellations and Rescheduling</h2>
       <p>Customers may request to cancel or reschedule a confirmed booking by contacting Opulence Bliss as soon as possible.</p>
       <p>Our applicable Cancellation and Refund Policy forms part of these Terms and Conditions and sets out any notice periods, cancellation charges, refunds or other applicable arrangements.</p>
-      <p>Where possible, we will make reasonable efforts to accommodate requests to reschedule a booking. However, rescheduling cannot be guaranteed and will depend on the availability of an appropriate Service Professional.</p>
+      <p>Date and time changes for cleaning visits are free up to 24 hours before the visit, subject to availability. Within 24 hours, contact support; the website does not automatically apply a rescheduling fee.</p>
       <p>Where a booking involves a Service Professional who has already been allocated, purchased Materials, travelled to the Property or incurred other reasonable costs, additional charges may apply in accordance with the applicable Cancellation and Refund Policy.</p>
       <p>If you need to cancel or change a booking, please contact us as early as possible.</p>
       <h2>12. Customer Responsibilities</h2>

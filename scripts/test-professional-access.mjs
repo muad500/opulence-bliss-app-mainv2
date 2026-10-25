@@ -330,7 +330,7 @@ const validSignup = {
   dbsCertificateFileName: "certificate.pdf",
   dbsCertificateMimeType: "application/pdf",
 };
-async function signup(body) {
+async function signup(body, safeguardingEnabled = true) {
   const writes = [];
   const db = {
     auth: {
@@ -367,6 +367,12 @@ async function signup(body) {
     },
   };
   const { POST } = await load("app/api/provider-signup/route.ts", {
+    "@/lib/safeguardingRegistration": {
+      safeguardingRegistration: async () => ({
+        enabled: safeguardingEnabled,
+        version: safeguardingEnabled ? "1.0" : null,
+      }),
+    },
     "@/lib/providerOnboarding": onboarding,
     "@/lib/accountApi": { isSameOriginMutation: () => true },
     "@/lib/legal": { LEGAL_VERSIONS: { safeguarding: "1.0" } },
@@ -456,6 +462,29 @@ test("cleaner and handyman registration require the displayed safeguarding versi
     const provider = writes.find((write) => write.table === "providers").value;
     assert.deepEqual(Array.from(provider.services), skills);
     assert.equal(provider.vetting_status, "pending");
+  }
+});
+
+test("safeguarding OFF permits signup without fabricated policy acceptance for either service", async () => {
+  for (const skills of [["cleaning"], ["handyman"], ["cleaning", "handyman"]]) {
+    const { response, writes } = await signup(
+      {
+        ...validSignup,
+        skills,
+        maintenanceTasks: ["Furniture assembly"],
+        coveragePostcodes: ["SW1A"],
+        safeguardingAccepted: false,
+        safeguardingVersion: undefined,
+      },
+      false,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(
+      writes
+        .find((write) => write.table === "account_legal_acceptances")
+        .value.some((row) => row.document_slug === "safeguarding"),
+      false,
+    );
   }
 });
 

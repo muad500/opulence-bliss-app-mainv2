@@ -9,7 +9,9 @@ import {
 // a network request, executes SQL, merges a branch or deploys an environment.
 const directory = ".local-secrets/launch-safety-release";
 const migrations = readdirSync("supabase/migrations")
-  .filter((name) => /^20261024000[1-6]00_.*\.sql$/.test(name))
+  .filter((name) =>
+    /^(?:20261024000[1-6]00|20261025000[1-2]00)_.*\.sql$/.test(name),
+  )
   .sort()
   .map((file) => {
     const source = readFileSync(
@@ -28,8 +30,8 @@ const migrations = readdirSync("supabase/migrations")
       md5: createHash("md5").update(source).digest("hex"),
     };
   });
-if (migrations.length !== 6)
-  throw new Error("Review the six launch migrations before preparing SQL.");
+if (migrations.length !== 8)
+  throw new Error("Review the eight launch migrations before preparing SQL.");
 mkdirSync(directory, { recursive: true });
 writeFileSync(
   `${directory}/00-ledger-preflight.sql`,

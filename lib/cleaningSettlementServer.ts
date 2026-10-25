@@ -53,7 +53,7 @@ export function createCleaningSettlement(
         .single(),
     );
     const terms = await bookingCleaningBillingTerms(admin, bookingId);
-    if (terms.cancellationBasis !== "cleaning_hours")
+    if (terms.productsCleanerPayPence === undefined)
       throw new Error("A launch cleaning booking is required.");
     const charges = requireData(
       await admin

@@ -1,22 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
-import { defaultLegalDocument } from "@/lib/legalDocuments";
+import { safeguardingRegistration } from "@/lib/safeguardingRegistration";
 export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const client = await createClient();
-    const { data, error } = await client
-      .from("legal_documents")
-      .select("version,content_html")
-      .eq("slug", "safeguarding")
-      .eq("published", true)
-      .maybeSingle();
-    if (error) throw error;
+    const config = await safeguardingRegistration(client);
     return Response.json(
       {
-        version: data?.content_html
-          ? data.version
-          : defaultLegalDocument("safeguarding").version,
-        href: "/legal/safeguarding",
+        ...config,
+        href: config.enabled ? "/legal/safeguarding" : null,
       },
       { headers: { "Cache-Control": "no-store" } },
     );

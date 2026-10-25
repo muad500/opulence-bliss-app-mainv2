@@ -361,9 +361,10 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
+    const safeguardingConfig = await safeguardingRegistration(admin);
     if (
-      safeguardingAccepted !== true ||
-      typeof safeguardingVersion !== "string"
+      safeguardingConfig.enabled &&
+      (safeguardingAccepted !== true || typeof safeguardingVersion !== "string")
     ) {
       return NextResponse.json(
         {
@@ -408,10 +409,12 @@ export async function POST(req: NextRequest) {
         { error: "Policies could not be checked. Please try again." },
         { status: 503 },
       );
-    const currentSafeguardingVersion =
-      legalRows?.find((row) => row.slug === "safeguarding")?.version ??
-      LEGAL_VERSIONS.safeguarding;
-    if (safeguardingVersion !== currentSafeguardingVersion)
+    const currentSafeguardingVersion = safeguardingConfig.version;
+    if (
+      safeguardingConfig.enabled &&
+      (!currentSafeguardingVersion ||
+        safeguardingVersion !== currentSafeguardingVersion)
+    )
       return NextResponse.json(
         {
           error:
@@ -513,12 +516,16 @@ export async function POST(req: NextRequest) {
             version: professionalAgreementVersion,
             accepted_at: acceptedAt,
           },
-          {
-            user_id: userId,
-            document_slug: "safeguarding",
-            version: currentSafeguardingVersion,
-            accepted_at: acceptedAt,
-          },
+          ...(safeguardingConfig.enabled
+            ? [
+                {
+                  user_id: userId,
+                  document_slug: "safeguarding",
+                  version: currentSafeguardingVersion,
+                  accepted_at: acceptedAt,
+                },
+              ]
+            : []),
         ],
         { onConflict: "user_id,document_slug,version,booking_id" },
       );
@@ -674,3 +681,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+import { safeguardingRegistration } from "@/lib/safeguardingRegistration";

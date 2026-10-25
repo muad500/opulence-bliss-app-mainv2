@@ -13,9 +13,11 @@ const money = (value: number) => `£${(value / 100).toFixed(2)}`;
 export default function CleaningCancellationCompensation({
   admin = false,
   bookingId,
+  noAccessMax = 70,
 }: {
   admin?: boolean;
   bookingId?: string;
+  noAccessMax?: number;
 }) {
   const endpoint = admin
     ? "/api/admin/cleaning-cancellations"
@@ -88,7 +90,7 @@ export default function CleaningCancellationCompensation({
       </h2>
       <p>
         {admin
-          ? "Charges apply only to cleaning hours, never tips, add-ons or products. Reduce a charge below its agreed band; never above 70%. No access requires a report and a 15-minute wait."
+          ? "Each booking keeps its agreed cancellation policy. Published-policy bookings retain the existing bands and 30-minute no-access wait. New-policy bookings use the 70% cleaning-hours cap and 15-minute wait. Only reduce an agreed charge; never increase it."
           : "You receive the same proportion of your cleaning-hours pay as the cancellation charge. You may waive some or all of your compensation, even after payout; that amount is refunded to the customer. Products are not paid on cancelled visits."}
       </p>
       {message && <p role="status">{message}</p>}
@@ -99,7 +101,7 @@ export default function CleaningCancellationCompensation({
             const form = new FormData(event.currentTarget);
             if (
               window.confirm(
-                "Cancel this reported no-access visit and apply this cleaning-hours-only charge?",
+                "Cancel this reported no-access visit within its agreed policy and refund the applicable balance?",
               )
             )
               void adjust({
@@ -116,9 +118,9 @@ export default function CleaningCancellationCompensation({
               name="percent"
               type="number"
               min="0"
-              max="70"
+              max={noAccessMax}
               step="1"
-              defaultValue="70"
+              defaultValue={noAccessMax}
               required
             />
           </label>{" "}
