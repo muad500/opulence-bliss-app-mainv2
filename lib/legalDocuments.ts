@@ -39,7 +39,7 @@ const DEFAULTS: Record<LegalDocumentSlug, Omit<LegalDocument, "slug">> = {
   terms: {
     title: "Customer Terms & Conditions",
     audience: "customers",
-    version: "2.0",
+    version: "2.1",
     updatedAt: null,
     contentHtml: CUSTOMER_TERMS_HTML,
   },
@@ -60,7 +60,7 @@ const DEFAULTS: Record<LegalDocumentSlug, Omit<LegalDocument, "slug">> = {
   "cancellation-refund": {
     title: "Cancellation & Refund Policy",
     audience: "customers",
-    version: "1.0",
+    version: "1.1",
     updatedAt: null,
     contentHtml: CANCELLATION_REFUND_POLICY_HTML,
   },

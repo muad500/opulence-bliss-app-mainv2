@@ -524,7 +524,7 @@ export default function ServicePage() {
                           <span>
                             {selected.name === "Essential Clean"
                               ? perVisitBilling === true
-                                ? "6–10 visits · first visit charged at checkout"
+                                ? "6–10 visits · each charged once a cleaner accepts"
                                 : perVisitBilling === false
                                   ? "6–10 visits · paid upfront"
                                   : "6–10 visits · payment details at checkout"

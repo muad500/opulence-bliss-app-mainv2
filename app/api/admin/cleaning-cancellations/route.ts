@@ -38,10 +38,10 @@ export async function POST(request: NextRequest) {
     !/^[0-9a-f-]{36}$/i.test(body.bookingId) ||
     !Number.isSafeInteger(body.chargePercent) ||
     Number(body.chargePercent) < 0 ||
-    Number(body.chargePercent) > 70
+    Number(body.chargePercent) > 100
   )
     return NextResponse.json(
-      { error: "Choose a cancellation charge from 0% to 70%." },
+      { error: "Choose a charge within this booking's agreed cancellation band." },
       { status: 400 },
     );
   const engine = createVisitBilling(
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
   try {
     if (body.action === "no_access") {
       const { booking, terms } = await engine.load(body.bookingId);
-      if (terms.cancellationBasis !== "cleaning_hours")
+      if (terms.productsCleanerPayPence === undefined)
         throw new Error(
           "This older booking needs its agreed cancellation terms reviewed separately.",
         );

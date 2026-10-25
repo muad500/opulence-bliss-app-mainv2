@@ -15,7 +15,7 @@ The new PDF wording must be brought into line with these decisions **before publ
 
 1. **Cleaner Terms missing:** a separate final Cleaner Terms and Conditions document is referenced by the new pack but was not among the 14 supplied PDFs. The existing Service Professional Partner Agreement is a different document; do not silently substitute it or invent the missing terms. The Checkout and Sign-up Wording PDF **was received**.
 2. **Rescheduling conflicts:** Cancellation Policy §5.4 applies cancellation bands to moves with under 48 hours' notice; Cleaner Cancellation Policy §6.3 says no cancellation charge when a new time is agreed. One consistent clause is needed. This PR does not change rescheduling charges.
-3. **Regular-payment wording needs correction:** Checkout and Sign-up Wording §2.1 says payment is taken when booking. The approved existing regular flow saves the card with £0 due today and charges each visit when a cleaner accepts. Align the final wording to that behaviour; this PR does not change the payment schedule.
+3. **Final-pack payment wording needs correction:** Checkout and Sign-up Wording §2.1 says payment is taken when booking. The approved existing regular flow saves the card with £0 due today and charges each visit when a cleaner accepts. The launch website now states this; bring the final PDF pack into line without changing the payment schedule.
 4. **Later, while the handyman marketplace stays off:** the new professional Handyman Terms specify 25% of labour, materials at cost; the switched-off marketplace uses 20% of the quote. Resolve before enabling it, not by silently changing the rate in this release.
 5. **Unlaunched promises:** referral/Partner rewards, loyalty, Booking Credit and massage benefits must not be promised as available before implementation. The referenced Wellness discount agreement/Schedule 1 was not supplied. Keep these deferred rather than delaying the core website for them.
 
@@ -34,4 +34,15 @@ The new PDF wording must be brought into line with these decisions **before publ
 - `Opulence-Bliss-Handyman-Terms-and-Conditions.docx.pdf`, page 3 (§6).
 - `Opulence-Bliss-Safeguarding-Lone-Working-and-Incident-Policy.docx.pdf`, §§2, 4, 9 and 12. The new safeguarding page uses this supplied policy verbatim, with only whitespace/HTML formatting changed.
 
-No contradictory customer-policy PDFs are published by this PR. Safeguarding is the only newly published document. Resolve/approve the wording above before a production “go”.
+## Owner's final launch decision — 25 October 2026
+
+No further client decision is needed for this release. Production keeps the currently published cancellation policy (0/25/50/up to 100% of the booking price; no separate 12-hour band; 30-minute no-access wait). Admin has one publish-day switch for the future 70% cleaning-hours policy; existing bookings keep their snapshots. Cleaner pay/products/compensation are independent of that switch. Safeguarding registration consent stays OFF until its policy is published and the separate switch is enabled. The final new policy pack is not published by this release. The existing Terms/Cancellation pages receive factual payment/rescheduling corrections only, with archived previous versions; cancellation charge clauses are unchanged.
+
+**One client handoff list after launch:**
+
+1. Supply the missing final **Cleaner Terms and Conditions** (the existing Partner Agreement is not silently substituted). Checkout and Sign-up Wording was received.
+2. Align the new Cancellation Policy and Customer Terms to the already approved **70% maximum on cleaning hours only**, **12-hour band**, **15-minute no-access wait**, full extras/products/tips refunds and proportional cleaner compensation/waivers. Current PDFs still contain 100%/whole-booking contradictions. This is wording alignment, not a new commercial question.
+3. Align all final-pack rescheduling/payment clauses to the owner's decision: **free date/time changes up to 24 hours before**, subject to availability; **one-off charged at booking; regular charged once a cleaner accepts**. Remove the conflicting under-48-hour rescheduling-fee clause and booking-time charging claim for regular visits.
+4. Before enabling the handyman marketplace, reconcile **25% of labour/materials at cost** in the new professional terms with the disabled marketplace's **20% quote** setting; confirm regulated-work certificate requirements with the final service scope.
+5. Keep unbuilt referrals/Partner rewards, loyalty, Booking Credit and massage benefits marked unavailable/deferred. Supply the referenced **Wellness discount agreement/Schedule 1** before publishing that benefit.
+6. Publish the final policy pack together with its correct versions and operationally owned safeguarding duties (named lead, emergency contacts, briefings/refresher and missed-check-in monitoring). Enable the two launch switches only when the matching wording is genuinely live.

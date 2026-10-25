@@ -157,6 +157,9 @@ export default function ProviderJoinPage() {
   const [professionalAgreementAccepted, setProfessionalAgreementAccepted] =
     useState(false);
   const [safeguardingAccepted, setSafeguardingAccepted] = useState(false);
+  const [safeguardingEnabled, setSafeguardingEnabled] = useState<
+    boolean | null
+  >(null);
   const [safeguardingVersion, setSafeguardingVersion] = useState<string | null>(
     null,
   );
@@ -165,8 +168,10 @@ export default function ProviderJoinPage() {
     fetch("/api/provider-safeguarding", { cache: "no-store" })
       .then(async (response) => {
         const data = await response.json();
-        if (active && response.ok && typeof data.version === "string")
+        if (active && response.ok && typeof data.enabled === "boolean") {
+          setSafeguardingEnabled(data.enabled);
           setSafeguardingVersion(data.version);
+        }
       })
       .catch(() => {});
     return () => {
@@ -462,7 +467,10 @@ export default function ProviderJoinPage() {
       );
       return;
     }
-    if (!safeguardingAccepted || !safeguardingVersion) {
+    if (
+      safeguardingEnabled === null ||
+      (safeguardingEnabled && (!safeguardingAccepted || !safeguardingVersion))
+    ) {
       setErr(
         "Read and accept the Safeguarding, Lone Working and Incident Reporting Policy to continue.",
       );
@@ -604,8 +612,8 @@ export default function ProviderJoinPage() {
       dbsCertificate.size,
     ) &&
     professionalAgreementAccepted &&
-    safeguardingAccepted &&
-    safeguardingVersion,
+    safeguardingEnabled !== null &&
+    (!safeguardingEnabled || (safeguardingAccepted && safeguardingVersion)),
   );
   const monthlyEstimate = estimateProviderMonthlyEarnings(weeklyHours);
 
@@ -1613,31 +1621,33 @@ export default function ProviderJoinPage() {
                   {dbsCertificate ? ` Selected: ${dbsCertificate.name}` : ""}
                 </p>
 
-                <label className="legal-consent">
-                  <input
-                    type="checkbox"
-                    required
-                    checked={safeguardingAccepted}
-                    disabled={!safeguardingVersion}
-                    onChange={(event) =>
-                      setSafeguardingAccepted(event.target.checked)
-                    }
-                  />
-                  <span>
-                    I have read and agree to follow the{" "}
-                    <a
-                      href={SAFEGUARDING_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Safeguarding, Lone Working and Incident Reporting Policy
-                    </a>
-                    {safeguardingVersion
-                      ? ` (Version ${safeguardingVersion})`
-                      : " (loading…)"}
-                    .
-                  </span>
-                </label>
+                {safeguardingEnabled && (
+                  <label className="legal-consent">
+                    <input
+                      type="checkbox"
+                      required
+                      checked={safeguardingAccepted}
+                      disabled={!safeguardingVersion}
+                      onChange={(event) =>
+                        setSafeguardingAccepted(event.target.checked)
+                      }
+                    />
+                    <span>
+                      I have read and agree to follow the{" "}
+                      <a
+                        href={SAFEGUARDING_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Safeguarding, Lone Working and Incident Reporting Policy
+                      </a>
+                      {safeguardingVersion
+                        ? ` (Version ${safeguardingVersion})`
+                        : " (loading…)"}
+                      .
+                    </span>
+                  </label>
+                )}
 
                 <label className="legal-consent">
                   <input

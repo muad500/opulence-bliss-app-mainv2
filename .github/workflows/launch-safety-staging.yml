@@ -5,6 +5,7 @@ on:
     paths:
       [
         "supabase/migrations/20261024*",
+        "supabase/migrations/20261025*",
         "supabase/tests/launch_safety.sql",
         "lib/cleaning*",
         "lib/visit*",

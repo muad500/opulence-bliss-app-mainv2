@@ -403,7 +403,7 @@ function createCleaningSettlement(admin, stripe) {
         .single(),
     );
     const terms = await bookingCleaningBillingTerms(admin, bookingId);
-    if (terms.cancellationBasis !== "cleaning_hours")
+    if (terms.productsCleanerPayPence === void 0)
       throw new Error("A launch cleaning booking is required.");
     const charges = requireData(
       await admin
@@ -2043,7 +2043,7 @@ function createVisitPaymentHandler(overrides = {}) {
         ok: true,
         mode,
         source:
-          "306fa34f90d025b30ed7ec43585d93eb096963759ff2f8fb6905d2fa52e06941",
+          "b92a53304e4fe6fdd098517e37dcfd110d5e3541bf2228f4784ae77248a86c57",
         result,
         notices,
       });

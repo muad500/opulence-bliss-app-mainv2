@@ -670,4 +670,49 @@ do $$declare v_booking uuid;v_charge uuid;v_op jsonb;v_results jsonb;begin
  perform assert_launch((select charge_pence=0 and cleaner_pay_pence=0 from cleaning_cancellation_settlements where booking_id=v_booking),'statutory cancellation refunds all paid lines and creates no late compensation');
 end$$;
 
+\ir ../migrations/20261025000100_policy_publication_launch_switches.sql
+select assert_launch((safeguarding_registration_config()->>'enabled')::boolean=false,'publication-day safeguarding switch defaults OFF');
+select assert_launch((select not (terms ? 'cancellationBasis') and terms->'cancellationRefundPercent'='{"full":100,"three_quarter":75,"half":50,"none":0}'::jsonb from cleaning_billing_settings order by id desc limit 1),'published cancellation policy retained by default');
+do $$declare v_id uuid;v_deep uuid;v_payment uuid;v_charge uuid;v_op jsonb;v_plan jsonb;begin
+ perform set_config('request.jwt.claims','{"role":"service_role"}',true);
+ insert into providers(profile_id) values('00000000-0000-4000-8000-000000000004') returning id into v_id;
+ perform assert_launch((select not safeguarding_required from providers where id=v_id),'new application while OFF has no fabricated safeguarding obligation');
+ update providers set service_approvals='{"cleaning":"approved"}' where id=v_id;
+ update professional_launch_controls set safeguarding_enabled=true;
+ perform assert_launch((safeguarding_registration_config()->>'enabled')::boolean and safeguarding_registration_config()->>'version'='1.0','published document plus switch enables live consent version');
+ update legal_documents set published=false where slug='safeguarding';
+ perform assert_launch((safeguarding_registration_config()->>'enabled')::boolean=false,'no missing-document checkbox even if switch is on');
+ update professional_launch_controls set safeguarding_enabled=false;
+ update legal_documents set published=true where slug='safeguarding';
+ v_deep:=launch_cleaning_fixture('Signature Deep Clean');
+ perform assert_launch((select round((split_breakdown->>'provider')::numeric*100)=3900 from payments where booking_id=v_deep),'published cancellation policy does not disable £17.50 pay or £4 products');
+ update bookings set status='completed' where id=v_deep;
+ select id into v_charge from booking_visit_charges where booking_id=v_deep;
+ v_plan:=prepare_cleaning_payout(v_deep,jsonb_build_array(jsonb_build_object('chargeId',v_charge,'intentId','pi_'||v_deep,'amountPence',3900)));
+ perform assert_launch((v_plan->>'ready')::boolean,'source-bound completed payout works with published cancellation policy');
+ v_id:=launch_cleaning_fixture('One-Time Essential Clean',now()+interval '1 hour');
+ select id into v_charge from booking_visit_charges where booking_id=v_id;
+ v_op:=prepare_visit_money_operation(v_id,'00000000-0000-4000-8000-000000000001','cancel',1,'{"refundPercent":0,"refunds":[]}');
+ perform finish_visit_money_operation((v_op->>'id')::uuid,'succeeded','[]');
+ perform assert_launch((select charge_percent=100 and cleaner_pay_pence=3000 from cleaning_cancellation_settlements where booking_id=v_id),'published same-day 100% charge pays the matching cleaning-hours share');
+ v_plan:=prepare_cleaning_payout(v_id,jsonb_build_array(jsonb_build_object('chargeId',v_charge,'intentId','pi_'||v_id,'amountPence',3000)));
+ perform assert_launch((v_plan->>'ready')::boolean,'published-policy late cancellation compensation can be paid safely');
+ v_id:=launch_cleaning_fixture('One-Time Essential Clean',now()-interval '16 minutes');
+ perform set_config('request.jwt.claims','{"role":"authenticated","sub":"00000000-0000-4000-8000-000000000002"}',true);
+ begin perform report_booking_exception(v_id,'client_unavailable','No access',null,'{}');raise exception 'published no-access accepted too early';
+ exception when check_violation then null;end;
+ update bookings set scheduled_at=now()-interval '31 minutes' where id=v_id;
+ perform report_booking_exception(v_id,'client_unavailable','No access',null,'{}');
+ perform assert_launch((select status='needs_review' from bookings where id=v_id),'published policy waits 30 minutes, not future 15');
+end$$;
+alter table public.legal_documents add column updated_at timestamptz default now();
+create table public.faqs(question text,category text,answer text);
+insert into public.legal_documents(slug,version,content_html,published) values
+('terms','2.0','<p><strong>Version:</strong> 2.0</p><p>At present, Opulence Bliss Ltd accepts payment by bank transfer only.</p>',true),
+('cancellation-refund','1.0','<p><strong>Version:</strong> 1.0</p><p>Opulence Bliss may charge up to 100% of the booking price.</p><p>Because we currently accept payment by bank transfer, refunds will normally be made by bank transfer.</p>',true);
+insert into public.faqs(question,category,answer) values('Can I reschedule my appointment?','appointments','Old'),('How do I pay?','booking_pricing','Old');
+\ir ../migrations/20261025000200_cleaning_operational_wording.sql
+select assert_launch((select version='2.1' and content_html like '%each visit is charged once a cleaner accepts%' from legal_documents where slug='terms'),'payment wording/version matches acceptance-based regular charging');
+select assert_launch((select version='1.1' and content_html like '%up to 100% of the booking price%' from legal_documents where slug='cancellation-refund'),'operational wording correction leaves published cancellation charge clause unchanged');
+select assert_launch((select answer like '%free up to 24 hours%' from faqs where category='appointments'),'FAQ rescheduling wording matches the existing free 24-hour window');
 select 'Launch safety isolated database checks passed' as result;

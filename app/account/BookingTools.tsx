@@ -319,6 +319,7 @@ export function BookingTools({
             <X size={22} />
           </button>
         </header>
+        <p>Date and time changes are free up to 24 hours before the visit, subject to availability. Within 24 hours, contact support.</p>
 
         <div className="booking-summary">
           <span className="calendar-icon">
