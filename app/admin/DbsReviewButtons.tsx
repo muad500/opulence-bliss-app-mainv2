@@ -8,9 +8,11 @@ type DbsStatus = "pending" | "verified" | "failed";
 export default function DbsReviewButtons({
   id,
   status,
+  onReviewed,
 }: {
   id: string;
   status: DbsStatus;
+  onReviewed?: () => void;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -23,9 +25,12 @@ export default function DbsReviewButtons({
     startTransition(async () => {
       try {
         await setProviderDbsStatus(id, "verified");
+        onReviewed?.();
       } catch (reason) {
         setError(
-          reason instanceof Error ? reason.message : "Could not verify the DBS certificate.",
+          reason instanceof Error
+            ? reason.message
+            : "Could not verify the DBS certificate.",
         );
       }
     });
@@ -40,9 +45,12 @@ export default function DbsReviewButtons({
     startTransition(async () => {
       try {
         await setProviderDbsStatus(id, "failed", reason);
+        onReviewed?.();
       } catch (failure) {
         setError(
-          failure instanceof Error ? failure.message : "Could not update the DBS review.",
+          failure instanceof Error
+            ? failure.message
+            : "Could not update the DBS review.",
         );
       }
     });
@@ -64,7 +72,11 @@ export default function DbsReviewButtons({
             opacity: pending ? 0.6 : 1,
           }}
         >
-          {pending ? "Saving…" : status === "verified" ? "Verified ✓" : "Verified"}
+          {pending
+            ? "Saving…"
+            : status === "verified"
+              ? "Verified ✓"
+              : "Verified"}
         </button>
         <button
           type="button"

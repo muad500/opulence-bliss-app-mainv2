@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
-import DbsReviewButtons from "../../DbsReviewButtons";
+import DbsRecordPanel from "../../DbsRecordPanel";
 import VerificationReview, {
   type VerificationRecord,
 } from "../../VerificationReview";
@@ -20,18 +20,6 @@ function one<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
-
-type DbsRecord = {
-  provider_id: string;
-  certificate_number: string;
-  issue_date: string;
-  certificate_storage_path: string | null;
-  certificate_original_name: string;
-  status: "pending" | "verified" | "failed";
-  uploaded_at: string | null;
-  certificate_deleted_at: string | null;
-  review_note: string | null;
-};
 
 function money(value: number | null | undefined) {
   return `£${Number(value ?? 0).toFixed(2)}`;
@@ -92,7 +80,7 @@ export default async function ProfessionalRecordPage({
     bookingsResult,
     hoursResult,
     suspensionResult,
-    dbsResult,
+    dbsAccess,
   ] = await Promise.all([
     supabase
       .from("providers")
@@ -119,19 +107,9 @@ export default async function ProfessionalRecordPage({
       .eq("provider_id", id)
       .order("created_at", { ascending: false })
       .limit(20),
-    supabase.rpc("can_view_dbs").then(async (access) => {
-      if (access.error || !access.data)
-        return {
-          data: null,
-          error: { message: "Restricted to named onboarding staff." },
-        };
-      return supabase
-        .rpc("staff_view_dbs_record", {
-          p_provider: id,
-          p_action: "record_view",
-        })
-        .maybeSingle<DbsRecord>();
-    }),
+    // Refresh/polling checks permission only, not the private record.
+    // A deliberate Open button performs the audited evidence read.
+    supabase.rpc("can_view_dbs"),
   ]);
 
   const provider = providerResult.data;
@@ -179,7 +157,6 @@ export default async function ProfessionalRecordPage({
     "professional_duplicate_warnings",
     { p_provider: id },
   );
-  const dbs = dbsResult.data;
   const { data: verificationItems, error: verificationError } =
     await serviceAdmin
       .from("provider_verification_items")
@@ -222,10 +199,6 @@ export default async function ProfessionalRecordPage({
       };
     }),
   );
-  const dbsCertificateUrl =
-    dbs?.uploaded_at && dbs.certificate_storage_path
-      ? `/api/admin/dbs/${id}/certificate`
-      : null;
   const bookings = bookingsResult.data ?? [];
   const bookingIds = bookings.map((booking) => booking.id);
   const [paymentsResult, payoutsResult, eventsResult] = await Promise.all([
@@ -493,104 +466,12 @@ export default async function ProfessionalRecordPage({
                 professional can be approved.
               </p>
             </div>
-            <span
-              style={{
-                ...status,
-                background:
-                  dbs?.status === "verified"
-                    ? "#dff5e8"
-                    : dbs?.status === "failed"
-                      ? "#ffe6ea"
-                      : "#fff3d6",
-                color:
-                  dbs?.status === "verified"
-                    ? "#137b4e"
-                    : dbs?.status === "failed"
-                      ? "#b0384f"
-                      : "#8a5a00",
-              }}
-            >
-              {dbsResult.error ? "Restricted" : (dbs?.status ?? "not submitted")}
-            </span>
           </div>
-
-          {dbs ? (
-            <>
-              <div style={applicationGrid}>
-                <ApplicationField
-                  label="Certificate number"
-                  value={dbs.certificate_number}
-                />
-                <ApplicationField
-                  label="Issue date"
-                  value={new Date(
-                    `${dbs.issue_date}T00:00:00`,
-                  ).toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                />
-                <ApplicationField
-                  label="File"
-                  value={
-                    dbs.certificate_deleted_at
-                      ? "Deleted after verification"
-                      : dbs.certificate_original_name
-                  }
-                />
-                <ApplicationField
-                  label="Uploaded"
-                  value={
-                    dbs.uploaded_at
-                      ? when(dbs.uploaded_at)
-                      : "Upload incomplete"
-                  }
-                />
-              </div>
-
-              {dbs.review_note ? (
-                <p style={reviewNote}>
-                  <strong>Review note:</strong> {dbs.review_note}
-                </p>
-              ) : null}
-
-              <div style={dbsActions}>
-                {dbsCertificateUrl ? (
-                  <a
-                    href={dbsCertificateUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={certificateLink}
-                  >
-                    Open DBS certificate ↗
-                  </a>
-                ) : dbs.certificate_deleted_at ? (
-                  <span style={uploadMissing}>
-                    Certificate copy deleted after verification on{" "}
-                    {when(dbs.certificate_deleted_at)}. The number, issue date
-                    and outcome are kept.
-                  </span>
-                ) : (
-                  <span style={uploadMissing}>
-                    Certificate upload has not been completed.
-                  </span>
-                )}
-                {dbs.uploaded_at ? (
-                  <DbsReviewButtons
-                    id={id}
-                    status={dbs.status as "pending" | "verified" | "failed"}
-                  />
-                ) : null}
-              </div>
-            </>
-          ) : (
-            <p style={uploadMissing}>
-              {dbsResult.error
-                ? "DBS evidence is restricted to named onboarding staff. Manage access in Settings."
-                : "No DBS details exist for this professional. Approval remains unavailable."}
-            </p>
-          )}
+          <DbsRecordPanel
+            key={`${id}:${!!dbsAccess.data && !dbsAccess.error}`}
+            id={id}
+            canView={!!dbsAccess.data && !dbsAccess.error}
+          />
 
           {!provider.is_suspended ? (
             <div style={approvalGate}>
@@ -962,39 +843,11 @@ const dbsCard: React.CSSProperties = {
   borderRadius: 16,
   background: "linear-gradient(145deg, #fffdf7, #fff8e8)",
 };
-const dbsActions: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  gap: 12,
-  flexWrap: "wrap",
-};
-const certificateLink: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  minHeight: 40,
-  padding: "8px 15px",
-  border: "1.5px solid #6d28d9",
-  borderRadius: 999,
-  color: "#6d28d9",
-  background: "#fff",
-  fontSize: 12.5,
-  fontWeight: 900,
-  textDecoration: "none",
-};
 const uploadMissing: React.CSSProperties = {
   margin: 0,
   color: "#8a5a00",
   fontSize: 12.5,
   fontWeight: 800,
-};
-const reviewNote: React.CSSProperties = {
-  margin: 0,
-  padding: "11px 13px",
-  borderRadius: 11,
-  background: "rgba(255,255,255,0.75)",
-  color: "#5f6874",
-  fontSize: 12.5,
 };
 const approvalGate: React.CSSProperties = {
   display: "flex",

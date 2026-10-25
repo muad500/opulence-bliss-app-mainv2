@@ -7,6 +7,14 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (
+    request.headers.get("sec-purpose")?.includes("prefetch") ||
+    request.headers.get("purpose") === "prefetch"
+  )
+    return new NextResponse(null, {
+      status: 204,
+      headers: { "Cache-Control": "no-store" },
+    });
   const ctx = await adminApi(request);
   if (ctx instanceof NextResponse) return ctx;
   const { id } = await params;
@@ -38,5 +46,14 @@ export async function GET(
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "sandbox",
     },
+  });
+}
+
+// A browser/link checker may probe a file without opening it. Never audit
+// HEAD as a human certificate view or send certificate bytes in response.
+export function HEAD() {
+  return new NextResponse(null, {
+    status: 405,
+    headers: { Allow: "GET", "Cache-Control": "no-store" },
   });
 }
