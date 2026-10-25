@@ -9,6 +9,9 @@ export const CLEANING_ADDON_IDS = [
 export type CleaningBillingTerms = {
   version: string;
   cleanerHourlyPence: number;
+  deepCleanerHourlyPence?: number;
+  productsCleanerPayPence?: number;
+  cancellationBasis?: "cleaning_hours";
   addonPrices: Record<(typeof CLEANING_ADDON_IDS)[number], number>;
   productsFeePence: number;
   tipMinimumPence: number;
@@ -79,6 +82,22 @@ export function parseCleaningBillingTerms(
     throw new Error(
       "Refund percentages must not increase closer to the visit.",
     );
+  if (
+    source.cancellationBasis !== undefined &&
+    source.cancellationBasis !== "cleaning_hours"
+  )
+    throw new Error("Invalid cancellation basis.");
+  if (
+    source.cancellationBasis === "cleaning_hours" &&
+    (refunds.full !== 100 || refunds.none < 30)
+  )
+    throw new Error(
+      "At least 48 hours is free; late cancellation charges cannot exceed 70%.",
+    );
+  const productsCleanerPayPence =
+    source.productsCleanerPayPence === undefined
+      ? undefined
+      : money(source.productsCleanerPayPence, source.productsFeePence);
   return {
     version: source.version,
     cleanerHourlyPence: money(source.cleanerHourlyPence, 10000, 1),
@@ -91,6 +110,21 @@ export function parseCleaningBillingTerms(
     productsFeePence: money(source.productsFeePence, 10000),
     tipMinimumPence: money(source.tipMinimumPence, 10000, 50),
     cancellationRefundPercent: { ...refunds },
+    ...(source.deepCleanerHourlyPence !== undefined
+      ? {
+          deepCleanerHourlyPence: money(
+            source.deepCleanerHourlyPence,
+            10000,
+            1,
+          ),
+        }
+      : {}),
+    ...(productsCleanerPayPence !== undefined
+      ? { productsCleanerPayPence }
+      : {}),
+    ...(source.cancellationBasis
+      ? { cancellationBasis: source.cancellationBasis }
+      : {}),
   };
 }
 
@@ -110,6 +144,31 @@ export function cleanerPayPence(
 
 /** Customer-facing terms omit the private pay calculation. */
 export function customerBillingTerms(terms: CleaningBillingTerms) {
-  const { cleanerHourlyPence: _privatePay, ...customer } = terms;
-  return customer;
+  return {
+    version: terms.version,
+    addonPrices: terms.addonPrices,
+    productsFeePence: terms.productsFeePence,
+    tipMinimumPence: terms.tipMinimumPence,
+    cancellationRefundPercent: terms.cancellationRefundPercent,
+    ...(terms.cancellationBasis
+      ? { cancellationBasis: terms.cancellationBasis }
+      : {}),
+  };
+}
+
+/** Select the agreed rate once, before immutable booking terms are staged. */
+export function cleaningTermsForPackage(
+  terms: CleaningBillingTerms,
+  packageName: string,
+): CleaningBillingTerms {
+  const deep = [
+    "Signature Deep Clean",
+    "End of Tenancy / Move-In Clean",
+  ].includes(packageName);
+  return {
+    ...terms,
+    cleanerHourlyPence: deep
+      ? (terms.deepCleanerHourlyPence ?? terms.cleanerHourlyPence)
+      : terms.cleanerHourlyPence,
+  };
 }

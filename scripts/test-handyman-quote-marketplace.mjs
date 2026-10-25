@@ -724,7 +724,8 @@ test("quote detail renders fixed totals, material scope, consent and explicit re
     );
   const posted = render();
   assert.match(posted, /£125.00 total, including materials/);
-  assert.match(posted, /Accept quote &amp; pay/);
+  assert.match(posted, /Accept quote and pay £125.00/);
+  assert.match(posted, /No VAT is charged/);
   assert.match(posted, /Handyman Terms/);
   assert.match(posted, /disabled=""/);
   assert.doesNotMatch(posted, /name="hourly/);
@@ -736,7 +737,7 @@ test("quote detail renders fixed totals, material scope, consent and explicit re
   assert.match(render(), /Approve revised quote/);
 });
 async function api(path, mocks) {
-  const module = { exports: {} };
+  const compiledModule = { exports: {} };
   vm.runInNewContext(
     ts.transpileModule(
       await readFile(new URL("../" + path, import.meta.url), "utf8"),
@@ -749,8 +750,8 @@ async function api(path, mocks) {
       },
     ).outputText,
     {
-      module,
-      exports: module.exports,
+      module: compiledModule,
+      exports: compiledModule.exports,
       process,
       console,
       crypto,
@@ -761,7 +762,7 @@ async function api(path, mocks) {
       },
     },
   );
-  return module.exports;
+  return compiledModule.exports;
 }
 test("job posting rejects client-supplied prices and identities before any write", async () => {
   let writes = 0,

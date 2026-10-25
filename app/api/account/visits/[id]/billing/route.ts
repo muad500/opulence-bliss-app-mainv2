@@ -7,7 +7,7 @@ import {
   readAccountBody,
 } from "@/lib/accountApi";
 import { createVisitBilling } from "@/lib/visitBillingServer";
-import { calculateCancellationPolicy } from "@/lib/cancellationPolicy";
+import { visitCancellationPolicy } from "@/lib/visitAdjustments";
 import { visitExtrasCanChange } from "@/lib/visitBillingPolicy";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -68,11 +68,14 @@ export async function GET(request: NextRequest, context: RouteContext) {
           bill.status !== "review" &&
           !bill.policy_refund_required &&
           !bill.active_operation_id,
-        cancellationPolicy: calculateCancellationPolicy(
+        cancellationPolicy: visitCancellationPolicy(
           booking.scheduled_at,
-          paidPence / 100,
+          charges,
+          terms,
           new Date(),
-          terms.cancellationRefundPercent,
+          booking.status === "in_progress" || booking.status === "completed"
+            ? null
+            : booking.created_at,
         ),
       },
       { headers: { "Cache-Control": "no-store" } },

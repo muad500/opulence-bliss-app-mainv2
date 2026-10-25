@@ -163,6 +163,11 @@ export default async function ReviewDeskPage() {
         style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 22px 80px" }}
       >
         <h1 style={h1}>Resolution desk</h1>
+        <p>
+          <a href="/admin/cleaning-cancellations">
+            Cleaning cancellation charges and cleaner waivers →
+          </a>
+        </p>
         <HandymanQuoteAdmin preview />
         <p style={lede}>
           Nothing here changes on its own. Read the evidence before acting.
@@ -391,6 +396,16 @@ export default async function ReviewDeskPage() {
                     />
                   </dl>
 
+                  {c.category === "client_unavailable" && (
+                    <p>
+                      <a
+                        href={`/admin/cleaning-cancellations?booking=${c.booking_id}`}
+                      >
+                        Review no-access cancellation (maximum 70% of cleaning
+                        hours) →
+                      </a>
+                    </p>
+                  )}
                   <DeskControls
                     kind="case"
                     caseId={c.id}

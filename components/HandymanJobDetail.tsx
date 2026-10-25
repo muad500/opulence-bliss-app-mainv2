@@ -440,9 +440,12 @@ export default function HandymanJobDetail({
                         ? "Agree free visit"
                         : q.kind === "revision"
                           ? "Approve revised quote"
-                          : "Accept quote & pay"}
+                          : `Accept quote and pay ${money(q.total_pence)}`}
                     </button>
                   )}
+                {customer && q.kind !== "site_visit" && (
+                  <p className={styles.muted}>No VAT is charged.</p>
+                )}
               </article>
             ))}
           </section>

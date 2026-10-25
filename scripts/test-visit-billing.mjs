@@ -17,6 +17,8 @@ function fixture({
   unassigned = false,
   paused = false,
   pauseAfterCreate = false,
+  cancellationAdjustment = false,
+  lostReversal = false,
 } = {}) {
   const calls = [];
   const lines = [
@@ -45,7 +47,11 @@ function fixture({
       id: "operation",
       booking_id: "booking",
       status: "prepared",
-      operation_type: extras ? "extras" : "charge",
+      operation_type: cancellationAdjustment
+        ? "cancellation_adjustment"
+        : extras
+          ? "extras"
+          : "charge",
       revision: 1,
       idempotency_key: "visit:operation",
       created_at: new Date(
@@ -54,7 +60,7 @@ function fixture({
       stripe_objects: [],
       parameters: {
         amountPence: 5000,
-        chargePence: 1000,
+        chargePence: cancellationAdjustment ? 0 : 1000,
         lines,
         added: [
           {
@@ -66,20 +72,31 @@ function fixture({
         ],
         oldStatus: extras ? "paid" : "unpaid",
         scheduledAt: new Date(Date.now() + 40 * 3_600_000).toISOString(),
-        refunds: extras
+        reversals: cancellationAdjustment
           ? [
               {
                 chargeId: "charge",
-                intentId: "pi_old",
+                transferId: "tr_cleaner",
                 amountPence: 2000,
-                refundedLines: { oven: 2000 },
               },
             ]
           : [],
+        refunds:
+          extras || cancellationAdjustment
+            ? [
+                {
+                  chargeId: "charge",
+                  intentId: "pi_old",
+                  amountPence: 2000,
+                  refundedLines: { oven: 2000 },
+                },
+              ]
+            : [],
       },
     },
     intents: [],
     refunds: [],
+    reversals: [],
     paused,
   };
   const db = {
@@ -162,6 +179,23 @@ function fixture({
     },
   };
   const stripe = {
+    transfers: {
+      async listReversals() {
+        return { data: structuredClone(state.reversals) };
+      },
+      async createReversal(transfer, parameters) {
+        calls.push("reversal");
+        const reversal = { ...parameters, id: "trr_fixture", transfer };
+        state.reversals.push(reversal);
+        if (lostReversal) {
+          lostReversal = false;
+          throw new Stripe.errors.StripeConnectionError({
+            message: "lost reversal response",
+          });
+        }
+        return structuredClone(reversal);
+      },
+    },
     customers: {
       retrieve: async () => ({
         invoice_settings: { default_payment_method: "pm_fixture" },
@@ -240,7 +274,7 @@ function fixture({
   const cache = new Map();
   function load(path) {
     if (cache.has(path)) return cache.get(path);
-    const module = { exports: {} };
+    const compiledModule = { exports: {} };
     const code = ts.transpileModule(readFileSync(path, "utf8"), {
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
@@ -257,16 +291,16 @@ function fixture({
             ? load(`lib/${id.slice(2)}.ts`)
             : require(id);
     vm.runInNewContext(code, {
-      module,
-      exports: module.exports,
+      module: compiledModule,
+      exports: compiledModule.exports,
       require: resolve,
       process,
       Date,
       console,
       Buffer,
     });
-    cache.set(path, module.exports);
-    return module.exports;
+    cache.set(path, compiledModule.exports);
+    return compiledModule.exports;
   }
   return {
     engine: load("lib/visitBillingServer.ts").createVisitBilling(db, stripe),
@@ -344,4 +378,25 @@ test("paid add-on charges also respect a series pause", async () => {
   assert.equal((await h.engine.run("operation")).status, "blocked");
   assert.equal(h.calls.includes("create"), false);
   assert.equal(h.calls.includes("refund"), false);
+});
+
+test("a cleaner waiver reverses the paid cleaner transfer before refunding, and lost responses never duplicate money", async () => {
+  const h = fixture({
+    cancellationAdjustment: true,
+    lostReversal: true,
+    lostRefund: true,
+  });
+  assert.equal((await h.engine.run("operation")).status, "processing");
+  assert.equal(
+    h.calls.includes("refund"),
+    false,
+    "do not refund before the reversal is confirmed",
+  );
+  assert.equal((await h.engine.run("operation")).status, "processing");
+  assert.equal((await h.engine.run("operation")).status, "succeeded");
+  assert.equal((await h.engine.run("operation")).status, "succeeded");
+  assert.equal(h.calls.filter((call) => call === "reversal").length, 1);
+  assert.equal(h.calls.filter((call) => call === "refund").length, 1);
+  assert.equal(h.calls.includes("create"), false);
+  assert.ok(h.calls.indexOf("reversal") < h.calls.indexOf("refund"));
 });

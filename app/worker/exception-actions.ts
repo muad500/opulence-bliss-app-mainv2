@@ -28,7 +28,7 @@ const LATE_HOURS = 24;
 
 /** How far from the address we'll accept a "nobody's home" report. */
 const GEOFENCE_METRES = 500;
-const NO_ACCESS_GRACE_MINUTES = 30;
+const NO_ACCESS_GRACE_MINUTES = 15;
 const MAX_REASON_LENGTH = 1000;
 
 type Result = { ok: boolean; message: string };
@@ -448,8 +448,6 @@ export async function reportClientUnavailable(
       location_verified: atProperty,
       distance_metres: distance,
       reported_at: new Date().toISOString(),
-      gps_lat: validGps?.lat ?? null,
-      gps_lng: validGps?.lng ?? null,
     },
   });
 

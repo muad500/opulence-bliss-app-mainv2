@@ -1,7 +1,7 @@
 // Generated from the shared billing engine. Run npm run build:visit-worker.
 // supabase/functions/visit-payments/handler.ts
 import { timingSafeEqual } from "node:crypto";
-import Stripe2 from "npm:stripe@22.3.2";
+import Stripe3 from "npm:stripe@22.3.2";
 import { createClient } from "npm:@supabase/supabase-js@2.110.0";
 
 // lib/cleaningBillingTerms.ts
@@ -61,6 +61,22 @@ function parseCleaningBillingTerms(value) {
     throw new Error(
       "Refund percentages must not increase closer to the visit.",
     );
+  if (
+    source.cancellationBasis !== void 0 &&
+    source.cancellationBasis !== "cleaning_hours"
+  )
+    throw new Error("Invalid cancellation basis.");
+  if (
+    source.cancellationBasis === "cleaning_hours" &&
+    (refunds.full !== 100 || refunds.none < 30)
+  )
+    throw new Error(
+      "At least 48 hours is free; late cancellation charges cannot exceed 70%.",
+    );
+  const productsCleanerPayPence =
+    source.productsCleanerPayPence === void 0
+      ? void 0
+      : money(source.productsCleanerPayPence, source.productsFeePence);
   return {
     version: source.version,
     cleanerHourlyPence: money(source.cleanerHourlyPence, 1e4, 1),
@@ -70,6 +86,15 @@ function parseCleaningBillingTerms(value) {
     productsFeePence: money(source.productsFeePence, 1e4),
     tipMinimumPence: money(source.tipMinimumPence, 1e4, 50),
     cancellationRefundPercent: { ...refunds },
+    ...(source.deepCleanerHourlyPence !== void 0
+      ? {
+          deepCleanerHourlyPence: money(source.deepCleanerHourlyPence, 1e4, 1),
+        }
+      : {}),
+    ...(productsCleanerPayPence !== void 0 ? { productsCleanerPayPence } : {}),
+    ...(source.cancellationBasis
+      ? { cancellationBasis: source.cancellationBasis }
+      : {}),
   };
 }
 
@@ -87,7 +112,7 @@ async function bookingCleaningBillingTerms(admin, bookingId) {
 }
 
 // lib/visitBillingServer.ts
-import Stripe from "npm:stripe@22.3.2";
+import Stripe2 from "npm:stripe@22.3.2";
 
 // lib/cleaningBooking.ts
 var CLEANING_DURATIONS = Array.from({ length: 13 }, (_, i) => 120 + i * 30);
@@ -260,6 +285,314 @@ function visitLineItems(quote, discountPence = 0) {
   return lines;
 }
 
+// lib/cleaningSettlementServer.ts
+import Stripe from "npm:stripe@22.3.2";
+
+// lib/cleaningSettlement.ts
+function cleaningPayoutParts(charges, terms, cancellationCompensationPence) {
+  const parts = [];
+  let remaining = cancellationCompensationPence ?? 0;
+  if (
+    cancellationCompensationPence !== void 0 &&
+    (!Number.isSafeInteger(remaining) || remaining < 0)
+  )
+    throw new Error("Invalid cancellation compensation.");
+  for (const charge of charges) {
+    const cleaning = charge.line_items.find((line) => line.id === "cleaning");
+    const products = charge.line_items.find((line) => line.id === "products");
+    const net = charge.amount_pence - charge.refunded_pence;
+    const cleaningRefunded = charge.refunded_lines.cleaning ?? 0;
+    const cleaningRetained = Math.max(
+      0,
+      (cleaning?.amountPence ?? 0) - cleaningRefunded,
+    );
+    let amount;
+    if (cancellationCompensationPence !== void 0) {
+      amount = Math.min(remaining, cleaningRetained);
+      remaining -= amount;
+    } else {
+      if (cleaningRefunded)
+        throw new Error("A cleaning-hours refund needs payout review.");
+      amount = Math.round(
+        ((cleaning?.reservedMinutes ?? 0) * terms.cleanerHourlyPence) / 60,
+      );
+      if (
+        products &&
+        products.amountPence - (charge.refunded_lines.products ?? 0) >=
+          terms.productsFeePence &&
+        terms.productsFeePence > 0
+      )
+        amount += terms.productsCleanerPayPence ?? 0;
+    }
+    if (!Number.isSafeInteger(net) || net < 0 || amount > net)
+      throw new Error(
+        "Cleaner pay exceeds the settled funds on its source payment.",
+      );
+    if (amount > 0)
+      parts.push({
+        chargeId: charge.id,
+        intentId: charge.stripe_payment_intent,
+        amountPence: amount,
+      });
+  }
+  if (cancellationCompensationPence !== void 0 && remaining)
+    throw new Error(
+      "Cancellation compensation is not funded by retained cleaning hours.",
+    );
+  return parts;
+}
+
+// lib/payoutDestination.ts
+function assignedProviderDestination(providerAccount) {
+  return providerAccount?.trim() || null;
+}
+
+// lib/bookingState.ts
+async function rpc(client, name, args) {
+  const { data, error } = await client.rpc(name, args);
+  if (error) throw new Error(error.message);
+  return data;
+}
+function systemTransitionPayout(admin, payoutId, toStatus, options = {}) {
+  return rpc(admin, "system_transition_payout", {
+    p_payout_id: payoutId,
+    p_to_status: toStatus,
+    p_reason: options.reason ?? null,
+    p_meta: options.meta ?? {},
+  });
+}
+function claimMoneyOperation(admin, input) {
+  return rpc(admin, "claim_money_operation", {
+    p_operation_key: input.operationKey,
+    p_operation_type: input.operationType,
+    p_booking_id: input.bookingId,
+    p_amount: input.amount,
+    p_requested_by: input.requestedBy ?? null,
+  });
+}
+function systemFinaliseMoneyOperation(
+  admin,
+  operationId,
+  outcome,
+  options = {},
+) {
+  return rpc(admin, "system_finalise_operation", {
+    p_operation_id: operationId,
+    p_outcome: outcome,
+    p_stripe_id: options.stripeObjectId ?? null,
+    p_error: options.error ?? null,
+  });
+}
+
+// lib/cleaningSettlementServer.ts
+var idOf = (value) => (typeof value === "string" ? value : value?.id);
+function requireData(result) {
+  if (result.error || result.data == null)
+    throw new Error(
+      result.error?.message ?? "Cleaning settlement record missing.",
+    );
+  return result.data;
+}
+function createCleaningSettlement(admin, stripe) {
+  async function settle(bookingId, requestedBy) {
+    const booking = requireData(
+      await admin
+        .from("bookings")
+        .select("status,provider_id,customer_id")
+        .eq("id", bookingId)
+        .single(),
+    );
+    const terms = await bookingCleaningBillingTerms(admin, bookingId);
+    if (terms.productsCleanerPayPence === void 0)
+      throw new Error("A launch cleaning booking is required.");
+    const charges = requireData(
+      await admin
+        .from("booking_visit_charges")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .order("created_at"),
+    );
+    let compensation;
+    if (booking.status === "cancelled") {
+      const row = requireData(
+        await admin
+          .from("cleaning_cancellation_settlements")
+          .select("cleaner_pay_pence,provider_id")
+          .eq("booking_id", bookingId)
+          .single(),
+      );
+      compensation = row.cleaner_pay_pence;
+      if (row.provider_id !== booking.provider_id)
+        throw new Error("The cancellation's assigned cleaner changed.");
+    }
+    const parts = cleaningPayoutParts(charges, terms, compensation);
+    const plan = requireData(
+      await admin.rpc("prepare_cleaning_payout", {
+        p_booking: bookingId,
+        p_parts: parts,
+      }),
+    );
+    if (!plan.ready)
+      return {
+        earned: plan.amountPence / 100,
+        payoutSettled: plan.settled === true,
+      };
+    const payoutId = plan.payoutId;
+    async function hold(reason) {
+      const state = requireData(
+        await admin
+          .from("payouts")
+          .select("status")
+          .eq("id", payoutId)
+          .single(),
+      );
+      if (state.status !== "paid" && state.status !== "held")
+        await systemTransitionPayout(admin, payoutId, "held", { reason });
+      const review = await admin.rpc("open_review_case", {
+        p_booking_id: bookingId,
+        p_category: "payout_failure",
+        p_priority: "high",
+        p_blocks_payment: false,
+        p_blocks_payout: true,
+        p_notes: reason,
+        p_created_by: requestedBy ?? null,
+      });
+      if (review.error) throw new Error(review.error.message);
+      return { earned: plan.amountPence / 100, payoutSettled: false };
+    }
+    const provider = requireData(
+      await admin
+        .from("providers")
+        .select("stripe_account_id,profile_id")
+        .eq("id", booking.provider_id)
+        .single(),
+    );
+    if (provider.profile_id === booking.customer_id)
+      return hold("Self-booking cannot receive a cleaner payout");
+    const destination = assignedProviderDestination(provider.stripe_account_id);
+    if (!destination) return hold("Provider payout account is not configured");
+    let firstTransfer = null;
+    for (const part of plan.parts ?? []) {
+      if (part.transfer_ref) {
+        firstTransfer ??= part.transfer_ref;
+        continue;
+      }
+      const funded = parts.find(
+        (source2) => source2.chargeId === part.charge_id,
+      );
+      if (
+        !funded ||
+        funded.amountPence !== part.amount_pence ||
+        part.reversed_pence
+      )
+        return hold("Cleaner payout source changed and needs reconciliation");
+      const intent = await stripe.paymentIntents.retrieve(funded.intentId);
+      if (
+        intent.status !== "succeeded" ||
+        intent.currency !== "gbp" ||
+        intent.transfer_data ||
+        !intent.latest_charge ||
+        (intent.metadata.booking_id && intent.metadata.booking_id !== bookingId)
+      )
+        return hold(
+          "The cleaner payout source is not a settled platform charge",
+        );
+      const source = idOf(intent.latest_charge);
+      const charge = await stripe.charges.retrieve(source);
+      if (
+        charge.disputed ||
+        charge.amount - charge.amount_refunded < part.amount_pence
+      )
+        return hold("The captured payment needs review before cleaner payout");
+      const operation = await claimMoneyOperation(admin, {
+        operationKey: part.operation_key,
+        operationType: "transfer",
+        bookingId,
+        amount: part.amount_pence / 100,
+        requestedBy,
+      });
+      let transferId = operation.stripe_object_id;
+      if (operation.status === "succeeded") {
+        if (!transferId)
+          return hold(
+            "A completed cleaner transfer is missing its Stripe reference",
+          );
+        const transfer = await stripe.transfers.retrieve(transferId);
+        if (
+          idOf(transfer.destination) !== destination ||
+          transfer.amount !== part.amount_pence ||
+          idOf(transfer.source_transaction) !== source
+        )
+          return hold(
+            "The recorded cleaner transfer differs from its source allocation",
+          );
+      } else {
+        if (!operation.should_run)
+          return hold(
+            "A cleaner transfer needs reconciliation; do not send another",
+          );
+        try {
+          const transfer = await stripe.transfers.create(
+            {
+              amount: part.amount_pence,
+              currency: "gbp",
+              destination,
+              source_transaction: source,
+              transfer_group:
+                intent.transfer_group ?? `ob_booking_${bookingId}`,
+              metadata: {
+                kind: "cleaning_visit_payout",
+                booking_id: bookingId,
+                charge_id: part.charge_id,
+                operation_key: part.operation_key,
+              },
+            },
+            { idempotencyKey: part.operation_key },
+          );
+          transferId = transfer.id;
+          await systemFinaliseMoneyOperation(admin, operation.id, "succeeded", {
+            stripeObjectId: transferId,
+          });
+        } catch (error) {
+          const definite =
+            error instanceof Stripe.errors.StripeInvalidRequestError;
+          await systemFinaliseMoneyOperation(
+            admin,
+            operation.id,
+            definite ? "failed" : "ambiguous",
+            { error: "Cleaner source transfer needs reconciliation" },
+          ).catch(() => void 0);
+          return hold("Cleaner source transfer needs reconciliation");
+        }
+      }
+      const saved2 = await admin
+        .from("cleaning_payout_parts")
+        .update({ transfer_ref: transferId, destination_account: destination })
+        .eq("charge_id", part.charge_id)
+        .is("transfer_ref", null);
+      if (saved2.error)
+        throw new Error("The cleaner transfer checkpoint needs recovery.");
+      firstTransfer ??= transferId ?? null;
+    }
+    const saved = await admin
+      .from("payouts")
+      .update({ stripe_transfer_ref: firstTransfer })
+      .eq("id", payoutId);
+    if (saved.error) throw new Error("The payout reference needs recovery.");
+    await systemTransitionPayout(admin, payoutId, "paid");
+    if (booking.status === "cancelled") {
+      const result = await admin
+        .from("cleaning_cancellation_settlements")
+        .update({ payout_settled_at: /* @__PURE__ */ new Date().toISOString() })
+        .eq("booking_id", bookingId);
+      if (result.error)
+        throw new Error("The cancellation payout checkpoint needs recovery.");
+    }
+    return { earned: plan.amountPence / 100, payoutSettled: true };
+  }
+  return { settle };
+}
+
 // lib/cancellationPolicy.ts
 var HOUR_MS = 60 * 60 * 1e3;
 function pounds(pence) {
@@ -278,6 +611,7 @@ function calculateCancellationPolicy(
   grossAmount,
   now = /* @__PURE__ */ new Date(),
   refunds = DEFAULT_CLEANING_BILLING_TERMS.cancellationRefundPercent,
+  cleaningHoursOnly = false,
 ) {
   const scheduledMs = new Date(scheduledAt).getTime();
   const nowMs = new Date(now).getTime();
@@ -291,9 +625,13 @@ function calculateCancellationPolicy(
         ? "full"
         : hoursUntilBooking >= 24
           ? "three_quarter"
-          : "half";
+          : cleaningHoursOnly && hoursUntilBooking < 12
+            ? "none"
+            : "half";
   const refundPercent = refunds[tier];
-  const refundPence = Math.round((grossPence * refundPercent) / 100);
+  const refundPence = cleaningHoursOnly
+    ? grossPence - Math.round((grossPence * (100 - refundPercent)) / 100)
+    : Math.round((grossPence * refundPercent) / 100);
   const cancellationChargePence = grossPence - refundPence;
   const title =
     refundPercent === 100
@@ -307,8 +645,8 @@ function calculateCancellationPolicy(
       : tier === "three_quarter"
         ? `This visit is between 24 and 48 hours away. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
         : tier === "half"
-          ? `This visit is less than 24 hours away but is not today. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
-          : `This is a same-day or missed booking. The cancellation charge is ${pounds(cancellationChargePence)}.`;
+          ? `This visit is ${cleaningHoursOnly ? "between 12 and 24 hours away" : "less than 24 hours away but is not today"}. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
+          : `This is ${cleaningHoursOnly ? "less than 12 hours away, on the day, or a no-access booking" : "a same-day or missed booking"}. The cancellation charge is ${pounds(cancellationChargePence)}.${cleaningHoursOnly ? " Staff can reduce this charge. Add-ons, products and tips are refunded in full." : ""}`;
   return {
     tier,
     hoursUntilBooking,
@@ -320,6 +658,74 @@ function calculateCancellationPolicy(
     title,
     explanation,
   };
+}
+
+// lib/appointmentWindow.ts
+var APPOINTMENT_TIME_ZONE = "Europe/London";
+var partsFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: APPOINTMENT_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+  weekday: "short",
+});
+var weekdays = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+function londonParts(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  const parts = Object.fromEntries(
+    partsFormatter
+      .formatToParts(date)
+      .filter((part) => part.type !== "literal")
+      .map((part) => [part.type, part.value]),
+  );
+  return {
+    year: Number(parts.year),
+    month: Number(parts.month),
+    day: Number(parts.day),
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    weekday: weekdays[parts.weekday] ?? 0,
+  };
+}
+function londonDate(year, month, day, hour, minute = 0) {
+  const wanted = Date.UTC(year, month - 1, day, hour, minute);
+  let instant = wanted;
+  for (let pass = 0; pass < 2; pass += 1) {
+    const actual = londonParts(instant);
+    const actualAsUtc = Date.UTC(
+      actual.year,
+      actual.month - 1,
+      actual.day,
+      actual.hour,
+      actual.minute,
+    );
+    instant += wanted - actualAsUtc;
+  }
+  return new Date(instant);
+}
+
+// lib/cancellationPeriod.ts
+var CANCELLATION_PERIOD_DAYS = 14;
+function cancellationPeriodEnd(contractAt = /* @__PURE__ */ new Date()) {
+  const day = londonParts(contractAt);
+  return londonDate(
+    day.year,
+    day.month,
+    day.day + CANCELLATION_PERIOD_DAYS + 1,
+    0,
+    0,
+  );
 }
 
 // lib/visitAdjustments.ts
@@ -351,13 +757,69 @@ function removedLineRefunds(charges, removed) {
     throw new Error("The removed add-on has no matching paid line item.");
   return refunds;
 }
-function cancellationRefunds(charges, refundPercent) {
+function cancellationRefunds(
+  charges,
+  refundPercent,
+  cleaningHoursOnly = false,
+) {
   if (
     !Number.isInteger(refundPercent) ||
     refundPercent < 0 ||
     refundPercent > 100
   )
     throw new Error("Invalid refund percentage.");
+  if (cleaningHoursOnly) {
+    const cleaningPaid = charges.reduce(
+      (sum, charge) =>
+        sum +
+        charge.line_items
+          .filter((line) => line.id === "cleaning")
+          .reduce(
+            (total, line) =>
+              total +
+              Math.max(
+                0,
+                line.amountPence - (charge.refunded_lines[line.id] ?? 0),
+              ),
+            0,
+          ),
+      0,
+    );
+    let cleaningRefundRemaining =
+      cleaningPaid - Math.round((cleaningPaid * (100 - refundPercent)) / 100);
+    const refunds2 = [];
+    for (const charge of charges) {
+      const refundedLines = { ...charge.refunded_lines };
+      let amountPence = 0;
+      let unrefundedLines = 0;
+      for (const line of charge.line_items) {
+        const available = Math.max(
+          0,
+          line.amountPence - (refundedLines[line.id] ?? 0),
+        );
+        unrefundedLines += available;
+        const amount =
+          line.id === "cleaning"
+            ? Math.min(available, cleaningRefundRemaining)
+            : available;
+        if (line.id === "cleaning") cleaningRefundRemaining -= amount;
+        refundedLines[line.id] = (refundedLines[line.id] ?? 0) + amount;
+        amountPence += amount;
+      }
+      if (unrefundedLines !== charge.amount_pence - charge.refunded_pence)
+        throw new Error(
+          "The payment needs line-item reconciliation before cancellation.",
+        );
+      if (amountPence)
+        refunds2.push({
+          chargeId: charge.id,
+          intentId: charge.stripe_payment_intent,
+          amountPence,
+          refundedLines,
+        });
+    }
+    return refunds2;
+  }
   const paid = charges.reduce(
     (sum, charge) => sum + charge.amount_pence - charge.refunded_pence,
     0,
@@ -385,6 +847,82 @@ function changedVisitLines(before, after) {
   return {
     added: after.filter((line) => !before.some((old) => same(line, old))),
     removed: before.filter((line) => !after.some((next) => same(line, next))),
+  };
+}
+function visitCancellationPolicy(
+  scheduledAt,
+  charges,
+  terms,
+  now = /* @__PURE__ */ new Date(),
+  contractAt,
+) {
+  const hoursOnly = terms.cancellationBasis === "cleaning_hours";
+  const paid = charges.reduce(
+    (sum, charge) => sum + charge.amount_pence - charge.refunded_pence,
+    0,
+  );
+  const cleaning = hoursOnly
+    ? charges.reduce(
+        (sum, charge) =>
+          sum +
+          charge.line_items
+            .filter((line) => line.id === "cleaning")
+            .reduce(
+              (total, line) =>
+                total +
+                Math.max(
+                  0,
+                  line.amountPence - (charge.refunded_lines[line.id] ?? 0),
+                ),
+              0,
+            ),
+        0,
+      )
+    : paid;
+  let policy = calculateCancellationPolicy(
+    scheduledAt,
+    cleaning / 100,
+    now,
+    terms.cancellationRefundPercent,
+    hoursOnly,
+  );
+  const statutoryFree =
+    hoursOnly &&
+    contractAt &&
+    Number.isFinite(Date.parse(contractAt)) &&
+    new Date(now).getTime() >= Date.parse(contractAt) &&
+    new Date(now).getTime() < cancellationPeriodEnd(contractAt).getTime();
+  if (statutoryFree)
+    policy = {
+      ...calculateCancellationPolicy(
+        scheduledAt,
+        cleaning / 100,
+        now,
+        { full: 100, three_quarter: 100, half: 100, none: 100 },
+        true,
+      ),
+      title: "14-day cancellation right \u2014 full refund",
+      explanation:
+        "You are cancelling within your 14-day cancellation period before work has started. Your visit payment will be refunded in full.",
+    };
+  if (!hoursOnly) return policy;
+  const refunds = cancellationRefunds(charges, policy.refundPercent, true);
+  const refundPence = refunds.reduce(
+    (sum, refund) => sum + refund.amountPence,
+    0,
+  );
+  return {
+    ...policy,
+    refundPence,
+    refundAmount: refundPence / 100,
+    cancellationChargePence: paid - refundPence,
+    cancellationCharge: (paid - refundPence) / 100,
+    title: statutoryFree
+      ? policy.title
+      : `${100 - policy.refundPercent}% charge on cleaning hours only`,
+    explanation: statutoryFree
+      ? policy.explanation
+      : `The cancellation charge is \xA3${((paid - refundPence) / 100).toFixed(2)}, based on cleaning hours only. \xA3${(refundPence / 100).toFixed(2)} of your visit payment will be refunded. Any tips are refunded separately in full. Staff can reduce the charge, and your cleaner can waive their compensation.`,
   };
 }
 
@@ -418,16 +956,14 @@ function must(result) {
 function check(result) {
   if (result.error) throw new Error(result.error.message);
 }
-var idOf = (value) => (typeof value === "string" ? value : value?.id);
-var paidTotal = (charges) =>
-  charges.reduce((sum, c) => sum + c.amount_pence - c.refunded_pence, 0);
+var idOf2 = (value) => (typeof value === "string" ? value : value?.id);
 function createVisitBilling(admin, stripe) {
   async function load(bookingId, customerId) {
     const booking = must(
       await admin
         .from("bookings")
         .select(
-          "id,customer_id,status,scheduled_at,provider_id,regular_series_id,cleaning_extras,duration_minutes,household_notes",
+          "id,customer_id,status,scheduled_at,provider_id,regular_series_id,cleaning_extras,duration_minutes,household_notes,created_at",
         )
         .eq("id", bookingId)
         .single(),
@@ -633,6 +1169,7 @@ function createVisitBilling(admin, stripe) {
     unfilled = false,
     expectedTier,
     latePayment = false,
+    staff,
   ) {
     const { booking, bill, charges, terms } = await load(
       bookingId,
@@ -641,11 +1178,12 @@ function createVisitBilling(admin, stripe) {
     if (unfilled && (await chargeGate(bookingId)).paused)
       return {
         status: "blocked",
-        policy: calculateCancellationPolicy(
+        policy: visitCancellationPolicy(
           booking.scheduled_at,
-          paidTotal(charges) / 100,
+          charges,
+          terms,
           /* @__PURE__ */ new Date(),
-          terms.cancellationRefundPercent,
+          booking.created_at,
         ),
       };
     if (
@@ -655,25 +1193,22 @@ function createVisitBilling(admin, stripe) {
     )
       return {
         status: "succeeded",
-        policy: calculateCancellationPolicy(
-          booking.scheduled_at,
-          paidTotal(charges) / 100,
-          /* @__PURE__ */ new Date(),
-          terms.cancellationRefundPercent,
-        ),
+        policy: visitCancellationPolicy(booking.scheduled_at, charges, terms),
       };
-    const policy = calculateCancellationPolicy(
+    const policy = visitCancellationPolicy(
       booking.scheduled_at,
-      paidTotal(charges) / 100,
+      charges,
+      terms,
       /* @__PURE__ */ new Date(),
-      terms.cancellationRefundPercent,
+      staff?.noAccess ? null : booking.created_at,
     );
     if (expectedTier && expectedTier !== policy.tier)
       throw new Error(
         "The cancellation window changed. Review the updated refund before confirming.",
       );
-    const refundPercent =
-      unfilled || latePayment
+    const refundPercent = staff
+      ? 100 - staff.chargePercent
+      : unfilled || latePayment
         ? 100
         : customerId === null
           ? 0
@@ -685,8 +1220,19 @@ function createVisitBilling(admin, stripe) {
       bill.revision,
       {
         refundPercent,
-        refunds: cancellationRefunds(charges, refundPercent),
+        refunds: cancellationRefunds(
+          charges,
+          refundPercent,
+          terms.cancellationBasis === "cleaning_hours",
+        ),
         latePayment,
+        ...(staff
+          ? {
+              staffActor: staff.actorId,
+              staffChargePercent: staff.chargePercent,
+              noAccess: staff.noAccess === true,
+            }
+          : {}),
       },
     );
     return { ...(await run(operation.id)), policy };
@@ -785,20 +1331,20 @@ function createVisitBilling(admin, stripe) {
               bill.stripe_customer_id,
             );
             if (customer.deleted)
-              throw new Stripe.errors.StripeInvalidRequestError({
+              throw new Stripe2.errors.StripeInvalidRequestError({
                 message: "Saved billing account is unavailable.",
               });
             op.parameters.method =
-              idOf(customer.invoice_settings.default_payment_method) ??
+              idOf2(customer.invoice_settings.default_payment_method) ??
               bill.stripe_payment_method_id;
             const method = await stripe.paymentMethods.retrieve(
               op.parameters.method,
             );
             if (
               method.type !== "card" ||
-              idOf(method.customer) !== bill.stripe_customer_id
+              idOf2(method.customer) !== bill.stripe_customer_id
             )
-              throw new Stripe.errors.StripeInvalidRequestError({
+              throw new Stripe2.errors.StripeInvalidRequestError({
                 message: "Update your saved card.",
               });
             await checkpoint();
@@ -837,7 +1383,7 @@ function createVisitBilling(admin, stripe) {
         if (
           intent.amount !== chargePence ||
           intent.currency !== "gbp" ||
-          idOf(intent.customer) !== bill.stripe_customer_id ||
+          idOf2(intent.customer) !== bill.stripe_customer_id ||
           intent.metadata.visit_operation !== op.id ||
           intent.transfer_data?.destination
         )
@@ -874,6 +1420,54 @@ function createVisitBilling(admin, stripe) {
           throw new Error("Stripe payment is still processing.");
         await checkpoint();
       }
+      for (const [index, plan] of (op.parameters.reversals ?? []).entries()) {
+        if (
+          results.some(
+            (result) =>
+              result.type === "reversal" && result.chargeId === plan.chargeId,
+          )
+        )
+          continue;
+        const existing = await stripe.transfers.listReversals(plan.transferId, {
+          limit: 100,
+        });
+        let reversal = existing.data.find(
+          (item) =>
+            item.metadata?.visit_operation === op.id &&
+            item.metadata?.visit_step === String(index),
+        );
+        if (!reversal) {
+          if (Date.now() - new Date(op.created_at).getTime() >= 23 * 36e5)
+            throw new Error(
+              "Unknown old transfer reversal needs reconciliation.",
+            );
+          reversal = await stripe.transfers.createReversal(
+            plan.transferId,
+            {
+              amount: plan.amountPence,
+              metadata: {
+                visit_operation: op.id,
+                visit_step: String(index),
+                booking_id: op.booking_id,
+              },
+            },
+            { idempotencyKey: `${op.idempotency_key}:reversal:${index}` },
+          );
+        }
+        if (
+          reversal.amount !== plan.amountPence ||
+          idOf2(reversal.transfer) !== plan.transferId
+        )
+          throw new Error("Cleaner transfer reversal needs reconciliation.");
+        results.push({
+          type: "reversal",
+          id: reversal.id,
+          status: "succeeded",
+          amountPence: plan.amountPence,
+          chargeId: plan.chargeId,
+        });
+        await checkpoint();
+      }
       for (const [index, plan] of (op.parameters.refunds ?? []).entries()) {
         if (
           results.some(
@@ -908,7 +1502,7 @@ function createVisitBilling(admin, stripe) {
         }
         if (
           refund.amount !== plan.amountPence ||
-          idOf(refund.payment_intent) !== plan.intentId ||
+          idOf2(refund.payment_intent) !== plan.intentId ||
           refund.status !== "succeeded"
         )
           throw new Error(
@@ -935,10 +1529,29 @@ function createVisitBilling(admin, stripe) {
       return { status: "succeeded" };
     } catch (error) {
       const definite =
-        error instanceof Stripe.errors.StripeCardError ||
-        error instanceof Stripe.errors.StripeInvalidRequestError;
+        error instanceof Stripe2.errors.StripeCardError ||
+        error instanceof Stripe2.errors.StripeInvalidRequestError;
       const hasMoney = results.some((r) => r.status === "succeeded");
       if (definite && !hasMoney && !results.some((r) => r.type === "refund")) {
+        if (op.operation_type === "cancellation_adjustment") {
+          await finish(
+            "failed",
+            "The cleaner compensation reversal was not completed; no additional customer refund was made.",
+          );
+          check(
+            await admin.rpc("open_review_case", {
+              p_booking_id: op.booking_id,
+              p_category: "payout_failure",
+              p_priority: "high",
+              p_blocks_payment: false,
+              p_blocks_payout: true,
+              p_notes:
+                "Cancellation compensation reversal failed. Review the source transfer before retrying the customer refund.",
+              p_created_by: op.parameters.requestedBy ?? null,
+            }),
+          );
+          return { status: "failed" };
+        }
         const charge = results.find((r) => r.type === "charge");
         if (charge) {
           const intent = await stripe.paymentIntents
@@ -1037,6 +1650,34 @@ function createVisitBilling(admin, stripe) {
       }),
     );
     for (const row of due) await chargeVisit(row.booking_id);
+    let settlements = admin
+      .from("cleaning_cancellation_settlements")
+      .select("booking_id")
+      .is("payout_settled_at", null)
+      .gt("cleaner_pay_pence", 0)
+      .order("created_at")
+      .limit(limit);
+    if (bookingIds) settlements = settlements.in("booking_id", bookingIds);
+    for (const row of must(await settlements)) {
+      try {
+        await createCleaningSettlement(admin, stripe).settle(row.booking_id);
+      } catch {}
+    }
+    let payoutRecovery = admin
+      .from("payouts")
+      .select("booking_id,cleaning_payout_parts!inner(charge_id)")
+      .is("payment_id", null)
+      .in("status", ["pending", "processing", "failed"])
+      .order("created_at")
+      .limit(limit);
+    if (bookingIds)
+      payoutRecovery = payoutRecovery.in("booking_id", bookingIds);
+    for (const row of must(await payoutRecovery)) {
+      if (!row.booking_id) continue;
+      try {
+        await createCleaningSettlement(admin, stripe).settle(row.booking_id);
+      } catch {}
+    }
     check(
       await admin
         .from("visit_billing_runtime")
@@ -1327,8 +1968,8 @@ function createVisitPaymentHandler(overrides = {}) {
     env: (name) => Deno.env.get(name),
     admin: createClient,
     stripe: (key) =>
-      new Stripe2(key, {
-        httpClient: Stripe2.createFetchHttpClient(),
+      new Stripe3(key, {
+        httpClient: Stripe3.createFetchHttpClient(),
         timeout: 1e4,
         maxNetworkRetries: 1,
       }),
@@ -1402,7 +2043,7 @@ function createVisitPaymentHandler(overrides = {}) {
         ok: true,
         mode,
         source:
-          "90dff1e7cc4063163f36405dcfa082dec7c7e9a0182b8bc85e4eabe495c2324c",
+          "b92a53304e4fe6fdd098517e37dcfd110d5e3541bf2228f4784ae77248a86c57",
         result,
         notices,
       });

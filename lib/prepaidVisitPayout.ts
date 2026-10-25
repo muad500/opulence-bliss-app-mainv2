@@ -8,6 +8,8 @@ import {
   systemTransitionPayout,
 } from "@/lib/bookingState";
 import { assignedProviderDestination } from "@/lib/payoutDestination";
+import { bookingCleaningBillingTerms } from "@/lib/cleaningBillingSettings";
+import { createCleaningSettlement } from "@/lib/cleaningSettlementServer";
 
 const admin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,6 +22,14 @@ export async function settleCompletedVisitPayout(
   bookingId: string,
   requestedBy?: string,
 ) {
+  if (
+    (await bookingCleaningBillingTerms(admin, bookingId))
+      .productsCleanerPayPence !== undefined
+  )
+    return createCleaningSettlement(admin, stripe).settle(
+      bookingId,
+      requestedBy,
+    );
   const { data: visitBilling } = await admin
     .from("booking_visit_billing")
     .select("rate_confirmed,status")

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   defaultLegalDocument,
   isLegalDocumentSlug,
+  sanitizeLegalHtml,
   publicLegalPresentation,
   type LegalDocument,
 } from "@/lib/legalDocuments";
@@ -34,16 +35,18 @@ const loadDocument = cache(async (slug: string) => {
       .eq("published", true)
       .maybeSingle();
     const row = data as LegalRow | null;
-    if (!row?.content_html) return fallback;
+    if (!row?.content_html) return slug === "safeguarding" ? null : fallback;
     return {
       slug,
-      ...publicLegalPresentation(row.title, row.content_html),
+      ...(slug === "safeguarding"
+        ? { title: row.title, contentHtml: sanitizeLegalHtml(row.content_html) }
+        : publicLegalPresentation(row.title, row.content_html)),
       audience: row.audience,
       version: row.version,
       updatedAt: row.updated_at,
     } satisfies LegalDocument;
   } catch {
-    return fallback;
+    return slug === "safeguarding" ? null : fallback;
   }
 });
 

@@ -42,8 +42,7 @@ export type WorkerJobWorkspaceData = {
     arrivedAt: string | null;
     leftAt: string | null;
     geofencePass: boolean | null;
-    gpsLat: number | null;
-    gpsLng: number | null;
+    distanceMetres: number | null;
   };
   invoice: (ProviderInvoicePdfData & { id: string }) | null;
   existingClientRating: {
@@ -66,8 +65,7 @@ type CheckIn = {
   arrived_at: string | null;
   left_at: string | null;
   geofence_pass: boolean | null;
-  gps_lat: number | null;
-  gps_lng: number | null;
+  distance_metres: number | null;
 };
 
 function one<T>(value: T | T[] | null | undefined): T | null {
@@ -123,7 +121,7 @@ export async function loadWorkerJob(
   const { data: row } = await supabase
     .rpc("worker_visible_bookings")
     .select(
-      "id, created_at, scheduled_at, preferred_scheduled_at, optional_scheduled_at, status, address, household_notes, rooms_to_clean, access_instructions, customer_id, customer_email, provider_id, provider_payout, subscription_id, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes), providers(display_name), check_ins(arrived_at, left_at, geofence_pass, gps_lat, gps_lng)",
+      "id, created_at, scheduled_at, preferred_scheduled_at, optional_scheduled_at, status, address, household_notes, rooms_to_clean, access_instructions, customer_id, customer_email, provider_id, provider_payout, subscription_id, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes), providers(display_name), check_ins(arrived_at, left_at, geofence_pass, distance_metres)",
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -210,7 +208,28 @@ export async function loadWorkerJob(
     jobPayment?.gross_amount === null || jobPayment?.gross_amount === undefined
       ? null
       : Number(jobPayment.gross_amount);
-  const earnsValue = row.provider_payout ?? split?.provider;
+  const payablePayments = payments.filter(
+    (payment) =>
+      payment.kind !== "tip" &&
+      !["refunded", "cancelled"].includes(payment.status),
+  );
+  let earnsValue =
+    row.provider_payout ??
+    (payablePayments.length
+      ? payablePayments.reduce(
+          (sum, payment) =>
+            sum + Number(payment.split_breakdown?.provider ?? 0),
+          0,
+        )
+      : split?.provider);
+  if (row.status === "cancelled") {
+    const { data: compensation } = await supabase
+      .from("cleaning_cancellation_settlements")
+      .select("cleaner_pay_pence")
+      .eq("booking_id", row.id)
+      .maybeSingle();
+    if (compensation) earnsValue = Number(compensation.cleaner_pay_pence) / 100;
+  }
   const earns =
     earnsValue === null || earnsValue === undefined ? null : Number(earnsValue);
   const explicitFee = split?.platform_margin;
@@ -300,8 +319,7 @@ export async function loadWorkerJob(
       arrivedAt: checkIn?.arrived_at ?? null,
       leftAt: checkIn?.left_at ?? null,
       geofencePass: checkIn?.geofence_pass ?? null,
-      gpsLat: checkIn?.gps_lat ?? null,
-      gpsLng: checkIn?.gps_lng ?? null,
+      distanceMetres: checkIn?.distance_metres ?? null,
     },
     invoice: invoiceResult.data
       ? {

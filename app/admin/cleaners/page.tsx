@@ -4,7 +4,6 @@ import ServiceReview from "../ServiceReview";
 import { handymanEnabled } from "@/lib/handymanMarketplace";
 import { requireAdminPage } from "@/lib/adminSession";
 import { setProviderDirectoryVisibility } from "../actions";
-import { dbsRecheckDate, renewalState } from "@/lib/verificationRenewal";
 import { redirect } from "next/navigation";
 import {
   ADMIN_PAGE_SIZE,
@@ -50,7 +49,7 @@ export default async function AdminCleanersPage({
 }: {
   searchParams: Promise<{ page?: string; status?: string }>;
 }) {
-  const { supabase, user } = await requireAdminPage();
+  const { supabase } = await requireAdminPage();
   const params = await searchParams;
   const currentPage = adminPageNumber(params.page);
   const selectedStatus = ["pending", "approved", "suspended"].includes(
@@ -88,7 +87,7 @@ export default async function AdminCleanersPage({
       adminListHref("/admin/cleaners", lastPage, { status: selectedStatus }),
     );
   const ids = (providersResult.data ?? []).map((provider) => provider.id);
-  const [availabilityResult, jobsResult, dbsResult] = await Promise.all([
+  const [availabilityResult, jobsResult] = await Promise.all([
     ids.length
       ? supabase
           .from("provider_availability")
@@ -100,12 +99,6 @@ export default async function AdminCleanersPage({
       ? supabase
           .from("bookings")
           .select("provider_id, status")
-          .in("provider_id", ids)
-      : Promise.resolve({ data: [], error: null }),
-    ids.length
-      ? supabase
-          .from("provider_dbs_checks")
-          .select("provider_id, status, uploaded_at,issue_date")
           .in("provider_id", ids)
       : Promise.resolve({ data: [], error: null }),
   ]);
@@ -134,9 +127,6 @@ export default async function AdminCleanersPage({
       summary.upcoming += 1;
     jobsByProvider.set(job.provider_id, summary);
   }
-  const dbsByProvider = new Map(
-    (dbsResult.data ?? []).map((check) => [check.provider_id, check]),
-  );
 
   return (
     <main style={page}>
@@ -191,12 +181,6 @@ export default async function AdminCleanersPage({
                 upcoming: 0,
               };
               const pending = provider.vetting_status === "pending";
-              const dbs = dbsByProvider.get(provider.id);
-              const dbsLabel = !dbs
-                ? "not submitted"
-                : !dbs.uploaded_at
-                  ? "upload incomplete"
-                  : dbs.status;
 
               return (
                 <article
@@ -258,18 +242,10 @@ export default async function AdminCleanersPage({
                         : "Legacy account. No onboarding details submitted."}
                     </p>
                     <p style={meta}>
-                      <strong>DBS:</strong> {dbsLabel}
-                      {dbs?.issue_date && (
-                        <>
-                          {" "}
-                          · Annual check {dbsRecheckDate(dbs.issue_date)} (
-                          {renewalState(
-                            dbsRecheckDate(dbs.issue_date),
-                            new Date().toISOString().slice(0, 10),
-                          )}
-                          )
-                        </>
-                      )}
+                      <strong>DBS:</strong>{" "}
+                      {provider.dbs_verified ? "Verified" : "Not verified"}.
+                      Private evidence is available to named onboarding staff
+                      only.
                     </p>
                     <p style={meta}>
                       {provider.rating_avg
