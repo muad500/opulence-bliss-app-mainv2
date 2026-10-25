@@ -422,23 +422,39 @@ test("restricted statuses, no work permission and malformed UTR fail before any 
 });
 
 test("cleaner and handyman registration require the displayed safeguarding version and save its time", async () => {
-  for (const change of [
-    { safeguardingAccepted: false },
-    { safeguardingAccepted: undefined },
-    { safeguardingVersion: undefined },
-    { safeguardingVersion: "0.9" },
-  ]) {
-    const { response, writes } = await signup({ ...validSignup, ...change });
-    assert.ok([400, 409].includes(response.status));
-    assert.equal(writes.length, 0);
+  for (const skills of [["cleaning"], ["handyman"], ["cleaning", "handyman"]]) {
+    const application = {
+      ...validSignup,
+      skills,
+      maintenanceTasks: ["Furniture assembly"],
+      coveragePostcodes: ["SW1A"],
+    };
+    for (const change of [
+      { safeguardingAccepted: false },
+      { safeguardingAccepted: undefined },
+      { safeguardingAccepted: "true" },
+      { safeguardingVersion: undefined },
+      { safeguardingVersion: "0.9" },
+    ]) {
+      const { response, writes } = await signup({ ...application, ...change });
+      assert.ok([400, 409].includes(response.status), skills.join("/"));
+      assert.equal(
+        writes.length,
+        0,
+        "no account changes before valid acceptance",
+      );
+    }
+    const { response, writes } = await signup(application);
+    assert.equal(response.status, 200, skills.join("/"));
+    const evidence = writes
+      .find((write) => write.table === "account_legal_acceptances")
+      .value.find((row) => row.document_slug === "safeguarding");
+    assert.equal(evidence.version, "1.0");
+    assert.ok(Number.isFinite(Date.parse(evidence.accepted_at)));
+    const provider = writes.find((write) => write.table === "providers").value;
+    assert.deepEqual(Array.from(provider.services), skills);
+    assert.equal(provider.vetting_status, "pending");
   }
-  const { response, writes } = await signup(validSignup);
-  assert.equal(response.status, 200);
-  const evidence = writes
-    .find((write) => write.table === "account_legal_acceptances")
-    .value.find((row) => row.document_slug === "safeguarding");
-  assert.equal(evidence.version, "1.0");
-  assert.ok(Number.isFinite(Date.parse(evidence.accepted_at)));
 });
 
 test("payout and earnings endpoints deny an unapproved applicant before Stripe or payment reads", async () => {
