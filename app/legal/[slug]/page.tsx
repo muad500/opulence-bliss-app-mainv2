@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import {
   defaultLegalDocument,
   isLegalDocumentSlug,
+  sanitizeLegalHtml,
   publicLegalPresentation,
   type LegalDocument,
 } from "@/lib/legalDocuments";
