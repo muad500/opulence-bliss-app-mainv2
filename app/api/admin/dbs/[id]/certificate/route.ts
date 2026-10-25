@@ -38,10 +38,22 @@ export async function GET(
     .download(record.certificate_storage_path);
   if (file.error || !file.data)
     return new NextResponse("Certificate unavailable", { status: 404 });
+  const extensions = new Map([
+    ["application/pdf", "pdf"],
+    ["image/jpeg", "jpg"],
+    ["image/png", "png"],
+  ]);
+  const extension = extensions.get(record.certificate_mime_type);
+  const disposition =
+    request.nextUrl.searchParams.get("download") === "1" || !extension
+      ? "attachment"
+      : "inline";
   return new NextResponse(await file.data.arrayBuffer(), {
     headers: {
-      "Content-Type": record.certificate_mime_type,
-      "Content-Disposition": 'inline; filename="dbs-certificate"',
+      "Content-Type": extension
+        ? record.certificate_mime_type
+        : "application/octet-stream",
+      "Content-Disposition": `${disposition}; filename="dbs-certificate.${extension ?? "bin"}"`,
       "Cache-Control": "private, no-store, max-age=0",
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "sandbox",

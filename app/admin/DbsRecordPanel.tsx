@@ -140,14 +140,23 @@ export default function DbsRecordPanel({
               ) : null}
               <div className={styles.actions}>
                 {record.hasCertificate ? (
-                  <a
-                    className={styles.button}
-                    href={`/api/admin/dbs/${id}/certificate`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Open DBS certificate ↗
-                  </a>
+                  <>
+                    <a
+                      className={styles.button}
+                      href={`/api/admin/dbs/${id}/certificate`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open DBS certificate ↗
+                    </a>
+                    <a
+                      className={styles.button}
+                      href={`/api/admin/dbs/${id}/certificate?download=1`}
+                      download
+                    >
+                      Download certificate
+                    </a>
+                  </>
                 ) : (
                   <p className={styles.notice}>
                     {record.deletedAt

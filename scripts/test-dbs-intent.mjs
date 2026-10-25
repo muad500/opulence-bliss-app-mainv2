@@ -7,7 +7,7 @@ import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 const require = createRequire(import.meta.url);
-const { NextResponse } = require("next/server");
+const { NextRequest, NextResponse } = require("next/server");
 const id = "d0028af3-6e1a-4a66-bba0-e2b8b773b90b";
 function load(file, mocks, globals = {}) {
   const loadedModule = { exports: {} };
@@ -242,4 +242,131 @@ test("certificate HEAD and prefetch do not access or log evidence", async () => 
   );
   assert.equal(result.status, 204);
   assert.equal(calls, 0);
+});
+
+test("certificate download is an explicit link, not another automatic evidence fetch", async () => {
+  const ui = panel();
+  assert.doesNotMatch(ui.html(), /Download certificate/);
+  ui.button().props.onClick();
+  ui.release();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.match(
+    ui.html(),
+    new RegExp(`/api/admin/dbs/${id}/certificate\\?download=1`),
+  );
+  assert.match(ui.html(), /download=""[^>]*>Download certificate/);
+  for (let i = 0; i < 10; i++) ui.render();
+  assert.equal(ui.calls.length, 1, "only the deliberate record POST runs");
+});
+
+function certificateRoute({
+  denied = false,
+  guard = null,
+  mime = "application/pdf",
+} = {}) {
+  const calls = [];
+  const ctx = {
+    client: {
+      rpc: async (...args) => {
+        calls.push(["audit", ...args]);
+        return {
+          data: [
+            {
+              certificate_storage_path: "PRIVATE-PATH",
+              certificate_mime_type: mime,
+            },
+          ],
+          error: denied ? { message: "Not named" } : null,
+        };
+      },
+    },
+    admin: {
+      storage: {
+        from: (bucket) => ({
+          download: async (path) => {
+            calls.push(["file", bucket, path]);
+            return {
+              data: new Blob(["FICTIONAL UNIT TEST BYTES"]),
+              error: null,
+            };
+          },
+        }),
+      },
+    },
+  };
+  return {
+    calls,
+    module: load("app/api/admin/dbs/[id]/certificate/route.ts", {
+      "@/lib/adminApi": { adminApi: async () => guard ?? ctx },
+    }),
+  };
+}
+
+test("explicit downloads keep audited named access, safe filenames and no-store/sandbox headers", async () => {
+  for (const [mime, extension] of [
+    ["application/pdf", "pdf"],
+    ["image/jpeg", "jpg"],
+    ["image/png", "png"],
+  ]) {
+    for (const download of [false, true]) {
+      const rt = certificateRoute({ mime });
+      const response = await rt.module.GET(
+        new NextRequest(
+          `https://staging.example/api/admin/dbs/${id}/certificate${download ? "?download=1" : ""}`,
+        ),
+        { params: Promise.resolve({ id }) },
+      );
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("content-type"), mime);
+      assert.equal(
+        response.headers.get("content-disposition"),
+        `${download ? "attachment" : "inline"}; filename="dbs-certificate.${extension}"`,
+      );
+      assert.match(response.headers.get("cache-control"), /private.*no-store/);
+      assert.equal(response.headers.get("content-security-policy"), "sandbox");
+      assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+      assert.equal(await response.text(), "FICTIONAL UNIT TEST BYTES");
+      assert.equal(rt.calls.length, 2);
+      assert.equal(rt.calls[0][2].p_action, "certificate_view");
+      assert.deepEqual(rt.calls[1], ["file", "provider-dbs", "PRIVATE-PATH"]);
+    }
+  }
+});
+
+test("download parameters cannot bypass named-staff/MFA checks or render unsupported content inline", async () => {
+  const request = new NextRequest(
+    `https://staging.example/api/admin/dbs/${id}/certificate?download=1`,
+  );
+  const denied = certificateRoute({ denied: true });
+  assert.equal(
+    (await denied.module.GET(request, { params: Promise.resolve({ id }) }))
+      .status,
+    403,
+  );
+  assert.equal(denied.calls.length, 1, "no file read after permission denial");
+  const mfa = certificateRoute({
+    guard: NextResponse.json({ error: "MFA required" }, { status: 403 }),
+  });
+  assert.equal(
+    (await mfa.module.GET(request, { params: Promise.resolve({ id }) })).status,
+    403,
+  );
+  assert.equal(mfa.calls.length, 0);
+  for (const mime of ["text/html", "__proto__", "constructor"]) {
+    const unknown = certificateRoute({ mime });
+    const response = await unknown.module.GET(
+      new NextRequest(
+        `https://staging.example/api/admin/dbs/${id}/certificate`,
+      ),
+      { params: Promise.resolve({ id }) },
+    );
+    assert.equal(
+      response.headers.get("content-type"),
+      "application/octet-stream",
+    );
+    assert.equal(
+      response.headers.get("content-disposition"),
+      'attachment; filename="dbs-certificate.bin"',
+    );
+  }
 });
