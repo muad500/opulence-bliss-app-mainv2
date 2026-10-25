@@ -1,8 +1,8 @@
 export const PRIVACY_POLICY_HTML = `
   <p><strong>Happy Cleaners. Happier Homes.</strong></p>
-  <p><strong>Version:</strong> 1.0</p>
+  <p><strong>Version:</strong> 1.1</p>
   <p><strong>Effective Date:</strong> August 2026</p>
-  <p><strong>Last Updated:</strong> August 2026</p>
+  <p><strong>Last Updated:</strong> September 2026</p>
   <h2>1. Introduction</h2>
   <p>Opulence Bliss Ltd (&quot;Opulence Bliss&quot;, &quot;we&quot;, &quot;our&quot; or &quot;us&quot;) respects your privacy and is committed to protecting your personal information.</p>
   <p>This Privacy Policy explains how we collect, use, store and protect personal information when you:</p>
@@ -21,10 +21,13 @@ export const PRIVACY_POLICY_HTML = `
   <p><strong>Call / SMS / WhatsApp:</strong> +44 7484 717935</p>
   <p><strong>Email:</strong> hello@opulencebliss.com</p>
   <p><strong>Registered in:</strong> England and Wales</p>
+  <p><strong>Registered office:</strong> 128 City Road, London, EC1V 2NX</p>
   <p>If you have questions about this Privacy Policy or how we handle your personal information, please contact us using the details above.</p>
   <h2>3. Our Privacy Approach</h2>
-  <p>Our business currently operates without a dedicated website.</p>
-  <p>Our booking and administration process is primarily managed using:</p>
+  <p>Customers can book and manage services through our website.</p>
+  <p>Our booking and administration process is supported by:</p>
+  <p>Our website, hosted by Vercel, with accounts, bookings and messages stored in Supabase</p>
+  <p>Stripe for card payments and professional payouts</p>
   <p>Google Forms / Google Workspace</p>
   <p>Google Sheets</p>
   <p>Google Calendar</p>
@@ -73,8 +76,12 @@ export const PRIVACY_POLICY_HTML = `
   <p>Relevant qualifications or training;</p>
   <p>Payment information;</p>
   <p>Communications with Opulence Bliss;</p>
-  <p>Information relating to complaints, incidents or service quality.</p>
+  <p>Information relating to complaints, incidents or service quality;</p>
+  <p>Your DBS (Disclosure and Barring Service) certificate number, its issue date and the outcome of our check.</p>
   <p>Where we request information for verification or legal compliance, we will explain the purpose where appropriate.</p>
+  <h3>DBS checks</h3>
+  <p>Before we approve a Cleaner Partner, we ask for a copy of their DBS certificate so that we can check it. A DBS certificate contains criminal record information, which the law protects more strictly than other personal information. We use it only to decide whether we can approve you, and only authorised members of our team can see it.</p>
+  <p>Once we have checked your certificate, we delete the copy you uploaded. We keep only the certificate number, its issue date and the outcome of our check.</p>
   <h2>6. How We Collect Your Information</h2>
   <p>We may collect personal information directly from you through:</p>
   <p>Google Forms</p>
@@ -217,6 +224,7 @@ export const PRIVACY_POLICY_HTML = `
   <p>Booking date and time;</p>
   <p>Cleaning requirements;</p>
   <p>Relevant access instructions;</p>
+  <p>Telephone number, so that your Cleaner can contact you about the booking on the day, for example if they cannot get in. Your Cleaner can see it only while the booking is upcoming or in progress;</p>
   <p>Information necessary to carry out the service safely.</p>
   <p>We aim to share only information reasonably necessary for the booking.</p>
   <h2>16. Cleaner Responsibilities for Customer Information</h2>
@@ -239,7 +247,13 @@ export const PRIVACY_POLICY_HTML = `
   <p>Accountants;</p>
   <p>Solicitors;</p>
   <p>Insurance providers;</p>
-  <p>IT or technical service providers.</p>
+  <p>IT or technical service providers;</p>
+  <p>Supabase, which stores our website's accounts, bookings, messages and files;</p>
+  <p>Vercel, which hosts our website;</p>
+  <p>Stripe, which processes card payments and pays our Cleaners. We never see or store your full card details;</p>
+  <p>Resend, which sends our booking emails;</p>
+  <p>Google, whose Gemini service powers the chat assistant on our website.</p>
+  <p>Some of these providers may process personal information outside the United Kingdom, including in the United States. Where that happens, we rely on UK adequacy regulations or on appropriate safeguards, such as the International Data Transfer Agreement or Addendum approved in the UK.</p>
   <p>Where another organisation processes personal information on our behalf, we will take reasonable steps to ensure appropriate contractual and data protection arrangements are in place where required.</p>
   <h2>18. We Do Not Sell Personal Information</h2>
   <p>Opulence Bliss does not sell Customer or Cleaner personal information.</p>
@@ -248,11 +262,12 @@ export const PRIVACY_POLICY_HTML = `
   <p>At present, our primary communications relate to bookings, customer service and the operation of our business.</p>
   <p>If we introduce marketing communications, we will ensure that these are carried out in accordance with applicable privacy and electronic marketing laws.</p>
   <p>You may opt out of marketing communications where applicable.</p>
-  <h2>20. No Website at Present</h2>
-  <p>Opulence Bliss does not currently operate a public website.</p>
-  <p>As a result, we do not currently operate website analytics or website cookies through an Opulence Bliss website.</p>
-  <p>If we launch a website in the future, this Privacy Policy will be reviewed and updated where necessary.</p>
-  <p>We may also introduce a separate Cookie Policy if required.</p>
+  <h2>20. Our Website</h2>
+  <p>When you use our website, we collect the information you give us to create an account, book, pay, message your Cleaner and leave reviews. This includes your name, email address, telephone number, address, details of your home and booking, and any photos or files you share in a booking chat.</p>
+  <p><strong>Booking chat.</strong> Messages and files you share in a booking chat can be seen by you, the other person on the booking and our team. We automatically check messages for offensive language so that our team can review them.</p>
+  <p><strong>Chat assistant.</strong> If you use the chat assistant on our website, what you type is sent to Google to generate a reply. Please do not share sensitive personal information with it.</p>
+  <p><strong>Reviews.</strong> After a visit you can leave a review and choose whether it is public or private, whatever your rating. Public reviews can be seen by anyone. Private reviews are seen only by the person you reviewed and our team. Every star rating, public or private, counts towards the ratings we show publicly, but the text of a private review is never published. Our Review Policy explains more.</p>
+  <p><strong>Cookies.</strong> Our website uses only cookies that are strictly necessary for it to work, such as keeping you signed in, keeping your account secure and taking payments. We do not use analytics or advertising cookies. If that changes, we will ask for your consent first.</p>
   <h2>21. How Long We Keep Personal Information</h2>
   <p>We will retain personal information only for as long as reasonably necessary for the purposes for which it was collected.</p>
   <p>We may retain information for:</p>
@@ -266,6 +281,7 @@ export const PRIVACY_POLICY_HTML = `
   <p>Establishing or defending legal claims;</p>
   <p>Maintaining appropriate business records.</p>
   <p>Different types of information may need to be retained for different periods.</p>
+  <p>For DBS checks, we delete the uploaded certificate once we have checked it, and keep only the certificate number, its issue date and the outcome.</p>
   <p>When information is no longer required, we will take reasonable steps to securely delete or dispose of it, subject to applicable legal retention requirements.</p>
   <h2>22. Security</h2>
   <p>We take reasonable technical and organisational measures to protect personal information against:</p>
@@ -335,17 +351,32 @@ export const PRIVACY_POLICY_HTML = `
 
 export const CANCELLATION_REFUND_POLICY_HTML = `
   <p><strong>Happy Cleaners. Happier Homes.</strong></p>
-  <p><strong>Version:</strong> 1.0</p>
+  <p><strong>Version:</strong> 1.1</p>
   <p><strong>Effective Date:</strong> August 2026</p>
-  <p><strong>Last Updated:</strong> August 2026</p>
+  <p><strong>Last Updated:</strong> September 2026</p>
   <h2>1. Purpose</h2>
   <p>At Opulence Bliss Ltd, we understand that plans can change.</p>
   <p>This Cancellation &amp; Refund Policy explains what happens when a customer needs to cancel or change a cleaning booking, when a cleaner is unable to attend, and when a refund may be available.</p>
   <p>Our aim is to operate a policy that is fair to customers and fair to our self-employed cleaning professionals.</p>
   <p>This policy should be read together with our Customer Terms &amp; Conditions.</p>
+  <h2>Your Legal Right to Cancel</h2>
+  <p>Because you book online, you have a legal right to cancel your booking within 14 days, without giving a reason. This right comes from the Consumer Contracts (Information, Cancellation and Additional Charges) Regulations 2013 and applies alongside this policy.</p>
+  <p><strong>How long you have.</strong> The 14 days start on the day you make your booking and end at the end of the 14th day after that day.</p>
+  <p><strong>If your service starts within the 14 days.</strong> We will only start your service within the 14 days if you ask us to, which you do by ticking the box when you book. You can still cancel during the 14 days. If you cancel after your service has started, you pay for the part already provided, in proportion to the full price. Once your service has been fully provided, you can no longer cancel it under this right.</p>
+  <p><strong>How to cancel.</strong> Cancel through your Opulence Bliss account, or tell us by email at opulencebliss@gmail.com, or by phone, SMS or WhatsApp on +44 7484 717935. You can use the model form below, but you do not have to.</p>
+  <p><strong>Your refund.</strong> We will refund any money due within 14 days of the day you tell us, using the payment method you used to book.</p>
+  <p>Where this legal right applies, it takes precedence over the notice periods and charges in section 3.</p>
+  <h3>Model cancellation form</h3>
+  <p>To: Opulence Bliss Ltd, 128 City Road, London, EC1V 2NX, opulencebliss@gmail.com, +44 7484 717935</p>
+  <p>I give notice that I cancel my contract for the supply of the following service:</p>
+  <p>Booked on:</p>
+  <p>Name:</p>
+  <p>Address:</p>
+  <p>Date:</p>
   <h2>2. Booking Cancellation</h2>
   <p>A customer may request cancellation of a booking by contacting Opulence Bliss Ltd as soon as possible.</p>
   <p>Cancellation requests can be made by:</p>
+  <p>Your Opulence Bliss account;</p>
   <p>WhatsApp;</p>
   <p>Telephone;</p>
   <p>SMS; or</p>
@@ -417,8 +448,7 @@ export const CANCELLATION_REFUND_POLICY_HTML = `
   <p>If access cannot be provided within that period, a cancellation charge may apply.</p>
   <h2>8. Refunds</h2>
   <p>Where a refund is approved, Opulence Bliss will normally return the applicable amount to the original payment method where reasonably possible.</p>
-  <p>Because we currently accept payment by bank transfer, refunds will normally be made by bank transfer.</p>
-  <p>Customers may be asked to provide the bank details required to process the refund.</p>
+  <p>Card payments are normally refunded to the original card through Stripe. For payments made by bank transfer, we may ask for bank details to return the refund.</p>
   <p>Customers should not send bank details by unsecured or inappropriate means.</p>
   <h2>9. Cleaning Quality and Refund Requests</h2>
   <p>A customer should not automatically cancel a booking or request a full refund because they are dissatisfied with part of the cleaning service.</p>
@@ -848,4 +878,38 @@ export const HANDYMAN_TERMS_HTML = `
   <p>Email: hello@opulencebliss.com</p>
   <h2>45. Customer Acknowledgement</h2>
   <p>By accepting a quotation, confirming a booking, making payment or allowing Opulence to commence the agreed work, the Customer confirms that they have had an opportunity to read these Terms and understand that the applicable terms form part of the agreement for the Property maintenance Service.</p>
+`;
+
+export const REVIEW_POLICY_HTML = `
+  <p><strong>Version:</strong> 1.0</p>
+  <p><strong>Effective Date:</strong> September 2026</p>
+  <h2>1. Why This Policy Exists</h2>
+  <p>Reviews help customers choose and help our professionals improve. This policy explains how Opulence Bliss Ltd collects, publishes and moderates reviews, so that you can trust what you read.</p>
+  <h2>2. Who Can Leave a Review</h2>
+  <p>Reviews are left through your Opulence Bliss account after a visit. Customers can review their professional, and professionals can review their customer.</p>
+  <h2>3. Public or Private: the Reviewer Decides</h2>
+  <p>When you leave a review, you choose whether it is public or private, whatever your rating.</p>
+  <p>Public reviews can be seen by anyone. Private reviews are seen only by the person you reviewed and our team.</p>
+  <p>Every star rating counts towards the ratings we show publicly, including private ones. The text of a private review is never published.</p>
+  <h2>4. What We Never Do</h2>
+  <p>We never:</p>
+  <p>Hide, remove or delay a review because it is negative;</p>
+  <p>Show only positive reviews, or leave negative ones out of our ratings;</p>
+  <p>Write reviews ourselves, or ask anyone to write a fake review;</p>
+  <p>Pay for or reward reviews;</p>
+  <p>Publish example or sample reviews as if they were real.</p>
+  <h2>5. When We May Remove a Review</h2>
+  <p>We may remove or edit a review, whatever its rating, if it:</p>
+  <p>Is abusive, threatening, discriminatory or offensive;</p>
+  <p>Includes someone's personal information, such as a phone number or address;</p>
+  <p>Is not about the service;</p>
+  <p>Is one we reasonably believe to be fake, or not written by the person on the booking;</p>
+  <p>Breaks the law.</p>
+  <p>Where we can, we will tell the reviewer why.</p>
+  <h2>6. Customer Testimonials</h2>
+  <p>Testimonials on our website come from real customers. We keep a record of where each one came from.</p>
+  <h2>7. Replies</h2>
+  <p>We or the professional may reply publicly to a review.</p>
+  <h2>8. Reporting a Review</h2>
+  <p>If you think a review breaks this policy, contact us by email at opulencebliss@gmail.com, or by phone, SMS or WhatsApp on +44 7484 717935.</p>
 `;
