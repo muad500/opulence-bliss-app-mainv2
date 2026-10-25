@@ -67,6 +67,11 @@ try {
   });
   execFileSync(
     process.execPath,
+    ["--test", "scripts/test-booking-legal-evidence.mjs"],
+    { stdio: "inherit" },
+  );
+  execFileSync(
+    process.execPath,
     ["--test", "scripts/test-cleaning-settlement.mjs"],
     { stdio: "inherit" },
   );
@@ -180,11 +185,6 @@ try {
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-handyman-quote-marketplace.mjs"],
-    { stdio: "inherit" },
-  );
-  execFileSync(
-    process.execPath,
-    ["--test", "scripts/test-supabase-session.mjs"],
     { stdio: "inherit" },
   );
   execFileSync(

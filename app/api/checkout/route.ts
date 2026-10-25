@@ -4,6 +4,7 @@ import {
   checkoutLegalMatches,
 } from "@/lib/checkoutLegal";
 import { currentCheckoutLegal } from "@/lib/checkoutLegalServer";
+import { bookingLegalEvidence } from "@/lib/bookingLegalEvidence";
 import {
   DEFAULT_CLEANING_BILLING_TERMS,
   cleanerPayPence,
@@ -386,11 +387,17 @@ export async function POST(req: NextRequest) {
         { status: 409 },
       );
     const { data: legalConsentId, error: legalError } = await supabaseAdmin.rpc(
-      "prepare_booking_legal_consent",
+      "prepare_booking_legal_consent_v2",
       {
         p_user: user.id,
         p_documents: legalDocuments,
         p_fallbacks: legalNow.fallbacks,
+        p_snapshots: legalNow.snapshots,
+        p_evidence: bookingLegalEvidence(legalNow.documents, req.headers, {
+          earlyStart: startsInCancellationPeriod,
+          savedCard: perVisit,
+          vercel: process.env.VERCEL === "1",
+        }),
       },
     );
     if (legalError || !legalConsentId)

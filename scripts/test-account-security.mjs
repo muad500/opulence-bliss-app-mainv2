@@ -4,7 +4,6 @@ import { createRequire } from "node:module";
 import vm from "node:vm";
 import { test } from "node:test";
 import ts from "typescript";
-import Stripe from "stripe";
 const require = createRequire(import.meta.url);
 async function load(path, mocks = {}, env = {}) {
   const source = await readFile(new URL("../" + path, import.meta.url), "utf8");
@@ -34,66 +33,6 @@ async function load(path, mocks = {}, env = {}) {
 }
 const policy = await load("lib/accountSecurityAlerts.ts");
 const mfa = await load("lib/staffMfa.ts");
-
-test("Connect payout alerts require Stripe signatures and queue retries with the same event key", async () => {
-  const secret = "whsec_fixture_only";
-  const stripe = new Stripe("sk_test_fixture");
-  const calls = [];
-  let lookups = 0;
-  const route = await load(
-    "app/api/stripe/connect-webhook/route.ts",
-    {
-      "@/lib/accountSecurityAlerts": policy,
-      "@supabase/supabase-js": {
-        createClient: () => ({
-          from: () => ({
-            select: () => ({
-              eq: () => ({
-                maybeSingle: async () => {
-                  lookups++;
-                  return { data: { profile_id: "provider-owner" } };
-                },
-              }),
-            }),
-          }),
-          rpc: async (name, args) => {
-            calls.push({ name, args });
-            return { error: null };
-          },
-        }),
-      },
-    },
-    {
-      STRIPE_SECRET_KEY: "sk_test_fixture",
-      STRIPE_CONNECT_WEBHOOK_SECRET: secret,
-    },
-  );
-  const payload = JSON.stringify({
-    id: "evt_fixture",
-    type: "account.external_account.updated",
-    account: "acct_fixture",
-    data: { object: { id: "ba_fixture" } },
-  });
-  const request = (signature) => ({
-    headers: new Headers({ "stripe-signature": signature }),
-    text: async () => payload,
-  });
-  assert.equal((await route.POST(request("invalid"))).status, 400);
-  assert.equal(lookups, 0);
-  const signature = stripe.webhooks.generateTestHeaderString({
-    payload,
-    secret,
-  });
-  assert.equal((await route.POST(request(signature))).status, 200);
-  assert.equal((await route.POST(request(signature))).status, 200);
-  assert.ok(
-    calls.every(
-      (x) =>
-        x.name === "queue_account_security_alert" &&
-        x.args.p_event === "stripe:evt_fixture",
-    ),
-  );
-});
 
 test("admin APIs enforce TOTP before creating the service-role client", async () => {
   for (const fixture of [

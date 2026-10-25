@@ -187,8 +187,8 @@ function harness({
   const cache = new Map();
   function load(file) {
     if (cache.has(file)) return cache.get(file);
-    const compiledModule = { exports: {} };
-    cache.set(file, compiledModule.exports);
+    const loaded = { exports: {} };
+    cache.set(file, loaded.exports);
     const compiled = ts.transpileModule(readFileSync(file, "utf8"), {
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
@@ -200,8 +200,8 @@ function harness({
     vm.runInNewContext(
       compiled,
       {
-        module: compiledModule,
-        exports: compiledModule.exports,
+        module: loaded,
+        exports: loaded.exports,
         require(id) {
           if (id === "react") return hooks;
           if (id === "@/lib/supabase/client")
@@ -231,7 +231,7 @@ function harness({
       },
       { filename: file },
     );
-    return compiledModule.exports;
+    return loaded.exports;
   }
   const drafts = load("lib/bookingDraft.ts");
   if (!tab.getItem("opulence-booking-sign-in-draft"))

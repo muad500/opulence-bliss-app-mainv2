@@ -108,6 +108,12 @@ export default function SiteFooter() {
               : ""}
           </p>
           <p>ICO registration number: {COMPANY.icoRegistrationNumber}</p>
+          <p>
+            Email:{" "}
+            <a href="mailto:hello@opulencebliss.com">
+              hello@opulencebliss.com
+            </a>
+          </p>
         </div>
         <div className={styles.legal}>
           {TERMS_URL && (
