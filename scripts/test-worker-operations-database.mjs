@@ -450,5 +450,128 @@ assert.equal(
 pass(
   "CSV audits keep database timestamps and actor identity without public write or delete access",
 );
+const existingUnassigned = await booking();
+const existingAgreed = await booking();
+await db.query(
+  "update cleaner_experience_clocks set started_at=now()-interval '14 months',last_completed_at=now() where provider_id=$1",
+  [provider],
+);
+await db.query("update bookings set provider_id=$2 where id=$1", [
+  existingAgreed,
+  provider,
+]);
+const agreedBeforeRelease = await value(
+  "select effective_booking_cleaner_hourly_pence($1) value",
+  [existingAgreed],
+);
+const moneyRecords = async () =>
+  JSON.stringify(
+    (
+      await db.query(
+        "select (select jsonb_agg(to_jsonb(p) order by id) from payments p) payments,(select jsonb_agg(to_jsonb(p) order by id) from payouts p) payouts",
+      )
+    ).rows,
+  );
+const recordsBeforeRelease = await moneyRecords();
+await db.exec(
+  readFileSync(
+    "supabase/migrations/20261026000900_preserve_existing_booking_pay.sql",
+    "utf8",
+  ),
+);
+assert.equal(await moneyRecords(), recordsBeforeRelease);
+pass(
+  "the new-booking safeguard does not rewrite any existing payment or payout",
+);
+await db.query("update bookings set provider_id=$2 where id=$1", [
+  existingUnassigned,
+  provider,
+]);
+assert.equal(
+  await value("select effective_booking_cleaner_hourly_pence($1) value", [
+    existingUnassigned,
+  ]),
+  1500,
+);
+await db.query("update bookings set provider_id=null where id=$1", [
+  existingUnassigned,
+]);
+await db.query("update bookings set provider_id=$2 where id=$1", [
+  existingUnassigned,
+  provider,
+]);
+assert.equal(
+  await value("select effective_booking_cleaner_hourly_pence($1) value", [
+    existingUnassigned,
+  ]),
+  1500,
+);
+assert.equal(
+  await value("select effective_booking_cleaner_hourly_pence($1) value", [
+    existingAgreed,
+  ]),
+  agreedBeforeRelease,
+);
+assert.equal(
+  await value("select effective_booking_cleaner_hourly_pence($1) value", [
+    assigned,
+  ]),
+  1525,
+);
+pass(
+  "pre-release unassigned and reaccepted bookings keep original pay; existing agreements stay unchanged",
+);
+const afterRelease = await booking();
+await db.query("update bookings set provider_id=$2 where id=$1", [
+  afterRelease,
+  provider,
+]);
+assert.equal(
+  await value("select effective_booking_cleaner_hourly_pence($1) value", [
+    afterRelease,
+  ]),
+  1550,
+);
+assert.equal(
+  await value(
+    "select count(*)::int value from existing_booking_cleaner_pay where booking_id=$1",
+    [afterRelease],
+  ),
+  0,
+);
+const afterReleaseDeep = await booking(deep, 1750);
+await db.query("update bookings set provider_id=$2 where id=$1", [
+  afterReleaseDeep,
+  provider,
+]);
+assert.equal(
+  await value("select effective_booking_cleaner_hourly_pence($1) value", [
+    afterReleaseDeep,
+  ]),
+  1750,
+);
+pass(
+  "only bookings created after release gain experience pay; deep-clean rates remain unchanged",
+);
+for (const role of ["anon", "authenticated"])
+  for (const privilege of ["select", "insert", "update", "delete"])
+    assert.equal(
+      await value(
+        "select has_table_privilege($1,'public.existing_booking_cleaner_pay',$2) value",
+        [role, privilege],
+      ),
+      false,
+    );
+for (const privilege of ["insert", "update", "delete"])
+  assert.equal(
+    await value(
+      "select has_table_privilege('service_role','public.existing_booking_cleaner_pay',$1) value",
+      [privilege],
+    ),
+    false,
+  );
+pass(
+  "customers and staff API callers cannot rewrite the pre-release booking pay guard",
+);
 console.log(`${passed} PostgreSQL assertions passed`);
 await db.close();

@@ -6,6 +6,7 @@ const files = [
   "20261026000600_standard_cleaner_experience_pay.sql",
   "20261026000700_private_professional_earnings_export.sql",
   "20261026000800_all_service_earnings_export.sql",
+  "20261026000900_preserve_existing_booking_pay.sql",
 ];
 const migrations = files.map((file) => {
   const source = readFileSync(`supabase/migrations/${file}`, "utf8").replaceAll(
