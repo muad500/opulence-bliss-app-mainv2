@@ -65,7 +65,7 @@ for (const file of [
 ])
   await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
 pass(
-  "all three migrations install with reviewed allocation and cancellation functions",
+  "all four migrations install with reviewed allocation and cancellation functions",
 );
 const workerUser = randomUUID(),
   adminUser = randomUUID(),
@@ -423,5 +423,32 @@ assert.equal(
   false,
 );
 pass("non-staff cannot export tax data or rewrite pay snapshots");
+const audited = (
+  await db.query(
+    "insert into professional_export_audits(actor_id,starts_on,ends_before,professional_count) values($1,'2026-04-06','2027-04-06',-1) returning actor_id,created_at,professional_count",
+    [adminUser],
+  )
+).rows[0];
+assert.equal(audited.actor_id, adminUser);
+assert.ok(audited.created_at);
+assert.equal(audited.professional_count, -1);
+for (const role of ["anon", "authenticated"])
+  for (const privilege of ["select", "insert", "update", "delete"])
+    assert.equal(
+      await value(
+        "select has_table_privilege($1,'public.professional_export_audits',$2) value",
+        [role, privilege],
+      ),
+      false,
+    );
+assert.equal(
+  await value(
+    "select has_table_privilege('service_role','public.professional_export_audits','delete') value",
+  ),
+  false,
+);
+pass(
+  "CSV audits keep database timestamps and actor identity without public write or delete access",
+);
 console.log(`${passed} PostgreSQL assertions passed`);
 await db.close();

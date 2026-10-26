@@ -50,6 +50,14 @@ and authenticator sign-in is required. Each export is logged. CSV includes
 professional ID, name, recorded private address/postcode, DOB, UTR, net paid
 earnings, transfer count and missing-details flags. No VAT field is introduced.
 
+The same page has an Earnings CSV access log: staff identity, database-recorded
+request time, requested period and professional count, with older entries
+available through pagination. Personal CSV contents are not copied into it.
+Authorised requests are logged before generation. A count of -1 marks an
+unfinished request; zero is a valid empty export. An insert failure or missing
+completion audit prevents the file from being returned. Historical requests
+remain visible. No extra migration is needed beyond the four listed below.
+
 This is a cash-basis reconciliation file, not an HMRC submission. Date range
 uses inclusive start/exclusive end in London time. Actual paid-event dates are
 used, falling back to creation only for legacy payouts without a paid event.

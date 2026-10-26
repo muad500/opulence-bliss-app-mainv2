@@ -2,12 +2,17 @@ import Link from "next/link";
 import { requireAdminPage } from "@/lib/adminSession";
 import { privatePortalClient } from "@/lib/professionalPortal";
 import { graceCancellationsLeft, londonMonth } from "@/lib/workerOperations";
+import ExportAuditLog from "./ExportAuditLog";
 import styles from "../deletion-requests/page.module.css";
 
 export default async function WorkerOperations({
   searchParams,
 }: {
-  searchParams: Promise<{ provider?: string; page?: string }>;
+  searchParams: Promise<{
+    provider?: string;
+    page?: string;
+    auditPage?: string;
+  }>;
 }) {
   await requireAdminPage();
   const params = await searchParams;
@@ -15,6 +20,10 @@ export default async function WorkerOperations({
   const page = Math.max(
     1,
     Math.min(10000, Math.floor(Number(params.page) || 1)),
+  );
+  const auditPage = Math.max(
+    1,
+    Math.min(10000, Math.floor(Number(params.auditPage) || 1)),
   );
   const admin = privatePortalClient();
   let query = admin
@@ -159,6 +168,11 @@ export default async function WorkerOperations({
             </button>
           </form>
         </section>
+        <ExportAuditLog
+          page={auditPage}
+          reliabilityPage={page}
+          provider={params.provider}
+        />
         <p className={styles.recordLinks}>
           <Link href="/admin/incidents">Complaints and breach log</Link>
         </p>
