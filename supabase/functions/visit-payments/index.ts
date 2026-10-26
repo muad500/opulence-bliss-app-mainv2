@@ -106,9 +106,16 @@ async function bookingCleaningBillingTerms(admin, bookingId) {
     .eq("booking_id", bookingId)
     .maybeSingle();
   if (error) throw new Error("Could not load the agreed booking terms.");
-  return data
-    ? parseCleaningBillingTerms(data.terms)
-    : DEFAULT_CLEANING_BILLING_TERMS;
+  if (!data) return DEFAULT_CLEANING_BILLING_TERMS;
+  const rate = await admin.rpc("effective_booking_cleaner_hourly_pence", {
+    p_booking: bookingId,
+  });
+  if (rate.error || !Number.isSafeInteger(rate.data) || rate.data < 1)
+    throw new Error("Could not load the agreed cleaner pay.");
+  return parseCleaningBillingTerms({
+    ...data.terms,
+    cleanerHourlyPence: rate.data,
+  });
 }
 
 // lib/visitBillingServer.ts
@@ -2043,7 +2050,7 @@ function createVisitPaymentHandler(overrides = {}) {
         ok: true,
         mode,
         source:
-          "b92a53304e4fe6fdd098517e37dcfd110d5e3541bf2228f4784ae77248a86c57",
+          "bb9289d7b4c443a8fedc84ec01cf8db146c505fd989bbf4f183faa255b200722",
         result,
         notices,
       });
