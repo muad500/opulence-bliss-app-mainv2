@@ -27,9 +27,12 @@ export async function updateSession(request: NextRequest) {
   ];
   const publicPath =
     request.nextUrl.pathname === "/delete-account" ||
-    ["/staff/login", "/staff/forgot-password", "/staff/callback"].includes(
-      request.nextUrl.pathname,
-    ) ||
+    [
+      "/staff/login",
+      "/staff/forgot-password",
+      "/staff/callback",
+      "/staff/setup",
+    ].includes(request.nextUrl.pathname) ||
     request.nextUrl.pathname === "/staff/mfa" ||
     [
       "/manifest.webmanifest",
