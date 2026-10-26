@@ -30,6 +30,10 @@ The first completed cleaning visit starts a durable clock. A gap of at least
 Older replayed completions never move it backwards. The rate at acceptance is
 saved per booking and professional. Reaccepting the same job cannot change it.
 Previously assigned jobs and existing payouts retain their agreed terms.
+Before release, migration 20261026000900 records the original rate for every
+existing booking, including unassigned visits. Those visits cannot gain an
+experience rise on a later acceptance or reassignment. Already agreed snapshots
+are retained. Only bookings created after that migration can gain the rises.
 
 Allocation, cancellation compensation and settlement read the same saved rate.
 Current published products/tips rules remain unchanged, including the separate
@@ -74,6 +78,8 @@ filing. Private files must be handled securely. CSV formulas are neutralised.
 4. `20261026000800_all_service_earnings_export.sql` adds recorded property
    maintenance transfers and reversals to the same report, without changing
    marketplace code or switching it on.
+5. `20261026000900_preserve_existing_booking_pay.sql` freezes pre-release
+   bookings before the new worker is installed, including unmatched visits.
 
 Requires the four retention migrations already on staging. No additional
 scheduler is needed: counters, clocks and snapshots are transactional triggers.

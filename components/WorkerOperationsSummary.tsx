@@ -65,8 +65,9 @@ export default async function WorkerOperationsSummary({
         The standard £15 rate rises to £15.25 in month 6 and £15.50 in month 13,
         counted from your first completed visit. After 90 days without a
         completed visit, the standard rate returns to £15 and your next
-        completion starts a new period. The rate agreed when you accept a visit
-        is saved for that visit.
+        completion starts a new period. These rises apply to new bookings only.
+        Existing bookings keep their agreed pay. The rate agreed when you accept
+        a new visit is saved for that visit.
       </p>
       <p>
         This month: <strong>{cancellations.count ?? 0} cancellations</strong> of
