@@ -8,11 +8,13 @@ export default function GoogleAuthButton({
   label,
   next,
   disabled = false,
+  signupConsent = false,
   onError,
 }: {
   label: string;
   next?: string;
   disabled?: boolean;
+  signupConsent?: boolean;
   onError?: (message: string) => void;
 }) {
   const [busy, setBusy] = useState(false);
@@ -28,6 +30,23 @@ export default function GoogleAuthButton({
     const callback = new URL("/auth/callback", window.location.origin);
     callback.searchParams.set("next", requestedNext);
     callback.searchParams.set("intent", "customer");
+
+    try {
+      const response = await fetch("/api/oauth-acceptance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: signupConsent ? "signup" : "login",
+          accepted: signupConsent,
+        }),
+      });
+      if (!response.ok)
+        throw Error("Account policies could not be prepared. Please retry.");
+    } catch (cause) {
+      onError?.(cause instanceof Error ? cause.message : "Please retry.");
+      setBusy(false);
+      return;
+    }
 
     const { error } = await createClient().auth.signInWithOAuth({
       provider: "google",

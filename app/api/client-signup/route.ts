@@ -4,7 +4,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { LEGAL_VERSIONS } from "@/lib/legal";
+import {
+  prepareAccountAcceptance,
+  saveAccountAcceptance,
+} from "@/lib/accountAcceptanceServer";
+import { CUSTOMER_SIGNUP_ACCEPTANCE } from "@/lib/accountAcceptanceCopy";
 import { isValidUkPhone, normalizeUkPhone } from "@/lib/ukPhone";
 
 const admin = createClient(
@@ -64,17 +68,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: legalRows } = await admin
-      .from("legal_documents")
-      .select("slug, version")
-      .in("slug", ["terms", "privacy", "cancellation-refund"])
-      .eq("published", true);
+    const acceptance = await prepareAccountAcceptance(
+      admin,
+      ["terms", "privacy", "cancellation-refund"],
+      req.headers,
+      [
+        {
+          key: "account_policies",
+          text: CUSTOMER_SIGNUP_ACCEPTANCE,
+          checked: true,
+        },
+      ],
+    );
     const legalVersions = Object.fromEntries(
-      ["terms", "privacy", "cancellation-refund"].map((slug) => [
-        slug,
-        legalRows?.find((row) => row.slug === slug)?.version ??
-          LEGAL_VERSIONS[slug],
-      ]),
+      acceptance.documents.map((d) => [d.slug, d.version]),
     );
 
     const userMetadata = {
@@ -129,6 +136,15 @@ export async function POST(req: NextRequest) {
       throw profileError;
     }
 
+    try {
+      await saveAccountAcceptance(admin, createdUser.id, acceptance);
+    } catch {
+      await admin.auth.admin.deleteUser(createdUser.id);
+      return NextResponse.json(
+        { error: "Your account acceptance could not be saved. Please retry." },
+        { status: 503 },
+      );
+    }
     return NextResponse.json({ ok: true, confirmationEmailSent: false });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Sign-up failed";

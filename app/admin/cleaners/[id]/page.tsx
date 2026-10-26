@@ -1,3 +1,4 @@
+import ApprovedAbsencePay from "../ApprovedAbsencePay";
 import Link from "next/link";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import DbsRecordPanel from "../../DbsRecordPanel";
@@ -10,6 +11,7 @@ import { requireAdminPage } from "@/lib/adminSession";
 import {
   PROVIDER_DOCUMENT_LABELS,
   PROVIDER_DOCUMENT_TYPES,
+  isPropertyMaintenanceDocument,
 } from "@/lib/providerVerification";
 import {
   setProviderDirectoryVisibility,
@@ -167,7 +169,7 @@ export default async function ProfessionalRecordPage({
   const today = new Date().toISOString().slice(0, 10);
   const verificationTypes = PROVIDER_DOCUMENT_TYPES.filter(
     (type) =>
-      type !== "trade_certificate" ||
+      !isPropertyMaintenanceDocument(type) ||
       (handymanEnabled() && provider.services?.includes("handyman")),
   );
   const verificationRecords: VerificationRecord[] = await Promise.all(
@@ -612,6 +614,7 @@ export default async function ProfessionalRecordPage({
           </span>
         </section>
 
+        <ApprovedAbsencePay providerId={provider.id} />
         <h2 style={sectionTitle}>Work, booking and payout history</h2>
         {bookings.length === 0 ? (
           <div style={empty}>No jobs for this professional.</div>

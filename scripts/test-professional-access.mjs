@@ -365,6 +365,38 @@ async function signup(body, safeguardingEnabled = true) {
     },
   };
   const { POST } = await load("app/api/provider-signup/route.ts", {
+    "@/lib/accountAcceptanceCopy": {
+      PROFESSIONAL_SIGNUP_ACCEPTANCE: "Fixture agreement",
+      safeguardingAcceptance: () => "Fixture safeguarding",
+    },
+    "@/lib/accountAcceptanceServer": {
+      prepareAccountAcceptance: async (
+        _client,
+        slugs,
+        _headers,
+        checkboxes,
+      ) => ({
+        acceptedAt: new Date().toISOString(),
+        documents: slugs.map((slug) => ({ slug, version: "1.0" })),
+        checkboxes,
+      }),
+      saveAccountAcceptance: async (
+        _client,
+        userId,
+        acceptance,
+        acceptedAt,
+      ) => {
+        writes.push({
+          table: "account_legal_acceptances",
+          value: acceptance.documents.map((doc) => ({
+            user_id: userId,
+            document_slug: doc.slug,
+            version: doc.version,
+            accepted_at: acceptedAt,
+          })),
+        });
+      },
+    },
     "@/lib/safeguardingRegistration": {
       safeguardingRegistration: async () => ({
         enabled: safeguardingEnabled,

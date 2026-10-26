@@ -90,6 +90,8 @@ await db.exec(
     "utf8",
   ),
 );
+await db.exec(readFileSync("supabase/migrations/20261027000100_acceptance_evidence_retention_guards.sql", "utf8"));
+await db.exec(readFileSync("supabase/migrations/20261027000500_account_acceptance_evidence.sql", "utf8"));
 check("Migration installs on PostgreSQL without deleting records");
 
 const user = randomUUID(),
@@ -353,6 +355,11 @@ await db.query(
   "insert into account_legal_acceptances(booking_id,checkout_legal_consent_id) values($1,$2)",
   [ancient, consent],
 );
+await assert.rejects(db.query("update booking_checkout_legal_consents set evidence='{}' where id=$1", [consent]), /immutable/);
+await assert.rejects(db.query("delete from booking_checkout_legal_consents where id=$1", [consent]), /immutable/);
+await assert.rejects(db.query("delete from account_legal_acceptances where checkout_legal_consent_id=$1", [consent]), /immutable/);
+check("Acceptance edits and early deletion blocked outside authorised retention");
+
 await call("run_data_retention", [false]);
 assert.equal(
   await value("select count(*)::int value from bookings where id=$1", [
