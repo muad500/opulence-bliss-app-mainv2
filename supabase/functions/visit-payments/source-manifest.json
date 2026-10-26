@@ -1,5 +1,5 @@
 {
-  "sourceSha256": "b92a53304e4fe6fdd098517e37dcfd110d5e3541bf2228f4784ae77248a86c57",
+  "sourceSha256": "bb9289d7b4c443a8fedc84ec01cf8db146c505fd989bbf4f183faa255b200722",
   "generator": "scripts/build-visit-payment-worker.mjs",
   "generatorSha256": "5b0961440e7d2fe28516fa3f795d51b8b662fa074c630efda795952c10344db5",
   "stripeVersion": "22.3.2",
@@ -31,7 +31,7 @@
     },
     {
       "path": "lib/cleaningBillingSettings.ts",
-      "sha256": "23a52afbd9982302f7946ff6c1130f62b72ac8438d7259ab6cdf9b5e61a6ad58"
+      "sha256": "8e52442a76af1a64436958f69ba32c32123f2bf4bf55df5f74c6f288c3176d2f"
     },
     {
       "path": "lib/cleaningBillingTerms.ts",

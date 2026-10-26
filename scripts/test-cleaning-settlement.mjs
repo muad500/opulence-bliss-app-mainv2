@@ -130,7 +130,9 @@ function fixture({
     },
     async rpc(name, input) {
       let data = null;
-      if (name === "prepare_cleaning_payout") {
+      if (name === "effective_booking_cleaner_hourly_pence") {
+        return { data: terms.cleanerHourlyPence, error: null };
+      } else if (name === "prepare_cleaning_payout") {
         if (state.reviews.length)
           return { data: { ready: false, amountPence: 3400 }, error: null };
         if (!state.parts.length)
