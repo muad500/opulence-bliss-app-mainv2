@@ -18,3 +18,4 @@ jobs:
           task_test_dir="$(mktemp -d)"
           npm install --prefix "$task_test_dir" --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.5.11
           RETENTION_PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite/dist/index.js" node scripts/test-data-retention-database.mjs
+          RETENTION_PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite/dist/index.js" node scripts/test-retention-production-preview.mjs
