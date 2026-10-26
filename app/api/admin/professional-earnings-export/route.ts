@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       actor_id: ctx.user.id,
       starts_on: dates.from,
       ends_before: dates.to,
+      professional_count: -1,
     })
     .select("id")
     .single();
@@ -52,8 +53,10 @@ export async function GET(request: NextRequest) {
   const saved = await ctx.admin
     .from("professional_export_audits")
     .update({ professional_count: rows.length })
-    .eq("id", audit.data.id);
-  if (saved.error)
+    .eq("id", audit.data.id)
+    .select("id")
+    .single();
+  if (saved.error || !saved.data)
     return NextResponse.json(
       { error: "Export audit could not be completed." },
       { status: 503 },
