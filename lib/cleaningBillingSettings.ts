@@ -29,7 +29,14 @@ export async function bookingCleaningBillingTerms(
     .eq("booking_id", bookingId)
     .maybeSingle();
   if (error) throw new Error("Could not load the agreed booking terms.");
-  return data
-    ? parseCleaningBillingTerms(data.terms)
-    : DEFAULT_CLEANING_BILLING_TERMS;
+  if (!data) return DEFAULT_CLEANING_BILLING_TERMS;
+  const rate = await admin.rpc("effective_booking_cleaner_hourly_pence", {
+    p_booking: bookingId,
+  });
+  if (rate.error || !Number.isSafeInteger(rate.data) || rate.data < 1)
+    throw new Error("Could not load the agreed cleaner pay.");
+  return parseCleaningBillingTerms({
+    ...data.terms,
+    cleanerHourlyPence: rate.data,
+  });
 }

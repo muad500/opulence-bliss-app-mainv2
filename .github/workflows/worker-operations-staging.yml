@@ -1,0 +1,24 @@
+name: Professional operations database checks
+on:
+  pull_request:
+    branches: [codex/staging, main]
+    paths:
+      - "**/*[Ww]orker*[Oo]peration*"
+      - "**/*[Pp]rofessional*[Ee]arnings*"
+      - "supabase/migrations/20261026000[5-8]*"
+      - ".github/workflows/worker-operations-staging.yml"
+permissions:
+  contents: read
+jobs:
+  isolated-database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check counters, pay snapshots, complaints and tax export
+        run: |
+          task_test_dir="$(mktemp -d)"
+          npm install --prefix "$task_test_dir" --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.5.11
+          RETENTION_PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite/dist/index.js" node scripts/test-worker-operations-database.mjs

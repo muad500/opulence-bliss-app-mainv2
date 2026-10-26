@@ -13,6 +13,7 @@ import {
 import { earningsPeriodTotals } from "@/lib/earningsPeriod";
 import PayoutScheduleForm from "./PayoutScheduleForm";
 import CleaningCancellationCompensation from "@/components/CleaningCancellationCompensation";
+import WorkerOperationsSummary from "@/components/WorkerOperationsSummary";
 
 const gbp = (n: number) =>
   "£" + Number(n || 0).toLocaleString("en-GB", { minimumFractionDigits: 2 });
@@ -244,6 +245,7 @@ export default async function EarningsPage() {
       <link rel="stylesheet" href={FONTS} />
       <div style={{ maxWidth: 760 }}>
         <h1 style={h1}>Earnings</h1>
+        <WorkerOperationsSummary admin={privatePortalClient()} providerId={prov.id} />
         <CleaningCancellationCompensation />
         <p style={{ color: "#7A828C", margin: "0 0 26px", fontWeight: 600 }}>
           Your payments, tips and settlement history, split by service.

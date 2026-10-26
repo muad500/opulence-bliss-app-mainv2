@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdminPage } from "@/lib/adminSession";
 import { deletionRequestAdminClient } from "../deletion-requests/data";
 import ReviewForm from "./ReviewForm";
+import CreateForm from "./CreateForm";
 import styles from "../deletion-requests/page.module.css";
 
 export default async function IncidentReportsPage({
@@ -9,7 +10,7 @@ export default async function IncidentReportsPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  const { user } = await requireAdminPage();
+  await requireAdminPage();
   const params = await searchParams;
   const page = Math.max(
     1,
@@ -20,7 +21,7 @@ export default async function IncidentReportsPage({
     ? await admin
         .from("account_incidents")
         .select(
-          "id,reporter_id,booking_id,category,description,status,created_at,resolution_note,reporter:profiles!account_incidents_reporter_id_fkey(full_name,email)",
+          "id,reporter_id,booking_id,subject_provider_id,log_kind,category,description,status,created_at,resolution_note,reporter:profiles!account_incidents_reporter_id_fkey(full_name,email)",
           { count: "exact" },
         )
         .order("created_at", { ascending: false })
@@ -30,11 +31,12 @@ export default async function IncidentReportsPage({
   return (
     <main className={styles.shell}>
       <div className={styles.page}>
-        <h1>Problems and incidents</h1>
+        <h1>Complaints, breaches and incidents</h1>
         <p className={styles.intro}>
           Review client and professional reports. Only the support team sees
           this list.
         </p>
+        <CreateForm />
         {!result || result.error ? (
           <p className={styles.error}>Reports could not be loaded.</p>
         ) : (
@@ -53,7 +55,7 @@ export default async function IncidentReportsPage({
                       {item.status.replace("_", " ")}
                     </span>
                     <h3>
-                      {item.category} ·{" "}
+                      {item.log_kind} · {item.category} ·{" "}
                       {reporter?.full_name ?? "Account holder"}
                     </h3>
                     <p className={styles.meta}>
@@ -79,6 +81,13 @@ export default async function IncidentReportsPage({
                       </>
                     )}
                     {item.resolution_note && <p>{item.resolution_note}</p>}
+                    {item.subject_provider_id && (
+                      <Link
+                        href={`/admin/cleaners/${item.subject_provider_id}`}
+                      >
+                        Open professional record
+                      </Link>
+                    )}
                     {item.status !== "resolved" && <ReviewForm id={item.id} />}
                   </article>
                 );
