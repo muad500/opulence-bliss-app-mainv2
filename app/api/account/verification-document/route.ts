@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { accountContext, accountError, isAccountError } from "@/lib/accountApi";
 import {
   isProviderDocumentType,
+  isTradeRegistration,
+  isPropertyMaintenanceDocument,
+  documentNeedsExpiry,
   PROVIDER_DOCUMENT_LABELS,
   validDocumentDate,
 } from "@/lib/providerVerification";
@@ -91,10 +94,11 @@ export async function POST(request: NextRequest) {
     const file = form.get("file");
     if (!isProviderDocumentType(type) && type !== "dbs")
       return accountError("Choose a supported document type.");
-    const reference = String(form.get("reference") ?? "")
-      .trim()
-      .toUpperCase()
-      .replace(/\s/g, "");
+    const rawReference = String(form.get("reference") ?? "").trim();
+    const reference =
+      type === "right_to_work" || type === "dbs"
+        ? rawReference.toUpperCase().replace(/\s/g, "")
+        : rawReference;
     if (
       type === "right_to_work" &&
       reference &&
@@ -141,10 +145,10 @@ export async function POST(request: NextRequest) {
     ) {
       return accountError("Check the document issue and expiry dates.");
     }
-    if (type === "public_liability_insurance" && !expiresAt) {
-      return accountError("Enter the insurance expiry date.");
+    if (documentNeedsExpiry(type) && !expiresAt) {
+      return accountError("Enter the document expiry date.");
     }
-    if (type === "trade_certificate") {
+    if (isPropertyMaintenanceDocument(type)) {
       const { data: provider, error } = await ctx.admin
         .from("providers")
         .select("services")
@@ -157,6 +161,14 @@ export async function POST(request: NextRequest) {
         );
       }
     }
+
+    if (
+      isTradeRegistration(type) &&
+      (reference.length < 2 || reference.length > 120)
+    )
+      return accountError(
+        "Enter the registration number and, for electrical registration, the scheme name.",
+      );
 
     const bytes = new Uint8Array(await file.arrayBuffer());
     const kind = fileKind(bytes);
@@ -202,7 +214,10 @@ export async function POST(request: NextRequest) {
             p_document_mime_type: kind.mime,
             p_issued_at: issuedAt || null,
             p_expires_at: expiresAt || null,
-            p_reference: type === "right_to_work" ? reference || null : null,
+            p_reference:
+              type === "right_to_work" || isTradeRegistration(type)
+                ? reference || null
+                : null,
           });
     if (recordError) {
       await ctx.admin.storage.from(bucket).remove([path]);

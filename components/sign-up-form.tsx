@@ -110,6 +110,7 @@ export function SignUpForm() {
           />
           <GoogleAuthButton
             label="Sign up with Google"
+            signupConsent={consentAccepted}
             next={
               returnTo &&
               (!audience || appPathAllowed(audience, returnTo.split("?")[0]))

@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
-import { LEGAL_VERSIONS } from "@/lib/legal";
+import {
+  OAUTH_ACCEPTANCE_COOKIE,
+  readOAuthAcceptance,
+  prepareAccountAcceptance,
+  saveAccountAcceptance,
+} from "@/lib/accountAcceptanceServer";
 import { canUseProfessionalTools } from "@/lib/professionalAccess";
 import { safeAuthNext } from "@/lib/authReturn";
 
@@ -101,35 +106,63 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  const { data: legalRows } = await admin
-    .from("legal_documents")
-    .select("slug, version")
-    .in("slug", ["terms", "privacy", "cancellation-refund"])
-    .eq("published", true);
-  const termsVersion =
-    legalRows?.find((row) => row.slug === "terms")?.version ??
-    LEGAL_VERSIONS.terms;
-  const privacyVersion =
-    legalRows?.find((row) => row.slug === "privacy")?.version ??
-    LEGAL_VERSIONS.privacy;
-  const cancellationVersion =
-    legalRows?.find((row) => row.slug === "cancellation-refund")?.version ??
-    LEGAL_VERSIONS["cancellation-refund"];
-  const acceptedAt = new Date().toISOString();
+  const pending = readOAuthAcceptance(
+    request.cookies.get(OAUTH_ACCEPTANCE_COOKIE)?.value,
+  );
+  if (!pending) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(
+      new URL("/auth/sign-up?error=consent", url.origin),
+    );
+  }
+  let prepared;
+  try {
+    prepared = await prepareAccountAcceptance(
+      admin,
+      pending.documents.map((d) => d.slug),
+      request.headers,
+      pending.checkboxes,
+      pending.action,
+    );
+  } catch {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(new URL("/login?error=consent", url.origin));
+  }
+  if (
+    JSON.stringify(
+      prepared.documents.map((d) => ({
+        slug: d.slug,
+        version: d.version,
+        contentHash: d.contentHash,
+        displayContentHash: d.displayContentHash,
+      })),
+    ) !== JSON.stringify(pending.documents)
+  ) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(
+      new URL("/auth/sign-up?error=policies-changed", url.origin),
+    );
+  }
+  // Record the request where the user accepted, before leaving for Google.
+  prepared.request = pending.request;
+  const termsVersion = prepared.documents.find(
+    (d) => d.slug === "terms",
+  )!.version;
+  const privacyVersion = prepared.documents.find(
+    (d) => d.slug === "privacy",
+  )!.version;
+  const cancellationVersion = prepared.documents.find(
+    (d) => d.slug === "cancellation-refund",
+  )!.version;
+  const acceptedAt = pending.acceptedAt;
+  prepared.acceptedAt = acceptedAt;
 
-  await admin.auth.admin.updateUserById(user.id, {
-    user_metadata: {
-      ...user.user_metadata,
-      legal_accepted: true,
-      legal_version: termsVersion,
-      legal_versions: {
-        terms: termsVersion,
-        privacy: privacyVersion,
-        "cancellation-refund": cancellationVersion,
-      },
-      legal_accepted_at: acceptedAt,
-    },
-  });
+  try {
+    await saveAccountAcceptance(admin, user.id, prepared, acceptedAt);
+  } catch {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(new URL("/login?error=consent", url.origin));
+  }
   const { error: consentError } = await admin.rpc(
     "record_oauth_signup_consent",
     {
@@ -143,5 +176,31 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/login?error=consent", url.origin));
   }
 
-  return NextResponse.redirect(new URL(next, url.origin));
+  const { error: metadataError } = await admin.auth.admin.updateUserById(
+    user.id,
+    {
+      user_metadata: {
+        ...user.user_metadata,
+        legal_accepted: true,
+        legal_version: termsVersion,
+        legal_versions: {
+          terms: termsVersion,
+          privacy: privacyVersion,
+          "cancellation-refund": cancellationVersion,
+        },
+        legal_accepted_at: acceptedAt,
+      },
+    },
+  );
+  if (metadataError) {
+    await supabase.auth.signOut();
+    return NextResponse.redirect(new URL("/login?error=consent", url.origin));
+  }
+
+  const response = NextResponse.redirect(new URL(next, url.origin));
+  response.cookies.set(OAUTH_ACCEPTANCE_COOKIE, "", {
+    path: "/auth/callback",
+    maxAge: 0,
+  });
+  return response;
 }

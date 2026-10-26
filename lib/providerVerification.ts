@@ -4,6 +4,8 @@ export const PROVIDER_DOCUMENT_TYPES = [
   "proof_of_address",
   "public_liability_insurance",
   "trade_certificate",
+  "gas_safe_registration",
+  "electrical_registration",
 ] as const;
 
 export type ProviderDocumentType = (typeof PROVIDER_DOCUMENT_TYPES)[number];
@@ -14,6 +16,8 @@ export const PROVIDER_DOCUMENT_LABELS: Record<ProviderDocumentType, string> = {
   proof_of_address: "Proof of address",
   public_liability_insurance: "Public liability insurance",
   trade_certificate: "Training or certification",
+  gas_safe_registration: "Gas Safe registration",
+  electrical_registration: "Electrical registration",
 };
 
 export function isProviderDocumentType(
@@ -31,4 +35,16 @@ export function validDocumentDate(value: string): boolean {
   return (
     !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value
   );
+}
+
+export function isTradeRegistration(type: string): boolean {
+  return type === "gas_safe_registration" || type === "electrical_registration";
+}
+
+export function isPropertyMaintenanceDocument(type: string): boolean {
+  return type === "trade_certificate" || isTradeRegistration(type);
+}
+
+export function documentNeedsExpiry(type: string): boolean {
+  return type === "public_liability_insurance" || isTradeRegistration(type);
 }

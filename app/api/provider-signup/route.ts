@@ -1,3 +1,11 @@
+import {
+  prepareAccountAcceptance,
+  saveAccountAcceptance,
+} from "@/lib/accountAcceptanceServer";
+import {
+  PROFESSIONAL_SIGNUP_ACCEPTANCE,
+  safeguardingAcceptance,
+} from "@/lib/accountAcceptanceCopy";
 // Provider sign-up — creates the account, profile, provider record,
 // coverage areas and default hours in one go.
 // Save at: app/api/provider-signup/route.ts
@@ -9,7 +17,6 @@ import { handymanEnabled, validHandymanTask } from "@/lib/handymanMarketplace";
 import { selectedProfessionalServices } from "@/lib/professionalServices";
 import { isSameOriginMutation } from "@/lib/accountApi";
 import { isValidUkPhone, normalizeUkPhone } from "@/lib/ukPhone";
-import { LEGAL_VERSIONS } from "@/lib/legal";
 import {
   dbsCertificateExtension,
   isDbsCertificateNumber,
@@ -399,16 +406,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: legalRows, error: legalError } = await admin
-      .from("legal_documents")
-      .select("slug, version")
-      .in("slug", ["professional-partner-agreement", "privacy", "safeguarding"])
-      .eq("published", true);
-    if (legalError)
-      return NextResponse.json(
-        { error: "Policies could not be checked. Please try again." },
-        { status: 503 },
-      );
     const currentSafeguardingVersion = safeguardingConfig.version;
     if (
       safeguardingConfig.enabled &&
@@ -422,16 +419,49 @@ export async function POST(req: NextRequest) {
         },
         { status: 409 },
       );
-    const agreementRow = legalRows?.find(
-      (row) => row.slug === "professional-partner-agreement",
+    const acceptance = await prepareAccountAcceptance(
+      admin,
+      [
+        "professional-partner-agreement",
+        "privacy",
+        ...(safeguardingConfig.enabled ? ["safeguarding" as const] : []),
+      ],
+      req.headers,
+      [
+        {
+          key: "professional_agreement",
+          text: PROFESSIONAL_SIGNUP_ACCEPTANCE,
+          checked: true,
+        },
+        ...(safeguardingConfig.enabled
+          ? [
+              {
+                key: "safeguarding",
+                text: safeguardingAcceptance(currentSafeguardingVersion!),
+                checked: true as const,
+              },
+            ]
+          : []),
+      ],
     );
-    const privacyRow = legalRows?.find((row) => row.slug === "privacy");
-    const professionalAgreementVersion =
-      agreementRow?.version ?? LEGAL_VERSIONS["professional-partner-agreement"];
-    const privacyVersion = privacyRow?.version ?? LEGAL_VERSIONS.privacy;
+    const professionalAgreementVersion = acceptance.documents.find(
+      (d) => d.slug === "professional-partner-agreement",
+    )!.version;
+    const privacyVersion = acceptance.documents.find(
+      (d) => d.slug === "privacy",
+    )!.version;
+    if (
+      safeguardingConfig.enabled &&
+      acceptance.documents.find((d) => d.slug === "safeguarding")?.version !==
+        currentSafeguardingVersion
+    )
+      return NextResponse.json(
+        { error: "The policies changed. Refresh and confirm again." },
+        { status: 409 },
+      );
 
     // Existing clients keep their account and can apply as a professional.
-    const acceptedAt = new Date().toISOString();
+    const acceptedAt = acceptance.acceptedAt;
     let userId = existingUser?.id;
     if (!userId) {
       const { data: created, error: createErr } =
@@ -506,37 +536,7 @@ export async function POST(req: NextRequest) {
         { error: "Could not save your personal details." },
         { status: 503 },
       );
-    const { error: acceptanceError } = await admin
-      .from("account_legal_acceptances")
-      .upsert(
-        [
-          {
-            user_id: userId,
-            document_slug: "professional-partner-agreement",
-            version: professionalAgreementVersion,
-            accepted_at: acceptedAt,
-          },
-          ...(safeguardingConfig.enabled
-            ? [
-                {
-                  user_id: userId,
-                  document_slug: "safeguarding",
-                  version: currentSafeguardingVersion,
-                  accepted_at: acceptedAt,
-                },
-              ]
-            : []),
-        ],
-        { onConflict: "user_id,document_slug,version,booking_id" },
-      );
-    if (acceptanceError)
-      return NextResponse.json(
-        {
-          error:
-            "Your policy acceptance could not be saved. Please sign in and retry the application.",
-        },
-        { status: 503 },
-      );
+    await saveAccountAcceptance(admin, userId, acceptance, acceptedAt);
 
     // 3. Provider record — work access begins after the admin approves it.
     const { data: prov, error: provErr } = await admin

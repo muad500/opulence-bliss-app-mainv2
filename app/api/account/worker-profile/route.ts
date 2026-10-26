@@ -1,3 +1,4 @@
+import { isPropertyMaintenanceDocument } from "@/lib/providerVerification";
 import { NextRequest, NextResponse } from "next/server";
 import {
   accountContext,
@@ -119,7 +120,7 @@ async function loadWorkerProfile(ctx: AccountContext) {
     .filter(
       (row) =>
         row.document_type !== "dbs" &&
-        (row.document_type !== "trade_certificate" ||
+        (!isPropertyMaintenanceDocument(row.document_type) ||
           (handymanEnabled() && provider.services?.includes("handyman"))),
     )
     .map((row) => ({

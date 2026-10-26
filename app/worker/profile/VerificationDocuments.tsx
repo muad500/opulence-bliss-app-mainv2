@@ -5,6 +5,9 @@ import { FormEvent, useState } from "react";
 import {
   PROVIDER_DOCUMENT_LABELS,
   PROVIDER_DOCUMENT_TYPES,
+  isPropertyMaintenanceDocument,
+  isTradeRegistration,
+  documentNeedsExpiry,
   type ProviderDocumentType,
 } from "@/lib/providerVerification";
 import styles from "./profile.module.css";
@@ -49,7 +52,8 @@ export default function VerificationDocuments({
     Record<string, { error: boolean; text: string }>
   >({});
   const types = PROVIDER_DOCUMENT_TYPES.filter(
-    (type) => type !== "trade_certificate" || services.includes("handyman"),
+    (type) =>
+      !isPropertyMaintenanceDocument(type) || services.includes("handyman"),
   );
   const dbs = checks.find((item) => item.type === "dbs");
 
@@ -125,7 +129,12 @@ export default function VerificationDocuments({
             {check?.expiresAt && (
               <small>Expires {dateText(check.expiresAt)}</small>
             )}
-            {check?.reference && <small>Share code: {check.reference}</small>}
+            {check?.reference && (
+              <small>
+                {type === "right_to_work" ? "Share code" : "Registration"}:{" "}
+                {check.reference}
+              </small>
+            )}
             {type === "right_to_work" && check?.lastCheckedAt && (
               <small>
                 GOV.UK check completed{" "}
@@ -167,6 +176,21 @@ export default function VerificationDocuments({
                     />
                   </label>
                 )}
+                {isTradeRegistration(type) && (
+                  <label>
+                    {type === "gas_safe_registration"
+                      ? "Gas Safe registration number"
+                      : "Electrical scheme and registration number"}
+                    <input
+                      name="reference"
+                      required
+                      minLength={2}
+                      maxLength={120}
+                      defaultValue={check?.reference ?? ""}
+                      autoComplete="off"
+                    />
+                  </label>
+                )}
                 <label>
                   PDF, JPEG or PNG, up to 4 MB
                   {type === "right_to_work"
@@ -190,14 +214,14 @@ export default function VerificationDocuments({
                   </label>
                   <label>
                     Expiry date{" "}
-                    {type === "public_liability_insurance"
+                    {documentNeedsExpiry(type)
                       ? "(required)"
                       : "(if applicable)"}
                     <input
                       type="date"
                       name="expiresAt"
                       defaultValue={check?.expiresAt ?? ""}
-                      required={type === "public_liability_insurance"}
+                      required={documentNeedsExpiry(type)}
                     />
                   </label>
                 </div>
