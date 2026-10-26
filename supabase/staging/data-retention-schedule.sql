@@ -6,20 +6,20 @@ update public.data_retention_control
   set storage_origin='https://comwdjprdedmsnxtvuuk.supabase.co' where id;
 do $guard$
 begin
-  if not exists(select 1 from vault.secrets where name='opulence_staging_recovery_secret')
+  if not exists(select 1 from vault.secrets where name='opulence_staging_web_push_cron')
     or not exists(select 1 from vault.secrets where name='opulence_staging_vercel_bypass') then
     raise exception 'Staging credentials are not configured';
   end if;
 end;
 $guard$;
 
-create function public.invoke_staging_data_retention()
+create or replace function public.invoke_staging_data_retention()
 returns bigint language plpgsql security definer
 set search_path=public,vault,net as $fn$
 declare secret text; bypass text;
 begin
   select decrypted_secret into secret from vault.decrypted_secrets
-    where name='opulence_staging_recovery_secret';
+    where name='opulence_staging_web_push_cron';
   select decrypted_secret into bypass from vault.decrypted_secrets
     where name='opulence_staging_vercel_bypass';
   if coalesce(secret,'')='' or coalesce(bypass,'')='' then
