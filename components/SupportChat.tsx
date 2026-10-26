@@ -214,7 +214,7 @@ export default function SupportChat() {
     if (busy) return;
     if (action.kind === "navigate") {
       const href = safeAssistantHref(action.href, window.location.origin);
-      if (href) window.location.href = href;
+      if (href) window.location.assign(href);
       return;
     }
     if (!window.confirm(action.confirmText)) return;
@@ -273,7 +273,11 @@ export default function SupportChat() {
   /* ---------- closed: the floating button ---------- */
   if (!open) {
     return (
-      <div className="fabWrap support-chat-fab">
+      <div
+        className="fabWrap support-chat-fab"
+        role="complementary"
+        aria-label="Support chat"
+      >
         <span className="tip">Need a hand?</span>
         <button
           className="fab"

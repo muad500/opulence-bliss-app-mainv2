@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useDialogFocus } from "@/lib/useDialogFocus";
 import SessionCountdown from "@/components/SessionCountdown";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import {
   CalendarDays,
@@ -232,6 +233,8 @@ export default function BookingWorkspace({
   const [pending, startTransition] = useTransition();
 
   const modalOpen = chatOpen || cancelOpen;
+  const dialog = useRef<HTMLElement>(null);
+  useDialogFocus(modalOpen, dialog);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     void Promise.resolve().then(() => {
@@ -638,6 +641,8 @@ export default function BookingWorkspace({
           }}
         >
           <section
+            ref={dialog}
+            tabIndex={-1}
             className="dialog chat-dialog"
             role="dialog"
             aria-modal="true"
@@ -688,6 +693,8 @@ export default function BookingWorkspace({
           }}
         >
           <section
+            ref={dialog}
+            tabIndex={-1}
             className="dialog cancel-dialog"
             role="dialog"
             aria-modal="true"
@@ -763,6 +770,7 @@ export default function BookingWorkspace({
 
             {reason === "Other reason" && (
               <textarea
+                aria-label="Other cancellation reason"
                 className="other-reason"
                 value={otherReason}
                 onChange={(event) => setOtherReason(event.target.value)}
@@ -779,7 +787,11 @@ export default function BookingWorkspace({
                 {cancellationPolicy.explanation}
               </span>
             </p>
-            {cancelError && <p className="cancel-error">{cancelError}</p>}
+            {cancelError && (
+              <p role="alert" className="cancel-error">
+                {cancelError}
+              </p>
+            )}
             <div className="cancel-buttons">
               {canModify && modifyControl && (
                 <div onClick={closeDialogs}>

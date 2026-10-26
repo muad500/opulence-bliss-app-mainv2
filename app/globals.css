@@ -9,7 +9,8 @@
   --ob-surface-raised: #ffffff;
   --ob-surface-glass: rgba(255, 255, 255, 0.9);
   --ob-text: #16202a;
-  --ob-muted: #6b7280;
+  --ob-muted: #58616c;
+  --ob-focus-ring: #4c1d95;
   --ob-border: #e4e7eb;
   --ob-border-strong: #d4d9e0;
   --ob-shadow: rgba(22, 32, 42, 0.12);
@@ -35,6 +36,7 @@
   --ob-surface-glass: rgba(23, 27, 39, 0.9);
   --ob-text: #f8f5fb;
   --ob-muted: #adb5c5;
+  --ob-focus-ring: #d8b4fe;
   --ob-border: #30384a;
   --ob-border-strong: #424c63;
   --ob-shadow: rgba(0, 0, 0, 0.46);
@@ -1189,4 +1191,25 @@ dd,
   body:has(.mobile-service-cta) .support-chat-panel {
     max-height: calc(100dvh - 108px - env(safe-area-inset-bottom)) !important;
   }
+}
+
+/* Shared keyboard affordances must remain visible over page-specific themes. */
+:is(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid var(--ob-focus-ring) !important;
+  outline-offset: 3px;
+}
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100000;
+  padding: 12px 18px;
+  border-radius: 8px;
+  background: #fff;
+  color: #4c1d95;
+  font-weight: 800;
+  transform: translateY(-160%);
+}
+.skip-link:focus {
+  transform: translateY(0);
 }
