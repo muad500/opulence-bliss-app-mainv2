@@ -75,4 +75,16 @@ success. No historical payment is captured, refunded, cancelled or transferred.
 6. Production remains unchanged until the owner grants a deployment slot and
    approves its release. Recheck the other bot and `main` immediately beforehand.
 
+The first Production release is PREVIEW ONLY. Apply only the four retention
+migrations, verify their exact ledger sources, and keep the deletion control
+false. The Production scheduler installs inactive; after the web deployment,
+enable automatic preview runs and verify HTTP 200 before restoring its daily
+schedule. Its fixed URL includes `?dry=1` and its invocation function refuses
+an enabled deletion control, so activating the schedule cannot activate deletion.
+Show eligible and protected counts for all eleven categories, including zeroes.
+Wait for a separate explicit approval before preparing real Production deletion.
+
+The professional-operations migrations and pay tools remain on staging. This
+retention release does not update the visit-payments worker or payment rules.
+
 The held legal migration is unrelated and must not be included.

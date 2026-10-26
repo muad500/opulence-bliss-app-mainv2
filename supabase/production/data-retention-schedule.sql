@@ -1,5 +1,7 @@
 -- PREPARED ONLY. Production requires an approved deployment slot.
--- Install disabled; verify a dry run after deploy before enabling deletion.
+-- Install the scheduler inactive. After deployment, activate PREVIEW runs only.
+-- This function always requests dry=1 and refuses an enabled deletion control.
+-- Review every category's counts with the owner before any later activation.
 begin;
 do $guard$
 begin
@@ -10,6 +12,9 @@ begin
   if (select count(*) from supabase_migrations.schema_migrations
     where version in('20261026000100','20261026000200','20261026000300','20261026000400'))<>4 then
     raise exception 'Apply and verify all retention migrations first';
+  end if;
+  if (select enabled from public.data_retention_control where id) is distinct from false then
+    raise exception 'Production must remain in preview mode';
   end if;
 end;
 $guard$;
@@ -22,11 +27,14 @@ returns bigint language plpgsql security definer
 set search_path=public,vault,net as $fn$
 declare secret text;
 begin
+  if (select enabled from public.data_retention_control where id) is distinct from false then
+    raise exception 'Preview scheduler requires deletion disabled';
+  end if;
   select decrypted_secret into strict secret from vault.decrypted_secrets
     where name='opulence_cron_secret';
   if coalesce(secret,'')='' then raise exception 'Production cron credential unavailable'; end if;
   return net.http_get(
-    url:='https://www.opulencebliss.com/api/cron/data-retention',
+    url:='https://www.opulencebliss.com/api/cron/data-retention?dry=1',
     headers:=jsonb_build_object('Authorization','Bearer '||secret),
     timeout_milliseconds:=55000
   );
