@@ -57,6 +57,9 @@ export default function DbsStaffSettings() {
     <section style={{ marginTop: 32 }}>
       <h2>DBS onboarding access</h2>
       <p>
+        <a href="/admin/staff-invitations">Invite an administrator</a>
+      </p>
+      <p>
         Choose the named onboarding staff. Admin access alone is not enough.
         Every record and certificate view is logged; certificate copies are
         deleted after verification.
