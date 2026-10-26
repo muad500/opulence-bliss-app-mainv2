@@ -193,6 +193,10 @@ export default function BookPage() {
   const [serviceType, setServiceType] = useState<string | null>("clean");
 
   const [step, setStep] = useState(0);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    stepHeading.current?.focus();
+  }, [step]);
   const [postcode, setPostcode] = useState("");
   const [address, setAddress] = useState("");
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
@@ -1041,7 +1045,12 @@ export default function BookPage() {
         <main>
           {handoffError && <p className="handoffError">{handoffError}</p>}
           {/* progress */}
-          <p className="stepline">
+          <p
+            className="stepline"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             Step {step + 1} of {STEPS.length} · <strong>{STEPS[step]}</strong>
           </p>
           <div className="prog">
@@ -1052,7 +1061,9 @@ export default function BookPage() {
           {step === 0 && (
             <section>
               <p className="eyebrow">Home cleaning</p>
-              <h1>Where should we clean?</h1>
+              <h1 ref={stepHeading} tabIndex={-1}>
+                Where should we clean?
+              </h1>
               <p className="lede">Start with the address for this visit.</p>
 
               {savedAddresses.length > 0 && (
@@ -1131,13 +1142,13 @@ export default function BookPage() {
               </div>
 
               {gate?.ok && (
-                <div className="covered">
+                <div className="covered" role="status">
                   <strong>✓ We cover this address</strong>
                   <span>{gate.area}</span>
                 </div>
               )}
               {gate && !gate.ok && (
-                <div className="alert">
+                <div className="alert" role="alert">
                   <strong>Please check your postcode.</strong>
                   <span>
                     We cover London, including all outer London boroughs. Enter
@@ -1181,7 +1192,9 @@ export default function BookPage() {
           {/* ---- 1 SESSION ---- */}
           {step === 1 && (
             <section>
-              <h1>Choose your session</h1>
+              <h1 ref={stepHeading} tabIndex={-1}>
+                Choose your session
+              </h1>
               <p className="lede">
                 Essential Clean is selected to get you started. Pick another
                 session to see its details.
@@ -1195,6 +1208,7 @@ export default function BookPage() {
                     <button
                       key={p.id}
                       className={selected?.id === p.id ? "opt on" : "opt"}
+                      aria-pressed={selected?.id === p.id}
                       onClick={() => pick(p)}
                     >
                       <span className="optbody">
@@ -1270,7 +1284,9 @@ export default function BookPage() {
           {/* ---- 2 FREQUENCY ---- */}
           {step === 2 && selected && (
             <section>
-              <h1>How often?</h1>
+              <h1 ref={stepHeading} tabIndex={-1}>
+                How often?
+              </h1>
               <p className="lede">
                 Choose how regularly you would like this cleaning.
               </p>
@@ -1364,7 +1380,9 @@ export default function BookPage() {
           {/* ---- 3 HOURS ---- */}
           {step === 3 && selected && (
             <section>
-              <h1>How many hours?</h1>
+              <h1 ref={stepHeading} tabIndex={-1}>
+                How many hours?
+              </h1>
               <p className="lede">
                 Tell us about your home for a suggested time, then choose from 2
                 to 8 hours in 30-minute steps.
@@ -1608,7 +1626,9 @@ export default function BookPage() {
           {/* ---- 4 TIME ---- */}
           {step === 4 && selected && (
             <section>
-              <h1>When suits you?</h1>
+              <h1 ref={stepHeading} tabIndex={-1}>
+                When suits you?
+              </h1>
               <p className="lede">
                 {regular
                   ? "Choose your first visit. The next five will follow on the same weekday or day of the month, at the same London time."
@@ -1618,7 +1638,7 @@ export default function BookPage() {
               {slots === null && <p className="muted">Finding times…</p>}
 
               {slots !== null && slots.length === 0 && (
-                <div className="alert">
+                <div className="alert" role="alert">
                   <strong>No appointment times are available.</strong>
                   <span>Try another session or contact support.</span>
                 </div>
@@ -1697,7 +1717,9 @@ export default function BookPage() {
           {/* ---- 5 CONFIRM ---- */}
           {step === 5 && selected && (
             <section>
-              <h1>Review and pay</h1>
+              <h1 ref={stepHeading} tabIndex={-1}>
+                Review and pay
+              </h1>
               <p className="lede">
                 {regular
                   ? `Check all ${regularVisits} dates and amounts before continuing to secure checkout.`
@@ -1878,8 +1900,11 @@ export default function BookPage() {
                   ? "We will use your selected confirmation channel. Email is a fallback if a text cannot be sent. In-app updates remain available."
                   : "SMS is not enabled yet. If you choose SMS, we will use email until text messages are available. In-app updates remain available."}
               </p>
-              <p className="label">Requests (optional)</p>
+              <label className="label" htmlFor="booking-requests">
+                Requests (optional)
+              </label>
               <textarea
+                id="booking-requests"
                 className="field"
                 rows={3}
                 maxLength={250}
@@ -1888,10 +1913,13 @@ export default function BookPage() {
                 placeholder="e.g. key is under the mat, please avoid the study"
               />
 
-              <p className="label">Promo code (optional)</p>
+              <label className="label" htmlFor="booking-promo">
+                Promo code (optional)
+              </label>
               <div className="inline">
                 <input
                   className="field"
+                  id="booking-promo"
                   placeholder="WELCOME10"
                   value={promo}
                   onChange={(e) => {
@@ -1946,7 +1974,11 @@ export default function BookPage() {
                   {SAVED_CARD_CONSENT_TEXT}
                 </label>
               )}
-              {payError && <p className="flash no">{payError}</p>}
+              {payError && (
+                <p className="flash no" role="alert">
+                  {payError}
+                </p>
+              )}
 
               <button className="back" onClick={() => setStep(4)}>
                 ← Change time
@@ -1955,20 +1987,25 @@ export default function BookPage() {
           )}
         </main>
 
-        <a
-          data-earn-with-us
-          className="earn-link"
-          style={{
-            gridColumn: "1 / -1",
-            gridRow: 3,
-            padding: 20,
-            textAlign: "center",
-            fontWeight: 800,
-          }}
-          href="/provider/join"
+        <nav
+          aria-label="Professional opportunities"
+          style={{ gridColumn: "1 / -1", gridRow: 3, textAlign: "center" }}
         >
-          Earn with us →
-        </a>
+          <a
+            data-earn-with-us
+            className="earn-link"
+            style={{
+              gridColumn: "1 / -1",
+              gridRow: 3,
+              padding: 20,
+              textAlign: "center",
+              fontWeight: 800,
+            }}
+            href="/provider/join"
+          >
+            Earn with us →
+          </a>
+        </nav>
         {/* ================= BASKET ================= */}
         {step > 0 && (
           <aside className="basket">
@@ -2163,7 +2200,7 @@ export default function BookPage() {
       <style jsx>{`
         .wrap {
           --ink: #16202a;
-          --muted: #7a828c;
+          --muted: #58616c;
           --line: #edeff1;
           --purple: #6d28d9;
           --grad: linear-gradient(100deg, #f5c542, #c86fc9 55%, #7b2ff7);

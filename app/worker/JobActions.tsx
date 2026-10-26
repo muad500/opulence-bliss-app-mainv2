@@ -212,6 +212,7 @@ export default function JobActions({
         </div>
         {note && (
           <p
+            role="status"
             style={{
               margin: "10px 0 0",
               padding: "10px 12px",
@@ -263,13 +264,14 @@ export default function JobActions({
           {pending ? "Finishing…" : "Finish & check out"}
         </button>
         {!compact && (
-          <p style={{ color: "#7A828C", fontSize: 13, margin: "10px 0 0" }}>
+          <p style={{ color: "#58616c", fontSize: 13, margin: "10px 0 0" }}>
             Checking out completes the job and charges the customer — your share
             is released automatically.
           </p>
         )}
         {note && (
           <p
+            role="status"
             style={{
               margin: "10px 0 0",
               padding: "10px 12px",
@@ -346,8 +348,10 @@ export function CheckInControl({
   } | null>(null);
 
   useEffect(() => {
-    setPanelTarget(
-      panelTargetId ? document.getElementById(panelTargetId) : null,
+    void Promise.resolve().then(() =>
+      setPanelTarget(
+        panelTargetId ? document.getElementById(panelTargetId) : null,
+      ),
     );
   }, [panelTargetId]);
 
@@ -403,7 +407,7 @@ export function CheckInControl({
 
   const showFeedback = otpStep || Boolean(note) || Boolean(blocked) || !compact;
   const feedback = showFeedback ? (
-    <div className="worker-checkin-feedback">
+    <div className="worker-checkin-feedback" role="status" aria-live="polite">
       {otpStep && (
         <div
           style={{

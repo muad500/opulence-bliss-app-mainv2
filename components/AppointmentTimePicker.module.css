@@ -32,7 +32,9 @@
   box-shadow: 0 8px 20px rgba(109, 40, 217, 0.2);
 }
 
-.headerIcon svg { width: 23px; }
+.headerIcon svg {
+  width: 23px;
+}
 
 .header strong {
   display: block;
@@ -95,15 +97,26 @@
   cursor: pointer;
 }
 
-.choiceTabs button:disabled { cursor: not-allowed; opacity: 0.48; }
-.choiceTabs button:not(:disabled):hover { border-color: #b994e9; }
+.choiceTabs button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+.choiceTabs button:not(:disabled):hover {
+  border-color: #b994e9;
+}
 .choiceTabs button.choiceTabActive {
   border-color: var(--picker-purple);
   background: #f5efff;
   box-shadow: inset 0 0 0 1px var(--picker-purple);
 }
-.choiceTabs b { font-size: 13px; }
-.choiceTabs span { color: var(--picker-muted); font-size: 10px; font-weight: 700; }
+.choiceTabs b {
+  font-size: 13px;
+}
+.choiceTabs span {
+  color: var(--picker-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
 
 .choiceSummary {
   display: grid;
@@ -115,9 +128,20 @@
   background: #fffaf6;
 }
 
-.choiceSummary > div { display: grid; gap: 2px; }
-.choiceSummary b { color: var(--picker-purple-dark); font-size: 11px; }
-.choiceSummary span { color: #5f5668; font-size: 11px; font-weight: 700; line-height: 1.45; }
+.choiceSummary > div {
+  display: grid;
+  gap: 2px;
+}
+.choiceSummary b {
+  color: var(--picker-purple-dark);
+  font-size: 11px;
+}
+.choiceSummary span {
+  color: #5f5668;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.45;
+}
 
 .calendarCard,
 .timesCard {
@@ -127,7 +151,9 @@
   background: #fff;
 }
 
-.calendarCard { padding: 13px; }
+.calendarCard {
+  padding: 13px;
+}
 
 .monthBar {
   display: grid;
@@ -137,7 +163,10 @@
   margin-bottom: 11px;
 }
 
-.monthBar strong { text-align: center; font-size: 16px; }
+.monthBar strong {
+  text-align: center;
+  font-size: 16px;
+}
 
 .monthBar button {
   display: grid;
@@ -152,9 +181,16 @@
   cursor: pointer;
 }
 
-.monthBar button:hover:not(:disabled) { background: #f0e7ff; }
-.monthBar button:disabled { opacity: 0.28; cursor: not-allowed; }
-.monthBar svg { width: 18px; }
+.monthBar button:hover:not(:disabled) {
+  background: #f0e7ff;
+}
+.monthBar button:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+.monthBar svg {
+  width: 18px;
+}
 
 .weekdays,
 .days {
@@ -163,11 +199,13 @@
   gap: 5px;
 }
 
-.weekdays { margin-bottom: 5px; }
+.weekdays {
+  margin-bottom: 5px;
+}
 
 .weekdays span {
   padding: 4px 0;
-  color: #968c9f;
+  color: #64586f;
   font-size: 10px;
   font-weight: 900;
   text-align: center;
@@ -175,7 +213,10 @@
 }
 
 .blank,
-.day { min-width: 0; aspect-ratio: 1.08; }
+.day {
+  min-width: 0;
+  aspect-ratio: 1.08;
+}
 
 .day {
   position: relative;
@@ -220,7 +261,9 @@
   box-shadow: 0 7px 15px rgba(109, 40, 217, 0.22);
 }
 
-.day.daySelected i { background: #fff; }
+.day.daySelected i {
+  background: #fff;
+}
 
 .legend {
   display: flex;
@@ -257,11 +300,21 @@
 }
 
 .timesHeading > svg,
-.compactHeading > svg { color: var(--picker-purple); }
+.compactHeading > svg {
+  color: var(--picker-purple);
+}
 .timesHeading strong,
-.compactHeading strong { display: block; font-size: 14px; }
+.compactHeading strong {
+  display: block;
+  font-size: 14px;
+}
 .timesHeading span,
-.compactHeading span { display: block; color: var(--picker-muted); font-size: 10px; font-weight: 700; }
+.compactHeading span {
+  display: block;
+  color: var(--picker-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
 
 .times {
   display: grid;
@@ -288,10 +341,23 @@
 }
 
 .timeButton span,
-.timeButton small { display: block; }
-.timeButton small { margin-top: 2px; color: #8a7c95; font-size: 8.5px; font-weight: 700; }
-.timeButton:hover { border-color: #aa7fe4; background: #f6f0ff; }
-.timeButton:disabled { cursor: not-allowed; opacity: 0.5; }
+.timeButton small {
+  display: block;
+}
+.timeButton small {
+  margin-top: 2px;
+  color: #64586f;
+  font-size: 8.5px;
+  font-weight: 700;
+}
+.timeButton:hover {
+  border-color: #aa7fe4;
+  background: #f6f0ff;
+}
+.timeButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
 
 .timeButton.timeSelected {
   border-color: var(--picker-purple);
@@ -300,7 +366,9 @@
   box-shadow: 0 7px 15px rgba(109, 40, 217, 0.18);
 }
 
-.timeButton.timeSelected small { color: #eadfff; }
+.timeButton.timeSelected small {
+  color: #eadfff;
+}
 
 .note {
   display: flex;
@@ -328,46 +396,146 @@
   font-weight: 900;
 }
 
-.timeOnly { padding: 14px; }
-.timeOnlyGrid { display: flex; flex-wrap: wrap; gap: 8px; }
-.compactHeading { margin-bottom: 12px; }
-.empty { margin: 0; padding: 22px; color: var(--picker-muted); font-weight: 700; }
+.timeOnly {
+  padding: 14px;
+}
+.timeOnlyGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.compactHeading {
+  margin-bottom: 12px;
+}
+.empty {
+  margin: 0;
+  padding: 22px;
+  color: var(--picker-muted);
+  font-weight: 700;
+}
 
 @media (max-width: 760px) {
-  .header { grid-template-columns: auto minmax(0, 1fr); padding: 17px; }
-  .horizon { grid-column: 1 / -1; justify-self: start; }
-  .body { grid-template-columns: 1fr; padding: 12px; }
-  .times { max-height: 245px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .header {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 17px;
+  }
+  .horizon {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+  .body {
+    grid-template-columns: 1fr;
+    padding: 12px;
+  }
+  .times {
+    max-height: 245px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 470px) {
-  .picker { border-radius: 18px; }
-  .header { gap: 9px; padding: 13px; }
-  .headerIcon { width: 36px; height: 36px; border-radius: 11px; }
-  .headerIcon svg { width: 19px; }
-  .header strong { font-size: 17px; }
-  .header p { margin-top: 3px; font-size: 11px; }
-  .horizon { padding: 6px 9px; font-size: 9.5px; }
-  .body { gap: 8px; padding: 8px; }
-  .choiceTabs { grid-template-columns: 1fr; padding: 12px 12px 0; }
-  .choiceSummary { margin: 0 12px 12px; }
-  .calendarCard, .timesCard { border-radius: 15px; }
-  .calendarCard { padding: 6px 7px 7px; }
-  .monthBar { grid-template-columns: 32px 1fr 32px; gap: 5px; margin-bottom: 5px; }
-  .monthBar strong { font-size: 14px; }
-  .monthBar button { width: 32px; height: 32px; border-radius: 9px; }
-  .monthBar svg { width: 15px; }
-  .weekdays, .days { gap: 2px; }
-  .weekdays { margin-bottom: 2px; }
-  .weekdays span { padding: 2px 0; font-size: 8.5px; }
-  .blank, .day { aspect-ratio: 1.28; }
-  .day { border-radius: 8px; font-size: 11px; }
-  .day i { bottom: 2px; width: 3px; height: 3px; }
-  .legend { gap: 5px; margin-top: 7px; font-size: 9px; }
-  .times { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .note { align-items: flex-start; padding: 12px 15px; }
+  .picker {
+    border-radius: 18px;
+  }
+  .header {
+    gap: 9px;
+    padding: 13px;
+  }
+  .headerIcon {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+  }
+  .headerIcon svg {
+    width: 19px;
+  }
+  .header strong {
+    font-size: 17px;
+  }
+  .header p {
+    margin-top: 3px;
+    font-size: 11px;
+  }
+  .horizon {
+    padding: 6px 9px;
+    font-size: 9.5px;
+  }
+  .body {
+    gap: 8px;
+    padding: 8px;
+  }
+  .choiceTabs {
+    grid-template-columns: 1fr;
+    padding: 12px 12px 0;
+  }
+  .choiceSummary {
+    margin: 0 12px 12px;
+  }
+  .calendarCard,
+  .timesCard {
+    border-radius: 15px;
+  }
+  .calendarCard {
+    padding: 6px 7px 7px;
+  }
+  .monthBar {
+    grid-template-columns: 32px 1fr 32px;
+    gap: 5px;
+    margin-bottom: 5px;
+  }
+  .monthBar strong {
+    font-size: 14px;
+  }
+  .monthBar button {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+  }
+  .monthBar svg {
+    width: 15px;
+  }
+  .weekdays,
+  .days {
+    gap: 2px;
+  }
+  .weekdays {
+    margin-bottom: 2px;
+  }
+  .weekdays span {
+    padding: 2px 0;
+    font-size: 8.5px;
+  }
+  .blank,
+  .day {
+    aspect-ratio: 1.28;
+  }
+  .day {
+    border-radius: 8px;
+    font-size: 11px;
+  }
+  .day i {
+    bottom: 2px;
+    width: 3px;
+    height: 3px;
+  }
+  .legend {
+    gap: 5px;
+    margin-top: 7px;
+    font-size: 9px;
+  }
+  .times {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .note {
+    align-items: flex-start;
+    padding: 12px 15px;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .day, .timeButton, .monthBar button { transition: 160ms ease; }
+  .day,
+  .timeButton,
+  .monthBar button {
+    transition: 160ms ease;
+  }
 }

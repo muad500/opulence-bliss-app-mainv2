@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
+import { useDialogFocus } from "@/lib/useDialogFocus";
 import AppointmentTimePicker from "@/components/AppointmentTimePicker";
 import ReviewVisibilityChoice from "@/components/ReviewVisibilityChoice";
 import modalStyles from "./BookingToolsModal.module.css";
@@ -147,6 +148,8 @@ export function BookingTools({
   const [pending, start] = useTransition();
   const [slots, setSlots] = useState<string[] | null>(null);
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(open, dialogRef);
   const [message, setMessage] = useState<string | null>(null);
   const [cutoff, setCutoff] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState("");
@@ -304,6 +307,8 @@ export function BookingTools({
       }}
     >
       <section
+        ref={dialogRef}
+        tabIndex={-1}
         className="reschedule-dialog"
         role="dialog"
         aria-modal="true"
@@ -319,7 +324,10 @@ export function BookingTools({
             <X size={22} />
           </button>
         </header>
-        <p>Date and time changes are free up to 24 hours before the visit, subject to availability. Within 24 hours, contact support.</p>
+        <p>
+          Date and time changes are free up to 24 hours before the visit,
+          subject to availability. Within 24 hours, contact support.
+        </p>
 
         <div className="booking-summary">
           <span className="calendar-icon">
@@ -1018,6 +1026,8 @@ export function RateBooking({
   const [comment, setComment] = useState("");
   const [visibility, setVisibility] = useState<ReviewVisibility>("public");
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(open, dialogRef);
   const [message, setMessage] = useState<string | null>(null);
 
   if (submittedPrivately) {
@@ -1158,6 +1168,8 @@ export function TipBooking({ id }: { id: string }) {
       .catch(() => undefined);
   }, [id]);
   const [open, setOpen] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  useDialogFocus(open, dialogRef);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 

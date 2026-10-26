@@ -95,7 +95,7 @@ export default function BookingProgress({
           display: grid;
           justify-items: center;
           gap: 7px;
-          color: #a0a7b0;
+          color: var(--ob-muted);
           min-width: 0;
         }
         .node {
