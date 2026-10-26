@@ -56,4 +56,3 @@ select cron.schedule(
 );
 
 commit;
-

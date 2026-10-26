@@ -1,7 +1,7 @@
 name: Launch safety checks (isolated database)
 on:
   pull_request:
-    branches: [codex/staging]
+    branches: [codex/staging, main]
     paths:
       [
         "supabase/migrations/20261024*",

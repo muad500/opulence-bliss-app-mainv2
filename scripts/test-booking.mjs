@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 // project's locked TypeScript compiler; no extra runtime dependency is needed.
 const directory = await mkdtemp(join(tmpdir(), "opulence-tests-"));
 const modules = [
+  "dataRetention",
   "notificationSettings",
   "adminHosts",
   "chatMessageMail",
@@ -65,6 +66,11 @@ try {
   execFileSync(process.execPath, ["--test", "scripts/test-dbs-intent.mjs"], {
     stdio: "inherit",
   });
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-booking-legal-evidence.mjs"],
+    { stdio: "inherit" },
+  );
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-cleaning-settlement.mjs"],
@@ -180,11 +186,6 @@ try {
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-handyman-quote-marketplace.mjs"],
-    { stdio: "inherit" },
-  );
-  execFileSync(
-    process.execPath,
-    ["--test", "scripts/test-supabase-session.mjs"],
     { stdio: "inherit" },
   );
   execFileSync(

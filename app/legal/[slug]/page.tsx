@@ -8,6 +8,7 @@ import {
   defaultLegalDocument,
   isLegalDocumentSlug,
   sanitizeLegalHtml,
+  publicLegalPresentation,
   type LegalDocument,
 } from "@/lib/legalDocuments";
 import styles from "./page.module.css";
@@ -37,16 +38,10 @@ const loadDocument = cache(async (slug: string) => {
     if (!row?.content_html) return slug === "safeguarding" ? null : fallback;
     return {
       slug,
-      title: row.title.replace(/Handyman/gi, "Property maintenance"),
+      ...(slug === "safeguarding"
+        ? { title: row.title, contentHtml: sanitizeLegalHtml(row.content_html) }
+        : publicLegalPresentation(row.title, row.content_html)),
       audience: row.audience,
-      contentHtml:
-        slug === "safeguarding"
-          ? sanitizeLegalHtml(row.content_html)
-          : sanitizeLegalHtml(row.content_html).replace(/>[^<]+</g, (text) =>
-              text
-                .replace(/Handyman/gi, "Property maintenance")
-                .replace(/Minor decorating/gi, "Painting &amp; decoration"),
-            ),
       version: row.version,
       updatedAt: row.updated_at,
     } satisfies LegalDocument;

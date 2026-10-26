@@ -54,6 +54,10 @@ export default async function VisitPage({
     .eq("id", id)
     .maybeSingle();
 
+  const legalCopy = row
+    ? await supabase.rpc("booking_legal_contract", { p_booking: id })
+    : null;
+
   if (!row) {
     return (
       <main style={wrap}>
@@ -328,6 +332,18 @@ export default async function VisitPage({
             status={row.status}
             hasArrived={Boolean(checkIn?.arrived_at)}
           />
+
+          {legalCopy?.data && (
+            <p style={{ fontSize: 13, lineHeight: 1.6 }}>
+              <a href={`/api/bookings/${id}/legal-documents`}>
+                Download your booking policies (PDF)
+              </a>
+              {" · "}
+              <a href={`/api/bookings/${id}/legal-documents?form=cancellation`}>
+                Cancellation form
+              </a>
+            </p>
+          )}
 
           {(canRate || canTip || review || hasSubmittedReview) && (
             <div id="review" style={actionBlock}>
