@@ -15,6 +15,7 @@ const primary = [
 const tools = [
   ["/admin/review", "Resolution desk"],
   ["/admin/deletion-requests", "Account requests"],
+  ["/admin/data-retention", "Data retention"],
   ["/admin/incidents", "Problems & incidents"],
   ["/admin/reviews", "Website reviews"],
   ["/admin/faqs", "FAQs"],
