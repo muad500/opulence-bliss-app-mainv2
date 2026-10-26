@@ -1,6 +1,46 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { runDataRetention, type RetentionClient } from "./dataRetention";
+import {
+  retentionCronSecret,
+  runDataRetention,
+  type RetentionClient,
+} from "./dataRetention";
+
+test("Production retention uses only its Production cron credential", () => {
+  assert.equal(
+    retentionCronSecret({
+      VERCEL_ENV: "production",
+      APP_ENV: "staging",
+      CRON_SECRET: "live-cron",
+      WEB_PUSH_CRON_SECRET: "stage-cron",
+    }),
+    "live-cron",
+  );
+  assert.equal(
+    retentionCronSecret({
+      VERCEL_ENV: "production",
+      WEB_PUSH_CRON_SECRET: "stage-cron",
+    }),
+    undefined,
+  );
+});
+test("Preview retention uses the existing isolated staging cron credential", () => {
+  assert.equal(
+    retentionCronSecret({
+      VERCEL_ENV: "preview",
+      CRON_SECRET: "live-cron",
+      WEB_PUSH_CRON_SECRET: "stage-cron",
+    }),
+    "stage-cron",
+  );
+  assert.equal(
+    retentionCronSecret({ VERCEL_ENV: "preview", CRON_SECRET: "live-cron" }),
+    undefined,
+  );
+});
+test("An unknown retention environment fails closed", () => {
+  assert.equal(retentionCronSecret({ CRON_SECRET: "unknown-cron" }), undefined);
+});
 
 function fixture(
   options: {

@@ -1,13 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
-import { runDataRetention } from "@/lib/dataRetention";
+import { retentionCronSecret, runDataRetention } from "@/lib/dataRetention";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
+  const secret = retentionCronSecret(process.env);
   const expected = Buffer.from(`Bearer ${secret ?? ""}`);
   const received = Buffer.from(request.headers.get("authorization") ?? "");
   if (
