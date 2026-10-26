@@ -53,7 +53,9 @@ origin, and is never stored or returned. The cron worker has no separate,
 unlocked file-deletion path. The http extension is configured during scheduler
 installation, with a five-second request timeout.
 
-The cron endpoint accepts only the existing Bearer cron credential. Admin pages
+The cron endpoint accepts only the existing Bearer cron credential: the isolated
+WEB_PUSH_CRON_SECRET in Preview, and CRON_SECRET in Production. Neither
+environment falls back to the other credential. No new credential is created. Admin pages
 and hold changes require staff authenticator sign-in. Private helper functions
 are not exposed to authenticated users or the service API. Immutable-history
 deletion is allowed only inside the owner-executed retention transaction; normal

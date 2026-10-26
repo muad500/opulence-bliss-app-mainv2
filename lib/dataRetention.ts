@@ -25,6 +25,13 @@ export const retentionRules = [
 ] as const;
 
 export type RetentionFile = { bucket: string; path: string };
+
+export function retentionCronSecret(env: Record<string, string | undefined>) {
+  if (env.VERCEL_ENV === "production") return env.CRON_SECRET;
+  if (env.VERCEL_ENV === "preview" || env.APP_ENV === "staging")
+    return env.WEB_PUSH_CRON_SECRET;
+  return undefined;
+}
 export type RetentionTask = {
   id: string;
   claimToken: string;
