@@ -12,6 +12,11 @@ export const retentionRules = [
   ],
   ["enquiries", "Enquiries", "12 months"],
   [
+    "partner_interests",
+    "Partner interest",
+    "12 months unless registered as a Partner",
+  ],
+  [
     "incidents",
     "Safeguarding, complaints and incidents",
     "6 years after resolution",

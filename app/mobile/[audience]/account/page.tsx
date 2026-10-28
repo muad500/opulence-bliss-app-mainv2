@@ -156,8 +156,8 @@ export default async function AccountMenu({
       ];
   rows.push({
     label: "Earn with us",
-    detail: "Explore opportunities and add a service",
-    href: "/provider/join",
+    detail: "Explore cleaning work or become a Partner",
+    href: "/earn-with-us",
     icon: ClipboardCheck,
   });
   return (
@@ -189,7 +189,11 @@ export default async function AccountMenu({
           ) : (
             <Link
               key={row.label}
-              href={row.href} target={row.label === "Earn with us" ? "_blank" : undefined} rel={row.label === "Earn with us" ? "noopener noreferrer" : undefined}
+              href={row.href}
+              target={row.label === "Earn with us" ? "_blank" : undefined}
+              rel={
+                row.label === "Earn with us" ? "noopener noreferrer" : undefined
+              }
               data-earn-with-us={row.label === "Earn with us" || undefined}
             >
               {content}

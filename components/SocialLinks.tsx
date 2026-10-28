@@ -11,11 +11,14 @@ import {
 import styles from "./SocialLinks.module.css";
 export default function SocialLinks({
   variant = "default",
+  staticOnly = false,
 }: {
   variant?: "default" | "footer";
+  staticOnly?: boolean;
 }) {
   const [links, setLinks] = useState(DEFAULT_SOCIAL_LINKS);
   useEffect(() => {
+    if (staticOnly) return;
     const controller = new AbortController();
     fetch("/api/social-links", { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
@@ -26,7 +29,7 @@ export default function SocialLinks({
         /* Keep the established links if the network is unavailable. */
       });
     return () => controller.abort();
-  }, []);
+  }, [staticOnly]);
   return (
     <nav
       className={`${styles.links} ${variant === "footer" ? styles.footer : ""}`}

@@ -60,7 +60,7 @@ export default function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html:
-              'try{var p=location.pathname,m=p.startsWith("/mobile/customer")?"customer":p.startsWith("/mobile/worker")?"worker":sessionStorage.getItem("opulence-app-audience");if(m==="customer"||m==="worker")document.documentElement.dataset.opulenceApp=m;}catch{}',
+              'try{var p=location.pathname,m=p==="/partners"?null:p.startsWith("/mobile/customer")?"customer":p.startsWith("/mobile/worker")?"worker":sessionStorage.getItem("opulence-app-audience");if(m==="customer"||m==="worker")document.documentElement.dataset.opulenceApp=m;}catch{}',
           }}
         />
         <ScopedStyleRegistry>

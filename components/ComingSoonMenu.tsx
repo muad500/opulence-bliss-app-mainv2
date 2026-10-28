@@ -19,7 +19,11 @@ import styles from "./ComingSoonMenu.module.css";
  * links to /coming-soon instead, since a nested dropdown inside a drawer is
  * awkward on touch.
  */
-export default function ComingSoonMenu() {
+export default function ComingSoonMenu({
+  storageFree = false,
+}: {
+  storageFree?: boolean;
+} = {}) {
   const pathname = usePathname() ?? "";
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,6 +77,7 @@ export default function ComingSoonMenu() {
           className={`${styles.trigger} ${active ? styles.active : ""}`}
         >
           <Link
+            prefetch={storageFree ? false : undefined}
             href="/coming-soon"
             aria-label="Services coming soon"
             onClick={goToTop}
@@ -101,6 +106,7 @@ export default function ComingSoonMenu() {
             {COMING_SOON.map((service) => (
               <li key={service.key}>
                 <Link
+                  prefetch={storageFree ? false : undefined}
                   href="/coming-soon"
                   className={styles.listItem}
                   onClick={goToTop}
@@ -116,10 +122,11 @@ export default function ComingSoonMenu() {
         </div>
 
         <div className={styles.pollWrap}>
-          <ServicePoll enabled={open} variant="compact" />
+          {!storageFree && <ServicePoll enabled={open} variant="compact" />}
         </div>
 
         <Link
+          prefetch={storageFree ? false : undefined}
           href="/coming-soon"
           className={styles.allLink}
           onClick={goToTop}

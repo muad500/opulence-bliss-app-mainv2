@@ -46,6 +46,7 @@ export default function HoldForm({ id }: { id?: string }) {
               <option value="booking">Cleaning booking</option>
               <option value="handyman">Property maintenance job</option>
               <option value="enquiry">Enquiry</option>
+              <option value="partner_interest">Partner interest</option>
             </select>
           </label>
           <label>

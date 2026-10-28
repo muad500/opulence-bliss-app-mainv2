@@ -167,7 +167,7 @@ export default function PortalNavigation({
       ];
 
   items.push({
-    href: "/provider/join",
+    href: "/earn-with-us",
     label: "Earn with us",
     mobileLabel: "Earn",
     icon: BriefcaseBusiness,

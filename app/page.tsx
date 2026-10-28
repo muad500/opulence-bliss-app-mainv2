@@ -310,7 +310,7 @@ export default function Home() {
             <p className="eyebrow">Your skills. New possibilities.</p>
             <h2 id="earn-title">
               <a
-                href="/provider/join"
+                href="/earn-with-us"
                 style={{ color: "inherit", textDecoration: "none" }}
               >
                 Earn with Us
@@ -321,6 +321,10 @@ export default function Home() {
               community of professionals and help make London homes feel their
               best.
             </p>
+            <div className="earn-opportunities">
+              <a href="/provider/join">Work with us as a cleaner</a>
+              <a href="/partners">Become a Partner</a>
+            </div>
             <div className="earn-benefits">
               <span>Choose your availability</span>
               <span>Put your skills to work</span>
@@ -343,6 +347,20 @@ export default function Home() {
       <SiteFooter />
 
       <style jsx>{`
+        .earn-opportunities {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          margin: 20px 0;
+        }
+        .earn-opportunities a {
+          border-radius: 999px;
+          padding: 10px 18px;
+          background: var(--ob-surface);
+          color: #6d28d9;
+          font-weight: 800;
+          text-decoration: none;
+        }
         .site {
           --cream: var(--ob-surface);
           --green: var(--ob-text);

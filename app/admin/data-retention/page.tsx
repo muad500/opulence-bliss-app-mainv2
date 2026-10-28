@@ -30,6 +30,7 @@ export default async function DataRetentionPage() {
       booking_id: string | null;
       handyman_job_id: string | null;
       enquiry_id: string | null;
+      partner_interest_id: string | null;
       reason: string;
     }[];
   } | null;
@@ -78,6 +79,7 @@ export default async function DataRetentionPage() {
                   {hold.booking_id ??
                     hold.handyman_job_id ??
                     hold.enquiry_id ??
+                    hold.partner_interest_id ??
                     hold.user_id}
                 </p>
                 <p>{hold.reason}</p>
