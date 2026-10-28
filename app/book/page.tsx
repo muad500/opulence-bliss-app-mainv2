@@ -2001,7 +2001,7 @@ export default function BookPage() {
               textAlign: "center",
               fontWeight: 800,
             }}
-            href="/provider/join"
+            href="/earn-with-us"
           >
             Earn with us →
           </a>

@@ -18,6 +18,7 @@ const tools = [
   ["/admin/data-retention", "Data retention"],
   ["/admin/incidents", "Problems & incidents"],
   ["/admin/worker-operations", "Professional operations"],
+  ["/admin/partner-interest", "Partner interest"],
   ["/admin/reviews", "Website reviews"],
   ["/admin/faqs", "FAQs"],
   ["/admin/chat-flags", "Chat safety"],

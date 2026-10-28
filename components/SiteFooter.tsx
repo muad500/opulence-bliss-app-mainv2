@@ -54,14 +54,19 @@ const columns: Array<{
   {
     title: "For professionals",
     links: [
-      ["Work with us", "/provider/join"],
+      ["Work with us as a cleaner", "/provider/join"],
+      ["Become a Partner", "/partners"],
       ["Sign in as a pro", "/provider/login"],
       ["Sign in", "/login"],
     ],
   },
 ];
 
-export default function SiteFooter() {
+export default function SiteFooter({
+  storageFree = false,
+}: {
+  storageFree?: boolean;
+} = {}) {
   return (
     <footer data-website-footer className={styles.footer}>
       <div className={styles.glow} aria-hidden="true" />
@@ -73,12 +78,16 @@ export default function SiteFooter() {
           <p className={styles.promise}>
             Trusted home cleaning, thoughtfully delivered across London.
           </p>
-          <Link href="/book" className={styles.bookButton}>
+          <Link
+            prefetch={storageFree ? false : undefined}
+            href="/book"
+            className={styles.bookButton}
+          >
             Book a service <span aria-hidden="true">→</span>
           </Link>
-          <FooterReviews />
+          {!storageFree && <FooterReviews />}
           <p className={styles.coverage}>Across London</p>
-          <SocialLinks variant="footer" />
+          <SocialLinks variant="footer" staticOnly={storageFree} />
         </section>
 
         <nav className={styles.columns} aria-label="Footer navigation">
@@ -86,7 +95,11 @@ export default function SiteFooter() {
             <div className={styles.column} key={column.title}>
               <h2>{column.title}</h2>
               {column.links.map(([label, href]) => (
-                <Link href={href} key={label}>
+                <Link
+                  prefetch={storageFree ? false : undefined}
+                  href={href}
+                  key={label}
+                >
                   {label}
                 </Link>
               ))}
@@ -110,9 +123,7 @@ export default function SiteFooter() {
           <p>ICO registration number: {COMPANY.icoRegistrationNumber}</p>
           <p>
             Email:{" "}
-            <a href="mailto:hello@opulencebliss.com">
-              hello@opulencebliss.com
-            </a>
+            <a href="mailto:hello@opulencebliss.com">hello@opulencebliss.com</a>
           </p>
         </div>
         <div className={styles.legal}>
@@ -147,8 +158,15 @@ export default function SiteFooter() {
           >
             Professional Partner Agreement
           </a>
-          <Link href="/faq">Help &amp; FAQ</Link>
-          <Link href="/delete-account">Delete your account</Link>
+          <Link prefetch={storageFree ? false : undefined} href="/faq">
+            Help &amp; FAQ
+          </Link>
+          <Link
+            prefetch={storageFree ? false : undefined}
+            href="/delete-account"
+          >
+            Delete your account
+          </Link>
         </div>
       </div>
     </footer>

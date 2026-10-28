@@ -64,7 +64,19 @@ const modules = [
   "handymanMarketplace",
 ];
 try {
-  execFileSync(process.execPath, ["--test", "scripts/test-account-acceptance-evidence.mjs"], { stdio: "inherit" });
+  for (const script of [
+    "test-partner-programme-page.mjs",
+    "test-partner-interest.mjs",
+    "test-partners-public-shell.mjs",
+  ])
+    execFileSync(process.execPath, ["--test", `scripts/${script}`], {
+      stdio: "inherit",
+    });
+  execFileSync(
+    process.execPath,
+    ["--test", "scripts/test-account-acceptance-evidence.mjs"],
+    { stdio: "inherit" },
+  );
   execFileSync(
     process.execPath,
     ["--test", "scripts/test-tip-full-amount.mjs"],

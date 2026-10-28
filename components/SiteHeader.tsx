@@ -15,8 +15,6 @@ import AccountModeSwitch from "./AccountModeSwitch";
 import { PORTAL_REFRESH_REQUESTED } from "@/lib/portalUpdates";
 import { canUseProfessionalTools } from "@/lib/professionalAccess";
 
-const supabase = createClient();
-
 const CORAL = "#6D28D9";
 const GRAD = "linear-gradient(100deg,#F5C542,#C86FC9 55%,#7B2FF7)";
 const INK = "#16202A";
@@ -40,7 +38,11 @@ const NAV: NavLink[] = [
   { href: "/provider", label: "Jobs", match: ["/provider"] },
 ];
 
-export default function SiteHeader() {
+export default function SiteHeader({
+  storageFree = false,
+}: {
+  storageFree?: boolean;
+} = {}) {
   const path = usePathname() ?? "";
   const [role, setRole] = useState<string | null>(null);
   const [hasProfessionalAccount, setHasProfessionalAccount] = useState(false);
@@ -103,6 +105,8 @@ export default function SiteHeader() {
   }, [mobileOpen]);
 
   useEffect(() => {
+    if (storageFree) return;
+    const supabase = createClient();
     let alive = true;
     let version = 0;
     let authTimer: ReturnType<typeof setTimeout> | undefined;
@@ -177,7 +181,7 @@ export default function SiteHeader() {
       window.removeEventListener("opulence-account-mode", load);
       window.removeEventListener(PORTAL_REFRESH_REQUESTED, refreshVisible);
     };
-  }, []);
+  }, [storageFree]);
 
   let active: string | null = null;
   let bestLen = -1;
@@ -211,20 +215,34 @@ export default function SiteHeader() {
     <header data-website-header style={wrap}>
       {/* ---------- row 1 ---------- */}
       <div className="site-header-bar" style={bar}>
-        <Link href="/" className="site-logo" style={logo}>
+        <Link
+          prefetch={storageFree ? false : undefined}
+          href="/"
+          className="site-logo"
+          style={logo}
+        >
           opulence<span style={{ color: CORAL }}>bliss</span>
         </Link>
 
         <div className="site-header-actions desktop-actions">
-          <Link href="/blog" style={blogBtn}>
+          <Link
+            prefetch={storageFree ? false : undefined}
+            href="/blog"
+            style={blogBtn}
+          >
             Blog
           </Link>
           {!role && (
-            <Link href="/provider" style={proBtn}>
+            <Link
+              prefetch={storageFree ? false : undefined}
+              href="/provider"
+              style={proBtn}
+            >
               Sign in as a pro
             </Link>
           )}
           <Link
+            prefetch={storageFree ? false : undefined}
             href={accountHref}
             style={{ ...ghostBtn, position: "relative" }}
           >
@@ -262,10 +280,18 @@ export default function SiteHeader() {
         </div>
 
         <div className="mobile-primary">
-          <Link href="/#services" className="mobile-quick-link">
+          <Link
+            prefetch={storageFree ? false : undefined}
+            href="/#services"
+            className="mobile-quick-link"
+          >
             Book a service
           </Link>
-          <Link href="/provider" className="mobile-quick-link">
+          <Link
+            prefetch={storageFree ? false : undefined}
+            href="/provider"
+            className="mobile-quick-link"
+          >
             Jobs
           </Link>
           <div className="mobile-profile-wrap">
@@ -295,7 +321,10 @@ export default function SiteHeader() {
                 {role ? (
                   <>
                     <p>Your account</p>
-                    <Link href={accountHref}>
+                    <Link
+                      prefetch={storageFree ? false : undefined}
+                      href={accountHref}
+                    >
                       {role === "admin" ? "Admin dashboard" : "My account"}
                     </Link>
                     {role !== "admin" &&
@@ -306,7 +335,10 @@ export default function SiteHeader() {
                           hasProfessionalAccount={hasProfessionalAccount}
                         />
                       ) : (
-                        <Link href="/provider/join">
+                        <Link
+                          prefetch={storageFree ? false : undefined}
+                          href="/provider/join"
+                        >
                           Apply as a professional
                         </Link>
                       ))}
@@ -314,7 +346,7 @@ export default function SiteHeader() {
                       type="button"
                       className="mobile-signout"
                       onClick={async () => {
-                        await supabase.auth.signOut();
+                        await createClient().auth.signOut();
                         setRole(null);
                         setUnread(0);
                         setProfileOpen(false);
@@ -328,10 +360,30 @@ export default function SiteHeader() {
                 ) : (
                   <>
                     <p>Continue as</p>
-                    <Link href="/login">Sign in</Link>
-                    <Link href="/auth/sign-up">Create Account</Link>
-                    <Link href="/provider">Sign in as a pro</Link>
-                    <Link href="/provider">Become a professional</Link>
+                    <Link
+                      prefetch={storageFree ? false : undefined}
+                      href="/login"
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      prefetch={storageFree ? false : undefined}
+                      href="/auth/sign-up"
+                    >
+                      Create Account
+                    </Link>
+                    <Link
+                      prefetch={storageFree ? false : undefined}
+                      href="/provider"
+                    >
+                      Sign in as a pro
+                    </Link>
+                    <Link
+                      prefetch={storageFree ? false : undefined}
+                      href="/provider"
+                    >
+                      Become a professional
+                    </Link>
                   </>
                 )}
               </div>
@@ -358,14 +410,14 @@ export default function SiteHeader() {
         <div className="site-header-nav-inner" style={navInner}>
           {NAV.map((l) => {
             if (l.href === "/services/cleaning")
-              return <CleaningMenu key={l.href} />;
+              return <CleaningMenu key={l.href} storageFree={storageFree} />;
             const on = active === l.href;
             const hot = hover === l.href;
             const link = (
               <Link
+                prefetch={storageFree ? false : undefined}
                 key={l.href + l.label}
                 href={l.href}
-                prefetch
                 onMouseEnter={() => setHover(l.href)}
                 onMouseLeave={() => setHover(null)}
                 style={{
@@ -386,7 +438,7 @@ export default function SiteHeader() {
               return (
                 <Fragment key={l.href}>
                   {link}
-                  <ComingSoonMenu />
+                  <ComingSoonMenu storageFree={storageFree} />
                 </Fragment>
               );
             }
@@ -421,29 +473,63 @@ export default function SiteHeader() {
               </button>
             </div>
 
-            <Link href="/#services" className="mobile-drawer-cta">
+            <Link
+              prefetch={storageFree ? false : undefined}
+              href="/#services"
+              className="mobile-drawer-cta"
+            >
               Book a service
             </Link>
 
             <nav aria-label="Mobile main navigation" className="mobile-links">
-              <Link href="/services/cleaning">Cleaning services</Link>
-              <Link href="/services/handyman">
+              <Link
+                prefetch={storageFree ? false : undefined}
+                href="/services/cleaning"
+              >
+                Cleaning services
+              </Link>
+              <Link
+                prefetch={storageFree ? false : undefined}
+                href="/services/handyman"
+              >
                 Property maintenance quotations
               </Link>
-              <Link href="/coming-soon">Coming soon</Link>
-              <Link href="/providers">Our professionals</Link>
-              <Link href="/blog">Blog</Link>
-              <Link href="/faq">Frequently asked questions</Link>
-              <Link href="/reviews">Customer reviews</Link>
-              <Link href="/provider">Jobs &amp; become a pro</Link>
+              <Link
+                prefetch={storageFree ? false : undefined}
+                href="/coming-soon"
+              >
+                Coming soon
+              </Link>
+              <Link
+                prefetch={storageFree ? false : undefined}
+                href="/providers"
+              >
+                Our professionals
+              </Link>
+              <Link prefetch={storageFree ? false : undefined} href="/blog">
+                Blog
+              </Link>
+              <Link prefetch={storageFree ? false : undefined} href="/faq">
+                Frequently asked questions
+              </Link>
+              <Link prefetch={storageFree ? false : undefined} href="/reviews">
+                Customer reviews
+              </Link>
+              <Link prefetch={storageFree ? false : undefined} href="/provider">
+                Jobs &amp; become a pro
+              </Link>
             </nav>
 
             <div className="mobile-account-actions">
-              <Link href={accountHref}>
+              <Link
+                prefetch={storageFree ? false : undefined}
+                href={accountHref}
+              >
                 {role ? "Client account" : "Sign in"}
               </Link>
               {role && role !== "admin" && (
                 <Link
+                  prefetch={storageFree ? false : undefined}
                   href={
                     professionalApproved
                       ? "/worker"
@@ -459,7 +545,14 @@ export default function SiteHeader() {
                       : "Apply as a professional"}
                 </Link>
               )}
-              {!role && <Link href="/provider">Sign in as a pro</Link>}
+              {!role && (
+                <Link
+                  prefetch={storageFree ? false : undefined}
+                  href="/provider"
+                >
+                  Sign in as a pro
+                </Link>
+              )}
             </div>
           </aside>
         </div>

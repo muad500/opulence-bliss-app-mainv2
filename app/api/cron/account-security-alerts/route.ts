@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { deliverAccountSecurityAlerts } from "@/lib/accountSecurityDelivery";
 import { deliverChatMessageEmails } from "@/lib/chatMessageDelivery";
+import { deliverPartnerInterestEmails } from "@/lib/partnerInterestDelivery";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export async function GET(request: NextRequest) {
@@ -23,10 +24,11 @@ export async function GET(request: NextRequest) {
     );
     const security = await deliverAccountSecurityAlerts(admin);
     const messages = await deliverChatMessageEmails(admin);
+    const partners = await deliverPartnerInterestEmails(admin);
     return NextResponse.json(
-      { ...security, messages },
+      { ...security, messages, partners },
       {
-        status: messages.failed ? 503 : 200,
+        status: messages.failed || partners.failed ? 503 : 200,
         headers: { "Cache-Control": "no-store" },
       },
     );

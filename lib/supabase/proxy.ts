@@ -7,6 +7,9 @@ export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
+  // Public Partner interest is intentionally stateless: do not refresh or write auth cookies.
+  if (["/partners", "/api/partner-interest"].includes(request.nextUrl.pathname))
+    return supabaseResponse;
   const PUBLIC = [
     "/api",
     "/mobile",
@@ -26,7 +29,7 @@ export async function updateSession(request: NextRequest) {
     "/notifications",
   ];
   const publicPath =
-    request.nextUrl.pathname === "/delete-account" ||
+    ["/delete-account", "/earn-with-us"].includes(request.nextUrl.pathname) ||
     [
       "/staff/login",
       "/staff/forgot-password",

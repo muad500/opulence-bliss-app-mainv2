@@ -20,13 +20,18 @@ type CleaningPackage = {
   billing_type: string;
 };
 
-export default function CleaningMenu() {
+export default function CleaningMenu({
+  storageFree = false,
+}: {
+  storageFree?: boolean;
+} = {}) {
   const pathname = usePathname() ?? "";
   const [packages, setPackages] = useState<CleaningPackage[]>([]);
   const [open, setOpen] = useState(false);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (storageFree) return;
     let active = true;
     void createClient()
       .from("packages")
@@ -47,7 +52,7 @@ export default function CleaningMenu() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [storageFree]);
 
   useEffect(
     () => () => {
@@ -80,12 +85,34 @@ export default function CleaningMenu() {
   const serviceLinks = [
     ...CLEANING_SESSION_ORDER.flatMap((name) => {
       const pkg = packages.find((candidate) => candidate.name === name);
-      return pkg
-        ? [{ key: name, label: name, href: `/book?type=clean&service=${encodeURIComponent(pkg.id)}` }]
-        : [];
+      return storageFree
+        ? [
+            {
+              key: name,
+              label: name,
+              href: "/services/cleaning#cleaning-services",
+            },
+          ]
+        : pkg
+          ? [
+              {
+                key: name,
+                label: name,
+                href: `/book?type=clean&service=${encodeURIComponent(pkg.id)}`,
+              },
+            ]
+          : [];
     }),
-    { key: "office-cleaning", label: "Office cleaning", href: "/services/cleaning#business-cleaning" },
-    { key: "cleaning-contracts", label: "Cleaning contracts", href: "/services/cleaning#business-cleaning" },
+    {
+      key: "office-cleaning",
+      label: "Office cleaning",
+      href: "/services/cleaning#business-cleaning",
+    },
+    {
+      key: "cleaning-contracts",
+      label: "Cleaning contracts",
+      href: "/services/cleaning#business-cleaning",
+    },
   ];
 
   return (
@@ -100,6 +127,7 @@ export default function CleaningMenu() {
           className={`${styles.trigger} ${active ? styles.active : ""}`}
         >
           <Link
+            prefetch={storageFree ? false : undefined}
             href="/services/cleaning"
             aria-label="Cleaning services"
             onClick={() => setOpen(false)}
@@ -126,10 +154,18 @@ export default function CleaningMenu() {
           <h2 id="cleaning-menu-title">Domestic cleaning near you</h2>
           <div className={styles.heroActions}>
             <DropdownMenuItem asChild className={styles.bookItem}>
-              <Link href="/book?type=clean">Book a service</Link>
+              <Link
+                prefetch={storageFree ? false : undefined}
+                href="/book?type=clean"
+              >
+                Book a service
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild className={styles.proItem}>
-              <Link href="/provider/join">
+              <Link
+                prefetch={storageFree ? false : undefined}
+                href="/provider/join"
+              >
                 Become an Opulence cleaner <ArrowRight size={20} />
               </Link>
             </DropdownMenuItem>
@@ -145,13 +181,23 @@ export default function CleaningMenu() {
                 key={service.key}
                 className={styles.serviceItem}
               >
-                <Link href={service.href}>{service.label}</Link>
+                <Link
+                  prefetch={storageFree ? false : undefined}
+                  href={service.href}
+                >
+                  {service.label}
+                </Link>
               </DropdownMenuItem>
             ))}
           </div>
 
           <DropdownMenuItem asChild className={styles.allItem}>
-            <Link href="/services/cleaning">Explore all cleaning services</Link>
+            <Link
+              prefetch={storageFree ? false : undefined}
+              href="/services/cleaning"
+            >
+              Explore all cleaning services
+            </Link>
           </DropdownMenuItem>
         </section>
       </DropdownMenuContent>
