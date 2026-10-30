@@ -105,6 +105,12 @@ export default function BookingLegalConsent({
           Retry policies
         </button>
       )}
+      {value.documents && (
+        <p>
+          Version 1.0 · Effective from: 1 October 2026. Each linked document
+          opens in a new tab.
+        </p>
+      )}
     </section>
   );
 }

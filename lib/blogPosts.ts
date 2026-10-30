@@ -31,13 +31,13 @@ export const blogPosts: BlogPost[] = [
       {
         heading: "The refund depends on when you cancel",
         paragraphs: [
-          "We calculate the cancellation window from the moment you confirm cancellation to the scheduled start time of your booking.",
+          "These are the rules for new bookings under the final policy. Earlier bookings keep the terms accepted at checkout. We calculate the cancellation window from the moment you confirm cancellation to the scheduled start time of your booking.",
         ],
         points: [
-          "More than 48 hours before the booking: normally no cancellation charge and a full refund.",
+          "48 hours or more before the booking: no cancellation charge and a full refund.",
           "From 24 to 48 hours before the booking: up to a 25% cancellation charge.",
-          "Less than 24 hours before the booking: up to a 50% cancellation charge.",
-          "Same-day cancellation, no access or a missed appointment: up to a 100% cancellation charge.",
+          "12 to 24 hours before the booking: a 50% cancellation charge.",
+          "Less than 12 hours before, on the day, or no access after the agreed 15-minute wait: up to a 70% cancellation charge. Staff can reduce it. Tips are excluded.",
         ],
       },
       {

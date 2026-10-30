@@ -35,10 +35,12 @@ function loader(mocks = {}, env = {}, transport = fetch) {
         if (id in mocks) return mocks[id];
         if (id === "server-only") return {};
         if (id.startsWith("@/lib/")) return load(`lib/${id.slice(6)}.ts`);
+        if (id.endsWith(".json"))
+          return JSON.parse(readFileSync(`lib/${id.slice(2)}`, "utf8"));
         if (id.startsWith("./")) return load(`lib/${id.slice(2)}.ts`);
         return native(id);
       },
-      { env },
+      { env, cwd: () => process.cwd() },
       transport,
     );
     return loaded.exports;
@@ -90,6 +92,69 @@ const contract = {
     },
   ],
 };
+
+test("final-pack confirmation uses the exact subject/body and the two accepted original PDFs plus the model form", async () => {
+  const approved = JSON.parse(readFileSync("lib/finalLegalPack.json", "utf8"));
+  const finalContract = {
+    ...contract,
+    documents: documents.map((doc) => {
+      const original = approved[doc.slug];
+      return {
+        ...doc,
+        title: original.title,
+        sourceContentHtml: original.contentHtml,
+        contentHtml: original.contentHtml,
+        contentHash: evidence.legalContentHash(original.contentHtml),
+        displayContentHash: evidence.legalContentHash(original.contentHtml),
+        pdfSha256: original.pdfSha256,
+        effectiveDate: original.effectiveDate,
+      };
+    }),
+    bookings: contract.bookings.map((booking) => ({
+      ...booking,
+      hours: 2,
+      totalPaidPence: 7698,
+    })),
+  };
+  const { bookingLegalEmailPayload } = load("lib/bookingLegalEmailPayload.ts");
+  const payload = await bookingLegalEmailPayload(
+    finalContract,
+    "tester@example.invalid",
+    {
+      from: "Opulence Bliss Staging <staging@opulencebliss.com>",
+      origin: "https://staging.example.invalid",
+    },
+  );
+  assert.equal(
+    payload.subject,
+    "Your booking with Opulence Bliss is confirmed",
+  );
+  assert.match(payload.text, /Hello Test,/);
+  assert.match(payload.text, /Total paid: £76\.98\. No VAT is charged\./);
+  assert.match(
+    payload.text,
+    /We encourage you to reschedule rather than cancel\./,
+  );
+  assert.match(payload.text, /You asked us to start within 14 days/);
+  assert.equal(payload.attachments.length, 3);
+  for (const slug of ["terms", "cancellation-refund"])
+    assert.deepEqual(
+      Buffer.from(
+        payload.attachments.find((item) => item.filename === `${slug}-v1.0.pdf`)
+          .content,
+        "base64",
+      ),
+      readFileSync(`legal-packs/2026-10-01/${slug}.pdf`),
+    );
+  const form = payload.attachments.find(
+    (item) => item.filename === "model-cancellation-form.pdf",
+  );
+  assert.ok(
+    (
+      await PDFDocument.load(Buffer.from(form.content, "base64"))
+    ).getPageCount() >= 1,
+  );
+});
 
 test("request evidence uses the trusted host header and shared checkbox wording", () => {
   const result = evidence.bookingLegalEvidence(

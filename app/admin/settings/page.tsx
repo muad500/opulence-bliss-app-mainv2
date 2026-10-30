@@ -31,7 +31,7 @@ export default function BillingSettings() {
     const form = new FormData(event.currentTarget);
     const pence = (key: string) => Math.round(Number(form.get(key)) * 100);
     try {
-      const newRules = terms.cancellationBasis === "cleaning_hours";
+      const newRules = terms.cancellationBasis !== undefined;
       if (
         newRules &&
         !window.confirm(
@@ -47,7 +47,7 @@ export default function BillingSettings() {
           cleanerHourlyPence: pence("pay"),
           deepCleanerHourlyPence: pence("deepPay"),
           productsCleanerPayPence: pence("productsPay"),
-          ...(newRules ? { cancellationBasis: "cleaning_hours" } : {}),
+          ...(newRules ? { cancellationBasis: terms.cancellationBasis } : {}),
           confirmPolicyPublished: newRules,
           addonPrices: Object.fromEntries(
             CLEANING_ADDONS.map((addon) => [addon.id, pence(addon.id)]),
@@ -139,7 +139,8 @@ export default function BillingSettings() {
             <label>
               <input
                 type="checkbox"
-                checked={terms.cancellationBasis === "cleaning_hours"}
+                checked={terms.cancellationBasis !== undefined}
+                disabled={terms.cancellationBasis === "booking_total"}
                 style={{ width: "auto" }}
                 onChange={(event) => {
                   const current = { ...terms };
@@ -162,18 +163,20 @@ export default function BillingSettings() {
               switch)
             </label>
             <fieldset
-              disabled={busy || terms.cancellationBasis !== "cleaning_hours"}
+              disabled={busy || terms.cancellationBasis === undefined}
               key={terms.cancellationBasis ?? "published"}
             >
               <legend>
                 Cancellation refunds —{" "}
-                {terms.cancellationBasis === "cleaning_hours"
+                {terms.cancellationBasis !== undefined
                   ? "new policy"
                   : "currently published policy"}
               </legend>
               <p>
-                {terms.cancellationBasis === "cleaning_hours"
-                  ? "Cleaning hours only: 0/25/50/up to 70% charges, extras/products/tips refunded, 12-hour band and 15-minute no-access wait. Publish matching policy before saving."
+                {terms.cancellationBasis !== undefined
+                  ? terms.cancellationBasis === "booking_total"
+                    ? "Final policy: 0/25/50/up to 70% of the booking price, excluding tips; 12-hour band and 15-minute no-access wait. Existing bookings keep their agreed terms."
+                    : "Cleaning hours only: 0/25/50/up to 70% charges, extras/products/tips refunded, 12-hour band and 15-minute no-access wait. Publish matching policy before saving."
                   : "Published policy remains active: 0/25/50/up to 100% of the booking price, no separate 12-hour band, 30-minute no-access wait. Pay rates/products share remain active independently."}
               </p>
               {field(

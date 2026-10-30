@@ -11,7 +11,7 @@ export type CleaningBillingTerms = {
   cleanerHourlyPence: number;
   deepCleanerHourlyPence?: number;
   productsCleanerPayPence?: number;
-  cancellationBasis?: "cleaning_hours";
+  cancellationBasis?: "cleaning_hours" | "booking_total";
   addonPrices: Record<(typeof CLEANING_ADDON_IDS)[number], number>;
   productsFeePence: number;
   tipMinimumPence: number;
@@ -84,11 +84,12 @@ export function parseCleaningBillingTerms(
     );
   if (
     source.cancellationBasis !== undefined &&
-    source.cancellationBasis !== "cleaning_hours"
+    source.cancellationBasis !== "cleaning_hours" &&
+    source.cancellationBasis !== "booking_total"
   )
     throw new Error("Invalid cancellation basis.");
   if (
-    source.cancellationBasis === "cleaning_hours" &&
+    source.cancellationBasis !== undefined &&
     (refunds.full !== 100 || refunds.none < 30)
   )
     throw new Error(

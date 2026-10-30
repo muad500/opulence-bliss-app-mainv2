@@ -22,7 +22,9 @@ export async function deliverBookingLegalEmails(
   const ready = Boolean(
     key &&
     from &&
-    /(?:^|<|\s)no-?reply@/i.test(from) &&
+    /(?:^|<|\s)(?:no-?reply@|(?:hello|staging)@opulencebliss\.com(?:>|\s|$))/i.test(
+      from,
+    ) &&
     origin?.startsWith("https://"),
   );
   const { data, error } = await admin.rpc("claim_booking_legal_emails", {

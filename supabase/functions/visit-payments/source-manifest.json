@@ -1,5 +1,5 @@
 {
-  "sourceSha256": "bb9289d7b4c443a8fedc84ec01cf8db146c505fd989bbf4f183faa255b200722",
+  "sourceSha256": "18609e1e7a57321cceb4b64304458a86c9384474b5492fc0823bd5c32312cb1a",
   "generator": "scripts/build-visit-payment-worker.mjs",
   "generatorSha256": "5b0961440e7d2fe28516fa3f795d51b8b662fa074c630efda795952c10344db5",
   "stripeVersion": "22.3.2",
@@ -23,11 +23,11 @@
     },
     {
       "path": "lib/cancellationPeriod.ts",
-      "sha256": "cbda36507fd5c0727bf60f3c6272de2fbe3b55c0e6ff606341897904d9aa0f20"
+      "sha256": "7cc4a33199dce0571060681fa595edca31f17131eedaf2321dc68e3023d0533f"
     },
     {
       "path": "lib/cancellationPolicy.ts",
-      "sha256": "974b3aa258d60afd681f97559a30eb3525356962a630193974deba5e5550239a"
+      "sha256": "eeb59108229a802ea898e3ff3d859b2c2eea97b8fc36998ecc573baaa8c61bd7"
     },
     {
       "path": "lib/cleaningBillingSettings.ts",
@@ -35,7 +35,7 @@
     },
     {
       "path": "lib/cleaningBillingTerms.ts",
-      "sha256": "868c61f77a2318f216061db41f8da5c8efe7f01e0235db7e78830d388c88ee68"
+      "sha256": "0449a820ee22170f7c2f466e64181b831ba86e8766b555e0362898e4333e4510"
     },
     {
       "path": "lib/cleaningBooking.ts",
@@ -54,12 +54,16 @@
       "sha256": "3e3fcd18d7a0086f9dd9620a3051442459662e95c9e885377a9c207adb41ca49"
     },
     {
+      "path": "lib/finalCheckoutCopy.ts",
+      "sha256": "f82d3e03216cc05da5a7feddcb390e3c59bcbc2ae083dca32280f379c31ce609"
+    },
+    {
       "path": "lib/payoutDestination.ts",
       "sha256": "d2bd31d5fde36cd2325e5523c44f710a28236cc1aa8cfaa75968ddc8002e53f1"
     },
     {
       "path": "lib/visitAdjustments.ts",
-      "sha256": "86c7c0337d37cb108bc2a57245446eed095c59bc1c957141b6585d7bb9b65030"
+      "sha256": "0cbde5a5905642454fb749cac74db5fafbcff0f053dbe0ec38642f6e1013e0f6"
     },
     {
       "path": "lib/visitBillingPolicy.ts",
@@ -67,7 +71,7 @@
     },
     {
       "path": "lib/visitBillingServer.ts",
-      "sha256": "07b0d83d59db82eef8f488b4a5c092814171734fc5592fdfd793b3964bb60891"
+      "sha256": "889dcdc8f59f50be56d7567aa36e9d7e3ddb454b7a1d9805f3466c5e81e3440a"
     },
     {
       "path": "lib/visitLineItems.ts",

@@ -365,6 +365,7 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
           charges,
           refundPercent,
           terms.cancellationBasis === "cleaning_hours",
+          terms.cancellationBasis === "booking_total",
         ),
         latePayment,
         ...(staff

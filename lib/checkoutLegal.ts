@@ -1,3 +1,4 @@
+import { FINAL_CHECKOUT_COPY } from "./finalCheckoutCopy";
 export const CHECKOUT_LEGAL_SLUGS = [
   "terms",
   "cancellation-refund",
@@ -17,11 +18,26 @@ export const CHECKOUT_LEGAL_TITLES: Record<CheckoutLegalSlug, string> = {
   privacy: "Privacy Policy",
 };
 
-export const SAVED_CARD_CONSENT_TEXT =
-  "I authorise Opulence Bliss to save my card with Stripe, charge each regular visit when a cleaner accepts it, and charge any add-on changes I confirm. Add-ons can be changed until 24 hours before the visit.";
+export const SAVED_CARD_CONSENT_TEXT = FINAL_CHECKOUT_COPY.regular;
 
 /** A single wording source for the linked checkbox and its acceptance record. */
 export function checkoutLegalConsentParts(documents: CheckoutLegalDocument[]) {
+  if (
+    documents.find((d) => d.slug === "terms")?.version === "1.0" &&
+    documents.find((d) => d.slug === "cancellation-refund")?.version === "1.0"
+  )
+    return [
+      { text: "I have read and accept the " },
+      { text: "Customer Terms and Conditions", slug: "terms" as const },
+      { text: " (v1.0), the " },
+      {
+        text: "Cancellations, Payment and Refunds Policy",
+        slug: "cancellation-refund" as const,
+      },
+      { text: " (v1.0) and the " },
+      { text: "Privacy Notice", slug: "privacy" as const },
+      { text: "." },
+    ];
   const parts: Array<{ text: string; slug?: CheckoutLegalSlug }> = [];
   for (const [slug, prefix, suffix] of [
     ["terms", "I accept the ", " and the "],

@@ -90,7 +90,7 @@ export default function CleaningCancellationCompensation({
       </h2>
       <p>
         {admin
-          ? "Each booking keeps its agreed cancellation policy. Published-policy bookings retain the existing bands and 30-minute no-access wait. New-policy bookings use the 70% cleaning-hours cap and 15-minute wait. Only reduce an agreed charge; never increase it."
+          ? "Each booking keeps its agreed cancellation policy. Published-policy bookings retain the existing bands and 30-minute no-access wait. Final-pack bookings use the 70% booking-price cap (tips excluded) and 15-minute wait. Earlier cleaning-hours policies retain their own basis. Only reduce an agreed charge; never increase it."
           : "You receive the same proportion of your cleaning-hours pay as the cancellation charge. You may waive some or all of your compensation, even after payout; that amount is refunded to the customer. Products are not paid on cancelled visits."}
       </p>
       {message && <p role="status">{message}</p>}

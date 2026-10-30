@@ -49,6 +49,7 @@ export function calculateCancellationPolicy(
   now: string | Date = new Date(),
   refunds: CleaningBillingTerms["cancellationRefundPercent"] = DEFAULT_CLEANING_BILLING_TERMS.cancellationRefundPercent,
   cleaningHoursOnly = false,
+  finalPack = false,
 ): CancellationPolicy {
   const scheduledMs = new Date(scheduledAt).getTime();
   const nowMs = new Date(now).getTime();
@@ -63,13 +64,14 @@ export function calculateCancellationPolicy(
         ? "full"
         : hoursUntilBooking >= 24
           ? "three_quarter"
-          : cleaningHoursOnly && hoursUntilBooking < 12
+          : (cleaningHoursOnly || finalPack) && hoursUntilBooking < 12
             ? "none"
             : "half";
   const refundPercent = refunds[tier];
-  const refundPence = cleaningHoursOnly
-    ? grossPence - Math.round((grossPence * (100 - refundPercent)) / 100)
-    : Math.round((grossPence * refundPercent) / 100);
+  const refundPence =
+    cleaningHoursOnly || finalPack
+      ? grossPence - Math.round((grossPence * (100 - refundPercent)) / 100)
+      : Math.round((grossPence * refundPercent) / 100);
   const cancellationChargePence = grossPence - refundPence;
 
   const title =
@@ -84,8 +86,8 @@ export function calculateCancellationPolicy(
       : tier === "three_quarter"
         ? `This visit is between 24 and 48 hours away. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
         : tier === "half"
-          ? `This visit is ${cleaningHoursOnly ? "between 12 and 24 hours away" : "less than 24 hours away but is not today"}. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
-          : `This is ${cleaningHoursOnly ? "less than 12 hours away, on the day, or a no-access booking" : "a same-day or missed booking"}. The cancellation charge is ${pounds(cancellationChargePence)}.${cleaningHoursOnly ? " Staff can reduce this charge. Add-ons, products and tips are refunded in full." : ""}`;
+          ? `This visit is ${cleaningHoursOnly || finalPack ? "between 12 and 24 hours away" : "less than 24 hours away but is not today"}. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
+          : `This is ${cleaningHoursOnly || finalPack ? "less than 12 hours away, on the day, or a no-access booking" : "a same-day or missed booking"}. The cancellation charge is ${pounds(cancellationChargePence)}.${finalPack ? " Staff can reduce this charge. Tips are excluded from the booking price." : cleaningHoursOnly ? " Staff can reduce this charge. Add-ons, products and tips are refunded in full." : ""}`;
 
   return {
     tier,

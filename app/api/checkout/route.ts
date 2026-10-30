@@ -84,6 +84,7 @@ export async function POST(req: NextRequest) {
       petsAtHome,
       visitExtras,
       saveCardConsent,
+      marketingAccepted,
       legalAccepted,
       legalDocuments,
     } = await req.json();
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
       );
     }
     const perVisit = visitBillingEnabled();
-    if (perVisit && saveCardConsent !== true)
+    if (perVisit && frequency !== "one_time" && saveCardConsent !== true)
       return NextResponse.json(
         { error: "Confirm saving your card and the visit charging schedule." },
         { status: 400 },
@@ -395,7 +396,7 @@ export async function POST(req: NextRequest) {
         p_snapshots: legalNow.snapshots,
         p_evidence: bookingLegalEvidence(legalNow.documents, req.headers, {
           earlyStart: startsInCancellationPeriod,
-          savedCard: perVisit,
+          savedCard: perVisit && regular,
           vercel: process.env.VERCEL === "1",
         }),
       },
@@ -409,6 +410,29 @@ export async function POST(req: NextRequest) {
         },
         { status: 409 },
       );
+
+    if (marketingAccepted === true) {
+      const consent = await supabaseAdmin.rpc(
+        "record_final_marketing_consent",
+        {
+          p_user: user.id,
+          p_reference: legalConsentId,
+          p_source: "checkout",
+          p_ip:
+            process.env.VERCEL === "1"
+              ? (req.headers
+                  .get("x-vercel-forwarded-for")
+                  ?.split(",")[0]
+                  ?.trim() ?? null)
+              : null,
+        },
+      );
+      if (consent.error)
+        return NextResponse.json(
+          { error: "Your marketing choice could not be saved. Please retry." },
+          { status: 503 },
+        );
+    }
 
     // Legacy accounts must add a private phone number before checkout.
     // before a paid booking can be created.

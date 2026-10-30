@@ -15,6 +15,81 @@ export async function bookingLegalEmailPayload(
   )
     throw new Error("Accepted policy snapshots are unavailable");
   const attachments: Array<{ filename: string; content: string }> = [];
+  const finalPack = contract.documents.every(
+    (document) =>
+      Boolean(document.pdfSha256) && document.effectiveDate === "2026-10-01",
+  );
+  if (finalPack) {
+    const { finalLegalPdf } = await import("./legalPackPdf");
+    for (const slug of ["terms", "cancellation-refund"] as const) {
+      const document = contract.documents.find((item) => item.slug === slug)!;
+      attachments.push({
+        filename: `${slug}-v1.0.pdf`,
+        content: Buffer.from(
+          await finalLegalPdf(slug, document.pdfSha256),
+        ).toString("base64"),
+      });
+    }
+    attachments.push({
+      filename: "model-cancellation-form.pdf",
+      content: Buffer.from(
+        await generateCancellationFormPdf(contract.acceptedAt),
+      ).toString("base64"),
+    });
+    const firstName =
+      contract.evidence.account?.name?.trim().split(/\s+/)[0] || "Customer";
+    const dateTime = (value: string) =>
+      new Date(value).toLocaleString("en-GB", {
+        timeZone: "Europe/London",
+        dateStyle: "long",
+        timeStyle: "short",
+      });
+    if (
+      !options.test &&
+      contract.bookings.some(
+        (booking) =>
+          !Number.isFinite(booking.hours) ||
+          !Number.isSafeInteger(booking.totalPaidPence),
+      )
+    )
+      throw new Error("Confirmed booking summary is unavailable");
+    return {
+      from: options.from,
+      to: [recipient],
+      reply_to: "hello@opulencebliss.com",
+      subject: `${options.test ? "TEST ONLY — " : ""}Your booking with Opulence Bliss is confirmed`,
+      text: [
+        ...(options.test
+          ? [
+              "TEST ONLY. No booking, charge or new policy acceptance has been created.",
+            ]
+          : []),
+        `Hello ${firstName},`,
+        "Thank you for booking with Opulence Bliss. Your booking is confirmed.",
+        ...contract.bookings.map((booking) =>
+          [
+            `• Service: ${booking.service}`,
+            `• Date and time: ${dateTime(booking.scheduledAt)}`,
+            `• Hours: ${booking.hours ?? "Not applicable to this TEST"}`,
+            `• Total paid: £${((booking.totalPaidPence ?? 0) / 100).toFixed(2)}. No VAT is charged.`,
+            `• Booking reference: ${booking.id}`,
+          ].join("\n"),
+        ),
+        `Your terms. We have attached the Customer Terms and Conditions (v1.0) and the Cancellations, Payment and Refunds Policy (v1.0) that you accepted on ${dateTime(contract.acceptedAt)}.`,
+        "Cancelling. Free of charge up to 48 hours before your booking. 25% charge from 24 to 48 hours before. 50% charge from 12 to 24 hours before. Up to 70% charge less than 12 hours before or on the day. We encourage you to reschedule rather than cancel.",
+        "Your right to cancel. You have the right to cancel within 14 days of today without giving a reason. To cancel, email hello@opulencebliss.com or use the form below.",
+        ...(contract.evidence.checkboxes.some(
+          (box) => box.key === "early_start",
+        )
+          ? [
+              "You asked us to start within 14 days, so if you cancel after we have started, you pay for the part already provided.",
+            ]
+          : []),
+        "Opulence Bliss Ltd, 128 City Road, London, United Kingdom, EC1V 2NX | Company number 15894675 | hello@opulencebliss.com",
+      ].join("\n\n"),
+      attachments,
+    };
+  }
   for (const document of contract.documents)
     attachments.push({
       filename: `${document.slug}-version-${document.version.replace(/[^a-z0-9.-]/gi, "_")}.pdf`,

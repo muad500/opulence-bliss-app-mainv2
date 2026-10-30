@@ -41,6 +41,8 @@ async function load(path, mocks = {}) {
       if (id === "@/lib/accountChangeVerification")
         return { verifyAccountChangeRequest: async () => null };
       if (id === "@/lib/professionalServices") return services;
+      if (id === "./finalCheckoutCopy") return finalCopy;
+      if (id === "@/lib/professionalLegalCopy") return professionalLegalCopy;
       if (id === "@/lib/handymanMarketplace")
         return {
           handymanEnabled: () => true,
@@ -64,6 +66,8 @@ async function load(path, mocks = {}) {
   });
   return compiledModule.exports;
 }
+const finalCopy = await load("lib/finalCheckoutCopy.ts");
+const professionalLegalCopy = await load("lib/professionalLegalCopy.ts");
 const services = await load("lib/professionalServices.ts");
 const access = await load("lib/professionalAccess.ts");
 const onboarding = await load("lib/providerOnboarding.ts");
@@ -320,6 +324,13 @@ const validSignup = {
   },
   skills: ["cleaning"],
   areaIds: ["area"],
+  professionalConsents: Object.fromEntries(
+    professionalLegalCopy
+      .professionalConsentBoxes(true, true)
+      .map((box) => [box.key, true]),
+  ),
+  emergencyContactName: "Example Emergency Contact",
+  emergencyContactPhone: "02079460123",
   professionalAgreementAccepted: true,
   safeguardingAccepted: true,
   safeguardingVersion: "1.0",
@@ -328,7 +339,11 @@ const validSignup = {
   dbsCertificateFileName: "certificate.pdf",
   dbsCertificateMimeType: "application/pdf",
 };
-async function signup(body, safeguardingEnabled = true) {
+async function signup(
+  body,
+  safeguardingEnabled = true,
+  cleanerTermsAvailable = true,
+) {
   const writes = [];
   const db = {
     auth: {
@@ -344,7 +359,16 @@ async function signup(body, safeguardingEnabled = true) {
         eq: () => q,
         in: () => q,
         maybeSingle: async () => ({
-          data: table === "profiles" ? { role: "customer" } : null,
+          data:
+            table === "profiles"
+              ? { role: "customer" }
+              : table === "legal_documents" && cleanerTermsAvailable
+                ? {
+                    version: "1.0",
+                    content_html:
+                      "<p>Published fixture Cleaner Terms for this test only.</p>",
+                  }
+                : null,
         }),
         single: async () => ({ data: { id: "professional" } }),
         insert: (value) => {
@@ -495,27 +519,16 @@ test("cleaner and handyman registration require the displayed safeguarding versi
   }
 });
 
-test("safeguarding OFF permits signup without fabricated policy acceptance for either service", async () => {
-  for (const skills of [["cleaning"], ["handyman"], ["cleaning", "handyman"]]) {
-    const { response, writes } = await signup(
-      {
-        ...validSignup,
-        skills,
-        maintenanceTasks: ["Furniture assembly"],
-        coveragePostcodes: ["SW1A"],
-        safeguardingAccepted: false,
-        safeguardingVersion: undefined,
-      },
-      false,
-    );
-    assert.equal(response.status, 200);
-    assert.equal(
-      writes
-        .find((write) => write.table === "account_legal_acceptances")
-        .value.some((row) => row.document_slug === "safeguarding"),
-      false,
-    );
-  }
+test("unpublished final safeguarding policy blocks new applications before writing an account", async () => {
+  const { response, writes } = await signup(validSignup, false);
+  assert.equal(response.status, 503);
+  assert.equal(writes.length, 0);
+});
+test("missing Cleaner Terms cannot be accepted as a placeholder", async () => {
+  const { response, writes } = await signup(validSignup, true, false);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, "cleaner_terms_missing");
+  assert.equal(writes.length, 0);
 });
 
 test("payout and earnings endpoints deny an unapproved applicant before Stripe or payment reads", async () => {

@@ -120,6 +120,7 @@ function harness({
       if (id === "@/lib/accountBilling")
         return { getOrCreateBillingCustomer: async () => "cus_fixture" };
       if (id.startsWith("@/lib/")) return load("lib/" + id.slice(6) + ".ts");
+      if (id.endsWith(".json")) return JSON.parse(readFileSync("lib/" + id.slice(2), "utf8"));
       if (id.startsWith("./")) return load("lib/" + id.slice(2) + ".ts");
       return require(id);
     };
@@ -248,8 +249,8 @@ test("new regular checkout saves a card without charging, with £5 products on e
     );
   }
 });
-test("saving-card consent and an active scheduler are required before new checkout", async () => {
-  const h = harness({ perVisit: true });
+test("regular card consent and an active scheduler are required before new checkout", async () => {
+  const h = harness({ perVisit: true, regular: true });
   assert.equal((await h.checkout({ saveCardConsent: false })).status, 400);
   assert.equal(h.calls.sessions.length, 0);
   const stopped = harness({ perVisit: true, ready: false });

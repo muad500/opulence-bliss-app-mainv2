@@ -353,7 +353,7 @@ test("regular visit count and individual extras survive while prices are recalcu
   });
   const tree = await app.settle();
   assert.match(text(tree), /Step 6 of 6/);
-  assert.match(text(tree), /Book and pay £0 today \(save card\)/);
+  assert.match(text(tree), /Book and pay £0\.00/);
   assert.match(text(tree), /No VAT is charged/);
   assert.match(text(tree), /£408.84/);
   assert.match(text(tree), /8 visits/);

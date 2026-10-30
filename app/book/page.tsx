@@ -43,6 +43,7 @@ import BookingLegalConsent, {
   type BookingLegalState,
 } from "@/components/BookingLegalConsent";
 import { SAVED_CARD_CONSENT_TEXT } from "@/lib/checkoutLegal";
+import { FINAL_CHECKOUT_COPY } from "@/lib/finalCheckoutCopy";
 import { visitDiscounts } from "@/lib/visitLineItems";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
 import { cleaningPackageScope } from "@/lib/cleaningScope";
@@ -307,6 +308,7 @@ export default function BookPage() {
   const [phone, setPhone] = useState("");
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [earlyStartAgreed, setEarlyStartAgreed] = useState(false);
+  const [marketingAccepted, setMarketingAccepted] = useState(false);
   // Set when the server says a request is needed, in case time moved on.
   const [earlyStartForced, setEarlyStartForced] = useState(false);
   const [assistantDraft, setAssistantDraft] = useState<{
@@ -864,7 +866,7 @@ export default function BookPage() {
       return;
     }
     if (needsEarlyStart && !earlyStartAgreed) return;
-    if (perVisitBilling && !saveCardConsent) return;
+    if (perVisitBilling && regular && !saveCardConsent) return;
     if (!bookingLegal.accepted || !bookingLegal.documents) {
       setPayError("Please read and accept the booking policies before paying.");
       return;
@@ -886,7 +888,8 @@ export default function BookPage() {
           addons: extras.addons,
           bringsProducts: extras.bringsProducts,
           petsAtHome,
-          saveCardConsent,
+          saveCardConsent: regular ? saveCardConsent : true,
+          marketingAccepted,
           legalAccepted: bookingLegal.accepted,
           legalDocuments: bookingLegal.documents,
           bookingPreferences: {
@@ -1962,7 +1965,7 @@ export default function BookPage() {
                 </span>
               </div>
 
-              {perVisitBilling && signedIn === true && (
+              {perVisitBilling && regular && signedIn === true && (
                 <label className="consent">
                   <input
                     type="checkbox"
@@ -2088,7 +2091,7 @@ export default function BookPage() {
                   </span>
                   <strong>{money(total)}</strong>
                 </div>
-                <p className="fee">Service fee included · No VAT is charged</p>
+                <p className="fee">No VAT is charged.</p>
               </>
             )}
 
@@ -2122,8 +2125,8 @@ export default function BookPage() {
                   <p className="phone-error">Enter a valid UK phone number.</p>
                 )}
                 <p className="phone-help" id="booking-phone-help">
-                  Your cleaner uses this to reach you on the day, for example if
-                  they cannot get in. It is saved to your account.
+                  This is saved privately to your account. Contact your cleaner
+                  through in-app messages.
                 </p>
               </div>
             )}
@@ -2157,6 +2160,27 @@ export default function BookPage() {
               </label>
             )}
             {step === 5 && (
+              <section
+                aria-label="Payment and cancellation summary"
+                className="final-policy-summary"
+              >
+                <p>{FINAL_CHECKOUT_COPY.vat}</p>
+                <p>{FINAL_CHECKOUT_COPY.payment}</p>
+                <p>{FINAL_CHECKOUT_COPY.cancellation}</p>
+                <p>{FINAL_CHECKOUT_COPY.right}</p>
+                <label className="early-start">
+                  <input
+                    type="checkbox"
+                    checked={marketingAccepted}
+                    onChange={(event) =>
+                      setMarketingAccepted(event.target.checked)
+                    }
+                  />
+                  <span>{FINAL_CHECKOUT_COPY.marketing}</span>
+                </label>
+              </section>
+            )}
+            {step === 5 && (
               <button
                 className="pay"
                 onClick={checkout}
@@ -2165,7 +2189,10 @@ export default function BookPage() {
                   !pricesReady ||
                   (signedIn !== false &&
                     (!bookingLegal.accepted || !bookingLegal.documents)) ||
-                  (signedIn !== false && perVisitBilling && !saveCardConsent) ||
+                  (signedIn !== false &&
+                    perVisitBilling &&
+                    regular &&
+                    !saveCardConsent) ||
                   !slot ||
                   !addressValid ||
                   !home ||
@@ -2183,8 +2210,8 @@ export default function BookPage() {
                     ? "Sign in to continue"
                     : regular
                       ? perVisitBilling
-                        ? "Book and pay £0 today (save card)"
-                        : `Book and pay ${money(total)} for ${regularVisits} visits`
+                        ? `Book and pay ${money(0)}`
+                        : `Book and pay ${money(total)}`
                       : `Book and pay ${money(total)}`}
               </button>
             )}

@@ -22,6 +22,17 @@ export async function saveLegalDocument(
   if (!isLegalDocumentSlug(slug)) {
     return { ok: false, message: "That legal document is not recognised." };
   }
+  const { data: existing } = await supabase
+    .from("legal_documents")
+    .select("pdf_sha256")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (existing?.pdf_sha256)
+    return {
+      ok: false,
+      message:
+        "This is a client-approved PDF-backed document. Supply a new approved version to replace it; its wording cannot be edited here.",
+    };
   if (title.length < 3 || title.length > 120) {
     return { ok: false, message: "Use a title between 3 and 120 characters." };
   }

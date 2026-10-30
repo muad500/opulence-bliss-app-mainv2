@@ -1,4 +1,5 @@
 import "server-only";
+import { finalLegalDocument } from "./finalLegalPack";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -46,6 +47,12 @@ export async function prepareAccountAcceptance(
       sourceContentHtml: source,
       contentHash: legalContentHash(source),
       displayContentHash: legalContentHash(display.contentHtml),
+      ...(source === finalLegalDocument(slug)?.contentHtml
+        ? {
+            pdfSha256: finalLegalDocument(slug)!.pdfSha256,
+            effectiveDate: finalLegalDocument(slug)!.effectiveDate,
+          }
+        : {}),
     };
   });
   const forwarded =

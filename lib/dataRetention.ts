@@ -4,6 +4,28 @@ export const retentionRules = [
   ["dbs_copies", "DBS certificate copies", "At most 6 months from upload"],
   ["check_ins", "Check-in records", "2 years"],
   ["messages", "Chat messages", "2 years"],
+  [
+    "customer_accounts",
+    "Closed customer accounts",
+    "12 months after closure; financial evidence retained separately",
+  ],
+  [
+    "identity_right_to_work",
+    "Identity and right-to-work documents",
+    "2 years after leaving",
+  ],
+  [
+    "trade_insurance",
+    "Qualifications, registrations and insurance",
+    "2 years after leaving",
+  ],
+  [
+    "cleaner_records",
+    "Cleaner records",
+    "6 years after leaving; financial evidence retained separately",
+  ],
+  ["partner_records", "Partner records", "6 years after leaving"],
+  ["referral_rewards", "Referral and reward records", "6 years after closure"],
   ["job_photos", "Job photos", "12 months after the job ends"],
   [
     "unsuccessful_applicants",
@@ -21,7 +43,11 @@ export const retentionRules = [
     "Safeguarding, complaints and incidents",
     "6 years after resolution",
   ],
-  ["business_records", "Business records", "6 years after the contract ends"],
+  [
+    "business_records",
+    "Booking, payment and business records",
+    "At least 6 years after contract end and the relevant financial year end",
+  ],
   [
     "access_instructions",
     "Access codes and instructions",

@@ -20,6 +20,7 @@ function compile(file, require, globals = {}) {
   return module.exports;
 }
 const copy = compile("lib/cleaningPaymentCopy.ts", native);
+const policyGuidance = compile("lib/cleaningPolicyGuidance.ts", native);
 function harness({ embeddingFails = false, writeFails = false } = {}) {
   const state = { embeddings: 0, writes: [], deletes: 0 };
   const db = {
@@ -68,13 +69,15 @@ function harness({ embeddingFails = false, writeFails = false } = {}) {
   const route = compile(
     "app/api/ai/seed/route.ts",
     (id) =>
-      id === "@/lib/cleaningPaymentCopy"
-        ? copy
-        : id === "next/server"
-          ? { NextResponse: { json: Response.json } }
-          : id === "@supabase/supabase-js"
-            ? { createClient: () => db }
-            : native(id),
+      id === "@/lib/cleaningPolicyGuidance"
+        ? policyGuidance
+        : id === "@/lib/cleaningPaymentCopy"
+          ? copy
+          : id === "next/server"
+            ? { NextResponse: { json: Response.json } }
+            : id === "@supabase/supabase-js"
+              ? { createClient: () => db }
+              : native(id),
     {
       process: {
         env: {
