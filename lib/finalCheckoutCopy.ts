@@ -10,6 +10,8 @@ export const FINAL_CHECKOUT_COPY = {
   marketing: "Send me offers and news by email. I can unsubscribe at any time.",
   vat: "No VAT is charged.",
   payment: "Payment is taken when you book.",
+  regularPayment:
+    "Payment for each visit is taken when it is scheduled, and we will tell you before each payment is taken.",
   cancellation:
     "Free cancellation up to 48 hours before. 25% charge 24 to 48 hours before. 50% charge 12 to 24 hours before. Up to 70% charge less than 12 hours before or on the day.",
   right:
@@ -18,7 +20,7 @@ export const FINAL_CHECKOUT_COPY = {
 
 export const FINAL_PROFESSIONAL_COPY = {
   cleanerTerms:
-    "I have read and accept the Cleaner Terms and Conditions (v1.0), including the Cleaner Cancellation Policy, and the Privacy Notice.",
+    "I have read and accept the current Professional Partner Agreement, the Cleaner Cancellation Policy (v1.0) and the Privacy Notice.",
   handymanTerms:
     "I have read and accept the Handyman Terms and Conditions (v1.0) and the Privacy Notice.",
   selfEmployed:

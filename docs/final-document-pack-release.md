@@ -1,6 +1,7 @@
 # Final document pack, 29 October 2026
 
-Staging first. Production requires a fresh, exclusive “go”. The older held legal
+Staging first. The owner authorised this release on 31 October 2026, with the
+decisions recorded below. This approval covers this release only. The older held legal
 patch, migration 20261003002100, is superseded and must not be applied.
 
 ## Sources and publication
@@ -16,9 +17,11 @@ public documents. Existing booking/account acceptance snapshots are untouched.
 Eight public documents have footer links. Four professional documents are linked
 only from professional registration and the portal. Applicants can read them
 before creating an account; they are not confidential personal evidence.
-Cleaner Terms have not been supplied: the page is an explicit placeholder,
-not a contract, and new cleaner registration fails closed. Existing approved
-cleaners remain able to work. The Data Sharing and Processing Pack is internal,
+Cleaner Terms have not been supplied: their page remains a placeholder, not a
+contract. New cleaners accept the existing Professional Partner Agreement and
+all the new declarations instead; registration is not blocked. Publish the new
+Cleaner Terms and request acceptance at the next login when they arrive.
+Existing approved cleaners remain able to work. The Data Sharing and Processing Pack is internal,
 and the Checkout and Sign-up Wording document is an implementation reference;
 neither is published as a public legal page.
 
@@ -33,8 +36,11 @@ neither is published as a public legal page.
 4. 20261029000400: Privacy section 13 retention adapters and accounting-year gate.
 5. 20261029000500: align public rescheduling FAQ and the assistant's existing
    cancellation guidance with the new rules; historical contracts stay intact.
+6. 20261031000100: durable email/in-app pre-charge notices and recorded two-party
+   agreements for free rescheduling at any notice. The extra migration is required
+   by the owner's new release decisions; the first five sources are unchanged.
 
-`scripts/prepare-final-document-pack-release.mjs` prepares only these five
+`scripts/prepare-final-document-pack-release.mjs` prepares these six
 migrations, mismatch-stop ledger checks and separate staging/Production SQL.
 It never executes them. Upgrade the existing visit-payments worker before
 accepting new final-policy bookings; keep its five-minute schedule and gateway
@@ -53,13 +59,13 @@ form; legacy confirmations retain their four attachments.
 | Item | Finding |
 | --- | --- |
 | Latest cancellation band | The user's explicit instruction is up to 70%, default 70%, on the booking price excluding tips. The PDFs' Customer Terms 8.1/8.4 and Cancellation Policy 5.1/5.5 still say no refund. Exact PDFs are preserved; the staging engine uses the instructed 70% ceiling. |
-| Rescheduling | The user explicitly selected Cancellation Policy 5.4: free only with at least 48 hours. Under that deadline the original visit must be cancelled under its agreed band and rebooked; the system cannot silently move it for free. Cleaner Cancellation Policy 6.3 still disagrees. |
-| Regular payment timing | Current regular checkout saves the card with £0 due, then charges on cleaner acceptance. The final pack says payment at booking/scheduling. The mandated summary is displayed exactly on staging; this inconsistency must be visible to the owner before release. The payment engine was not silently changed. |
-| Cleaner Terms | Missing. The placeholder cannot be accepted, so new cleaner registration is blocked until the approved document arrives. |
-| Customer pause/end | Missing. The existing series endpoint supports resuming automatically paused series, not customer pause/end controls. |
-| Warning before each regular charge | Missing. Acceptance charging does not wait for a prior customer payment warning. |
-| Cleaner offers extra hours | Missing. Customer add-on adjustments do not implement an offer/approve/pay extra-hours workflow. |
-| Booking Credit | Missing. There is no credit wallet, opt-in refund conversion or redemption flow. |
+| Rescheduling | A customer and assigned cleaner may agree a free change at any notice. Both participants' decisions are recorded; neither can approve their own request. Calendar and billing checks remain. A customer-only change below 48 hours requires cancellation under the original band and rebooking. |
+| Regular payment timing | The payment engine stays unchanged. One-off review says payment is taken when booked. Regular review uses Cancellation Policy 3.2 verbatim. The worker creates an in-app notice and obtains email-provider acceptance with date and amount before a new regular charge can be claimed or confirmed. Retries reuse the notice; legacy in-flight operations keep their existing evidence. |
+| Cleaner Terms | Missing, but new cleaners may use the existing agreement with all new required declarations. The placeholder is never accepted as a contract. |
+| Customer pause/end | Next staging-only phase, after this Production release; not included in this release. |
+| Warning before each regular charge | Included. Delivery failures block the charge, and existing assignment/pause/recovery guards still apply. |
+| Cleaner offers extra hours | Next staging-only phase, after this Production release; not included in this release. |
+| Booking Credit | Deferred to stage 3 by the owner. |
 | Financial year end | Unknown until the owner supplies it. Booking/payment deletion is fail-closed while it is unset. |
 | Other unlaunched terms | Loyalty, referral/reward and massage engines remain unlaunched. The massage opt-in remains hidden. Handyman commission wording must be reconciled before the marketplace is enabled; it remains OFF in Production. |
 

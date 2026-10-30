@@ -524,11 +524,19 @@ test("unpublished final safeguarding policy blocks new applications before writi
   assert.equal(response.status, 503);
   assert.equal(writes.length, 0);
 });
-test("missing Cleaner Terms cannot be accepted as a placeholder", async () => {
+test("missing Cleaner Terms uses the existing cleaner agreement and retains every required declaration", async () => {
   const { response, writes } = await signup(validSignup, true, false);
-  assert.equal(response.status, 503);
-  assert.equal((await response.json()).code, "cleaner_terms_missing");
-  assert.equal(writes.length, 0);
+  assert.equal(response.status, 200);
+  const accepted = writes.find(
+    (write) => write.table === "account_legal_acceptances",
+  ).value;
+  assert.ok(
+    accepted.some(
+      (row) => row.document_slug === "professional-partner-agreement",
+    ),
+  );
+  assert.ok(!accepted.some((row) => row.document_slug === "cleaner-terms"));
+  assert.ok(accepted.some((row) => row.document_slug === "safeguarding"));
 });
 
 test("payout and earnings endpoints deny an unapproved applicant before Stripe or payment reads", async () => {

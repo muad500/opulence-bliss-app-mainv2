@@ -12,6 +12,7 @@ const files = [
   "20261029000300_activate_final_cleaning_policy.sql",
   "20261029000400_final_privacy_retention.sql",
   "20261029000500_final_policy_public_guidance.sql",
+  "20261031000100_final_pack_release_decisions.sql",
 ];
 const migrations = files.map((file) => {
   const source = readFileSync(`supabase/migrations/${file}`, "utf8").replaceAll(
@@ -73,5 +74,5 @@ writeFileSync(
   ) + "\n",
 );
 console.log(
-  "Prepared exactly five final-pack migrations and ledger checks; executed nothing.",
+  "Prepared the five final-pack migrations plus the approved release-decisions migration; executed nothing.",
 );

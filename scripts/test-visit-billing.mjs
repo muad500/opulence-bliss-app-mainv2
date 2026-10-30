@@ -162,6 +162,8 @@ function fixture({
           error: null,
         };
       }
+      if (name === "claim_regular_payment_notice")
+        return { data: { required: false, ready: true }, error: null };
       if (name === "claim_visit_money_operation") {
         if (["succeeded", "failed"].includes(state.op.status))
           return { data: null, error: null };
@@ -298,6 +300,9 @@ function fixture({
       Date,
       console,
       Buffer,
+      fetch: () => {
+        throw new Error("Unexpected network call in billing fixture");
+      },
     });
     cache.set(path, compiledModule.exports);
     return compiledModule.exports;

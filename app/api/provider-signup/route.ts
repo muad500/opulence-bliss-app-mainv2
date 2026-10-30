@@ -373,23 +373,6 @@ export async function POST(req: NextRequest) {
         },
         { status: 400 },
       );
-    if (cleaningSelected) {
-      const { data: cleanerTerms } = await admin
-        .from("legal_documents")
-        .select("version,content_html")
-        .eq("slug", "cleaner-terms")
-        .eq("published", true)
-        .maybeSingle();
-      if (!cleanerTerms?.content_html || cleanerTerms.version !== "1.0")
-        return NextResponse.json(
-          {
-            error:
-              "Cleaner Terms have not yet been supplied. Cleaner registration is unavailable until they are published.",
-            code: "cleaner_terms_missing",
-          },
-          { status: 503 },
-        );
-    }
     if (
       professionalAgreementAccepted !== true ||
       !validProfessionalConsent(
@@ -409,7 +392,10 @@ export async function POST(req: NextRequest) {
     const safeguardingConfig = await safeguardingRegistration(admin);
     if (!safeguardingConfig.enabled)
       return NextResponse.json(
-        { error: "The final registration policies are being published. Please retry shortly." },
+        {
+          error:
+            "The final registration policies are being published. Please retry shortly.",
+        },
         { status: 503 },
       );
     if (
@@ -469,7 +455,10 @@ export async function POST(req: NextRequest) {
         "dbs-data",
         "safeguarding",
         ...(cleaningSelected
-          ? ["cleaner-terms" as const, "cleaner-cancellation" as const]
+          ? [
+              "professional-partner-agreement" as const,
+              "cleaner-cancellation" as const,
+            ]
           : []),
         ...(handymanSelected ? ["handyman-professional-terms" as const] : []),
       ],
@@ -481,7 +470,9 @@ export async function POST(req: NextRequest) {
     const professionalAgreementVersion = acceptance.documents.find(
       (d) =>
         d.slug ===
-        (cleaningSelected ? "cleaner-terms" : "handyman-professional-terms"),
+        (cleaningSelected
+          ? "professional-partner-agreement"
+          : "handyman-professional-terms"),
     )!.version;
     const privacyVersion = acceptance.documents.find(
       (d) => d.slug === "privacy",
