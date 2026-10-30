@@ -6,7 +6,6 @@ import {
   COMPANY,
   HANDYMAN_TERMS_URL,
   PRIVACY_URL,
-  PROFESSIONAL_PARTNER_AGREEMENT_URL,
   TERMS_URL,
 } from "@/lib/legal";
 import styles from "./SiteFooter.module.css";
@@ -129,7 +128,7 @@ export default function SiteFooter({
         <div className={styles.legal}>
           {TERMS_URL && (
             <a href={TERMS_URL} target="_blank" rel="noopener noreferrer">
-              Terms &amp; Conditions
+              Customer Terms and Conditions
             </a>
           )}
           {PRIVACY_URL && (
@@ -142,21 +141,34 @@ export default function SiteFooter({
             target="_blank"
             rel="noopener noreferrer"
           >
-            Cancellation &amp; Refund Policy
+            Cancellations, Payment and Refunds Policy
           </a>
           <a
             href={HANDYMAN_TERMS_URL}
             target="_blank"
             rel="noopener noreferrer"
           >
-            Property maintenance Terms
+            Handyman Services Terms for Customers
           </a>
           <a
-            href={PROFESSIONAL_PARTNER_AGREEMENT_URL}
+            href="/legal/business-terms"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Professional Partner Agreement
+            Business Terms and Conditions
+          </a>
+          <a href="/legal/cookies" target="_blank" rel="noopener noreferrer">
+            Cookie and Similar Technologies Policy
+          </a>
+          <a href="/legal/complaints" target="_blank" rel="noopener noreferrer">
+            Complaints Procedure
+          </a>
+          <a
+            href="/legal/partner-programme"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Partner Programme Terms
           </a>
           <Link prefetch={storageFree ? false : undefined} href="/faq">
             Help &amp; FAQ

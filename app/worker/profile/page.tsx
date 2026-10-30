@@ -1059,6 +1059,57 @@ export default function WorkerProfilePage() {
               title="Legal and account"
               intro="See the agreements on file and manage your account data."
             >
+              <nav aria-label="Professional policy documents">
+                <ul>
+                  <li>
+                    <a
+                      href="/provider/join/policies/cleaner-terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Cleaner Terms (awaiting client document)
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/provider/join/policies/cleaner-cancellation"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Cleaner Cancellation Policy
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/provider/join/policies/safeguarding"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Safeguarding, Lone Working and Incident Policy
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="/provider/join/policies/dbs-data"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      DBS and Criminal-Offence Data Policy
+                    </a>
+                  </li>
+                  {p.marketplaceEnabled && (
+                    <li>
+                      <a
+                        href="/provider/join/policies/handyman-professional-terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Handyman Terms and Conditions
+                      </a>
+                    </li>
+                  )}
+                </ul>
+              </nav>
               {p.legalAcceptances.length ? (
                 <ul className={styles.legalList}>
                   {p.legalAcceptances.map((item, index) => (

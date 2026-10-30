@@ -9,7 +9,7 @@ function loader(mocks = {}) {
   const cache = new Map();
   return function load(file) {
     if (cache.has(file)) return cache.get(file);
-    const module = { exports: {} };
+    const compiledModule = { exports: {} };
     const code = ts.transpileModule(readFileSync(file, "utf8"), {
       compilerOptions: {
         module: ts.ModuleKind.CommonJS,
@@ -19,8 +19,8 @@ function loader(mocks = {}) {
       },
     }).outputText;
     vm.runInNewContext(code, {
-      module,
-      exports: module.exports,
+      module: compiledModule,
+      exports: compiledModule.exports,
       Response,
       URL,
       Buffer,
@@ -30,12 +30,14 @@ function loader(mocks = {}) {
         if (id in mocks) return mocks[id];
         if (id === "server-only" || id.endsWith(".module.css")) return {};
         if (id.startsWith("@/lib/")) return load("lib/" + id.slice(6) + ".ts");
+        if (id.endsWith(".json"))
+          return JSON.parse(readFileSync("lib/" + id.slice(2), "utf8"));
         if (id.startsWith("./")) return load("lib/" + id.slice(2) + ".ts");
         return native(id);
       },
     });
-    cache.set(file, module.exports);
-    return module.exports;
+    cache.set(file, compiledModule.exports);
+    return compiledModule.exports;
   };
 }
 const policy = loader()("lib/checkoutLegal.ts");
@@ -103,7 +105,7 @@ test("missing published Terms resolves to the exact built-in Terms page version,
   );
   const terms = result.documents.find((d) => d.slug === "terms");
   assert.equal(terms.version, defaultLegalDocument("terms").version);
-  assert.equal(terms.version, "2.1");
+  assert.equal(terms.version, "1.0");
   assert.equal(terms.isFallback, true);
   assert.equal(terms.updatedAt, null);
   assert.equal(policy.validCheckoutLegalDocuments(result.documents), true);
@@ -155,8 +157,8 @@ test("final checkbox has required wording and all three versioned new-tab links"
     }),
   );
   assert.match(html, /type="checkbox" required=""/);
-  assert.match(html, /I accept the/);
-  assert.match(html, /I have read the/);
+  assert.match(html, /I have read and accept the/);
+  assert.match(html, /Privacy Notice/);
   for (const slug of ["terms", "cancellation-refund", "privacy"])
     assert.match(
       html,
@@ -164,7 +166,8 @@ test("final checkbox has required wording and all three versioned new-tab links"
         `href="/legal/${slug}" target="_blank" rel="noopener noreferrer"`,
       ),
     );
-  assert.equal((html.match(/Version 1\.0/g) || []).length, 3);
+  assert.equal((html.match(/\(v1\.0\)/g) || []).length, 2);
+  assert.match(html, /Effective from: 1 October 2026/);
 });
 test("data export includes per-booking legal evidence and prepared consent snapshots", () => {
   const source = readFileSync("app/api/account/export/route.ts", "utf8");

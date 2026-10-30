@@ -242,17 +242,14 @@ export function generateCancellationFormPdf(acceptedAt: string) {
     {
       title: "Model cancellation form",
       paragraphs: [
-        "Use this form only if you wish to cancel. Any clear notice is enough; you do not have to use this form.",
-        `To ${COMPANY.name}, ${COMPANY.registeredOffice}, hello@opulencebliss.com:`,
-        "I hereby give notice that I cancel my contract for the supply of the following service:",
-        "Service and booking reference: __________________________________________",
+        "To Opulence Bliss Ltd, 128 City Road, London, United Kingdom, EC1V 2NX, hello@opulencebliss.com:",
+        "I hereby give notice that I cancel my contract for the supply of the following service: ________________________________.",
         "Ordered on: _________________________________________________________",
         "Name of consumer: __________________________________________________",
         "Address of consumer: ________________________________________________",
         "___________________________________________________________________",
         "Date: ______________________________________________________________",
-        "Signature of consumer (only if this form is sent on paper): ____________________",
-        "Send your notice to hello@opulencebliss.com. Your accepted policies explain the cancellation rules that apply to your booking.",
+        "(You do not have to use this form. Any clear notice is enough.)",
       ],
     },
   ]);

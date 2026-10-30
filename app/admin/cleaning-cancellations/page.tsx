@@ -16,8 +16,11 @@ export default async function CleaningCancellationsPage({
         .eq("booking_id", id)
         .maybeSingle()
     : { data: null };
-  const noAccessMax =
-    data?.terms?.cancellationBasis === "cleaning_hours" ? 70 : 100;
+  const noAccessMax = ["cleaning_hours", "booking_total"].includes(
+    data?.terms?.cancellationBasis,
+  )
+    ? 70
+    : 100;
   return (
     <main style={{ maxWidth: 1000, margin: "32px auto", padding: 24 }}>
       <Link href="/admin/review">← Resolution desk</Link>

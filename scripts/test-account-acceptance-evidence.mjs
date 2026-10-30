@@ -35,32 +35,34 @@ function fixture() {
     Date: TestDate,
     process: { env },
     require: (id) =>
-      id === "server-only"
-        ? {}
-        : id === "node:crypto"
-          ? crypto
-          : id === "node:net"
-            ? net
-            : id === "./bookingLegalEvidence"
-              ? {
-                  legalContentHash: (text) =>
-                    crypto.createHash("md5").update(text).digest("hex"),
-                }
-              : id === "./legalDocuments"
+      id === "./finalLegalPack"
+        ? { finalLegalDocument: () => null }
+        : id === "server-only"
+          ? {}
+          : id === "node:crypto"
+            ? crypto
+            : id === "node:net"
+              ? net
+              : id === "./bookingLegalEvidence"
                 ? {
-                    defaultLegalDocument: (slug) => ({
-                      title: slug,
-                      version: "fallback",
-                      contentHtml: "<p>Fallback " + slug + "</p>",
-                    }),
-                    publicLegalPresentation: (title, contentHtml) => ({
-                      title,
-                      contentHtml,
-                    }),
+                    legalContentHash: (text) =>
+                      crypto.createHash("md5").update(text).digest("hex"),
                   }
-                : (() => {
-                    throw Error(id);
-                  })(),
+                : id === "./legalDocuments"
+                  ? {
+                      defaultLegalDocument: (slug) => ({
+                        title: slug,
+                        version: "fallback",
+                        contentHtml: "<p>Fallback " + slug + "</p>",
+                      }),
+                      publicLegalPresentation: (title, contentHtml) => ({
+                        title,
+                        contentHtml,
+                      }),
+                    }
+                  : (() => {
+                      throw Error(id);
+                    })(),
   });
   new vm.Script(code).runInContext(context);
   const writes = [];

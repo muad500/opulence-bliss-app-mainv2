@@ -26,8 +26,15 @@ export async function POST(request: NextRequest) {
     const terms = parseCleaningBillingTerms(body);
     const latest = await currentCleaningBillingTerms(context.admin);
     if (
-      terms.cancellationBasis === "cleaning_hours" &&
-      latest.cancellationBasis !== "cleaning_hours"
+      latest.cancellationBasis === "booking_total" &&
+      terms.cancellationBasis !== "booking_total"
+    )
+      throw new Error(
+        "The final published cancellation policy must remain active for new bookings.",
+      );
+    if (
+      terms.cancellationBasis !== undefined &&
+      latest.cancellationBasis !== terms.cancellationBasis
     ) {
       const { data: policy, error } = await context.admin
         .from("legal_documents")

@@ -18,6 +18,8 @@ export type BookingLegalSnapshot = {
   contentHash: string;
   contentHtml: string;
   displayContentHash: string;
+  pdfSha256?: string;
+  effectiveDate?: string;
 };
 export type BookingLegalEvidence = {
   schemaVersion: 1;
@@ -30,7 +32,13 @@ export type BookingLegalContract = {
   acceptedAt: string;
   documents: BookingLegalSnapshot[];
   evidence: BookingLegalEvidence;
-  bookings: Array<{ id: string; service: string; scheduledAt: string }>;
+  bookings: Array<{
+    id: string;
+    service: string;
+    scheduledAt: string;
+    hours?: number;
+    totalPaidPence?: number;
+  }>;
 };
 
 export function legalContentHash(html: string) {

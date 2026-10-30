@@ -695,6 +695,9 @@ export default function PartnerPageContent() {
         <Link prefetch={false} href="/legal/terms">
           Customer Terms and Conditions
         </Link>
+        <Link prefetch={false} href="/legal/partner-programme">
+          Partner Programme Terms
+        </Link>
         <p className="fine">
           Partners are independent and not employees or agents of Opulence
           Bliss. Rewards are subject to our Partner Programme terms and

@@ -1,54 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { cache } from "react";
+import { notFound, redirect } from "next/navigation";
 import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
 import {
   defaultLegalDocument,
   isLegalDocumentSlug,
-  sanitizeLegalHtml,
   publicLegalPresentation,
-  type LegalDocument,
 } from "@/lib/legalDocuments";
+import { finalLegalDocument } from "@/lib/finalLegalPack";
 import styles from "./page.module.css";
-
-type LegalRow = {
-  slug: string;
-  title: string;
-  audience: LegalDocument["audience"];
-  content_html: string;
-  version: string;
-  updated_at: string;
-};
-
-const loadDocument = cache(async (slug: string) => {
-  if (!isLegalDocumentSlug(slug)) return null;
-
-  const fallback = defaultLegalDocument(slug);
-  try {
-    const supabase = await createClient();
-    const { data } = await supabase
-      .from("legal_documents")
-      .select("slug, title, audience, content_html, version, updated_at")
-      .eq("slug", slug)
-      .eq("published", true)
-      .maybeSingle();
-    const row = data as LegalRow | null;
-    if (!row?.content_html) return slug === "safeguarding" ? null : fallback;
-    return {
-      slug,
-      ...(slug === "safeguarding"
-        ? { title: row.title, contentHtml: sanitizeLegalHtml(row.content_html) }
-        : publicLegalPresentation(row.title, row.content_html)),
-      audience: row.audience,
-      version: row.version,
-      updatedAt: row.updated_at,
-    } satisfies LegalDocument;
-  } catch {
-    return slug === "safeguarding" ? null : fallback;
-  }
-});
 
 export async function generateMetadata({
   params,
@@ -56,58 +17,117 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const document = await loadDocument(slug);
   return {
-    title: document
-      ? `${document.title} · Opulence Bliss`
-      : "Legal · Opulence Bliss",
+    title: `${finalLegalDocument(slug)?.title ?? "Legal"} · Opulence Bliss`,
   };
 }
 
 export default async function LegalDocumentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ revision?: string }>;
 }) {
   const { slug } = await params;
-  const document = await loadDocument(slug);
-  if (!document) notFound();
-
-  const updated = document.updatedAt
-    ? new Date(document.updatedAt).toLocaleDateString("en-GB", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      })
-    : document.version === "1.0"
-      ? "August 2026"
-      : "20 September 2026";
-
+  if (!isLegalDocumentSlug(slug)) notFound();
+  const approved = finalLegalDocument(slug);
+  if (approved?.audience === "professionals" || slug === "cleaner-terms")
+    redirect(`/provider/join/policies/${slug}`);
+  if (slug === "professional-partner-agreement")
+    redirect("/provider/join/policies/cleaner-terms");
+  const client = await createClient();
+  const fallback = defaultLegalDocument(slug);
+  const { data: row } = await client
+    .from("legal_documents")
+    .select("title,content_html,version,updated_at,effective_date,pdf_sha256")
+    .eq("slug", slug)
+    .eq("published", true)
+    .maybeSingle();
+  const { data: revisions } = await client.rpc("public_legal_revisions", {
+    p_slug: slug,
+  });
+  const earlier = (revisions ?? []) as Array<{
+    id: number;
+    title: string;
+    version: string;
+    content_html: string;
+    effective_date: string | null;
+    archived_at: string;
+  }>;
+  const { revision } = await searchParams;
+  if (revision && !/^\d+$/.test(revision)) notFound();
+  const archived = revision
+    ? earlier.find((item) => String(item.id) === revision)
+    : null;
+  if (revision && !archived) notFound();
+  const document = archived ?? row;
+  const presentation = document
+    ? publicLegalPresentation(document.title, document.content_html)
+    : { title: fallback.title, contentHtml: fallback.contentHtml };
+  const version = document?.version ?? fallback.version;
+  const effective =
+    document?.effective_date ?? (!archived ? approved?.effectiveDate : null);
+  const download = `/api/legal/${slug}/pdf${archived ? `?revision=${archived.id}` : ""}`;
   return (
     <>
       <main className={styles.shell}>
         <article className={styles.document}>
-          <p className={styles.eyebrow}>Opulence Bliss legal</p>
-          <h1>{document.title}</h1>
+          <p className={styles.eyebrow}>
+            {archived ? "Earlier version" : "Opulence Bliss legal"}
+          </p>
+          <h1>{presentation.title}</h1>
           <div className={styles.meta}>
-            <span>Version {document.version}</span>
-            <span>Last updated {updated}</span>
+            <span>Version {version}</span>
+            {effective && (
+              <span>
+                Effective from:{" "}
+                {new Date(`${effective}T00:00:00Z`).toLocaleDateString(
+                  "en-GB",
+                  {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    timeZone: "UTC",
+                  },
+                )}
+              </span>
+            )}
           </div>
+          <p>
+            <a href={download}>Download PDF</a>
+          </p>
+          {archived && (
+            <p>
+              This is an earlier version.{" "}
+              <Link href={`/legal/${slug}`}>Read the current document</Link>.
+            </p>
+          )}
           <div
             className={styles.content}
-            dangerouslySetInnerHTML={{ __html: document.contentHtml }}
+            dangerouslySetInnerHTML={{ __html: presentation.contentHtml }}
           />
           {slug === "privacy" && (
-            <section
-              className={styles.content}
-              aria-labelledby="delete-account-heading"
-            >
-              <h2 id="delete-account-heading">Request account deletion</h2>
-              <p>
-                <Link href="/delete-account">Delete your account</Link>: how to
-                send a request from your account settings or by email, and what
-                information may need to be retained.
-              </p>
+            <p>
+              <Link href="/delete-account">Delete your account</Link>
+            </p>
+          )}
+          {!!earlier.length && (
+            <section aria-label="Earlier versions">
+              <h2>Earlier versions</h2>
+              <ul>
+                {earlier.map((item) => (
+                  <li key={item.id}>
+                    <Link href={`/legal/${slug}?revision=${item.id}`}>
+                      {item.title}, version {item.version} (archived{" "}
+                      {new Date(item.archived_at).toLocaleDateString("en-GB", {
+                        timeZone: "UTC",
+                      })}
+                      )
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </section>
           )}
         </article>

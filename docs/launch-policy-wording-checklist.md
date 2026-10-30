@@ -1,5 +1,7 @@
 # Client policy wording: one consolidated list
 
+> Historical decisions below were superseded by the user's final-pack request on 29 October 2026. Follow `docs/final-document-pack-release.md` for the current staging work. The final PDFs are preserved verbatim; the explicitly instructed 70% booking-price cap and 48-hour rescheduling rule are tested on staging. The remaining copy conflicts and missing Cleaner Terms are reported before Production approval. The old held migration 20261003002100 must never be applied.
+
 Checked against the **recent 14-PDF pack**, not the older website drafts.
 
 ## Already decided on 24 October — do not ask the client to decide again

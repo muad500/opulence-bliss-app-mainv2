@@ -5,6 +5,9 @@ import { handymanTaskLabel } from "@/lib/handymanMarketplace";
 // Save at: app/provider/join/page.tsx  →  localhost:3000/provider/join
 
 import { useEffect, useState } from "react";
+import ProfessionalLegalConsent from "@/components/ProfessionalLegalConsent";
+import { validProfessionalConsent } from "@/lib/professionalLegalCopy";
+import { FINAL_CHECKOUT_COPY } from "@/lib/finalCheckoutCopy";
 import ProfessionalServicePicker from "@/components/ProfessionalServicePicker";
 import { HANDYMAN_TASKS } from "@/lib/handymanMarketplace";
 import type { ProfessionalService } from "@/lib/professionalServices";
@@ -19,11 +22,6 @@ import {
   isSupportedDbsCertificate,
   normalizeDbsCertificateNumber,
 } from "@/lib/providerDbs";
-import {
-  PRIVACY_URL,
-  PROFESSIONAL_PARTNER_AGREEMENT_URL,
-  SAFEGUARDING_URL,
-} from "@/lib/legal";
 import {
   estimateProviderMonthlyEarnings,
   isOptionalUtrNumber,
@@ -156,7 +154,13 @@ export default function ProviderJoinPage() {
   const [err, setErr] = useState<string | null>(null);
   const [professionalAgreementAccepted, setProfessionalAgreementAccepted] =
     useState(false);
-  const [safeguardingAccepted, setSafeguardingAccepted] = useState(false);
+  const [professionalConsents, setProfessionalConsents] = useState<
+    Record<string, boolean>
+  >({});
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState("");
+  const [marketingAccepted, setMarketingAccepted] = useState(false);
+  const safeguardingAccepted = professionalConsents.safeguarding === true;
   const [safeguardingEnabled, setSafeguardingEnabled] = useState<
     boolean | null
   >(null);
@@ -461,10 +465,22 @@ export default function ProviderJoinPage() {
       setErr("Upload a PDF, JPG or PNG DBS certificate no larger than 8 MB.");
       return;
     }
-    if (!professionalAgreementAccepted) {
-      setErr(
-        "Accept the Service Professional Partner Agreement and Privacy Policy to continue.",
-      );
+    if (
+      !emergencyContactName.trim() ||
+      !isValidUkPhone(emergencyContactPhone)
+    ) {
+      setErr("Add your emergency contact's name and valid UK phone number.");
+      return;
+    }
+    if (
+      !professionalAgreementAccepted ||
+      !validProfessionalConsent(
+        professionalConsents,
+        cleaningSelected,
+        handymanSelected,
+      )
+    ) {
+      setErr("Read and accept every required professional policy to continue.");
       return;
     }
     if (
@@ -524,6 +540,10 @@ export default function ProviderJoinPage() {
             homePostcode: homePostcode.trim().toUpperCase(),
             areaIds,
             professionalAgreementAccepted,
+            professionalConsents,
+            emergencyContactName,
+            emergencyContactPhone,
+            marketingAccepted,
             safeguardingAccepted,
             safeguardingVersion,
             dbsCertificateNumber:
@@ -1621,61 +1641,53 @@ export default function ProviderJoinPage() {
                   {dbsCertificate ? ` Selected: ${dbsCertificate.name}` : ""}
                 </p>
 
-                {safeguardingEnabled && (
-                  <label className="legal-consent">
-                    <input
-                      type="checkbox"
-                      required
-                      checked={safeguardingAccepted}
-                      disabled={!safeguardingVersion}
-                      onChange={(event) =>
-                        setSafeguardingAccepted(event.target.checked)
-                      }
-                    />
-                    <span>
-                      I have read and agree to follow the{" "}
-                      <a
-                        href={SAFEGUARDING_URL}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
-                        Safeguarding, Lone Working and Incident Reporting Policy
-                      </a>
-                      {safeguardingVersion
-                        ? ` (Version ${safeguardingVersion})`
-                        : " (loading…)"}
-                      .
-                    </span>
-                  </label>
-                )}
-
+                <label htmlFor="emergency-contact-name">
+                  Emergency contact name
+                </label>
+                <input
+                  id="emergency-contact-name"
+                  value={emergencyContactName}
+                  onChange={(event) =>
+                    setEmergencyContactName(event.target.value)
+                  }
+                  required
+                />
+                <label htmlFor="emergency-contact-phone">
+                  Emergency contact phone
+                </label>
+                <input
+                  id="emergency-contact-phone"
+                  type="tel"
+                  value={emergencyContactPhone}
+                  onChange={(event) =>
+                    setEmergencyContactPhone(event.target.value)
+                  }
+                  required
+                />
+                <ProfessionalLegalConsent
+                  cleaning={cleaningSelected}
+                  handyman={handymanSelected}
+                  value={professionalConsents}
+                  onChange={(value) => {
+                    setProfessionalConsents(value);
+                    setProfessionalAgreementAccepted(
+                      validProfessionalConsent(
+                        value,
+                        cleaningSelected,
+                        handymanSelected,
+                      ),
+                    );
+                  }}
+                />
                 <label className="legal-consent">
                   <input
                     type="checkbox"
-                    checked={professionalAgreementAccepted}
+                    checked={marketingAccepted}
                     onChange={(event) =>
-                      setProfessionalAgreementAccepted(event.target.checked)
+                      setMarketingAccepted(event.target.checked)
                     }
                   />
-                  <span>
-                    I have read and accept the{" "}
-                    <a
-                      href={PROFESSIONAL_PARTNER_AGREEMENT_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Service Professional Partner Agreement
-                    </a>{" "}
-                    and acknowledge the{" "}
-                    <a
-                      href={PRIVACY_URL}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Privacy Policy
-                    </a>
-                    .
-                  </span>
+                  <span>{FINAL_CHECKOUT_COPY.marketing}</span>
                 </label>
 
                 <div className="form-actions">
@@ -1685,7 +1697,7 @@ export default function ProviderJoinPage() {
                     onClick={submit}
                     disabled={busy || !ready}
                   >
-                    {busy ? step || "Working…" : "Create professional account"}
+                    {busy ? step || "Working…" : "Create my account"}
                   </button>
                 </div>
                 <p className="small">

@@ -63,11 +63,12 @@ function parseCleaningBillingTerms(value) {
     );
   if (
     source.cancellationBasis !== void 0 &&
-    source.cancellationBasis !== "cleaning_hours"
+    source.cancellationBasis !== "cleaning_hours" &&
+    source.cancellationBasis !== "booking_total"
   )
     throw new Error("Invalid cancellation basis.");
   if (
-    source.cancellationBasis === "cleaning_hours" &&
+    source.cancellationBasis !== void 0 &&
     (refunds.full !== 100 || refunds.none < 30)
   )
     throw new Error(
@@ -619,6 +620,7 @@ function calculateCancellationPolicy(
   now = /* @__PURE__ */ new Date(),
   refunds = DEFAULT_CLEANING_BILLING_TERMS.cancellationRefundPercent,
   cleaningHoursOnly = false,
+  finalPack = false,
 ) {
   const scheduledMs = new Date(scheduledAt).getTime();
   const nowMs = new Date(now).getTime();
@@ -632,13 +634,14 @@ function calculateCancellationPolicy(
         ? "full"
         : hoursUntilBooking >= 24
           ? "three_quarter"
-          : cleaningHoursOnly && hoursUntilBooking < 12
+          : (cleaningHoursOnly || finalPack) && hoursUntilBooking < 12
             ? "none"
             : "half";
   const refundPercent = refunds[tier];
-  const refundPence = cleaningHoursOnly
-    ? grossPence - Math.round((grossPence * (100 - refundPercent)) / 100)
-    : Math.round((grossPence * refundPercent) / 100);
+  const refundPence =
+    cleaningHoursOnly || finalPack
+      ? grossPence - Math.round((grossPence * (100 - refundPercent)) / 100)
+      : Math.round((grossPence * refundPercent) / 100);
   const cancellationChargePence = grossPence - refundPence;
   const title =
     refundPercent === 100
@@ -652,8 +655,8 @@ function calculateCancellationPolicy(
       : tier === "three_quarter"
         ? `This visit is between 24 and 48 hours away. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
         : tier === "half"
-          ? `This visit is ${cleaningHoursOnly ? "between 12 and 24 hours away" : "less than 24 hours away but is not today"}. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
-          : `This is ${cleaningHoursOnly ? "less than 12 hours away, on the day, or a no-access booking" : "a same-day or missed booking"}. The cancellation charge is ${pounds(cancellationChargePence)}.${cleaningHoursOnly ? " Staff can reduce this charge. Add-ons, products and tips are refunded in full." : ""}`;
+          ? `This visit is ${cleaningHoursOnly || finalPack ? "between 12 and 24 hours away" : "less than 24 hours away but is not today"}. ${pounds(refundPence)} will be refunded or released, and the cancellation charge is ${pounds(cancellationChargePence)}.`
+          : `This is ${cleaningHoursOnly || finalPack ? "less than 12 hours away, on the day, or a no-access booking" : "a same-day or missed booking"}. The cancellation charge is ${pounds(cancellationChargePence)}.${finalPack ? " Staff can reduce this charge. Tips are excluded from the booking price." : cleaningHoursOnly ? " Staff can reduce this charge. Add-ons, products and tips are refunded in full." : ""}`;
   return {
     tier,
     hoursUntilBooking,
@@ -722,6 +725,23 @@ function londonDate(year, month, day, hour, minute = 0) {
   return new Date(instant);
 }
 
+// lib/finalCheckoutCopy.ts
+var FINAL_CHECKOUT_COPY = {
+  terms:
+    "I have read and accept the Customer Terms and Conditions (v1.0), the Cancellations, Payment and Refunds Policy (v1.0) and the Privacy Notice.",
+  earlyStart:
+    "I ask Opulence Bliss to start the cleaning within 14 days of confirming my booking. I understand that if I cancel after it has started, I must pay for the part already provided, and that once the booking has been fully carried out I can no longer cancel it under the 14-day right.",
+  regular:
+    "I agree that Opulence Bliss may store my card with Stripe and charge it for each booking in my regular schedule, extra hours I agree to, and any cancellation charge under the Cancellations, Payment and Refunds Policy. I can pause or stop my regular booking at any time.",
+  marketing: "Send me offers and news by email. I can unsubscribe at any time.",
+  vat: "No VAT is charged.",
+  payment: "Payment is taken when you book.",
+  cancellation:
+    "Free cancellation up to 48 hours before. 25% charge 24 to 48 hours before. 50% charge 12 to 24 hours before. Up to 70% charge less than 12 hours before or on the day.",
+  right:
+    "You have the right to cancel within 14 days of booking. See the Customer Terms.",
+};
+
 // lib/cancellationPeriod.ts
 var CANCELLATION_PERIOD_DAYS = 14;
 function cancellationPeriodEnd(contractAt = /* @__PURE__ */ new Date()) {
@@ -734,6 +754,7 @@ function cancellationPeriodEnd(contractAt = /* @__PURE__ */ new Date()) {
     0,
   );
 }
+var EARLY_START_REQUEST_TEXT = FINAL_CHECKOUT_COPY.earlyStart;
 
 // lib/visitAdjustments.ts
 function removedLineRefunds(charges, removed) {
@@ -768,6 +789,7 @@ function cancellationRefunds(
   charges,
   refundPercent,
   cleaningHoursOnly = false,
+  bookingTotal = false,
 ) {
   if (
     !Number.isInteger(refundPercent) ||
@@ -775,6 +797,50 @@ function cancellationRefunds(
     refundPercent > 100
   )
     throw new Error("Invalid refund percentage.");
+  if (bookingTotal) {
+    const paid2 = charges.reduce(
+      (sum, charge) => sum + charge.amount_pence - charge.refunded_pence,
+      0,
+    );
+    const target = paid2 - Math.round((paid2 * (100 - refundPercent)) / 100);
+    let cumulative = 0,
+      allocated = 0;
+    return charges.flatMap((charge) => {
+      const refundedLines = { ...charge.refunded_lines };
+      let amountPence = 0,
+        remainingLines = 0;
+      for (const line of charge.line_items) {
+        const available = line.amountPence - (refundedLines[line.id] ?? 0);
+        if (available < 0 || line.id === "tip")
+          throw new Error("The booking payment needs reconciliation.");
+        remainingLines += available;
+        cumulative += available;
+        const next = paid2
+          ? target === 0
+            ? 0
+            : Math.round((cumulative * target) / paid2)
+          : 0;
+        const amount = next - allocated;
+        allocated = next;
+        refundedLines[line.id] = (refundedLines[line.id] ?? 0) + amount;
+        amountPence += amount;
+      }
+      if (remainingLines !== charge.amount_pence - charge.refunded_pence)
+        throw new Error(
+          "The payment needs line-item reconciliation before cancellation.",
+        );
+      return amountPence
+        ? [
+            {
+              chargeId: charge.id,
+              intentId: charge.stripe_payment_intent,
+              amountPence,
+              refundedLines,
+            },
+          ]
+        : [];
+    });
+  }
   if (cleaningHoursOnly) {
     const cleaningPaid = charges.reduce(
       (sum, charge) =>
@@ -864,6 +930,7 @@ function visitCancellationPolicy(
   contractAt,
 ) {
   const hoursOnly = terms.cancellationBasis === "cleaning_hours";
+  const bookingTotal = terms.cancellationBasis === "booking_total";
   const paid = charges.reduce(
     (sum, charge) => sum + charge.amount_pence - charge.refunded_pence,
     0,
@@ -892,12 +959,14 @@ function visitCancellationPolicy(
     now,
     terms.cancellationRefundPercent,
     hoursOnly,
+    bookingTotal,
   );
   const statutoryFree =
-    hoursOnly &&
+    (hoursOnly || bookingTotal) &&
     contractAt &&
     Number.isFinite(Date.parse(contractAt)) &&
     new Date(now).getTime() >= Date.parse(contractAt) &&
+    new Date(now).getTime() < Date.parse(scheduledAt) &&
     new Date(now).getTime() < cancellationPeriodEnd(contractAt).getTime();
   if (statutoryFree)
     policy = {
@@ -1231,6 +1300,7 @@ function createVisitBilling(admin, stripe) {
           charges,
           refundPercent,
           terms.cancellationBasis === "cleaning_hours",
+          terms.cancellationBasis === "booking_total",
         ),
         latePayment,
         ...(staff
@@ -2050,7 +2120,7 @@ function createVisitPaymentHandler(overrides = {}) {
         ok: true,
         mode,
         source:
-          "bb9289d7b4c443a8fedc84ec01cf8db146c505fd989bbf4f183faa255b200722",
+          "18609e1e7a57321cceb4b64304458a86c9384474b5492fc0823bd5c32312cb1a",
         result,
         notices,
       });

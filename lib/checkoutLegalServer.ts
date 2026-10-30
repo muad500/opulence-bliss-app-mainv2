@@ -1,4 +1,5 @@
 import "server-only";
+import { finalLegalDocument } from "./finalLegalPack";
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -69,6 +70,12 @@ export async function currentCheckoutLegal(client: SupabaseClient) {
       sourceContentHtml: source,
       contentHash: legalContentHash(source),
       displayContentHash: legalContentHash(presentation.contentHtml),
+      ...(source === finalLegalDocument(slug)?.contentHtml
+        ? {
+            pdfSha256: finalLegalDocument(slug)!.pdfSha256,
+            effectiveDate: finalLegalDocument(slug)!.effectiveDate,
+          }
+        : {}),
     };
   });
   return { documents, fallbacks, snapshots };

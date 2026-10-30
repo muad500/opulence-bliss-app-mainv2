@@ -211,7 +211,7 @@ test("default calculator output, preset values, fee/trial small print and privac
       (n) => n.name === "a" && /Partner Programme Terms/.test(textContent(n)),
       doc.children,
     ).length,
-    0,
+    1,
   );
 });
 test("the Partner page adds no external loads, trackers, storage or cookies", () => {

@@ -1,3 +1,7 @@
+import {
+  FINAL_RESCHEDULE_GUIDANCE,
+  FINAL_CANCELLATION_GUIDANCE,
+} from "@/lib/cleaningPolicyGuidance";
 // Build the AI agent's knowledge base.
 // Save at: app/api/ai/seed/route.ts
 //
@@ -75,8 +79,7 @@ const DOCS: { title: string; content: string }[] = [
   },
   {
     title: "Cancelling and rescheduling",
-    content:
-      "Date and time changes are free up to 24 hours before the visit, subject to availability. Within 24 hours contact support. You can modify a visit from My bookings or ask the assistant to prepare a change; a confirmation button is always required. Cancellation follows each booking's agreed policy: the current published policy uses 0/25/50/up to 100% charges, with no separate 12-hour band and a 30-minute no-access wait. A separately enabled future policy uses 0/25/50/up to 70% on cleaning hours only, refunds extras/products/tips, and has a 12-hour band and 15-minute wait. Never assume that future policy is active: always use the live cancellation preview for the booking. Cleaner compensation is the corresponding proportion of cleaning-hours pay; waivers increase the refund. Every modification is audited.",
+    content: `${FINAL_RESCHEDULE_GUIDANCE} ${FINAL_CANCELLATION_GUIDANCE}`,
   },
   {
     title: "Tipping",

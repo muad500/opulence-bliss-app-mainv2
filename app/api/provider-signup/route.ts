@@ -3,9 +3,9 @@ import {
   saveAccountAcceptance,
 } from "@/lib/accountAcceptanceServer";
 import {
-  PROFESSIONAL_SIGNUP_ACCEPTANCE,
-  safeguardingAcceptance,
-} from "@/lib/accountAcceptanceCopy";
+  professionalConsentBoxes,
+  validProfessionalConsent,
+} from "@/lib/professionalLegalCopy";
 // Provider sign-up — creates the account, profile, provider record,
 // coverage areas and default hours in one go.
 // Save at: app/api/provider-signup/route.ts
@@ -82,6 +82,10 @@ export async function POST(req: NextRequest) {
       homePostcode,
       areaIds,
       professionalAgreementAccepted,
+      professionalConsents,
+      emergencyContactName,
+      emergencyContactPhone,
+      marketingAccepted,
       safeguardingAccepted,
       safeguardingVersion,
       dbsCertificateNumber,
@@ -359,16 +363,55 @@ export async function POST(req: NextRequest) {
         { status: 400 },
       );
     }
-    if (professionalAgreementAccepted !== true) {
+    if (
+      !String(emergencyContactName ?? "").trim() ||
+      !isValidUkPhone(emergencyContactPhone)
+    )
+      return NextResponse.json(
+        {
+          error: "Add your emergency contact's name and valid UK phone number.",
+        },
+        { status: 400 },
+      );
+    if (cleaningSelected) {
+      const { data: cleanerTerms } = await admin
+        .from("legal_documents")
+        .select("version,content_html")
+        .eq("slug", "cleaner-terms")
+        .eq("published", true)
+        .maybeSingle();
+      if (!cleanerTerms?.content_html || cleanerTerms.version !== "1.0")
+        return NextResponse.json(
+          {
+            error:
+              "Cleaner Terms have not yet been supplied. Cleaner registration is unavailable until they are published.",
+            code: "cleaner_terms_missing",
+          },
+          { status: 503 },
+        );
+    }
+    if (
+      professionalAgreementAccepted !== true ||
+      !validProfessionalConsent(
+        professionalConsents,
+        cleaningSelected,
+        handymanSelected,
+      )
+    ) {
       return NextResponse.json(
         {
           error:
-            "Accept the Service Professional Partner Agreement and Privacy Policy to continue.",
+            "Read and accept every required professional policy to continue.",
         },
         { status: 400 },
       );
     }
     const safeguardingConfig = await safeguardingRegistration(admin);
+    if (!safeguardingConfig.enabled)
+      return NextResponse.json(
+        { error: "The final registration policies are being published. Please retry shortly." },
+        { status: 503 },
+      );
     if (
       safeguardingConfig.enabled &&
       (safeguardingAccepted !== true || typeof safeguardingVersion !== "string")
@@ -422,30 +465,23 @@ export async function POST(req: NextRequest) {
     const acceptance = await prepareAccountAcceptance(
       admin,
       [
-        "professional-partner-agreement",
         "privacy",
-        ...(safeguardingConfig.enabled ? ["safeguarding" as const] : []),
+        "dbs-data",
+        "safeguarding",
+        ...(cleaningSelected
+          ? ["cleaner-terms" as const, "cleaner-cancellation" as const]
+          : []),
+        ...(handymanSelected ? ["handyman-professional-terms" as const] : []),
       ],
       req.headers,
-      [
-        {
-          key: "professional_agreement",
-          text: PROFESSIONAL_SIGNUP_ACCEPTANCE,
-          checked: true,
-        },
-        ...(safeguardingConfig.enabled
-          ? [
-              {
-                key: "safeguarding",
-                text: safeguardingAcceptance(currentSafeguardingVersion!),
-                checked: true as const,
-              },
-            ]
-          : []),
-      ],
+      professionalConsentBoxes(cleaningSelected, handymanSelected).map(
+        (box) => ({ ...box, checked: true as const }),
+      ),
     );
     const professionalAgreementVersion = acceptance.documents.find(
-      (d) => d.slug === "professional-partner-agreement",
+      (d) =>
+        d.slug ===
+        (cleaningSelected ? "cleaner-terms" : "handyman-professional-terms"),
     )!.version;
     const privacyVersion = acceptance.documents.find(
       (d) => d.slug === "privacy",
@@ -634,6 +670,10 @@ export async function POST(req: NextRequest) {
       .upsert(
         {
           provider_id: prov.id,
+          emergency_contact_name: String(emergencyContactName)
+            .trim()
+            .slice(0, 160),
+          emergency_contact_phone: normalizeUkPhone(emergencyContactPhone),
           home_postcode: homePostcode || null,
           coverage_postcodes: handymanSelected ? coveragePostcodes : [],
           availability_configured: true,
@@ -648,6 +688,25 @@ export async function POST(req: NextRequest) {
         { error: "Could not save shared work settings." },
         { status: 503 },
       );
+    if (marketingAccepted === true) {
+      const consent = await admin.rpc("record_final_marketing_consent", {
+        p_user: userId,
+        p_source: "professional_registration",
+        p_reference: null,
+        p_ip:
+          process.env.VERCEL === "1"
+            ? (req.headers
+                .get("x-vercel-forwarded-for")
+                ?.split(",")[0]
+                ?.trim() ?? null)
+            : null,
+      });
+      if (consent.error)
+        return NextResponse.json(
+          { error: "Your marketing choice could not be saved." },
+          { status: 503 },
+        );
+    }
     // 5. Coverage areas.
     await admin.from("provider_service_areas").insert(
       (areaIds as string[]).map((id) => ({

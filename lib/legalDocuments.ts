@@ -1,4 +1,5 @@
 import sanitizeHtml from "sanitize-html";
+import { finalLegalDocument, isFinalLegalContent } from "./finalLegalPack";
 import { SAFEGUARDING_POLICY_HTML } from "@/lib/safeguardingPolicy";
 import { CUSTOMER_TERMS_HTML } from "@/lib/customerTerms";
 import {
@@ -14,6 +15,14 @@ export const LEGAL_DOCUMENT_SLUGS = [
   "handyman-terms",
   "professional-partner-agreement",
   "safeguarding",
+  "business-terms",
+  "cookies",
+  "complaints",
+  "partner-programme",
+  "cleaner-cancellation",
+  "handyman-professional-terms",
+  "dbs-data",
+  "cleaner-terms",
 ] as const;
 
 export type LegalDocumentSlug = (typeof LEGAL_DOCUMENT_SLUGS)[number];
@@ -26,9 +35,13 @@ export type LegalDocument = {
   version: string;
   updatedAt: string | null;
   isFallback?: boolean;
+  effectiveDate?: string;
+  pdfSha256?: string;
 };
 
-const DEFAULTS: Record<LegalDocumentSlug, Omit<LegalDocument, "slug">> = {
+const DEFAULTS: Partial<
+  Record<LegalDocumentSlug, Omit<LegalDocument, "slug">>
+> = {
   safeguarding: {
     title: "Safeguarding, Lone Working and Incident Reporting Policy",
     audience: "professionals",
@@ -98,12 +111,53 @@ export function isLegalDocumentSlug(value: string): value is LegalDocumentSlug {
 }
 
 export function defaultLegalDocument(slug: LegalDocumentSlug): LegalDocument {
-  return { slug, ...DEFAULTS[slug], isFallback: true };
+  const approved = finalLegalDocument(slug);
+  if (approved)
+    return {
+      ...approved,
+      slug,
+      audience: approved.audience as LegalDocument["audience"],
+      updatedAt: "2026-10-01T00:00:00.000Z",
+      isFallback: true,
+    };
+  if (slug === "cleaner-terms")
+    return {
+      slug,
+      title: "Cleaner Terms and Conditions",
+      audience: "professionals",
+      version: "Awaiting client document",
+      updatedAt: null,
+      contentHtml:
+        "<p>The Cleaner Terms and Conditions have not yet been supplied. You cannot accept this document until it is published.</p>",
+      isFallback: true,
+    };
+  const fallback = DEFAULTS[slug];
+  if (!fallback) throw new Error("Legal document unavailable");
+  return { slug, ...fallback, isFallback: true };
 }
 
 export function sanitizeLegalHtml(value: string) {
   return sanitizeHtml(value, {
-    allowedTags: ["p", "h2", "h3", "strong", "em", "ul", "ol", "li", "a", "br"],
+    allowedTags: [
+      "div",
+      "p",
+      "h1",
+      "h2",
+      "h3",
+      "strong",
+      "em",
+      "ul",
+      "ol",
+      "li",
+      "a",
+      "br",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
+    ],
     allowedAttributes: {
       a: ["href", "target", "rel"],
     },
@@ -123,6 +177,9 @@ export function sanitizeLegalHtml(value: string) {
 
 /** Keep policy snapshots and the public page's existing presentation identical. */
 export function publicLegalPresentation(title: string, contentHtml: string) {
+  // Approved legal wording is never subjected to marketing terminology changes.
+  if (isFinalLegalContent(contentHtml))
+    return { title, contentHtml: sanitizeLegalHtml(contentHtml) };
   return {
     title: title.replace(/Handyman/gi, "Property maintenance"),
     contentHtml: sanitizeLegalHtml(contentHtml).replace(/>[^<]+</g, (text) =>

@@ -65,6 +65,7 @@ const modules = [
 ];
 try {
   for (const script of [
+    "test-final-document-pack.mjs",
     "test-partner-programme-page.mjs",
     "test-partner-interest.mjs",
     "test-partners-public-shell.mjs",
@@ -148,8 +149,17 @@ try {
     ["--test", "scripts/test-account-security.mjs"],
     { stdio: "inherit" },
   );
-  for (const moduleName of modules) {
-    for (const suffix of ["", ".test"]) {
+  for (const moduleName of [
+    "finalCheckoutCopy",
+    "cleaningPolicyGuidance",
+    ...modules,
+  ]) {
+    for (const suffix of [
+      "finalCheckoutCopy",
+      "cleaningPolicyGuidance",
+    ].includes(moduleName)
+      ? [""]
+      : ["", ".test"]) {
       const name = moduleName + suffix;
       const source = await readFile(
         new URL("../lib/" + name + ".ts", import.meta.url),

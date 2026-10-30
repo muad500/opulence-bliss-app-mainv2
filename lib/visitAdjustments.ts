@@ -57,6 +57,7 @@ export function cancellationRefunds(
   charges: VisitCharge[],
   refundPercent: number,
   cleaningHoursOnly = false,
+  bookingTotal = false,
 ) {
   if (
     !Number.isInteger(refundPercent) ||
@@ -64,6 +65,50 @@ export function cancellationRefunds(
     refundPercent > 100
   )
     throw new Error("Invalid refund percentage.");
+  if (bookingTotal) {
+    const paid = charges.reduce(
+      (sum, charge) => sum + charge.amount_pence - charge.refunded_pence,
+      0,
+    );
+    const target = paid - Math.round((paid * (100 - refundPercent)) / 100);
+    let cumulative = 0,
+      allocated = 0;
+    return charges.flatMap((charge) => {
+      const refundedLines = { ...charge.refunded_lines };
+      let amountPence = 0,
+        remainingLines = 0;
+      for (const line of charge.line_items) {
+        const available = line.amountPence - (refundedLines[line.id] ?? 0);
+        if (available < 0 || line.id === "tip")
+          throw new Error("The booking payment needs reconciliation.");
+        remainingLines += available;
+        cumulative += available;
+        const next = paid
+          ? target === 0
+            ? 0
+            : Math.round((cumulative * target) / paid)
+          : 0;
+        const amount = next - allocated;
+        allocated = next;
+        refundedLines[line.id] = (refundedLines[line.id] ?? 0) + amount;
+        amountPence += amount;
+      }
+      if (remainingLines !== charge.amount_pence - charge.refunded_pence)
+        throw new Error(
+          "The payment needs line-item reconciliation before cancellation.",
+        );
+      return amountPence
+        ? [
+            {
+              chargeId: charge.id,
+              intentId: charge.stripe_payment_intent,
+              amountPence,
+              refundedLines,
+            },
+          ]
+        : [];
+    });
+  }
   if (cleaningHoursOnly) {
     // Round the cleaning refund once across all funding intents, not once per
     // line/charge (which can drift by pennies after add-on changes).
@@ -160,6 +205,7 @@ export function visitCancellationPolicy(
   contractAt?: string | null,
 ) {
   const hoursOnly = terms.cancellationBasis === "cleaning_hours";
+  const bookingTotal = terms.cancellationBasis === "booking_total";
   const paid = charges.reduce(
     (sum, charge) => sum + charge.amount_pence - charge.refunded_pence,
     0,
@@ -188,12 +234,14 @@ export function visitCancellationPolicy(
     now,
     terms.cancellationRefundPercent,
     hoursOnly,
+    bookingTotal,
   );
   const statutoryFree =
-    hoursOnly &&
+    (hoursOnly || bookingTotal) &&
     contractAt &&
     Number.isFinite(Date.parse(contractAt)) &&
     new Date(now).getTime() >= Date.parse(contractAt) &&
+    new Date(now).getTime() < Date.parse(scheduledAt) &&
     new Date(now).getTime() < cancellationPeriodEnd(contractAt).getTime();
   if (statutoryFree)
     policy = {
