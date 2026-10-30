@@ -6,7 +6,7 @@ import vm from "node:vm";
 import ts from "typescript";
 const native = createRequire(import.meta.url);
 function compile(file, require, globals = {}) {
-  const module = { exports: {} };
+  const loaded = { exports: {} };
   vm.runInNewContext(
     ts.transpileModule(readFileSync(file, "utf8"), {
       compilerOptions: {
@@ -15,9 +15,9 @@ function compile(file, require, globals = {}) {
         esModuleInterop: true,
       },
     }).outputText,
-    { module, exports: module.exports, require, ...globals },
+    { module: loaded, exports: loaded.exports, require, ...globals },
   );
-  return module.exports;
+  return loaded.exports;
 }
 const copy = compile("lib/cleaningPaymentCopy.ts", native);
 const policyGuidance = compile("lib/cleaningPolicyGuidance.ts", native);
