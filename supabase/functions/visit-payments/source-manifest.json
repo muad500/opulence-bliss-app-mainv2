@@ -1,10 +1,14 @@
 {
-  "sourceSha256": "18609e1e7a57321cceb4b64304458a86c9384474b5492fc0823bd5c32312cb1a",
+  "sourceSha256": "50076e5ffdb5fa90fa58360c9e3c99ddc1ee91bf909ef8ee2006eb4cb9526142",
   "generator": "scripts/build-visit-payment-worker.mjs",
   "generatorSha256": "5b0961440e7d2fe28516fa3f795d51b8b662fa074c630efda795952c10344db5",
   "stripeVersion": "22.3.2",
   "supabaseVersion": "2.110.0",
   "inputs": [
+    {
+      "path": "lib/accountSecurityAlerts.ts",
+      "sha256": "565a9419a2ae282e6ed5ee47a8c7aac2efe57eaf336b902c7d005e160dcf1429"
+    },
     {
       "path": "lib/adminHosts.ts",
       "sha256": "da4af8cfe5871679a2afca30e4606b9aecf0dc98f910446452083b553cbcaee5"
@@ -55,11 +59,15 @@
     },
     {
       "path": "lib/finalCheckoutCopy.ts",
-      "sha256": "f82d3e03216cc05da5a7feddcb390e3c59bcbc2ae083dca32280f379c31ce609"
+      "sha256": "13d52aa32698e700887cfe3303488649ecbdb2a3cc51ba30dc8d82861eed9c4e"
     },
     {
       "path": "lib/payoutDestination.ts",
       "sha256": "d2bd31d5fde36cd2325e5523c44f710a28236cc1aa8cfaa75968ddc8002e53f1"
+    },
+    {
+      "path": "lib/regularPaymentNotice.ts",
+      "sha256": "693301c07be7c0ab14d471024a0b45349bbd17ad221e9b67643c0203e88c11ec"
     },
     {
       "path": "lib/visitAdjustments.ts",
@@ -71,7 +79,7 @@
     },
     {
       "path": "lib/visitBillingServer.ts",
-      "sha256": "889dcdc8f59f50be56d7567aa36e9d7e3ddb454b7a1d9805f3466c5e81e3440a"
+      "sha256": "08222a827c7b9727a95d81a7f6515c1fff5291d7866878f48e532fc8104526fe"
     },
     {
       "path": "lib/visitLineItems.ts",
@@ -87,7 +95,7 @@
     },
     {
       "path": "supabase/functions/visit-payments/handler.ts",
-      "sha256": "af7e01cbcef43417565929e23f274689eb52e5eb05cad6a6fe2cc5a084d28650"
+      "sha256": "a4ad4ea6aeee224f11e4295b6ab8d174204ff0c4ab82a93a6d7496bcb84ba237"
     }
   ]
 }

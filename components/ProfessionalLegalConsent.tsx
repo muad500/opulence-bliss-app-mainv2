@@ -2,7 +2,10 @@
 import { professionalConsentBoxes } from "@/lib/professionalLegalCopy";
 
 const links = [
-  ["Cleaner Terms and Conditions", "/provider/join/policies/cleaner-terms"],
+  [
+    "Professional Partner Agreement",
+    "/provider/join/policies/professional-partner-agreement",
+  ],
   [
     "Cleaner Cancellation Policy",
     "/provider/join/policies/cleaner-cancellation",
@@ -46,12 +49,15 @@ export default function ProfessionalLegalConsent({
   return (
     <fieldset style={{ border: 0, padding: 0, margin: "24px 0" }}>
       <legend>Professional agreements</legend>
-      <p>Version 1.0 · Effective from: 1 October 2026</p>
+      <p>
+        New policy declarations: Version 1.0 · Effective from: 1 October 2026.
+        The current cleaner agreement keeps the version shown on its page.
+      </p>
       {cleaning && (
         <p role="status">
-          Cleaner Terms are awaiting the client document. Cleaner registration
-          cannot be completed until they are published. Existing approved
-          cleaners can continue working.
+          The current cleaner agreement applies to this application. When the
+          new Cleaner Terms are published, we will ask you to accept them when
+          you next sign in. The declarations below also apply.
         </p>
       )}
       {professionalConsentBoxes(cleaning, handyman).map((box) => (
@@ -68,7 +74,6 @@ export default function ProfessionalLegalConsent({
           <input
             type="checkbox"
             required
-            disabled={box.key === "cleaner_terms"}
             checked={value[box.key] === true}
             onChange={(event) =>
               onChange({ ...value, [box.key]: event.target.checked })

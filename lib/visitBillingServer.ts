@@ -19,6 +19,7 @@ import {
   assignedPaymentMustCancel,
   type ChargeEligibility,
 } from "./visitMatchingPolicy";
+import { ensureRegularPaymentNotice } from "./regularPaymentNotice";
 
 type MoneyResult = {
   type: "charge" | "refund" | "reversal";
@@ -66,7 +67,11 @@ function check(result: { error: { message: string } | null }) {
 const idOf = (value: string | { id: string } | null | undefined) =>
   typeof value === "string" ? value : value?.id;
 
-export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
+export function createVisitBilling(
+  admin: SupabaseClient,
+  stripe: Stripe,
+  noticeEnv: Record<string, string | undefined> = process.env,
+) {
   async function load(bookingId: string, customerId?: string) {
     const booking = must(
       await admin
@@ -393,6 +398,8 @@ export function createVisitBilling(admin: SupabaseClient, stripe: Stripe) {
   }
 
   async function run(operationId: string) {
+    if (!(await ensureRegularPaymentNotice(admin, operationId, noticeEnv)))
+      return { status: "processing", noticePending: true };
     const claim = await admin.rpc("claim_visit_money_operation", {
       p_operation: operationId,
     });

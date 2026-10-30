@@ -2165,7 +2165,11 @@ export default function BookPage() {
                 className="final-policy-summary"
               >
                 <p>{FINAL_CHECKOUT_COPY.vat}</p>
-                <p>{FINAL_CHECKOUT_COPY.payment}</p>
+                <p>
+                  {regular
+                    ? FINAL_CHECKOUT_COPY.regularPayment
+                    : FINAL_CHECKOUT_COPY.payment}
+                </p>
                 <p>{FINAL_CHECKOUT_COPY.cancellation}</p>
                 <p>{FINAL_CHECKOUT_COPY.right}</p>
                 <label className="early-start">

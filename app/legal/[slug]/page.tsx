@@ -35,7 +35,7 @@ export default async function LegalDocumentPage({
   if (approved?.audience === "professionals" || slug === "cleaner-terms")
     redirect(`/provider/join/policies/${slug}`);
   if (slug === "professional-partner-agreement")
-    redirect("/provider/join/policies/cleaner-terms");
+    redirect("/provider/join/policies/professional-partner-agreement");
   const client = await createClient();
   const fallback = defaultLegalDocument(slug);
   const { data: row } = await client

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getVisitStatus } from "@/lib/visitStatus";
 import RegularSeriesControl from "@/components/RegularSeriesControl";
+import AgreedCleaningTimeChange from "@/components/AgreedCleaningTimeChange";
 import BookingWorkspace, {
   type ClientBookingWorkspaceData,
 } from "../../BookingWorkspace";
@@ -291,6 +292,9 @@ export default async function VisitPage({
 
         {row.regular_series_id && (
           <RegularSeriesControl seriesId={row.regular_series_id} />
+        )}
+        {row.status === "scheduled" && row.provider_id && (
+          <AgreedCleaningTimeChange bookingId={row.id} />
         )}
         <BookingWorkspace
           booking={booking}

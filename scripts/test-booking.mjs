@@ -209,6 +209,11 @@ try {
   });
   execFileSync(
     process.execPath,
+    ["--test", "scripts/test-regular-payment-notice.mjs"],
+    { stdio: "inherit" },
+  );
+  execFileSync(
+    process.execPath,
     ["--test", "scripts/test-visit-matching-notices.mjs"],
     {
       stdio: "inherit",

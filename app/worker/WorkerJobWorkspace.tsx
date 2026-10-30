@@ -6,6 +6,7 @@ import {
 } from "@/lib/visitContactPolicy";
 import SessionCountdown from "@/components/SessionCountdown";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
+import AgreedCleaningTimeChange from "@/components/AgreedCleaningTimeChange";
 import { useEffect, useState } from "react";
 import {
   CalendarDays,
@@ -278,6 +279,9 @@ export default function WorkerJobWorkspace({
 
   return (
     <div className="worker-workspace">
+      {job.status === "scheduled" && (
+        <AgreedCleaningTimeChange bookingId={job.id} />
+      )}
       <section className="job-card">
         <header className="job-head">
           <div>

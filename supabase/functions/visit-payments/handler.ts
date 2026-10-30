@@ -43,7 +43,19 @@ export function createVisitPaymentHandler(
         timeout: 10_000,
         maxNetworkRetries: 1,
       }),
-    tick: (admin, stripe) => createVisitBilling(admin, stripe).tick(5),
+    tick: (admin, stripe) =>
+      createVisitBilling(admin, stripe, {
+        ...Object.fromEntries(
+          [
+            "RESEND_API_KEY",
+            "BOOKING_EMAIL_FROM",
+            "EMAIL_FROM",
+            "NEXT_PUBLIC_SITE_URL",
+            "STAGING_EMAIL_RECIPIENTS",
+          ].map((name) => [name, deps.env(name)]),
+        ),
+        NEXT_PUBLIC_SUPABASE_URL: deps.env("SUPABASE_URL"),
+      }).tick(5),
     notices: deliverVisitMatchingNotices,
     ...overrides,
   };

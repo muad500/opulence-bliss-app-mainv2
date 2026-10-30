@@ -736,6 +736,8 @@ var FINAL_CHECKOUT_COPY = {
   marketing: "Send me offers and news by email. I can unsubscribe at any time.",
   vat: "No VAT is charged.",
   payment: "Payment is taken when you book.",
+  regularPayment:
+    "Payment for each visit is taken when it is scheduled, and we will tell you before each payment is taken.",
   cancellation:
     "Free cancellation up to 48 hours before. 25% charge 24 to 48 hours before. 50% charge 12 to 24 hours before. Up to 70% charge less than 12 hours before or on the day.",
   right:
@@ -1022,6 +1024,102 @@ function assignedPaymentMustCancel(
   );
 }
 
+// lib/accountSecurityAlerts.ts
+function securityMailRecipientAllowed(email, env) {
+  if (
+    env.NEXT_PUBLIC_SUPABASE_URL?.includes("comwdjprdedmsnxtvuuk") ||
+    env.VERCEL_ENV === "preview"
+  ) {
+    return (env.STAGING_EMAIL_RECIPIENTS ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
+      .includes(email.toLowerCase());
+  }
+  return true;
+}
+
+// lib/regularPaymentNotice.ts
+async function ensureRegularPaymentNotice(
+  admin,
+  operationId,
+  env = process.env,
+  transport = fetch,
+) {
+  const claimed = await admin.rpc("claim_regular_payment_notice", {
+    p_operation: operationId,
+  });
+  if (claimed.error || !claimed.data)
+    throw new Error("Regular payment notice is unavailable.");
+  const notice = claimed.data;
+  if (!notice.required || notice.ready) return true;
+  if (!notice.id || !notice.token) return false;
+  const key = env.RESEND_API_KEY;
+  const sender = env.BOOKING_EMAIL_FROM ?? env.EMAIL_FROM;
+  const origin = env.NEXT_PUBLIC_SITE_URL;
+  let reference = null;
+  try {
+    if (
+      !key ||
+      !sender ||
+      !origin?.startsWith("https://") ||
+      !notice.recipient ||
+      !securityMailRecipientAllowed(notice.recipient, env) ||
+      !Number.isSafeInteger(notice.amountPence) ||
+      notice.amountPence <= 0 ||
+      !notice.scheduledAt ||
+      !Number.isFinite(Date.parse(notice.scheduledAt)) ||
+      !notice.firstAttemptAt ||
+      Date.now() - Date.parse(notice.firstAttemptAt) >= 23 * 36e5
+    )
+      return false;
+    const time = new Date(notice.scheduledAt).toLocaleString("en-GB", {
+      timeZone: "Europe/London",
+      dateStyle: "long",
+      timeStyle: "short",
+    });
+    const amount = `\xA3${(notice.amountPence / 100).toFixed(2)}`;
+    const response = await transport("https://api.resend.com/emails", {
+      method: "POST",
+      signal: AbortSignal.timeout(8e3),
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": `regular-payment-notice/${notice.id}`,
+      },
+      body: JSON.stringify({
+        from: sender,
+        to: [notice.recipient],
+        reply_to: "hello@opulencebliss.com",
+        subject: "Your upcoming regular cleaning payment",
+        text: `We will charge ${amount} for your regular cleaning visit on ${time} (London time), after sending this notice.
+
+View your visit: ${origin.replace(/\/$/, "")}/account
+
+If you need help, contact hello@opulencebliss.com. No VAT is charged.`,
+      }),
+    });
+    if (!response.ok) return false;
+    const body = await response.json();
+    if (
+      body &&
+      typeof body === "object" &&
+      "id" in body &&
+      typeof body.id === "string"
+    )
+      reference = body.id;
+  } catch {
+  } finally {
+    const finished = await admin.rpc("finish_regular_payment_notice", {
+      p_id: notice.id,
+      p_token: notice.token,
+      p_reference: reference,
+    });
+    if (finished.error || finished.data !== true) reference = null;
+  }
+  return reference !== null;
+}
+
 // lib/visitBillingServer.ts
 function must(result) {
   if (result.error) throw new Error(result.error.message);
@@ -1033,7 +1131,7 @@ function check(result) {
   if (result.error) throw new Error(result.error.message);
 }
 var idOf2 = (value) => (typeof value === "string" ? value : value?.id);
-function createVisitBilling(admin, stripe) {
+function createVisitBilling(admin, stripe, noticeEnv = process.env) {
   async function load(bookingId, customerId) {
     const booking = must(
       await admin
@@ -1325,6 +1423,8 @@ function createVisitBilling(admin, stripe) {
     return null;
   }
   async function run(operationId) {
+    if (!(await ensureRegularPaymentNotice(admin, operationId, noticeEnv)))
+      return { status: "processing", noticePending: true };
     const claim = await admin.rpc("claim_visit_money_operation", {
       p_operation: operationId,
     });
@@ -2050,7 +2150,19 @@ function createVisitPaymentHandler(overrides = {}) {
         timeout: 1e4,
         maxNetworkRetries: 1,
       }),
-    tick: (admin, stripe) => createVisitBilling(admin, stripe).tick(5),
+    tick: (admin, stripe) =>
+      createVisitBilling(admin, stripe, {
+        ...Object.fromEntries(
+          [
+            "RESEND_API_KEY",
+            "BOOKING_EMAIL_FROM",
+            "EMAIL_FROM",
+            "NEXT_PUBLIC_SITE_URL",
+            "STAGING_EMAIL_RECIPIENTS",
+          ].map((name) => [name, deps.env(name)]),
+        ),
+        NEXT_PUBLIC_SUPABASE_URL: deps.env("SUPABASE_URL"),
+      }).tick(5),
     notices: deliverVisitMatchingNotices,
     ...overrides,
   };
@@ -2120,7 +2232,7 @@ function createVisitPaymentHandler(overrides = {}) {
         ok: true,
         mode,
         source:
-          "18609e1e7a57321cceb4b64304458a86c9384474b5492fc0823bd5c32312cb1a",
+          "50076e5ffdb5fa90fa58360c9e3c99ddc1ee91bf909ef8ee2006eb4cb9526142",
         result,
         notices,
       });
