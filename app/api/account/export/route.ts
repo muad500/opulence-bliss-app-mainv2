@@ -210,6 +210,28 @@ export async function GET(request: NextRequest) {
       "customer_id",
       userId,
     );
+    const [
+      regularSeries,
+      customerExtraHours,
+      workerExtraHours,
+      customerTimeChanges,
+      workerTimeChanges,
+    ] = await Promise.all([
+      allFor(ctx.admin, "regular_booking_series", "customer_id", userId),
+      allFor(ctx.admin, "cleaning_extra_hours_offers", "customer_id", userId),
+      providerId
+        ? allFor(
+            ctx.admin,
+            "cleaning_extra_hours_offers",
+            "provider_id",
+            providerId,
+          )
+        : Promise.resolve([]),
+      allFor(ctx.admin, "cleaning_time_changes", "customer_id", userId),
+      providerId
+        ? allFor(ctx.admin, "cleaning_time_changes", "provider_id", providerId)
+        : Promise.resolve([]),
+    ]);
     const exportData = {
       visitBilling: await allFor(
         ctx.admin,
@@ -247,6 +269,9 @@ export async function GET(request: NextRequest) {
         deletionRequests,
       },
       client: {
+        regularSeries,
+        extraHours: customerExtraHours,
+        agreedTimeChanges: customerTimeChanges,
         addresses,
         favourites,
         bookings: clientBookings,
@@ -264,6 +289,8 @@ export async function GET(request: NextRequest) {
       incidents,
       professional: providerId
         ? {
+            extraHours: workerExtraHours,
+            agreedTimeChanges: workerTimeChanges,
             provider,
             onboarding,
             settings,
