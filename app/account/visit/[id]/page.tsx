@@ -51,7 +51,7 @@ export default async function VisitPage({
   const { data: row } = await supabase
     .from("bookings")
     .select(
-      "id, regular_series_id, scheduled_at, status, address, household_notes, package_id, provider_id, subscription_id, offer_expires_at, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers(display_name, public_rating_avg, public_rating_count, bio, photo_url, years_experience, services, vetting_status, dbs_verified), check_ins(arrived_at, left_at)",
+      "id, regular_series_id, scheduled_at, status, address, household_notes, package_id, provider_id, subscription_id, offer_expires_at, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers!bookings_provider_id_fkey(display_name, public_rating_avg, public_rating_count, bio, photo_url, years_experience, services, vetting_status, dbs_verified), check_ins(arrived_at, left_at)",
     )
     .eq("id", id)
     .maybeSingle();

@@ -25,8 +25,7 @@ export default function RatingGate() {
   const [job, setJob] = useState<Pending | null>(null);
   const [stars, setStars] = useState(0);
   const [comment, setComment] = useState("");
-  const [visibility, setVisibility] =
-    useState<ReviewVisibility>("public");
+  const [visibility, setVisibility] = useState<ReviewVisibility>("public");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [customTip, setCustomTip] = useState("");
@@ -46,13 +45,18 @@ export default function RatingGate() {
 
     if (me?.role === "admin") return;
 
-    const { data: provider } = await supabase.from("providers")
-      .select("id").eq("profile_id", user.id).maybeSingle();
+    const { data: provider } = await supabase
+      .from("providers")
+      .select("id")
+      .eq("profile_id", user.id)
+      .maybeSingle();
 
     // Completed jobs on my side
     const { data: done } = await supabase
       .from("bookings")
-      .select("id, customer_id, provider_id, packages(name), providers(display_name)")
+      .select(
+        "id, customer_id, provider_id, packages(name), providers!bookings_provider_id_fkey(display_name)",
+      )
       .eq("status", "completed")
       .order("scheduled_at", { ascending: false })
       .limit(20);
@@ -61,23 +65,29 @@ export default function RatingGate() {
 
     // Which have I already rated?
     const ids = done.map((b) => b.id);
-    const { data: mine } = await supabase
-      .rpc("my_review_submission_states");
+    const { data: mine } = await supabase.rpc("my_review_submission_states");
 
-    const rated = new Set((mine ?? [])
-      .filter((review) => ids.includes(review.booking_id))
-      .map((review) => `${review.booking_id}:${review.reviewer}`));
+    const rated = new Set(
+      (mine ?? [])
+        .filter((review) => ids.includes(review.booking_id))
+        .map((review) => `${review.booking_id}:${review.reviewer}`),
+    );
     const pending = done.flatMap((booking) => {
       const roles: Array<"client" | "provider"> = [];
       if (booking.customer_id === user.id) roles.push("client");
-      if (provider?.id && booking.provider_id === provider.id) roles.push("provider");
-      return roles.filter((reviewer) => !rated.has(`${booking.id}:${reviewer}`))
+      if (provider?.id && booking.provider_id === provider.id)
+        roles.push("provider");
+      return roles
+        .filter((reviewer) => !rated.has(`${booking.id}:${reviewer}`))
         .map((reviewer) => ({ booking, reviewer }));
     });
     const next = pending[0];
     if (!next) return;
 
-    const pkg = next.booking.packages as { name: string } | { name: string }[] | null;
+    const pkg = next.booking.packages as
+      | { name: string }
+      | { name: string }[]
+      | null;
     const prv = next.booking.providers as
       | { display_name: string | null }
       | { display_name: string | null }[]
@@ -235,10 +245,36 @@ export default function RatingGate() {
               Entirely optional — and it all goes to {job.other}. We take
               nothing.
             </p>
-            <form onSubmit={(event) => { event.preventDefault(); void tip(Number(customTip)); }} style={{ margin: "14px 0", display: "grid", gap: 8 }}>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                void tip(Number(customTip));
+              }}
+              style={{ margin: "14px 0", display: "grid", gap: 8 }}
+            >
               <label htmlFor="rating-tip">Your tip (£)</label>
-              <input id="rating-tip" type="number" inputMode="decimal" min="3.00" step="0.01" required value={customTip} onChange={(event) => setCustomTip(event.target.value)} placeholder="Enter any amount" disabled={busy} />
-              <button type="submit" disabled={busy || !Number.isFinite(Number(customTip)) || Number(customTip) < 3.00}>Continue with your tip</button>
+              <input
+                id="rating-tip"
+                type="number"
+                inputMode="decimal"
+                min="3.00"
+                step="0.01"
+                required
+                value={customTip}
+                onChange={(event) => setCustomTip(event.target.value)}
+                placeholder="Enter any amount"
+                disabled={busy}
+              />
+              <button
+                type="submit"
+                disabled={
+                  busy ||
+                  !Number.isFinite(Number(customTip)) ||
+                  Number(customTip) < 3.0
+                }
+              >
+                Continue with your tip
+              </button>
               <small>Tips start at £3 and go to your cleaner in full.</small>
             </form>
             <div className="tips">
@@ -289,18 +325,18 @@ export default function RatingGate() {
           letter-spacing: 0.14em;
           font-size: 11.5px;
           font-weight: 600;
-          color: #6D28D9;
+          color: #6d28d9;
           margin: 0 0 8px;
         }
         h2 {
           font-family: "Nunito", system-ui, sans-serif;
           font-weight: 900;
           font-size: 26px;
-          color: #16202A;
+          color: #16202a;
           margin: 0 0 8px;
         }
         .sub {
-          color: #7A828C;
+          color: #7a828c;
           font-size: 14.5px;
           margin: 0 0 20px;
           line-height: 1.5;
@@ -318,17 +354,19 @@ export default function RatingGate() {
           padding: 0 2px;
           cursor: pointer;
           color: #ddd5c7;
-          transition: transform 0.12s ease, color 0.12s ease;
+          transition:
+            transform 0.12s ease,
+            color 0.12s ease;
         }
         .star:hover {
           transform: scale(1.12);
         }
         .star.on {
-          color: #6D28D9;
+          color: #6d28d9;
         }
         .hint {
           font-size: 13px;
-          color: #7A828C;
+          color: #7a828c;
           margin: 8px 0 18px;
           min-height: 18px;
         }
@@ -336,22 +374,22 @@ export default function RatingGate() {
           width: 100%;
           box-sizing: border-box;
           padding: 12px 14px;
-          border: 1.5px solid #E5E7EA;
+          border: 1.5px solid #e5e7ea;
           border-radius: 12px;
           font: inherit;
           font-size: 14.5px;
           resize: vertical;
           margin-bottom: 16px;
-          color: #16202A;
+          color: #16202a;
         }
         textarea:focus-visible {
           outline: none;
-          border-color: #16202A;
+          border-color: #16202a;
         }
         .go {
           width: 100%;
-          background: #16202A;
-          color: #FFFFFF;
+          background: #16202a;
+          color: #ffffff;
           border: none;
           border-radius: 999px;
           padding: 14px;
@@ -371,32 +409,32 @@ export default function RatingGate() {
           margin-bottom: 16px;
         }
         .tips button {
-          background: #FFFFFF;
-          border: 1.5px solid #EDEFF1;
+          background: #ffffff;
+          border: 1.5px solid #edeff1;
           border-radius: 999px;
           padding: 12px 24px;
           font: inherit;
           font-size: 16px;
           font-weight: 600;
-          color: #16202A;
+          color: #16202a;
           cursor: pointer;
         }
         .tips button:hover {
-          border-color: #6D28D9;
+          border-color: #6d28d9;
           background: #fdf6f0;
         }
         .skip {
           background: none;
           border: none;
-          color: #7A828C;
+          color: #7a828c;
           font: inherit;
           font-size: 14px;
           text-decoration: underline;
           cursor: pointer;
         }
         .err {
-          background: #FFE6EA;
-          color: #B0384F;
+          background: #ffe6ea;
+          color: #b0384f;
           padding: 10px 12px;
           border-radius: 10px;
           font-size: 13.5px;

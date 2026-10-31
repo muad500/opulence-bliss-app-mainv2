@@ -635,7 +635,7 @@ export async function getVisitStatus(
       `id, status, scheduled_at, offer_expires_at, address, package_id,
        subscription_id, cleaning_extras,
        duration_minutes, property_size_sqm, packages(name, duration_minutes),
-       providers(display_name),
+       providers!bookings_provider_id_fkey(display_name),
        check_ins(arrived_at)`,
     )
     .eq("id", bookingId)

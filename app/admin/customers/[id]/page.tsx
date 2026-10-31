@@ -40,7 +40,7 @@ export default async function CustomerRecordPage({
     supabase
       .from("bookings")
       .select(
-        "id, status, scheduled_at, created_at, address, duration_minutes, packages(name, duration_minutes), providers(display_name)",
+        "id, status, scheduled_at, created_at, address, duration_minutes, packages(name, duration_minutes), providers!bookings_provider_id_fkey(display_name)",
       )
       .eq("customer_id", id)
       .order("scheduled_at", { ascending: false }),

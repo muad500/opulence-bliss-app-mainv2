@@ -847,7 +847,7 @@ async function runTool(
         const { data: upcoming } = await context.client
           .from("bookings")
           .select(
-            "id, scheduled_at, status, address, packages(name), providers(display_name)",
+            "id, scheduled_at, status, address, packages(name), providers!bookings_provider_id_fkey(display_name)",
           )
           .in("status", [
             "offered",
@@ -863,7 +863,7 @@ async function runTool(
           ? await context.client
               .from("bookings")
               .select(
-                "id, scheduled_at, status, address, packages(name), providers(display_name)",
+                "id, scheduled_at, status, address, packages(name), providers!bookings_provider_id_fkey(display_name)",
               )
               .in("status", ["completed", "cancelled"])
               .order("scheduled_at", { ascending: false })

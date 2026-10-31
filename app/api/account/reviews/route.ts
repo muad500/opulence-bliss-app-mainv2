@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
     ctx.admin
       .from("bookings")
       .select(
-        "id,customer_id,provider_id,packages(name),providers(display_name)",
+        "id,customer_id,provider_id,packages(name),providers!bookings_provider_id_fkey(display_name)",
       )
       .eq("customer_id", ctx.user.id)
       .limit(500),
@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
       ? ctx.admin
           .from("bookings")
           .select(
-            "id,customer_id,provider_id,packages(name),providers(display_name)",
+            "id,customer_id,provider_id,packages(name),providers!bookings_provider_id_fkey(display_name)",
           )
           .eq("provider_id", ctx.providerId)
           .limit(500)

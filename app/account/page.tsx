@@ -139,7 +139,7 @@ export default async function AccountPage() {
     supabase
       .from("bookings")
       .select(
-        "id, scheduled_at, status, address, package_id, subscription_id, household_notes, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers(display_name, photo_url, years_experience, vetting_status, dbs_verified, public_rating_avg, public_rating_count), check_ins(arrived_at, left_at)",
+        "id, scheduled_at, status, address, package_id, subscription_id, household_notes, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers!bookings_provider_id_fkey(display_name, photo_url, years_experience, vetting_status, dbs_verified, public_rating_avg, public_rating_count), check_ins(arrived_at, left_at)",
       )
       .order("scheduled_at", { ascending: false }),
     supabase

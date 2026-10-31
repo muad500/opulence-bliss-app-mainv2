@@ -34,7 +34,7 @@ export default async function AdminBookingsPage() {
   const { data, error } = await supabase
     .from("bookings")
     .select(
-      "id, regular_series_id, status, scheduled_at, created_at, customer_email, address, provider_delay_minutes, duration_minutes, packages(name, duration_minutes), providers(display_name)",
+      "id, regular_series_id, status, scheduled_at, created_at, customer_email, address, provider_delay_minutes, duration_minutes, packages(name, duration_minutes), providers!bookings_provider_id_fkey(display_name)",
     )
     .order("scheduled_at", { ascending: false })
     .limit(150);
