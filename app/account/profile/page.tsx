@@ -208,7 +208,9 @@ export default function ClientProfilePage() {
     if (!auth.user) return;
     const { data: bookingRows, error: bookingError } = await supabase
       .from("bookings")
-      .select("id, provider_id, scheduled_at, providers(display_name)")
+      .select(
+        "id, provider_id, scheduled_at, providers!bookings_provider_id_fkey(display_name)",
+      )
       .eq("customer_id", auth.user.id)
       .order("scheduled_at", { ascending: false });
     if (bookingError) throw bookingError;

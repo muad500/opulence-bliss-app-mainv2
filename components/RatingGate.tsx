@@ -52,7 +52,7 @@ export default function RatingGate() {
     // Completed jobs on my side
     const { data: done } = await supabase
       .from("bookings")
-      .select("id, customer_id, provider_id, packages(name), providers(display_name)")
+      .select("id, customer_id, provider_id, packages(name), providers!bookings_provider_id_fkey(display_name)")
       .eq("status", "completed")
       .order("scheduled_at", { ascending: false })
       .limit(20);
