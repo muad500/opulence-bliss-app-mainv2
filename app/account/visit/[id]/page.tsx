@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getVisitStatus } from "@/lib/visitStatus";
 import RegularSeriesControl from "@/components/RegularSeriesControl";
 import AgreedCleaningTimeChange from "@/components/AgreedCleaningTimeChange";
+import CleaningExtraHours from "@/components/CleaningExtraHours";
 import BookingWorkspace, {
   type ClientBookingWorkspaceData,
 } from "../../BookingWorkspace";
@@ -296,6 +297,8 @@ export default async function VisitPage({
         {row.status === "scheduled" && row.provider_id && (
           <AgreedCleaningTimeChange bookingId={row.id} />
         )}
+        {["scheduled", "in_progress"].includes(row.status) &&
+          row.provider_id && <CleaningExtraHours bookingId={row.id} />}
         <BookingWorkspace
           booking={booking}
           visitStatus={status}

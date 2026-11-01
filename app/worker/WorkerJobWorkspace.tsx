@@ -7,6 +7,7 @@ import {
 import SessionCountdown from "@/components/SessionCountdown";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
 import AgreedCleaningTimeChange from "@/components/AgreedCleaningTimeChange";
+import CleaningExtraHours from "@/components/CleaningExtraHours";
 import { useEffect, useState } from "react";
 import {
   CalendarDays,
@@ -205,7 +206,9 @@ export default function WorkerJobWorkspace({
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("chat") === "1") setChatOpen(true);
+    if (params.get("chat") !== "1") return;
+    const timer = window.setTimeout(() => setChatOpen(true), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -281,6 +284,9 @@ export default function WorkerJobWorkspace({
     <div className="worker-workspace">
       {job.status === "scheduled" && (
         <AgreedCleaningTimeChange bookingId={job.id} />
+      )}
+      {["scheduled", "in_progress"].includes(job.status) && (
+        <CleaningExtraHours bookingId={job.id} />
       )}
       <section className="job-card">
         <header className="job-head">
