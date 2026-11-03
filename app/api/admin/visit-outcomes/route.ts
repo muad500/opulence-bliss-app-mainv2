@@ -18,10 +18,29 @@ export async function GET(req: NextRequest) {
     .select("*")
     .eq("booking_id", id)
     .maybeSingle();
+  const terms = await ctx.admin
+    .from("booking_cleaning_billing_terms")
+    .select("terms")
+    .eq("booking_id", id)
+    .maybeSingle();
   if (bill.error || !bill.data || outcome.error)
     return NextResponse.json({ error: "Visit unavailable." }, { status: 404 });
+  if (terms.error)
+    return NextResponse.json(
+      { error: "Agreed payment terms could not be checked." },
+      { status: 503 },
+    );
+  const supported = Number.isSafeInteger(
+    terms.data?.terms?.productsCleanerPayPence,
+  );
   return NextResponse.json(
-    { bill: bill.data, outcome: outcome.data },
+    {
+      bill: bill.data,
+      outcome: outcome.data,
+      supported,
+      fullPriceAllowed:
+        supported && terms.data?.terms?.cancellationBasis === "booking_total",
+    },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

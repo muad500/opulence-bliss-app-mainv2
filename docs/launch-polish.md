@@ -68,7 +68,7 @@ receive the existing Professional Partner Agreement they actually accepted.
 
 ## Current test record
 
-- Application suite: 562 passed (including 9 new launch-polish tests).
+- Application suite: 564 passed (including 11 new launch-polish tests).
 - Isolated database: 46 checks passed on in-memory PostgreSQL 17.5/PGlite, using the
   existing safety fixture and real release/transition/cancellation functions.
   No remote database, real identity, payment or compliance record is created.
@@ -103,8 +103,19 @@ receive the existing Professional Partner Agreement they actually accepted.
   blank full reply, and accepted the staff's labelled test response. Both exact
   acknowledgement and reply emails arrived in `syedmouad@gmail.com` Inbox, from
   `Opulence Bliss Staging`, at 14:07 and 14:11 UTC. No real complaint or allegation.
-- Browser reset subsequently cleared the staff session; a fresh staging admin
-  login/authenticator handoff is open for the remaining welfare/staff screens.
+- After the browser reset, the owner signed in again and staff access was
+  verified. Welfare guidance loaded correctly with no existing alerts; no phone
+  calls, police requests or welfare facts were invented to populate its audit.
+  The staff decision form displayed the total/No VAT, time-worked/full-price
+  modes and disabled submission without a reason. No financial action was
+  submitted. The clearly labelled fictional complaint was then resolved through
+  the staff UI, after both messages showed Sent, and verified in the database.
+- Browser checks exposed a usability issue for old visits: the server correctly
+  refuses unsupported payout terms, but the page still offered the new decision
+  form. The API/UI now flag those visits for manual review instead. Full-price
+  modes are also disabled unless that booking has the final booking-total terms.
+  New route tests cover legacy/final terms, failed terms lookup and signed-out
+  access. The independent server-side migration guards remain unchanged.
 - Full Stripe outcome/refund/payout end-to-end test is **BLOCKED**, not passed:
   the existing synthetic `SANDBOX payout audit` professional lacks verified proof
   of address. The unchanged assignment guard rejected the fixture booking. No
@@ -128,7 +139,7 @@ receive the existing Professional Partner Agreement they actually accepted.
   booking ownership, and work evidence checks the assigned cleaner. Anonymous
   execution is revoked. Unrelated existing advisor findings were not silently
   changed as part of launch polish.
-- Still pending: remaining signed-in staff/welfare UI, actual cleaner checklist
+- Still pending: welfare actions on a genuine active alert, actual cleaner checklist
   and photo upload, welcome-email registration, payment receipt delivery for the
   supported flows, and full Sandbox staff-outcome/refund/payout/retry tests. A
   legitimately verified staging professional is needed for the latter; do not
