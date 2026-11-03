@@ -78,7 +78,7 @@ receive the existing Professional Partner Agreement they actually accepted.
   `50076e5ffdb5fa90fa58360c9e3c99ddc1ee91bf909ef8ee2006eb4cb9526142`.
 - Production-only dependency audit: zero vulnerabilities; existing development
   dependency advisories have not been silently upgraded in this feature task.
-- Five staging migrations are installed with exact-source ledger matches. The
+- The initial five staging migrations were installed with exact-source ledger matches. The
   independent operations scheduler was installed paused before deployment, then
   activated after Preview was Ready. It returned HTTP 200 at 12:54:43 and 12:55:00
   UTC, with email configuration ready and no queued mail or failures. This is not
@@ -116,7 +116,7 @@ receive the existing Professional Partner Agreement they actually accepted.
   modes are also disabled unless that booking has the final booking-total terms.
   New route tests cover legacy/final terms, failed terms lookup and signed-out
   access. The independent server-side migration guards remain unchanged.
-- Full Stripe outcome/refund/payout end-to-end test is **BLOCKED**, not passed:
+- The initial Stripe outcome/refund/payout end-to-end attempt was **BLOCKED**, not passed:
   the existing synthetic `SANDBOX payout audit` professional lacks verified proof
   of address. The unchanged assignment guard rejected the fixture booking. No
   approval, compliance record, suspension setting or guard was changed to bypass
@@ -139,12 +139,40 @@ receive the existing Professional Partner Agreement they actually accepted.
   booking ownership, and work evidence checks the assigned cleaner. Anonymous
   execution is revoked. Unrelated existing advisor findings were not silently
   changed as part of launch polish.
-- Still pending: welfare actions on a genuine active alert, actual cleaner checklist
-  and photo upload, welcome-email registration, payment receipt delivery for the
-  supported flows, and full Sandbox staff-outcome/refund/payout/retry tests. A
-  legitimately verified staging professional is needed for the latter; do not
-  create fake compliance records. Production accounts are unchanged; PR remains
-  draft and this is not a production approval request.
+- Subsequent owner authorisation allows explicitly fictional compliance documents
+  and a TEST professional on staging only, approved through the normal flow with
+  independent sign-off. It does not authorise fake production approvals.
+- The normal signup and authenticated document-upload routes created
+  `b47c634a-2eb0-4f9e-af3a-4a7ad197b80e` (**TEST Cleaner - staging launch polish**)
+  and uploaded five PDFs marked **TEST DOCUMENT - NOT REAL**. Its only linked
+  service area is **TEST ONLY launch-polish ZZ99**. It remains pending; no guard
+  was bypassed. The registration welcome arrived in the owner's plus-alias Inbox
+  at 15:50:04 UTC, with the exact next steps and all five accepted-version PDFs:
+  cancellation 1.0, DBS-data 1.0, privacy 1.0, safeguarding 1.0 and the existing
+  Professional Partner Agreement 2026-09-20. Missing Cleaner Terms were not
+  invented or mislabelled.
+- Temporary **TEST Second Reviewer** was created at the expressly authorised
+  staging address, and enrolled/challenged/verified through real Supabase TOTP
+  APIs. Authenticated live RPC tests rejected both password-only review and
+  approval with unchecked DBS. It was then disabled: sign-in banned, staff role
+  removed, authenticator deleted, and its test credentials removed from the
+  encrypted fixture state. No production account or permission changed.
+- The temporary `launch-polish-fixtures` endpoint was deleted after these tests;
+  remote inventory again contains only unchanged `visit-payments` v19. Like the
+  earlier helper, its source was outside Git: **zero helper commits**. The small
+  staging fixture state is encrypted using a staging-held key, RLS-protected,
+  and inaccessible to anonymous/authenticated clients; remove it when the
+  remaining tests finish.
+- All seven staging migration sources match their ledger entries. The 22 new
+  isolated approval checks, 46 prior database checks and 564 application tests
+  pass; typecheck passes and the worker fingerprint is unchanged. At 15:55 UTC
+  billing still returned HTTP 200 and both readiness functions were true.
+- Still pending: actual two-person activation, cleaner checklist/photo upload,
+  receipt delivery and full Sandbox outcome/refund/payout/retry tests; plus
+  welfare actions on a genuine active alert. A native confirmation on the first
+  fictional right-to-work review currently blocks browser control; the owner was
+  asked to click OK. No real GOV.UK check or compliant identity is being claimed.
+  Production accounts are unchanged; PR remains draft, not release-ready.
   Do not describe local/mocked tests as Stripe or live browser tests.
 
 ## Tool incident and recovery
