@@ -176,15 +176,15 @@ receive the existing Professional Partner Agreement they actually accepted.
   Production accounts are unchanged; PR remains draft, not release-ready.
   Do not describe local/mocked tests as Stripe or live browser tests.
 
-## Completion record — 3 November, 19:34 UTC
+## Payment-test completion and final browser gate — 3 November
 
-- Feature source `eec6a2f` is deployed to Ready Preview `8erubpde4`, functions in
+- Feature source `ff6ac02` is deployed to Ready Preview `a0n2xji5p`, functions in
   `fra1`. The branch remains based on the latest `codex/staging` (`a36acd3`); no
   staging commits are missing. All GitHub checks are green, the complete local
-  application suite reports **565 passed, zero failed**, typecheck and changed
+  application suite reports **567 passed, zero failed**, typecheck and changed
   file lint pass. The isolated database suites pass 46 launch checks plus 22
   independent-sign-off checks. Next.js remains 16.4.2.
-- The owner recorded the first review through the real staff UI at 19:05:33;
+- The owner's MFA staff session recorded the first review through the real staff UI at 19:05:33;
   the application stayed pending. A different real-TOTP-authenticated temporary
   reviewer completed the normal second-sign-off RPC at 19:05:47. The cleaner was
   activated only then. The reviewer was immediately disabled: banned sign-in,
@@ -199,6 +199,15 @@ receive the existing Professional Partner Agreement they actually accepted.
   supplied images say TEST PHOTO, contain no people/property, and use no real
   addresses. This does **not** claim that the complete real-phone OTP/geolocation
   check-in experience was retested; those guards remain unchanged.
+- Final signed-in checks exposed separate staff/public host routing on photo
+  links. `ff6ac02` gives admin photos their own `/api/admin/work-evidence/...`
+  route, enforces the existing authenticator staff gate, then reuses the same
+  RLS-protected private photo reader. Customer links keep their original account
+  route. Two regression tests pass; both deployed photo routes return 401 signed
+  out. The updated resolution desk also loaded successfully in the real staff
+  session. **Remaining gate:** the owner must sign in to the new immutable staff
+  Preview so the corrected photo can be opened in the browser. No credentials
+  or MFA checks will be bypassed. PR stays draft until this final check passes.
 - Actual Sandbox outcomes, original charges and own-account transfers:
 
   | Test                                                  | Customer result                                                                | Cleaner payout                              |
