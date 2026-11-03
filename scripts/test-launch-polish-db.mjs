@@ -413,6 +413,40 @@ try {
     "completed",
     "completed checklist permits ordinary checkout",
   );
+  // Exercise real RLS as a non-owner role, not just a superuser with JWT claims.
+  await sql(
+    "grant select on public.bookings to authenticated; set role authenticated;",
+  );
+  await sql(
+    `select set_config('request.jwt.claims','{"role":"authenticated","sub":"00000000-0000-4000-8000-000000000098"}',false);`,
+  );
+  await equal(
+    `select count(*)::integer from cleaning_job_evidence where booking_id='${work}'`,
+    0,
+    "RLS hides work records from an unrelated signed-in customer",
+  );
+  await sql(customer);
+  await equal(
+    `select count(*)::integer from cleaning_job_evidence where booking_id='${work}'`,
+    1,
+    "RLS allows the actual customer to read their visit evidence",
+  );
+  await sql(
+    `select set_config('request.jwt.claims','{"role":"authenticated","sub":"00000000-0000-4000-8000-000000000003","aal":"aal1"}',false);`,
+  );
+  await equal(
+    `select count(*)::integer from cleaning_job_evidence where booking_id='${work}'`,
+    0,
+    "password-only staff cannot read private work evidence",
+  );
+  await sql(admin);
+  await equal(
+    `select count(*)::integer from cleaning_job_evidence where booking_id='${work}'`,
+    1,
+    "authenticator-verified staff can read work evidence",
+  );
+  await sql("reset role;");
+  await sql(service);
   await sql(
     `insert into booking_checkin_safety_alerts(booking_id,scheduled_at,provider_id) select id,scheduled_at,provider_id from bookings where id='${book}';`,
   );

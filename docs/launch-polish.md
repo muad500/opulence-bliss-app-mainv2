@@ -69,7 +69,7 @@ receive the existing Professional Partner Agreement they actually accepted.
 ## Current test record
 
 - Application suite: 562 passed (including 9 new launch-polish tests).
-- Isolated database: 39 checks passed on in-memory PostgreSQL 17.5/PGlite, using the
+- Isolated database: 43 checks passed on in-memory PostgreSQL 17.5/PGlite, using the
   existing safety fixture and real release/transition/cancellation functions.
   No remote database, real identity, payment or compliance record is created.
 - Typecheck: passed. Changed-file lint: no errors; two existing unused-variable
@@ -79,8 +79,28 @@ receive the existing Professional Partner Agreement they actually accepted.
 - Production-only dependency audit: zero vulnerabilities; existing development
   dependency advisories have not been silently upgraded in this feature task.
 - Five staging migrations are installed with exact-source ledger matches. The
-  independent operations scheduler is installed paused, before deployment.
-  Browser and Sandbox checks and scheduled HTTP delivery are **pending**.
+  independent operations scheduler was installed paused before deployment, then
+  activated after Preview was Ready. It returned HTTP 200 at 12:54:43 and 12:55:00
+  UTC, with email configuration ready and no queued mail or failures. This is not
+  yet a delivery/inbox test.
+- Preview `6upsg9js6` is Ready at `f9a5528`, with functions in `fra1`. Stable link:
+  https://opulence-bliss-app-mainv2-git-codex-la-205105-muad500s-projects.vercel.app
+  Branch-only Preview overrides point to this Preview, use the existing staging
+  scheduler secret, restrict email to `syedmouad@gmail.com`, enable per-visit
+  checkout and keep the handyman marketplace OFF. No Production env was changed.
+- Homepage, booking and customer login returned 200; unauthenticated operations,
+  work-evidence and staff-outcome APIs returned 401; disabled marketplace returned
+  404. Both checkout and legal-evidence readiness are true. The unchanged billing
+  worker returned HTTP 200 with its exact fingerprint at 12:50 and 12:55 UTC and
+  its heartbeat advanced. New-booking checklist enforcement was enabled only
+  after the new UI was Ready; old-booking snapshots remain exempt.
+- All five package sheets were opened and their matching headings and full job
+  breakdowns verified in the actual mobile-width staging browser. Close the sheet
+  before testing another card; clicking through a modal is not a valid test.
+- Actual signed-in staff/workflow and Stripe Sandbox refund checks are still
+  **pending**, not passed. A staging admin login/authenticator handoff is open.
+  Production and the real/test production accounts are unchanged; this PR is
+  draft and is not a release approval request.
   Do not describe local/mocked tests as Stripe or live browser tests.
 
 ## Tool incident and recovery
