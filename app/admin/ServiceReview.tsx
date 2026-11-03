@@ -129,9 +129,13 @@ function ServiceDecision({
         </p>
       )}
       {status === "pending" && review && (
-        <p role="status" style={{ fontSize: 13 }}>
-          {review.message}
-        </p>
+        <div style={{ fontSize: 13 }}>
+          <p role="status">{review.message}</p>
+          <p>
+            The final reviewer must not have onboarded this professional or
+            checked their documents.
+          </p>
+        </div>
       )}
       {(status === "pending" || status === "approved") && (
         <label
