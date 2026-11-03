@@ -42,6 +42,69 @@ function load(file) {
 const scope = load("lib/cleaningScope.ts");
 const copy = load("lib/launchOperationsCopy.ts");
 const mail = load("lib/launchOperationsMail.ts");
+test("staff work-photo endpoint requires the staff MFA gate before the private reader", async () => {
+  for (const status of [401, 403, 200]) {
+    let reads = 0;
+    const compiledModule = { exports: {} };
+    const output = ts.transpileModule(
+      readFileSync(
+        "app/api/admin/work-evidence/[id]/photos/[photo]/route.ts",
+        "utf8",
+      ),
+      {
+        compilerOptions: {
+          module: ts.ModuleKind.CommonJS,
+          target: ts.ScriptTarget.ES2022,
+        },
+      },
+    ).outputText;
+    vm.runInNewContext(output, {
+      module: compiledModule,
+      exports: compiledModule.exports,
+      require(id) {
+        if (id === "next/server") return { NextResponse: Response };
+        if (id === "@/lib/adminApi")
+          return {
+            adminApi: async () =>
+              status === 200
+                ? { user: { id: "mfa-staff" } }
+                : Response.json(
+                    { error: "Staff authenticator required" },
+                    { status },
+                  ),
+          };
+        if (id === "@/app/api/account/work-evidence/[id]/photos/[photo]/route")
+          return {
+            GET: async () => {
+              reads++;
+              return new Response("private jpeg", {
+                headers: { "Content-Type": "image/jpeg" },
+              });
+            },
+          };
+        throw Error(`Unexpected module ${id}`);
+      },
+    });
+    const response = await compiledModule.exports.GET(
+      {},
+      { params: Promise.resolve({ id: "booking", photo: "photo" }) },
+    );
+    assert.equal(response.status, status);
+    assert.equal(reads, status === 200 ? 1 : 0);
+    if (status === 200)
+      assert.equal(response.headers.get("Content-Type"), "image/jpeg");
+  }
+});
+test("admin work photos stay on the staff host and customer photos keep their account path", () => {
+  assert.match(
+    readFileSync("components/CleaningJobEvidenceSummary.tsx", "utf8"),
+    /staff \? "\/api\/admin\/work-evidence" : "\/api\/account\/work-evidence"/,
+  );
+  assert.match(
+    readFileSync("app/admin/bookings/[id]/evidence/page.tsx", "utf8"),
+    /<CleaningJobEvidenceSummary bookingId=\{id\} staff/,
+  );
+});
 test("closing a review case keeps unresolved payout controls visible", () => {
   const source = readFileSync("app/admin/review/page.tsx", "utf8");
   assert.ok(
