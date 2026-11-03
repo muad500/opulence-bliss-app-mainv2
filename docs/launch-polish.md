@@ -69,7 +69,7 @@ receive the existing Professional Partner Agreement they actually accepted.
 ## Current test record
 
 - Application suite: 562 passed (including 9 new launch-polish tests).
-- Isolated database: 43 checks passed on in-memory PostgreSQL 17.5/PGlite, using the
+- Isolated database: 46 checks passed on in-memory PostgreSQL 17.5/PGlite, using the
   existing safety fixture and real release/transition/cancellation functions.
   No remote database, real identity, payment or compliance record is created.
 - Typecheck: passed. Changed-file lint: no errors; two existing unused-variable
@@ -97,10 +97,43 @@ receive the existing Professional Partner Agreement they actually accepted.
 - All five package sheets were opened and their matching headings and full job
   breakdowns verified in the actual mobile-width staging browser. Close the sheet
   before testing another card; clicking through a modal is not a valid test.
-- Actual signed-in staff/workflow and Stripe Sandbox refund checks are still
-  **pending**, not passed. A staging admin login/authenticator handoff is open.
-  Production and the real/test production accounts are unchanged; this PR is
-  draft and is not a release approval request.
+- Signed-in staff complaint UI passed: saved the explicitly fictional complaint
+  `fb087042-4063-4a84-a2f4-f2ab10c19bf0`, generated its unique reference, showed
+  acknowledgement due 6 November at 17:00 and reply due 17 November, rejected a
+  blank full reply, and accepted the staff's labelled test response. Both exact
+  acknowledgement and reply emails arrived in `syedmouad@gmail.com` Inbox, from
+  `Opulence Bliss Staging`, at 14:07 and 14:11 UTC. No real complaint or allegation.
+- Browser reset subsequently cleared the staff session; a fresh staging admin
+  login/authenticator handoff is open for the remaining welfare/staff screens.
+- Full Stripe outcome/refund/payout end-to-end test is **BLOCKED**, not passed:
+  the existing synthetic `SANDBOX payout audit` professional lacks verified proof
+  of address. The unchanged assignment guard rejected the fixture booking. No
+  approval, compliance record, suspension setting or guard was changed to bypass
+  this. The test created no booking, terms acceptance or work record.
+- The one isolated Sandbox charge `pi_3UXijG2NzINBHbzj00kfwdkm` (£70.98, test card)
+  was refunded in full: `re_3UXijG2NzINBHbzj0oA06yYK`, succeeded. This cleanup refund
+  is NOT evidence that the application's partial-visit refund flow passed.
+- Temporary `launch-polish-sandbox` ran only in `comwdjprdedmsnxtvuuk`, with gateway
+  JWT verification, the existing scheduler-secret header, a fixed fictional run
+  identifier, a hard expiry and exact sandbox account/key checks. Its source and
+  generated bundle were entirely outside the repository in a temporary directory:
+  **there are no helper commits to exclude**. After refund, the endpoint was
+  deleted and the remote function inventory verified to contain only the unchanged
+  `visit-payments` v19. The existing billing worker was never redeployed.
+- At 14:35 UTC, billing still returned HTTP 200 with the exact worker fingerprint,
+  the heartbeat advanced, and both readiness checks were true. Operations cron
+  continued HTTP 200. Production remained `1298526` / deployment `2giblz3io`.
+- Staging security advisors were reviewed. New scoped authenticated RPC warnings
+  are intentional: staff functions enforce MFA/admin, customer replacement checks
+  booking ownership, and work evidence checks the assigned cleaner. Anonymous
+  execution is revoked. Unrelated existing advisor findings were not silently
+  changed as part of launch polish.
+- Still pending: remaining signed-in staff/welfare UI, actual cleaner checklist
+  and photo upload, welcome-email registration, payment receipt delivery for the
+  supported flows, and full Sandbox staff-outcome/refund/payout/retry tests. A
+  legitimately verified staging professional is needed for the latter; do not
+  create fake compliance records. Production accounts are unchanged; PR remains
+  draft and this is not a production approval request.
   Do not describe local/mocked tests as Stripe or live browser tests.
 
 ## Tool incident and recovery

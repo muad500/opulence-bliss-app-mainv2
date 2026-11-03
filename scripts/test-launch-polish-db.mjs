@@ -153,6 +153,25 @@ try {
     "staff reply is queued with a stable idempotency identity",
   );
   await sql(service);
+  await sql(
+    `update account_incidents set acknowledgement_due_at=now()-interval '1 minute' where id='${incident}'; select queue_launch_operations_reminders();`,
+  );
+  await equal(
+    `select count(*)::integer from notifications where title='Complaint response due' and href='/admin/incidents?complaint=${incident}'`,
+    2,
+    "due complaints notify both staff accounts without inventing a reply",
+  );
+  await sql("select queue_launch_operations_reminders();");
+  await equal(
+    `select count(*)::integer from notifications where title='Complaint response due' and href='/admin/incidents?complaint=${incident}'`,
+    2,
+    "recurring staff reminders do not duplicate the same day's alert",
+  );
+  await equal(
+    "select count(*)::integer from booking_welfare_steps",
+    0,
+    "scheduler never invents a human welfare phone call",
+  );
   const book = (
     await value(
       "select launch_cleaning_fixture('One-Time Essential Clean',now()-interval '1 hour') as id",
