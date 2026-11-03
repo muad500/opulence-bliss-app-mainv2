@@ -21,7 +21,7 @@ export async function GET(
   if (
     !booking ||
     (booking.customer_id !== ctx.user.id &&
-      booking.provider_id !== ctx.providerId)
+      !(ctx.providerId && booking.provider_id === ctx.providerId))
   )
     return NextResponse.json({ error: "Visit not found." }, { status: 404 });
   const { data, error } = await ctx.admin

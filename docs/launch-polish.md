@@ -68,7 +68,7 @@ receive the existing Professional Partner Agreement they actually accepted.
 
 ## Current test record
 
-- Application suite: 561 passed (including 8 new launch-polish tests).
+- Application suite: 562 passed (including 9 new launch-polish tests).
 - Isolated database: 39 checks passed on in-memory PostgreSQL 17.5/PGlite, using the
   existing safety fixture and real release/transition/cancellation functions.
   No remote database, real identity, payment or compliance record is created.
