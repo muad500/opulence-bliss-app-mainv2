@@ -176,7 +176,7 @@ receive the existing Professional Partner Agreement they actually accepted.
   Production accounts are unchanged; PR remains draft, not release-ready.
   Do not describe local/mocked tests as Stripe or live browser tests.
 
-## Payment-test completion and final browser gate — 3 November
+## Completed staging tests — 3 November
 
 - Feature source `ff6ac02` is deployed to Ready Preview `a0n2xji5p`, functions in
   `fra1`. The branch remains based on the latest `codex/staging` (`a36acd3`); no
@@ -205,9 +205,13 @@ receive the existing Professional Partner Agreement they actually accepted.
   RLS-protected private photo reader. Customer links keep their original account
   route. Two regression tests pass; both deployed photo routes return 401 signed
   out. The updated resolution desk also loaded successfully in the real staff
-  session. **Remaining gate:** the owner must sign in to the new immutable staff
-  Preview so the corrected photo can be opened in the browser. No credentials
-  or MFA checks will be bypassed. PR stays draft until this final check passes.
+  session. At 20:38 UTC the owner had completed authenticator sign-in on Preview
+  `a0n2xji5p`. The completed checklist loaded, both photo links stayed on the staff
+  host, and the finished-work link displayed the actual private 900×600 synthetic
+  JPEG labelled **TEST PHOTO - NOT REAL**. It did not redirect to the customer
+  website or ask for another login. This completes the final browser gate; no
+  credentials or MFA checks were bypassed. PR #59 is ready for review. Production
+  still requires the owner's explicit go.
 - Actual Sandbox outcomes, original charges and own-account transfers:
 
   | Test                                                  | Customer result                                                                | Cleaner payout                              |
