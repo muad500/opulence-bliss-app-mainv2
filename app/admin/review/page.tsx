@@ -76,7 +76,11 @@ export default async function ReviewDeskPage() {
   const { data: cases, error: casesError } = await supabase
     .from("admin_review_queue")
     .select("*")
-    .or("status.neq.resolved,refund_remaining.gt.0")
+    // A closed case still needs staff controls until its held/pending/failed
+    // payout is settled. Otherwise closing it hides the only safe retry path.
+    .or(
+      "status.neq.resolved,refund_remaining.gt.0,payout_status.in.(held,pending,failed)",
+    )
     .order("priority", { ascending: true })
     .order("opened_at", { ascending: true })
     .limit(100);
