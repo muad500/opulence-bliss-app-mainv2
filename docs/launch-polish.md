@@ -180,3 +180,23 @@ site was changed. Do not use that CLI command again.
    task lists include them; Deep/End of Tenancy also say quoted per property while
    booking is hourly. The requested detailed task lists are preserved verbatim,
    not silently rewritten to resolve these conflicts.
+
+## Independent activation brought forward (staging only)
+
+At the user's request, this PR now adds a first review and an independent
+second sign-off before activating a pending cleaning/property-maintenance
+application. Both staff sessions must satisfy the existing authenticator MFA
+checks. The final reviewer cannot be the professional, first reviewer or a
+checker of that applicant's documents. Changed evidence invalidates the first
+review. Direct table activation and the old RPC entry point cannot bypass the
+gate. Existing approved accounts are not retrospectively deactivated.
+
+Migration: `20261103153510_professional_second_signoff.sql`. Offline checks:
+`PGLITE_MODULE=<local package> node scripts/test-professional-signoff-db.mjs`
+(20 checks). The wider Stage 2 multi-role account/staff-role project remains
+deferred. No production permission, migration or account has changed.
+
+The user explicitly authorised a temporary **staging-only** TEST Second
+Reviewer at `syedmouad+staging-reviewer@gmail.com`, real Supabase authenticator
+enrolment, and disabling it immediately after the tests. Credentials must stay
+inside the protected test setup, never in reports, logs or this repository.

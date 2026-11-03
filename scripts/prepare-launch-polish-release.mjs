@@ -12,6 +12,7 @@ export const launchPolishFiles = [
   "20261103115527_launch_operations_communications.sql",
   "20261103115529_staff_visit_outcomes.sql",
   "20261103124258_recorded_outcome_legacy_guard.sql",
+  "20261103153510_professional_second_signoff.sql",
 ];
 export const launchPolishMigrations = launchPolishFiles.map((file) => {
   const source = readFileSync(`supabase/migrations/${file}`, "utf8");
