@@ -23,7 +23,7 @@ receive the existing Professional Partner Agreement they actually accepted.
 
 ## Implementation and release boundaries
 
-- Five allowlisted migrations, in timestamp order. Run the preparation script's
+- Seven allowlisted migrations, in timestamp order. Run the preparation script's
   `ledger` mode before writes; exact stored source must match or stop. A matching
   version is skipped. The retired `20261003002100` is excluded.
 - Work checklist/photo records are new-booking snapshots. Existing visits are
@@ -61,12 +61,14 @@ receive the existing Professional Partner Agreement they actually accepted.
   byte-for-byte unchanged and must keep its advancing HTTP-200 heartbeat.
 - `vercel.json` selects `fra1` for the application functions. Next.js and eslint
   stay at 16.4.2; application dependencies and lockfile are unchanged.
-- No real approvals, compliance evidence or live payments are used in tests.
+- No production approvals, real compliance evidence or live payments are used in
+  tests. The owner explicitly authorised fictional staging documents, a normally
+  approved TEST professional and a temporary independent MFA reviewer.
   `worker@test.com` and `cleaner2@test.com` are absent from the staging provider
   list; do not suspend unrelated accounts. Check the exact production identities
   at release time and suspend only these two after the owner's go.
 
-## Current test record
+## Earlier staging audit trail (completion record below supersedes pending items)
 
 - Application suite: 564 passed (including 11 new launch-polish tests).
 - Isolated database: 46 checks passed on in-memory PostgreSQL 17.5/PGlite, using the
@@ -89,8 +91,7 @@ receive the existing Professional Partner Agreement they actually accepted.
   scheduler secret, restrict email to `syedmouad@gmail.com`, enable per-visit
   checkout and keep the handyman marketplace OFF. No Production env was changed.
 - Homepage, booking and customer login returned 200; unauthenticated operations,
-  work-evidence and staff-outcome APIs returned 401; disabled marketplace returned
-  404. Both checkout and legal-evidence readiness are true. The unchanged billing
+  work-evidence and staff-outcome APIs returned 401; disabled marketplace returned 404. Both checkout and legal-evidence readiness are true. The unchanged billing
   worker returned HTTP 200 with its exact fingerprint at 12:50 and 12:55 UTC and
   its heartbeat advanced. New-booking checklist enforcement was enabled only
   after the new UI was Ready; old-booking snapshots remain exempt.
@@ -174,6 +175,102 @@ receive the existing Professional Partner Agreement they actually accepted.
   asked to click OK. No real GOV.UK check or compliant identity is being claimed.
   Production accounts are unchanged; PR remains draft, not release-ready.
   Do not describe local/mocked tests as Stripe or live browser tests.
+
+## Completion record — 3 November, 19:34 UTC
+
+- Feature source `eec6a2f` is deployed to Ready Preview `8erubpde4`, functions in
+  `fra1`. The branch remains based on the latest `codex/staging` (`a36acd3`); no
+  staging commits are missing. All GitHub checks are green, the complete local
+  application suite reports **565 passed, zero failed**, typecheck and changed
+  file lint pass. The isolated database suites pass 46 launch checks plus 22
+  independent-sign-off checks. Next.js remains 16.4.2.
+- The owner recorded the first review through the real staff UI at 19:05:33;
+  the application stayed pending. A different real-TOTP-authenticated temporary
+  reviewer completed the normal second-sign-off RPC at 19:05:47. The cleaner was
+  activated only then. The reviewer was immediately disabled: banned sign-in,
+  staff role removed, authenticator removed (zero remaining factors). No
+  approval guard or document requirement was bypassed.
+- Two fictional visits passed the deployed authenticated checklist/photo routes:
+  start blocked without the scope/hazard review; completion blocked without all
+  tasks; completion blocked without a finished photo or sufficient explanation;
+  before/after synthetic JPEGs uploaded; all tasks saved; completion accepted;
+  finished evidence locked; the booking customer could read its completed work
+  record. Stored JPEG inspection independently confirmed EXIF removal. The
+  supplied images say TEST PHOTO, contain no people/property, and use no real
+  addresses. This does **not** claim that the complete real-phone OTP/geolocation
+  check-in experience was retested; those guards remain unchanged.
+- Actual Sandbox outcomes, original charges and own-account transfers:
+
+  | Test                                                  | Customer result                                                                | Cleaner payout                              |
+  | ----------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------- |
+  | Unsafe home, fictional £70.98 booking                 | Retained £70.98 under the exceptional final accepted terms                     | £30.00                                      |
+  | Customer stopped after 60 verified test minutes       | Retained £22.99; one succeeded £47.99 refund, including unused extras/products | £15.00                                      |
+  | Completed two-hour Signature Deep plus products       | Paid £56.98                                                                    | £39.00 (£35 + £4 products)                  |
+  | Completed Essential plus customer-approved extra hour | Paid £42.98 + £18.99; repeated approval did not charge twice                   | £49.00 (£30 + £4 products + £15 extra time) |
+
+  All transfers were retrieved/listed from Sandbox and verified to reach only
+  this fictional cleaner's own connected account. Repeated settlement/operation
+  calls produced no duplicate transfers or refunds. The extra-hour payment has
+  its own captured source and one corresponding £15 transfer. The provider's
+  first missing-account attempt correctly held payment and opened a case; after
+  test onboarding and normal staff case closure, scheduled recovery paid once.
+  The desk now keeps closed cases with held/pending/failed payouts visible so
+  its explicit lift-hold/retry controls do not disappear. This has a regression
+  test; no readiness or money-operation guard was weakened.
+
+- Sandbox evidence: unsafe booking `50aff7b5-2822-4c9c-b6fa-06cecbba8124`,
+  transfer `tr_3UXn6n2NzINBHbzj02Q8H7OF`; part-way booking
+  `3f398922-28b3-4b42-8d9f-fa77d233e2d0`, refund
+  `re_3UXn6p2NzINBHbzj1xLlb28A`, transfer
+  `tr_3UXn6p2NzINBHbzj1tixJGTP`; deep booking
+  `d54a21c0-71c9-4da1-a22a-fe7023818d63`, transfer
+  `tr_3UXn6q2NzINBHbzj0ZJilgD1`; extra-time booking
+  `72344b14-9d93-43ce-91e8-e9ab71573108`, transfers
+  `tr_3UXn6s2NzINBHbzj0cJfhs7O` and `tr_3UXnAp2NzINBHbzj0Kgqmpq1`.
+- A separate **genuine six-visit regular series**
+  `f38f2b1f-7e32-48f1-8ed1-cbf13dbfb949` used the real service finaliser and
+  a succeeded Sandbox SetupIntent. Setup charged £0. The test professional
+  accepted through the normal authenticated offer RPC; the first visit then
+  charged £37.98 once (`pi_3UXnIK2NzINBHbzj0UdN5Jvh`). Retry did not duplicate it;
+  the other five unaccepted visits were uncharged. This is separate from the
+  earlier direct Essential fixture whose internal label was `regular_receipt`.
+- That accepted regular visit was withdrawn using the normal provider transition.
+  The customer received the durable replacement/free-cancellation choice and
+  used the real authenticated cancellation HTTP endpoint. Its £37.98 was refunded
+  in full. All six future synthetic visits were cancelled; none remains open.
+  The replacement email arrived in the owner's plus-alias Inbox at 19:29:02,
+  message `1a1a2e2eb53fffb0`, with the free-cancellation wording.
+- Actual receipt emails arrived for all initial test payments, the extra hour
+  (£18.99, Inbox 19:16:01, `1a1a2d7004381453`) and the genuine regular visit
+  (£37.98, Inbox 19:23:02, `1a1a2dd6f03cfc99`). Read bodies confirmed total,
+  payment/booking references and **No VAT is charged**. The earlier cleaner
+  welcome with five actual accepted-version PDFs, and complaint acknowledgement
+  and reply, remain confirmed Inbox deliveries. The handyman welcome is covered
+  by automated wording/attachment tests, not a claimed live handyman approval;
+  the marketplace remains off.
+- At 19:31 the normally approved **TEST Cleaner - staging launch polish** was
+  suspended through the staff UI, with an explicit fictional-test completion
+  reason. Its public directory remains hidden; its isolated ZZ99 test area was
+  disabled. The temporary second reviewer remains disabled with no MFA factors.
+  All existing real accounts and production permissions are unchanged.
+- The temporary `launch-polish-fixtures` endpoint was deleted immediately after
+  the final Stripe audit. The encrypted, single-run disposable credential-state
+  table was also removed after explicit staging/name/row-count guards. Audit,
+  booking and payment history is retained. Remote function inventory again shows
+  **only unchanged `visit-payments` v19**, gateway JWT verification on. All helper
+  source and generated bundles were outside Git: **zero helper commits**.
+- All seven migration ledger entries were rechecked against exact source and
+  match. The unchanged billing worker returned HTTP 200 at 19:25 and 19:30 with
+  fingerprint `50076e5ffdb5fa90fa58360c9e3c99ddc1ee91bf909ef8ee2006eb4cb9526142`;
+  heartbeat is advancing. Both readiness functions are true. Operations cron
+  returned 200 at 19:32/19:33 with email configured and zero failures. Latest
+  Preview homepage/booking/login return 200, private operations/evidence endpoints
+  return 401 signed out, and disabled marketplace returns 404.
+- Welfare guidance and isolated timing/access/audit checks pass. No actual phone
+  call, emergency-contact call or police request was fabricated to complete a
+  browser test. Production main remains `1298526726d512e0ef094ba88e583ae625b5da27`
+  and Production deployment remains `2giblz3io`. Production release and suspension
+  of the two exact production test cleaners still require the owner's **go**.
 
 ## Tool incident and recovery
 
