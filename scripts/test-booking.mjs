@@ -65,6 +65,7 @@ const modules = [
 ];
 try {
   for (const script of [
+    "test-launch-polish.mjs",
     "test-final-document-pack.mjs",
     "test-partner-programme-page.mjs",
     "test-partner-interest.mjs",

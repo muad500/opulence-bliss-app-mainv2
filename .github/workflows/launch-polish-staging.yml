@@ -1,0 +1,30 @@
+name: Launch polish checks
+on:
+  pull_request:
+    branches: [codex/staging, main]
+    paths:
+      - "**/*[Ll]aunch*[Pp]olish*"
+      - "**/*[Ll]aunch[Oo]peration*"
+      - "**/*[Cc]leaning[Jj]ob*"
+      - "**/*[Rr]ecorded[Vv]isit*"
+      - "**/*[Rr]eplacement[Cc]ancellation*"
+      - "app/admin/welfare/**"
+      - "app/api/account/work-evidence/**"
+      - "supabase/migrations/20261103*"
+      - "vercel.json"
+permissions: { contents: read }
+jobs:
+  isolated-database:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Workflows and money decisions, offline PostgreSQL only
+        run: |
+          task_test_dir="$(mktemp -d)"
+          npm install --prefix "$task_test_dir" --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.3.14
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-launch-polish-db.mjs
+      - run: npm test
+      - run: npx tsc --noEmit

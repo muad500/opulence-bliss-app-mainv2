@@ -164,6 +164,10 @@ export default async function ReviewDeskPage() {
       >
         <h1 style={h1}>Resolution desk</h1>
         <p>
+          <a href="/admin/welfare">Missed check-in welfare follow-up →</a> ·{" "}
+          <a href="/admin/incidents">Complaints and reply deadlines →</a>
+        </p>
+        <p>
           <a href="/admin/cleaning-cancellations">
             Cleaning cancellation charges and cleaner waivers →
           </a>

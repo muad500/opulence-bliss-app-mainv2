@@ -183,8 +183,12 @@ async function render(title: string, acceptedAt: string, sections: Section[]) {
   return pdf.save({ useObjectStreams: false });
 }
 
+export type AcceptedPolicyPdfSnapshot = Pick<
+  BookingLegalSnapshot,
+  "title" | "version" | "contentHtml" | "displayContentHash" | "updatedAt"
+>;
 function policySection(
-  document: BookingLegalSnapshot,
+  document: AcceptedPolicyPdfSnapshot,
   acceptedAt: string,
 ): Section {
   if (
@@ -200,7 +204,7 @@ function policySection(
 }
 
 export function generateAcceptedPolicyPdf(
-  document: BookingLegalSnapshot,
+  document: AcceptedPolicyPdfSnapshot,
   acceptedAt: string,
 ) {
   return render(`${document.title} - Version ${document.version}`, acceptedAt, [

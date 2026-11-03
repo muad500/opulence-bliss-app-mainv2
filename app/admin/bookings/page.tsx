@@ -190,6 +190,12 @@ export default async function AdminBookingsPage() {
                       )}
                     </details>
                   </div>
+                  <a
+                    href={`/admin/bookings/${booking.id}/evidence`}
+                    style={actionLink}
+                  >
+                    Work checklist, photos and stopped-visit decisions →
+                  </a>
                   {canMove ? (
                     <BookingScheduleControl
                       bookingId={booking.id}
