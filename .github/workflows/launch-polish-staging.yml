@@ -9,6 +9,8 @@ on:
       - "**/*[Rr]ecorded[Vv]isit*"
       - "**/*[Rr]eplacement[Cc]ancellation*"
       - "app/admin/welfare/**"
+      - "app/admin/ServiceReview.tsx"
+      - "scripts/test-professional-signoff-db.mjs"
       - "app/api/account/work-evidence/**"
       - "supabase/migrations/20261103*"
       - "vercel.json"
@@ -26,5 +28,6 @@ jobs:
           task_test_dir="$(mktemp -d)"
           npm install --prefix "$task_test_dir" --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.3.14
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-launch-polish-db.mjs
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-professional-signoff-db.mjs
       - run: npm test
       - run: npx tsc --noEmit
