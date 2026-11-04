@@ -49,7 +49,7 @@ async function loadProfile({ user, admin }: AccountContext) {
       .maybeSingle(),
     admin
       .from("customer_favourite_providers")
-      .select("provider_id,providers(display_name,photo_url,rating_avg)")
+      .select("provider_id,providers(customer_first_name,photo_url,rating_avg)")
       .eq("user_id", user.id),
   ]);
   if (
@@ -136,7 +136,7 @@ async function loadProfile({ user, admin }: AccountContext) {
         : row.providers;
       return {
         providerId: row.provider_id,
-        displayName: provider?.display_name ?? "Professional",
+        displayName: provider?.customer_first_name ?? "Professional",
         photoUrl: provider?.photo_url ?? null,
         ratingAvg:
           provider?.rating_avg == null ? null : Number(provider.rating_avg),
