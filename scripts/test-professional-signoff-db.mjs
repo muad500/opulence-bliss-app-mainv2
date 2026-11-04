@@ -42,10 +42,12 @@ try {
     create schema auth; create schema storage; grant usage on schema public,auth,storage to authenticated,anon,service_role;
     create function auth.jwt() returns jsonb language sql stable as $$select current_setting('request.jwt.claims',true)::jsonb$$;
     create function auth.uid() returns uuid language sql stable as $$select (auth.jwt()->>'sub')::uuid$$;
-    create table profiles(id uuid primary key, role text);
+    create table profiles(id uuid primary key, role text,full_name text,address text,phone text,account_deleted_at timestamptz);
     create function is_admin() returns boolean language sql stable security definer set search_path=public as $$select auth.jwt()->>'aal'='aal2' and exists(select 1 from profiles where id=auth.uid() and role='admin')$$;
     create table providers(id uuid primary key,profile_id uuid,services text[],service_approvals jsonb,vetting_status text default 'pending',is_suspended boolean default false);
     create table provider_dbs_checks(provider_id uuid primary key,status text,reviewed_by uuid,issue_date date);
+    create table professional_setup_invitations(provider_id uuid primary key,created_by uuid);
+    create table provider_onboarding_details(provider_id uuid primary key,date_of_birth date);
     create table provider_verification_items(provider_id uuid,document_type text,status text,reviewed_by uuid,uploaded_at timestamptz,expires_at date,document_storage_path text);
     create table storage.objects(id uuid default gen_random_uuid(),bucket_id text,name text,updated_at timestamptz default now());
     create function professional_verification_block(uuid) returns text language sql as $$select case when not exists(select 1 from provider_dbs_checks where provider_id=$1 and status='verified') then 'DBS needs verification' end$$;
@@ -55,7 +57,7 @@ try {
       update providers set service_approvals=service_approvals||jsonb_build_object(p_service,p_status) where id=p_provider;
     end$$;
     grant select,update on providers to authenticated;
-    insert into profiles values('${ids.a}','admin'),('${ids.b}','admin'),('${ids.c}','admin'),('${ids.pro}','provider');
+    insert into profiles(id,role) values('${ids.a}','admin'),('${ids.b}','admin'),('${ids.c}','admin'),('${ids.pro}','provider');
     insert into providers values('${ids.provider}','${ids.pro}',array['cleaning'],'{"cleaning":"pending"}');
     insert into provider_dbs_checks values('${ids.provider}','verified','${ids.a}',current_date);
     insert into provider_verification_items values('${ids.provider}','photo_id','verified','${ids.a}',now(),null,'test/photo.pdf');
@@ -64,6 +66,12 @@ try {
   await sql(
     readFileSync(
       "supabase/migrations/20261103153510_professional_second_signoff.sql",
+      "utf8",
+    ),
+  );
+  await sql(
+    readFileSync(
+      "supabase/migrations/20261103155510_independent_onboarding_identity_guard.sql",
       "utf8",
     ),
   );
@@ -139,6 +147,28 @@ try {
     "another document checker cannot give independent sign-off",
   );
   await actor(ids.c);
+  await sql(
+    `reset role; insert into professional_setup_invitations values('${ids.provider}','${ids.c}');`,
+  );
+  await actor(ids.a);
+  await sql(approve);
+  await actor(ids.c);
+  await denied(
+    approve,
+    /different staff member/,
+    "the onboarding inviter cannot provide final sign-off",
+  );
+  await sql(
+    `reset role; update professional_setup_invitations set created_by='${ids.b}'; update profiles set full_name='TEST identity changed' where id='${ids.pro}';`,
+  );
+  await actor(ids.a);
+  await eq(
+    `select professional_approval_review_state('${ids.provider}','cleaning')->>'phase'`,
+    "first",
+    "identity/onboarder edits require a fresh first review",
+  );
+  await sql(approve);
+  await actor(ids.c);
   await sql(approve);
   await eq(
     `select vetting_status from providers where id='${ids.provider}'`,
@@ -152,7 +182,7 @@ try {
   );
   await eq(
     `select count(*)::integer from professional_approval_audit`,
-    4,
+    8,
     "both reviews and stale evidence invalidation are audited",
   );
   await denied(approve, /Only pending/, "repeat activation is rejected");

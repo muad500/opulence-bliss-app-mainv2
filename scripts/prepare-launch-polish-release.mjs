@@ -13,6 +13,7 @@ export const launchPolishFiles = [
   "20261103115529_staff_visit_outcomes.sql",
   "20261103124258_recorded_outcome_legacy_guard.sql",
   "20261103153510_professional_second_signoff.sql",
+  "20261103155510_independent_onboarding_identity_guard.sql",
 ];
 export const launchPolishMigrations = launchPolishFiles.map((file) => {
   const source = readFileSync(`supabase/migrations/${file}`, "utf8");
