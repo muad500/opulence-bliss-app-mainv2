@@ -27,7 +27,7 @@ export async function GET(
   const [provider, tasks] = await Promise.all([
     admin
       .from("providers")
-      .select("display_name,services")
+      .select("customer_first_name,services")
       .eq("id", id)
       .single(),
     admin
@@ -49,7 +49,7 @@ export async function GET(
   return NextResponse.json(
     {
       id,
-      displayName: provider.data.display_name,
+      displayName: provider.data.customer_first_name,
       tasks: tasks.data?.maintenance_tasks ?? [],
     },
     { headers: { "Cache-Control": "private, no-store" } },

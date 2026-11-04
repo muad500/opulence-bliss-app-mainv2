@@ -68,7 +68,7 @@ try {
         and exists(select 1 from auth.mfa_factors where user_id=auth.uid() and status='verified' and factor_type='totp')$$;
     create function booking_events_immutable() returns trigger language plpgsql as $$begin raise exception 'Immutable audit record'; end$$;
     create function guard_acceptance_evidence_mutation() returns trigger language plpgsql as $$begin raise exception 'Immutable acceptance evidence'; end$$;
-    create table providers(id uuid primary key,profile_id uuid,services text[],service_approvals jsonb,vetting_status text default 'pending',is_suspended boolean default false,created_at timestamptz default now());
+    create table providers(id uuid primary key,profile_id uuid,services text[],service_approvals jsonb,vetting_status text default 'pending',is_suspended boolean default false,created_at timestamptz default now(),display_name text);
     create function current_provider_id() returns uuid language sql stable security definer as $$select id from providers where profile_id=auth.uid()$$;
     create table provider_dbs_checks(provider_id uuid primary key,status text,reviewed_by uuid,issue_date date);
     create table professional_setup_invitations(provider_id uuid primary key,created_by uuid);
@@ -99,7 +99,18 @@ try {
     create table legal_documents(slug text primary key,title text,version text,content_html text,published boolean default true,pdf_path text,pdf_sha256 text,audience text default 'professionals',effective_date date,updated_at timestamptz default now());
     create table site_social_links(platform text primary key,url text,updated_at timestamptz default now());
     create table account_legal_acceptances(id bigint generated always as identity primary key,user_id uuid,document_slug text,version text,document_title text,content_hash text,accepted_at timestamptz default now(),acceptance_evidence jsonb,booking_id uuid,unique nulls not distinct(user_id,document_slug,version,booking_id));
-    create table bookings(id uuid primary key default gen_random_uuid(),provider_id uuid,status text default 'offered');
+    create table bookings(id uuid primary key default gen_random_uuid(),provider_id uuid,status text default 'offered',customer_id uuid);
+    create table notifications(user_id uuid,title text,body text,href text);
+    create function my_previous_cleaners() returns table(provider_id uuid,display_name text)
+      language sql stable security definer as $$select p.id,p.display_name from providers p$$;
+    create function homepage_review_highlights_feed() returns text
+      language sql stable security definer as $$select p.display_name from providers p limit 1$$;
+    create function public_reviews_feed(p_limit integer) returns text
+      language sql stable security definer as $$select p.display_name from providers p limit 1$$;
+    create function report_provider_delay(p_booking_id uuid,p_delay_minutes integer) returns text
+      language sql security definer as $$select p.display_name from providers p limit 1$$;
+    create function send_booking_message_before_contact_decisions(p_booking_id uuid,p_body text)
+      returns text language sql security definer as $$select pr.display_name from providers pr limit 1$$;
     create table booking_offer_queue(booking_id uuid,provider_id uuid);
     create table booking_offers(booking_id uuid,provider_id uuid);
     alter table profiles enable row level security; create policy profiles_self on profiles for select to authenticated using(id=auth.uid() or public.is_admin());
@@ -705,6 +716,42 @@ try {
     `select provider_service_approved('${provider.cleaner}','cleaning')`,
     true,
     "Accepting the Cleaner Terms restores eligibility",
+  );
+  await owner();
+  await sql(`
+    update providers set display_name = '  Dr. Anne-Marie Example' where id = '${provider.cleaner}';
+    insert into bookings(id,provider_id,status,customer_id)
+    values ('${id(201)}','${provider.cleaner}','scheduled','${user.customer}');
+    insert into notifications values
+      ('${user.customer}','Anne-Marie Formername is running late','System delay notice','/account/visit/${id(201)}'),
+      ('${user.customer}','Message from Dr. Anne-Marie Example','User message','/account/visit/${id(201)}'),
+      ('${user.customer}','Message from Opulence Bliss','Staff message','/account/visit/${id(201)}');
+  `);
+  await sql(migration("customer_cleaner_first_names"));
+  await eq(
+    `select customer_first_name from providers where id='${provider.cleaner}'`,
+    "Anne-Marie",
+    "Customer name strips titles and surnames while keeping hyphenated names",
+  );
+  await eq(
+    `select display_name from providers where id='${provider.cleaner}'`,
+    "  Dr. Anne-Marie Example",
+    "Original staff and worker name is preserved",
+  );
+  await eq(
+    `select display_name from my_previous_cleaners() where provider_id='${provider.cleaner}'`,
+    "Anne-Marie",
+    "Previous-cleaner RPC returns the first name",
+  );
+  await eq(
+    "select string_agg(title, ' | ' order by title) from notifications",
+    "Anne-Marie is running late | Message from Anne-Marie | Message from Opulence Bliss",
+    "Historical customer notification titles are projected without altering staff messages",
+  );
+  await eq(
+    "select body from notifications where title='Message from Anne-Marie'",
+    "User message",
+    "Customer message body stays intact",
   );
   console.log(
     `PASS ${checks} isolated shared-foundation database checks; no external database or payment API used.`,

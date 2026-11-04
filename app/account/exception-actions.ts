@@ -40,7 +40,7 @@ export async function reportProviderNoShow(
   const { data: booking, error: bookingError } = await supabase
     .from("bookings")
     .select(
-      "id, status, scheduled_at, customer_id, customer_email, provider_id, packages(name), providers!bookings_provider_id_fkey(display_name, profile_id)",
+      "id, status, scheduled_at, customer_id, customer_email, provider_id, packages(name), providers!bookings_provider_id_fkey(profile_id)",
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -97,7 +97,6 @@ export async function reportProviderNoShow(
 
   const pkg = one(booking.packages as never) as { name: string } | null;
   const provider = one(booking.providers as never) as {
-    display_name: string | null;
     profile_id: string | null;
   } | null;
 

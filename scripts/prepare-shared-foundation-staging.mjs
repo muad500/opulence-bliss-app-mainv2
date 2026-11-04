@@ -21,6 +21,7 @@ const files = [
   "20261104004746_scoped_staff_roles.sql",
   "20261104004748_document_change_acceptance_workflow.sql",
   "20261104140533_publish_cleaner_terms_and_social_links.sql",
+  "20261104194341_customer_cleaner_first_names.sql",
 ];
 const readMigration = (file) => {
   const source = readFileSync(`supabase/migrations/${file}`, "utf8").replaceAll(
