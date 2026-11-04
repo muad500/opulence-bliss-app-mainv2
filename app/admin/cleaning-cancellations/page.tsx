@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/adminSession";
 import CleaningCancellationCompensation from "@/components/CleaningCancellationCompensation";
+import RecordedVisitOutcome from "@/components/RecordedVisitOutcome";
 export default async function CleaningCancellationsPage({
   searchParams,
 }: {
@@ -25,6 +26,7 @@ export default async function CleaningCancellationsPage({
     <main style={{ maxWidth: 1000, margin: "32px auto", padding: 24 }}>
       <Link href="/admin/review">← Resolution desk</Link>
       <h1>Cleaning cancellations</h1>
+      {id && <RecordedVisitOutcome bookingId={id} />}
       <CleaningCancellationCompensation
         admin
         bookingId={id}

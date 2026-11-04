@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   getProviderApprovalRequirements,
+  getProfessionalApprovalReviewState,
   reviewProfessionalService,
 } from "./actions";
 import {
@@ -56,12 +57,22 @@ function ServiceDecision({
   const [missing, setMissing] = useState<string[] | null>(null);
   const [error, setError] = useState("");
   const [reason, setReason] = useState("");
+  const [review, setReview] = useState<Awaited<
+    ReturnType<typeof getProfessionalApprovalReviewState>
+  > | null>(null);
+  const [refresh, setRefresh] = useState(0);
   useEffect(() => {
     if (status !== "pending") return;
     let active = true;
-    void getProviderApprovalRequirements(id, service).then(
-      (items) => {
-        if (active) setMissing(items);
+    void Promise.all([
+      getProviderApprovalRequirements(id, service),
+      getProfessionalApprovalReviewState(id, service),
+    ]).then(
+      ([items, state]) => {
+        if (active) {
+          setMissing(items);
+          setReview(state);
+        }
       },
       () => {
         if (active) setError("Approval requirements could not be loaded.");
@@ -70,13 +81,16 @@ function ServiceDecision({
     return () => {
       active = false;
     };
-  }, [id, service, status, revision]);
+  }, [id, service, status, revision, refresh]);
 
   function decide(next: "approved" | "rejected" | "suspended" | "pending") {
     setError("");
     start(async () => {
       try {
         await reviewProfessionalService(id, service, next, reason);
+        setReason("");
+        setReview(null);
+        setRefresh((value) => value + 1);
         router.refresh();
       } catch (failure) {
         setError(
@@ -114,6 +128,15 @@ function ServiceDecision({
               : "All approval requirements are complete."}
         </p>
       )}
+      {status === "pending" && review && (
+        <div style={{ fontSize: 13 }}>
+          <p role="status">{review.message}</p>
+          <p>
+            The final reviewer must not have onboarded this professional or
+            checked their documents.
+          </p>
+        </div>
+      )}
       {(status === "pending" || status === "approved") && (
         <label
           style={{ display: "grid", gap: 5, margin: "8px 0", fontSize: 12 }}
@@ -133,10 +156,18 @@ function ServiceDecision({
           <>
             <button
               style={button}
-              disabled={busy || missing === null || missing.length > 0}
+              disabled={
+                busy ||
+                missing === null ||
+                missing.length > 0 ||
+                !review?.canReview ||
+                reason.trim().length < 10
+              }
               onClick={() => decide("approved")}
             >
-              Approve
+              {review?.phase === "second"
+                ? "Second sign-off and activate"
+                : "Record first review"}
             </button>
             <button
               style={button}

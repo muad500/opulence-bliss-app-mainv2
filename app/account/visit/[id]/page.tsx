@@ -5,6 +5,8 @@ import { getVisitStatus } from "@/lib/visitStatus";
 import RegularSeriesControl from "@/components/RegularSeriesControl";
 import AgreedCleaningTimeChange from "@/components/AgreedCleaningTimeChange";
 import CleaningExtraHours from "@/components/CleaningExtraHours";
+import ReplacementCancellation from "@/components/ReplacementCancellation";
+import CleaningJobEvidenceSummary from "@/components/CleaningJobEvidenceSummary";
 import BookingWorkspace, {
   type ClientBookingWorkspaceData,
 } from "../../BookingWorkspace";
@@ -281,6 +283,23 @@ export default async function VisitPage({
     p_booking_id: row.id,
   });
   const chatClosed = messagingOpen !== true;
+  const replacement =
+    ["offered", "declined", "scheduled"].includes(row.status) &&
+    new Date(row.scheduled_at).getTime() > new Date().getTime()
+      ? await supabase
+          .from("booking_replacement_options")
+          .select("booking_id")
+          .eq("booking_id", row.id)
+          .is("cancelled_operation_id", null)
+          .maybeSingle()
+      : { data: null };
+  const replacementBill = replacement.data
+    ? await supabase
+        .from("booking_visit_billing")
+        .select("revision")
+        .eq("booking_id", row.id)
+        .maybeSingle()
+    : { data: null };
 
   return (
     <main style={wrap}>
@@ -291,6 +310,12 @@ export default async function VisitPage({
           </a>
         </p>
 
+        {replacement.data && replacementBill.data && (
+          <ReplacementCancellation
+            bookingId={row.id}
+            revision={replacementBill.data.revision}
+          />
+        )}
         {row.regular_series_id && (
           <RegularSeriesControl seriesId={row.regular_series_id} />
         )}
@@ -376,6 +401,7 @@ export default async function VisitPage({
             </div>
           )}
         </BookingWorkspace>
+        <CleaningJobEvidenceSummary bookingId={row.id} />
       </div>
     </main>
   );

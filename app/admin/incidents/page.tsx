@@ -3,6 +3,7 @@ import { requireAdminPage } from "@/lib/adminSession";
 import { deletionRequestAdminClient } from "../deletion-requests/data";
 import ReviewForm from "./ReviewForm";
 import CreateForm from "./CreateForm";
+import ResponseForm from "./ResponseForm";
 import styles from "../deletion-requests/page.module.css";
 
 export default async function IncidentReportsPage({
@@ -21,7 +22,7 @@ export default async function IncidentReportsPage({
     ? await admin
         .from("account_incidents")
         .select(
-          "id,reporter_id,booking_id,subject_provider_id,log_kind,category,description,status,created_at,resolution_note,reporter:profiles!account_incidents_reporter_id_fkey(full_name,email)",
+          "id,reporter_id,booking_id,subject_provider_id,log_kind,category,description,status,created_at,resolution_note,complaint_reference,complaint_kind,complainant_email,handler_name,acknowledgement_due_at,acknowledgement_sent_at,reply_due_at,reply_sent_at,complex_update_sent_at,reporter:profiles!account_incidents_reporter_id_fkey(full_name,email)",
           { count: "exact" },
         )
         .order("created_at", { ascending: false })
@@ -81,6 +82,34 @@ export default async function IncidentReportsPage({
                       </>
                     )}
                     {item.resolution_note && <p>{item.resolution_note}</p>}
+                    {item.complaint_reference && (
+                      <section>
+                        <h4>{item.complaint_reference}</h4>
+                        <p>
+                          Contact: {item.complainant_email} · Handler:{" "}
+                          {item.handler_name}
+                        </p>
+                        <p>
+                          Acknowledgement:{" "}
+                          {item.acknowledgement_sent_at
+                            ? "Sent"
+                            : `Due ${new Date(item.acknowledgement_due_at).toLocaleString("en-GB", { timeZone: "Europe/London" })}`}
+                        </p>
+                        <p>
+                          Full reply:{" "}
+                          {item.reply_sent_at
+                            ? "Sent"
+                            : `Due ${new Date(item.reply_due_at).toLocaleString("en-GB", { timeZone: "Europe/London" })}`}
+                        </p>
+                        {item.complaint_kind === "complex" &&
+                          !item.complex_update_sent_at && (
+                            <p>
+                              Send an update by day 14 explaining the delay.
+                            </p>
+                          )}
+                        {!item.reply_sent_at && <ResponseForm id={item.id} />}
+                      </section>
+                    )}
                     {item.subject_provider_id && (
                       <Link
                         href={`/admin/cleaners/${item.subject_provider_id}`}

@@ -8,6 +8,7 @@ import SessionCountdown from "@/components/SessionCountdown";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
 import AgreedCleaningTimeChange from "@/components/AgreedCleaningTimeChange";
 import CleaningExtraHours from "@/components/CleaningExtraHours";
+import CleaningJobChecklist from "@/components/CleaningJobChecklist";
 import { useEffect, useState } from "react";
 import {
   CalendarDays,
@@ -282,6 +283,12 @@ export default function WorkerJobWorkspace({
 
   return (
     <div className="worker-workspace">
+      {["scheduled", "in_progress"].includes(job.status) && (
+        <CleaningJobChecklist
+          bookingId={job.id}
+          inProgress={job.status === "in_progress"}
+        />
+      )}
       {job.status === "scheduled" && (
         <AgreedCleaningTimeChange bookingId={job.id} />
       )}

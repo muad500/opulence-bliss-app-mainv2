@@ -22,6 +22,7 @@ import { appointmentTimeLabel as clock } from "@/lib/appointmentWindow";
 import JobActions, { CheckInControl } from "./JobActions";
 import ReportDelay from "./ReportDelay";
 import { splitBookingHomeNotes } from "@/lib/cleaningHome";
+import CleaningJobChecklist from "@/components/CleaningJobChecklist";
 
 export type ActiveJobData = {
   id: string;
@@ -342,6 +343,13 @@ export default function ActiveJob({
 
       {job.status === "scheduled" && (
         <div id={checkInPanelId} className="checkin-panel-row" />
+      )}
+
+      {canAct && ["scheduled", "in_progress"].includes(job.status) && (
+        <CleaningJobChecklist
+          bookingId={job.id}
+          inProgress={job.status === "in_progress"}
+        />
       )}
 
       <footer className="state-bar">

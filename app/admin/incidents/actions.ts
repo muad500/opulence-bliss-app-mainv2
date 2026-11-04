@@ -13,11 +13,22 @@ export async function createIncident(
   const description = String(form.get("description") ?? "").trim();
   const booking = String(form.get("booking") ?? "").trim();
   const provider = String(form.get("provider") ?? "").trim();
+  const email = String(form.get("email") ?? "").trim();
+  const complaintKind = String(form.get("complaintKind") ?? "standard");
+  const handler = String(
+    form.get("handler") ?? "The Opulence Bliss support team",
+  ).trim();
   if (
     !["incident", "complaint", "breach"].includes(kind) ||
     !["booking", "safety", "payment", "account", "other"].includes(category) ||
     description.length < 20 ||
     description.length > 5000 ||
+    !["standard", "complex", "data"].includes(complaintKind) ||
+    (kind === "complaint" && !email) ||
+    (email !== "" &&
+      (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254)) ||
+    !handler ||
+    handler.length > 160 ||
     [booking, provider].some(
       (id) =>
         id &&
@@ -40,6 +51,9 @@ export async function createIncident(
     log_kind: kind,
     category,
     description,
+    complaint_kind: complaintKind,
+    complainant_email: email || null,
+    handler_name: handler,
   });
   if (result.error)
     return {
@@ -49,6 +63,30 @@ export async function createIncident(
     };
   revalidatePath("/admin/incidents");
   return { ok: true, message: "Private report saved." };
+}
+
+export async function sendComplaintResponse(
+  _: { message: string; ok: boolean },
+  form: FormData,
+) {
+  const { supabase } = await requireAdminPage();
+  const { error } = await supabase.rpc("prepare_complaint_response", {
+    p_incident: String(form.get("id")),
+    p_kind: String(form.get("kind")),
+    p_context: {
+      checked: String(form.get("checked") ?? ""),
+      findings: String(form.get("findings") ?? ""),
+      action: String(form.get("action") ?? ""),
+      reason: String(form.get("reason") ?? ""),
+    },
+  });
+  revalidatePath("/admin/incidents");
+  return {
+    ok: !error,
+    message: error
+      ? error.message
+      : "Email queued. Delivery and the due date remain tracked.",
+  };
 }
 
 export async function reviewIncident(
