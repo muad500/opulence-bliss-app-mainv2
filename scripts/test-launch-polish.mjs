@@ -42,6 +42,58 @@ function load(file) {
 const scope = load("lib/cleaningScope.ts");
 const copy = load("lib/launchOperationsCopy.ts");
 const mail = load("lib/launchOperationsMail.ts");
+test("a customer cannot read another unassigned visit's checklist through null provider IDs", async () => {
+  const compiledModule = { exports: {} };
+  const output = ts.transpileModule(
+    readFileSync("app/api/account/work-evidence/[id]/route.ts", "utf8"),
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+    },
+  ).outputText;
+  const tables = [];
+  vm.runInNewContext(output, {
+    module: compiledModule,
+    exports: compiledModule.exports,
+    require(id) {
+      if (id === "next/server") return { NextResponse: Response };
+      if (id === "@/lib/supabase/server") return {};
+      if (id === "@/lib/accountApi")
+        return {
+          accountContext: async () => ({
+            user: { id: "other-customer" },
+            providerId: null,
+            admin: {
+              from(table) {
+                tables.push(table);
+                return {
+                  select() {
+                    return this;
+                  },
+                  eq() {
+                    return this;
+                  },
+                  maybeSingle: async () => ({
+                    data: { customer_id: "actual-customer", provider_id: null },
+                  }),
+                };
+              },
+            },
+          }),
+          isAccountError: () => false,
+        };
+      throw Error(`Unexpected module ${id}`);
+    },
+  });
+  const response = await compiledModule.exports.GET(
+    {},
+    { params: Promise.resolve({ id: "unassigned-visit" }) },
+  );
+  assert.equal(response.status, 404);
+  assert.deepEqual(tables, ["bookings"]);
+});
 test("all five missing package breakdowns are specific, complete and retain the client's unusual wording", () => {
   const names = [
     "One-Time Essential Clean",
