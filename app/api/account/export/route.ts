@@ -232,7 +232,28 @@ export async function GET(request: NextRequest) {
         ? allFor(ctx.admin, "cleaning_time_changes", "provider_id", providerId)
         : Promise.resolve([]),
     ]);
+    const workEvidence = await allByIds(
+      ctx.admin,
+      "cleaning_job_evidence",
+      "booking_id",
+      bookingIds,
+    );
+    const workPhotos = await allByIds(
+      ctx.admin,
+      "cleaning_job_photos",
+      "booking_id",
+      bookingIds,
+    );
+    const visitOutcomes = await allByIds(
+      ctx.admin,
+      "staff_visit_outcomes",
+      "booking_id",
+      bookingIds,
+    );
     const exportData = {
+      workEvidence,
+      workPhotos,
+      visitOutcomes,
       visitBilling: await allFor(
         ctx.admin,
         "booking_visit_billing",

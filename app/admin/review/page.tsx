@@ -76,7 +76,11 @@ export default async function ReviewDeskPage() {
   const { data: cases, error: casesError } = await supabase
     .from("admin_review_queue")
     .select("*")
-    .or("status.neq.resolved,refund_remaining.gt.0")
+    // A closed case still needs staff controls until its held/pending/failed
+    // payout is settled. Otherwise closing it hides the only safe retry path.
+    .or(
+      "status.neq.resolved,refund_remaining.gt.0,payout_status.in.(held,pending,failed)",
+    )
     .order("priority", { ascending: true })
     .order("opened_at", { ascending: true })
     .limit(100);
@@ -163,6 +167,10 @@ export default async function ReviewDeskPage() {
         style={{ maxWidth: 1080, margin: "0 auto", padding: "28px 22px 80px" }}
       >
         <h1 style={h1}>Resolution desk</h1>
+        <p>
+          <a href="/admin/welfare">Missed check-in welfare follow-up →</a> ·{" "}
+          <a href="/admin/incidents">Complaints and reply deadlines →</a>
+        </p>
         <p>
           <a href="/admin/cleaning-cancellations">
             Cleaning cancellation charges and cleaner waivers →
