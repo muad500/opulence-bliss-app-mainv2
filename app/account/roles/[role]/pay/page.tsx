@@ -53,8 +53,8 @@ export default async function RolePay({
       {role.role === "partner" ? (
         <p>
           Partner rewards are not available yet.{" "}
-          {role.reward_route === "decision_required"
-            ? "The reward route for your combined roles is awaiting confirmation."
+          {role.reward_route === "cleaner_payout"
+            ? "Your Partner reward route is your normal cleaner payout."
             : "The Partner role uses gift card rewards, not cash payouts."}
         </p>
       ) : (

@@ -337,8 +337,28 @@ try {
   );
   await eq(
     "select reward_route from my_account_roles() where role='partner'",
-    "decision_required",
-    "P10 route intentionally waits for client decision",
+    "cleaner_payout",
+    "P10 combined roles use the normal cleaner payout by default",
+  );
+  await owner();
+  await eq(
+    `select reward_route from partner_role_memberships where user_id='${user.cleaner}'`,
+    "cleaner_payout",
+    "P10 stores the default on the Partner membership",
+  );
+  await sql(
+    `update partner_role_memberships set reward_route='gift_card' where user_id='${user.cleaner}'`,
+  );
+  await actor(user.cleaner);
+  await eq(
+    "select reward_route from my_account_roles() where role='partner'",
+    "gift_card",
+    "P10 preserves a later Partner route override",
+  );
+  await eq(
+    "select reward_route from my_account_roles() where role='cleaner'",
+    "cleaner_payout",
+    "P10 changing the Partner route leaves the cleaner route alone",
   );
   await owner();
   await denied(

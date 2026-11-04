@@ -24,8 +24,7 @@ create policy partner_role_manager_read on public.partner_role_memberships
 create table public.account_role_pay_sources (
   role text primary key check (role in ('customer', 'cleaner', 'handyman', 'partner')),
   pay_source text not null,
-  reward_route text check (reward_route in ('none', 'booking_credit', 'cleaner_payout', 'gift_card',
-    'decision_required'))
+  reward_route text check (reward_route in ('none', 'booking_credit', 'cleaner_payout', 'gift_card'))
 );
 insert into public.account_role_pay_sources values
   ('customer', 'customer_receipts', 'booking_credit'),
@@ -64,6 +63,11 @@ begin
       and not (p.vetting_status::text = 'approved' and p.is_suspended = false and p.service_approvals ->>
         'cleaning' = 'approved')) then
       raise exception 'The cleaning role must be Active before adding the Partner role';
+    end if;
+    if tg_op = 'INSERT' and new.reward_route is null then
+      new.reward_route := case when exists (
+        select 1 from public.providers where profile_id = person and 'cleaning' = any(services)
+      ) then 'cleaner_payout' else 'gift_card' end;
     end if;
     if new.reward_route = 'cleaner_payout' and not exists (
       select 1 from public.providers where profile_id = person and 'cleaning' = any(services)
@@ -106,7 +110,7 @@ begin
     select 'partner', m.status, s.pay_source,
       coalesce(m.reward_route, case when exists (
         select 1 from public.providers where profile_id = auth.uid() and 'cleaning' = any(services)
-      ) then 'decision_required' else s.reward_route end)
+      ) then 'cleaner_payout' else s.reward_route end)
     from public.partner_role_memberships m
     join public.account_role_pay_sources s on s.role = 'partner'
     where m.user_id = auth.uid();
