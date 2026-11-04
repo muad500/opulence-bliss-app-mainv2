@@ -346,11 +346,7 @@ const validSignup = {
   dbsCertificateFileName: "certificate.pdf",
   dbsCertificateMimeType: "application/pdf",
 };
-async function signup(
-  body,
-  safeguardingEnabled = true,
-  cleanerTermsAvailable = true,
-) {
+async function signup(body, safeguardingEnabled = true) {
   const writes = [];
   const db = {
     auth: {
@@ -366,16 +362,7 @@ async function signup(
         eq: () => q,
         in: () => q,
         maybeSingle: async () => ({
-          data:
-            table === "profiles"
-              ? { role: "customer" }
-              : table === "legal_documents" && cleanerTermsAvailable
-                ? {
-                    version: "1.0",
-                    content_html:
-                      "<p>Published fixture Cleaner Terms for this test only.</p>",
-                  }
-                : null,
+          data: table === "profiles" ? { role: "customer" } : null,
         }),
         single: async () => ({ data: { id: "professional" } }),
         insert: (value) => {
@@ -531,18 +518,36 @@ test("unpublished final safeguarding policy blocks new applications before writi
   assert.equal(response.status, 503);
   assert.equal(writes.length, 0);
 });
-test("missing Cleaner Terms uses the existing cleaner agreement and retains every required declaration", async () => {
-  const { response, writes } = await signup(validSignup, true, false);
+test("cleaner signup records the new terms and rejects an older agreement checkbox", async () => {
+  const staleConsent = {
+    ...validSignup.professionalConsents,
+    cleaner_terms_v1: undefined,
+    cleaner_terms: true,
+  };
+  const stale = await signup({
+    ...validSignup,
+    professionalConsents: staleConsent,
+  });
+  assert.equal(stale.response.status, 400);
+  assert.equal(stale.writes.length, 0);
+  const { response, writes } = await signup(validSignup);
   assert.equal(response.status, 200);
   const accepted = writes.find(
     (write) => write.table === "account_legal_acceptances",
   ).value;
   assert.ok(
     accepted.some(
+      (row) => row.document_slug === "cleaner-terms" && row.version === "1.0",
+    ),
+  );
+  assert.ok(
+    !accepted.some(
       (row) => row.document_slug === "professional-partner-agreement",
     ),
   );
-  assert.ok(!accepted.some((row) => row.document_slug === "cleaner-terms"));
+  assert.ok(
+    accepted.some((row) => row.document_slug === "cleaner-cancellation"),
+  );
   assert.ok(accepted.some((row) => row.document_slug === "safeguarding"));
 });
 

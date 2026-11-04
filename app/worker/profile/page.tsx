@@ -1067,7 +1067,7 @@ export default function WorkerProfilePage() {
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      Cleaner Terms (awaiting client document)
+                      Cleaner Terms and Conditions
                     </a>
                   </li>
                   <li>

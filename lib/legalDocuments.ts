@@ -120,17 +120,6 @@ export function defaultLegalDocument(slug: LegalDocumentSlug): LegalDocument {
       updatedAt: "2026-10-01T00:00:00.000Z",
       isFallback: true,
     };
-  if (slug === "cleaner-terms")
-    return {
-      slug,
-      title: "Cleaner Terms and Conditions",
-      audience: "professionals",
-      version: "Awaiting client document",
-      updatedAt: null,
-      contentHtml:
-        "<p>The Cleaner Terms and Conditions have not yet been supplied. You cannot accept this document until it is published.</p>",
-      isFallback: true,
-    };
   const fallback = DEFAULTS[slug];
   if (!fallback) throw new Error("Legal document unavailable");
   return { slug, ...fallback, isFallback: true };

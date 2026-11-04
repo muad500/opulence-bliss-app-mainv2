@@ -6,6 +6,7 @@ import { defaultLegalDocument } from "@/lib/legalDocuments";
 import { publicLegalPresentation } from "@/lib/legalDocuments";
 import { createClient } from "@supabase/supabase-js";
 export const dynamic = "force-dynamic";
+export const metadata = { robots: { index: false, follow: false } };
 import styles from "@/app/legal/[slug]/page.module.css";
 
 /** Applicants must be able to read the policies before creating an account.
@@ -24,12 +25,14 @@ export default async function ProfessionalPolicy({
       { auth: { persistSession: false } },
     );
     const { data: row, error } = await client
-      .from("legal_documents")
+      .from("legal_document_revisions")
       .select("title,version,content_html")
-      .eq("slug", slug)
+      .eq("document_slug", slug)
       .eq("published", true)
+      .order("id", { ascending: false })
+      .limit(1)
       .maybeSingle();
-    if (error) throw new Error("Current agreement unavailable. Please retry.");
+    if (error) throw new Error("Earlier agreement unavailable. Please retry.");
     const presentation = row?.content_html
       ? publicLegalPresentation(row.title, row.content_html)
       : { title: fallback.title, contentHtml: fallback.contentHtml };
@@ -40,7 +43,7 @@ export default async function ProfessionalPolicy({
     return (
       <main className={styles.shell}>
         <article className={styles.document}>
-          <p className={styles.eyebrow}>Current cleaner agreement</p>
+          <p className={styles.eyebrow}>Earlier cleaner agreement</p>
           <h1>{agreement.title}</h1>
           <p>Version {agreement.version}</p>
           <div
@@ -54,19 +57,6 @@ export default async function ProfessionalPolicy({
       </main>
     );
   }
-  if (slug === "cleaner-terms")
-    return (
-      <main className={styles.shell}>
-        <article className={styles.document}>
-          <h1>Cleaner Terms and Conditions</h1>
-          <p>
-            The client has not yet supplied the Cleaner Terms. This placeholder
-            is not an agreement and cannot be accepted.
-          </p>
-          <Link href="/provider/join">Return to professional sign-up</Link>
-        </article>
-      </main>
-    );
   const document = finalLegalDocument(slug);
   if (!document || document.audience !== "professionals") notFound();
   return (

@@ -369,7 +369,7 @@ test("welcome attaches the exact accepted original PDFs and verifies generated f
   const crypto = require("node:crypto");
   const d = pack["dbs-data"],
     h = pack["handyman-professional-terms"];
-  const docs = [d, h].map((doc) => ({
+  const docs = [d, h, pack["cleaner-terms"]].map((doc) => ({
     ...doc,
     sourceContentHtml: doc.contentHtml,
     contentHash: crypto.createHash("md5").update(doc.contentHtml).digest("hex"),
@@ -391,7 +391,8 @@ test("welcome attaches the exact accepted original PDFs and verifies generated f
     "https://staging.example.invalid",
   );
   assert.equal(payload.subject, "Welcome to Opulence Bliss");
-  assert.equal(payload.attachments.length, 2);
+  assert.equal(payload.attachments.length, 3);
+  assert.equal(payload.attachments[2].filename, "cleaner-terms-v1.0.pdf");
   for (const [index, attachment] of payload.attachments.entries())
     assert.equal(
       crypto

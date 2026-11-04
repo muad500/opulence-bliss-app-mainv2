@@ -14,9 +14,9 @@ export const SOCIAL_LABELS: Record<SocialPlatform, string> = {
   nextdoor: "Nextdoor",
 };
 export const DEFAULT_SOCIAL_LINKS: SocialLinkSettings = {
-  facebook: "https://www.facebook.com/opulencebliss",
-  instagram: "https://www.instagram.com/opulencebliss/",
-  tiktok: "https://www.tiktok.com/@opulencebliss",
+  facebook: "https://www.facebook.com/share/17reTP9fFQ/",
+  instagram: "https://www.instagram.com/opulenceblissltd",
+  tiktok: "https://www.tiktok.com/@opulence.bliss",
   nextdoor: "",
 };
 const HOSTS: Record<SocialPlatform, string[]> = {
