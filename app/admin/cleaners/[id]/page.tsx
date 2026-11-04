@@ -1,15 +1,11 @@
 import ApprovedAbsencePay from "../ApprovedAbsencePay";
 import Link from "next/link";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
 import DbsRecordPanel from "../../DbsRecordPanel";
-import VerificationReview, {
-  type VerificationRecord,
-} from "../../VerificationReview";
+import PrivateVerificationPanel from "../../PrivateVerificationPanel";
 import ServiceReview from "../../ServiceReview";
 import { handymanEnabled } from "@/lib/handymanMarketplace";
 import { requireAdminPage } from "@/lib/adminSession";
 import {
-  PROVIDER_DOCUMENT_LABELS,
   PROVIDER_DOCUMENT_TYPES,
   isPropertyMaintenanceDocument,
 } from "@/lib/providerVerification";
@@ -72,11 +68,6 @@ export default async function ProfessionalRecordPage({
 }) {
   const { id } = await params;
   const { supabase } = await requireAdminPage();
-  const serviceAdmin = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false, autoRefreshToken: false } },
-  );
   const [
     providerResult,
     bookingsResult,
@@ -159,47 +150,10 @@ export default async function ProfessionalRecordPage({
     "professional_duplicate_warnings",
     { p_provider: id },
   );
-  const { data: verificationItems, error: verificationError } =
-    await serviceAdmin
-      .from("provider_verification_items")
-      .select(
-        "document_type,status,document_storage_path,document_original_name,uploaded_at,issued_at,expires_at,next_check_at,reference,review_note,gov_uk_checked_on",
-      )
-      .eq("provider_id", id);
-  const today = new Date().toISOString().slice(0, 10);
   const verificationTypes = PROVIDER_DOCUMENT_TYPES.filter(
     (type) =>
       !isPropertyMaintenanceDocument(type) ||
       (handymanEnabled() && provider.services?.includes("handyman")),
-  );
-  const verificationRecords: VerificationRecord[] = await Promise.all(
-    verificationTypes.map(async (type) => {
-      const item = verificationItems?.find((row) => row.document_type === type);
-      const { data: signed } = item?.document_storage_path
-        ? await serviceAdmin.storage
-            .from("provider-verification")
-            .createSignedUrl(item.document_storage_path, 5 * 60)
-        : { data: null };
-      return {
-        type,
-        label: PROVIDER_DOCUMENT_LABELS[type],
-        status:
-          item?.status === "verified" &&
-          ((item.expires_at && item.expires_at < today) ||
-            (item.next_check_at && item.next_check_at < today))
-            ? "expired"
-            : (item?.status ?? "not submitted"),
-        uploadedAt: item?.uploaded_at ?? null,
-        originalName: item?.document_original_name ?? null,
-        signedUrl: signed?.signedUrl ?? null,
-        issuedAt: item?.issued_at ?? null,
-        expiresAt: item?.expires_at ?? null,
-        nextCheckAt: item?.next_check_at ?? null,
-        reference: item?.reference ?? null,
-        reviewNote: item?.review_note ?? null,
-        govCheckedOn: item?.gov_uk_checked_on ?? null,
-      };
-    }),
   );
   const bookings = bookingsResult.data ?? [];
   const bookingIds = bookings.map((booking) => booking.id);
@@ -439,22 +393,15 @@ export default async function ProfessionalRecordPage({
             Only the professional and review team can open these files. Verify
             each item only after checking its contents and dates.
           </p>
-          {verificationError ? (
-            <p style={uploadMissing}>
-              Verification records could not be loaded. Apply the private
-              document migration and refresh.
-            </p>
-          ) : (
-            <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
-              {verificationRecords.map((record) => (
-                <VerificationReview
-                  key={`${record.type}:${record.uploadedAt ?? ""}`}
-                  providerId={id}
-                  record={record}
-                />
-              ))}
-            </div>
-          )}
+          <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
+            {verificationTypes.map((type) => (
+              <PrivateVerificationPanel
+                key={type}
+                providerId={id}
+                type={type}
+              />
+            ))}
+          </div>
         </section>
 
         <section style={dbsCard}>
@@ -845,12 +792,6 @@ const dbsCard: React.CSSProperties = {
   border: "1px solid #ead7a1",
   borderRadius: 16,
   background: "linear-gradient(145deg, #fffdf7, #fff8e8)",
-};
-const uploadMissing: React.CSSProperties = {
-  margin: 0,
-  color: "#8a5a00",
-  fontSize: 12.5,
-  fontWeight: 800,
 };
 const approvalGate: React.CSSProperties = {
   display: "flex",

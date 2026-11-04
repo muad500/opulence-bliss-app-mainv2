@@ -122,7 +122,7 @@ export async function getProviderApprovalRequirements(
   id: string,
   service: ProfessionalService = "cleaning",
 ): Promise<string[]> {
-  await requireAdmin();
+  await requireAdminPage("onboarding");
   if (service === "handyman" && !handymanEnabled())
     throw new Error("This service is not available.");
   return approvalRequirements(id, service);
@@ -134,7 +134,7 @@ export async function reviewProfessionalService(
   status: "approved" | "rejected" | "suspended" | "pending",
   reason?: string,
 ) {
-  const client = await requireAdmin();
+  const client = (await requireAdminPage("onboarding")).supabase;
   if (
     !isProfessionalService(service) ||
     (service === "handyman" && !handymanEnabled())
@@ -163,7 +163,7 @@ export async function getProfessionalApprovalReviewState(
   id: string,
   service: ProfessionalService,
 ) {
-  const client = await requireAdmin();
+  const client = (await requireAdminPage("onboarding")).supabase;
   if (
     !isProfessionalService(service) ||
     (service === "handyman" && !handymanEnabled())
@@ -193,17 +193,20 @@ export async function setProviderDbsStatus(
   status: "verified" | "failed",
   note?: string,
 ) {
-  const s = await requireAdmin();
+  const s = (await requireAdminPage("private_evidence")).supabase;
   const {
     data: { user },
   } = await s.auth.getUser();
   if (!user) throw new Error("Not signed in");
 
-  const { error: accessError } = await s.rpc("staff_view_dbs_record", {
-    p_provider: id,
-    p_action: "review",
-  });
-  if (accessError)
+  const { data: access, error: accessError } = await s.rpc(
+    "staff_open_dbs_record",
+    {
+      p_provider: id,
+      p_action: "review",
+    },
+  );
+  if (accessError || access?.allowed !== true)
     throw new Error("Only named onboarding staff can review DBS records.");
 
   const { data: check, error: checkError } = await admin

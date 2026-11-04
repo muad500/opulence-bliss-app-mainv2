@@ -2,14 +2,10 @@
 // Save at: app/worker/earnings/page.tsx
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { SignedOut } from "@/app/account/page";
-import { handymanEnabled } from "@/lib/handymanMarketplace";
-import { handymanEarnings } from "@/lib/professionalEarnings";
-import {
-  allHandymanEarnings,
-  privatePortalClient,
-} from "@/lib/professionalPortal";
+import { privatePortalClient } from "@/lib/professionalPortal";
 import { earningsPeriodTotals } from "@/lib/earningsPeriod";
 import PayoutScheduleForm from "./PayoutScheduleForm";
 import CleaningCancellationCompensation from "@/components/CleaningCancellationCompensation";
@@ -67,7 +63,14 @@ async function allEarningsRows(
   }
 }
 
-export default async function EarningsPage() {
+export default async function EarningsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ role?: string }>;
+}) {
+  const selectedRole = (await searchParams).role;
+  if (selectedRole === "handyman") redirect("/account/roles/handyman/pay");
+  if (selectedRole && selectedRole !== "cleaner") notFound();
   const supabase = await createClient();
   const {
     data: { user },
@@ -76,11 +79,14 @@ export default async function EarningsPage() {
 
   const { data: prov } = await supabase
     .from("providers")
-    .select("id, rating_avg, rating_count, payout_schedule")
+    .select("id, rating_avg, rating_count, payout_schedule, services")
     .eq("profile_id", user.id)
     .maybeSingle();
 
   if (!prov) return <p>Your professional account could not be found.</p>;
+  if (!prov.services?.includes("cleaning")) redirect("/account/roles");
+  if (!selectedRole && prov.services.includes("handyman"))
+    redirect("/account/roles");
 
   let paysData: unknown[];
   let payoutData: unknown[];
@@ -117,12 +123,6 @@ export default async function EarningsPage() {
     .order("issued_at", { ascending: false })
     .limit(12);
 
-  const handyman = handymanEarnings(
-    handymanEnabled()
-      ? await allHandymanEarnings(privatePortalClient(), prov.id)
-      : [],
-  );
-  const handymanPeriods = earningsPeriodTotals(handyman.periods);
   const pays = (paysData ?? []) as unknown as Pay[];
   const share = (p: Pay) => Number(p.split_breakdown?.provider ?? 0);
   const awaitingPayRate = new Set(
@@ -206,7 +206,6 @@ export default async function EarningsPage() {
     note?: string | null;
     gross?: number;
   }[] = [
-    ...handyman.rows,
     ...pays.map((p) => ({
       key: `pay-${p.id}`,
       service:
@@ -245,35 +244,25 @@ export default async function EarningsPage() {
       <link rel="stylesheet" href={FONTS} />
       <div style={{ maxWidth: 760 }}>
         <h1 style={h1}>Earnings</h1>
-        <WorkerOperationsSummary admin={privatePortalClient()} providerId={prov.id} />
+        <WorkerOperationsSummary
+          admin={privatePortalClient()}
+          providerId={prov.id}
+        />
         <CleaningCancellationCompensation />
         <p style={{ color: "#7A828C", margin: "0 0 26px", fontWeight: 600 }}>
-          Your payments, tips and settlement history, split by service.
+          Your cleaning payments, tips and settlement history.
         </p>
 
         <div className="worker-status-grid" style={statGrid}>
-          <Stat
-            label="Payments recorded"
-            value={gbp(earned + tipTotal + handyman.settled)}
-            big
-          />
-          <Stat
-            label="Settled earnings this week"
-            value={gbp(periods.week + handymanPeriods.week)}
-          />
+          <Stat label="Payments recorded" value={gbp(earned + tipTotal)} big />
+          <Stat label="Settled earnings this week" value={gbp(periods.week)} />
           <Stat
             label="Settled earnings this month"
-            value={gbp(periods.month + handymanPeriods.month)}
+            value={gbp(periods.month)}
           />
-          <Stat
-            label="Awaiting settlement"
-            value={gbp(pendingTotal + handyman.awaitingSettlement)}
-          />
+          <Stat label="Awaiting settlement" value={gbp(pendingTotal)} />
           <Stat label="Tips received" value={gbp(tipTotal)} />
-          <Stat
-            label="Visits completed"
-            value={String(visitCount + handyman.paid.length)}
-          />
+          <Stat label="Visits completed" value={String(visitCount)} />
           <Stat
             label="Your rating"
             value={
@@ -307,14 +296,6 @@ export default async function EarningsPage() {
               confirmation of the cleaner pay rate. Their reserved funds are
               excluded from earnings and payouts. Tips are paid separately in
               full.
-            </p>
-          )}
-          {handymanEnabled() && (
-            <p>
-              Property maintenance — settled transfers: {gbp(handyman.settled)}{" "}
-              · this week: {gbp(handymanPeriods.week)} · this month:{" "}
-              {gbp(handymanPeriods.month)}. Materials and VAT pass through to
-              you.
             </p>
           )}
         </section>

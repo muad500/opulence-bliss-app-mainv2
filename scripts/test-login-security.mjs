@@ -22,12 +22,12 @@ async function load(relativePath, mocks, env = process.env) {
       esModuleInterop: true,
     },
   }).outputText;
-  const module = { exports: {} };
+  const harnessModule = { exports: {} };
   vm.runInNewContext(
     compiled,
     {
-      module,
-      exports: module.exports,
+      module: harnessModule,
+      exports: harnessModule.exports,
       require: (id) => {
         if (id === "@/components/admin/HandymanQuoteAdmin")
           return { __esModule: true, default: () => null };
@@ -47,6 +47,7 @@ async function load(relativePath, mocks, env = process.env) {
         if (id === "@/lib/professionalServices") return services;
         if (id === "@/lib/authReturn") return authReturn;
         if (id === "@/lib/staffMfa") return staffMfa;
+        if (id === "@/lib/staffPermissions") return staffPermissions;
         if (id === "@/lib/handymanMarketplace")
           return {
             handymanEnabled: () => env.HANDYMAN_MARKETPLACE_ENABLED === "true",
@@ -60,12 +61,13 @@ async function load(relativePath, mocks, env = process.env) {
     },
     { filename: relativePath },
   );
-  return module.exports;
+  return harnessModule.exports;
 }
 
 const services = await load("lib/professionalServices.ts", {});
 const authReturn = await load("lib/authReturn.ts", {});
 const staffMfa = await load("lib/staffMfa.ts", {});
+const staffPermissions = await load("lib/staffPermissions.ts", {});
 const adminDashboard = await load("lib/adminDashboard.ts", {});
 
 const redirect = (location) => {
@@ -85,6 +87,7 @@ function client({
       getUser: async () => ({ data: { user }, error: authError }),
       getClaims: async () => ({ data: { claims }, error: claimsError }),
     },
+    rpc: async () => ({ data: "manager", error: null }),
     from: () => ({
       select: () => ({
         eq: () => ({
@@ -370,6 +373,8 @@ test("prototype reconciliation cleanup is blocked on production and retains live
             }),
           };
     signedIn.rpc = async (name, args) => {
+      if (name === "current_staff_role")
+        return { data: "manager", error: null };
       closed.push(args.p_finding_id);
       return { error: null };
     };
@@ -501,6 +506,7 @@ test("production admin pages omit development tools even for an administrator", 
       requireAdminPage: async () => ({
         supabase: database,
         user: { id: "admin", email: "private" },
+        staffRole: "manager",
       }),
     },
     "@/lib/developmentTools": tools,

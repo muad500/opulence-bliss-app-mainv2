@@ -4,8 +4,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isSameOriginMutation } from "@/lib/accountApi";
 import { hasStaffTotpSession } from "@/lib/staffMfa";
+import {
+  isStaffRole,
+  staffRoleAllows,
+  type StaffPermission,
+} from "@/lib/staffPermissions";
 
-export async function adminApi(request: NextRequest) {
+export async function adminApi(
+  request: NextRequest,
+  permission: StaffPermission = "manage",
+) {
   if (request.method !== "GET" && !isSameOriginMutation(request))
     return NextResponse.json(
       { error: "Open this request from the website." },
@@ -45,9 +53,20 @@ export async function adminApi(request: NextRequest) {
       { status: 403 },
     );
   }
+  const scope = await client.rpc("current_staff_role");
+  if (
+    scope.error ||
+    !isStaffRole(scope.data) ||
+    !staffRoleAllows(scope.data, permission)
+  )
+    return NextResponse.json(
+      { error: "Your staff role cannot use this tool." },
+      { status: 403 },
+    );
   return {
     user,
     client,
+    staffRole: scope.data,
     admin: adminClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
