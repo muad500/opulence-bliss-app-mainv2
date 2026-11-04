@@ -32,9 +32,9 @@ export default async function PublicProviderPage({
     throw new Error("Professional verification could not be checked.");
   if (!eligible) notFound();
   const { data: provider, error } = await supabase
-    .from("providers")
+    .from("customer_provider_cards")
     .select(
-      "id,display_name,bio,photo_url,years_experience,services,public_rating_avg,public_rating_count",
+      "id,customer_first_name,bio,photo_url,years_experience,services,public_rating_avg,public_rating_count",
     )
     .eq("id", id)
     .eq("vetting_status", "approved")
@@ -60,7 +60,7 @@ export default async function PublicProviderPage({
   const visibleRatings = (ratings ?? []).filter((row) =>
     serviceKeys.includes(row.service),
   );
-  const name = provider.display_name?.trim() || "Opulence professional";
+  const name = provider.customer_first_name?.trim() || "Opulence professional";
   const services = serviceKeys.map((service) => SERVICE_LABEL[service]);
   const serviceUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
