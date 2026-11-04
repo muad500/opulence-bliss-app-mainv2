@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowLeftRight,
   Bell,
   BriefcaseBusiness,
   CalendarDays,
@@ -256,16 +255,6 @@ export default function PortalNavigation({
   const isActive = (item: NavItem) =>
     item.exact ? path === item.href : path.startsWith(item.href);
   const first = (name || email || "O").trim().charAt(0).toUpperCase();
-  const switchHref = professional
-    ? "/account"
-    : hasProfessionalAccount
-      ? "/worker/application"
-      : "/provider/join";
-  const switchLabel = professional
-    ? "Client account"
-    : hasProfessionalAccount
-      ? "My application"
-      : "Apply as a professional";
   const status = professional
     ? !registered
       ? "Not applied"
@@ -326,27 +315,13 @@ export default function PortalNavigation({
   function renderFooter() {
     return (
       <div className={styles.footer}>
-        {professional || hasProfessionalAccount ? (
-          <AccountModeSwitch
-            mode={mode}
-            professionalApproved={
-              professional ? approved : professionalApproved
-            }
-            hasProfessionalAccount={
-              professional ? registered : hasProfessionalAccount
-            }
-          />
-        ) : (
-          <Link
-            href={switchHref}
-            className={styles.switchLink}
-            aria-label={switchLabel}
-            onClick={() => setDrawerOpen(false)}
-          >
-            <ArrowLeftRight size={18} aria-hidden="true" />
-            <span>{switchLabel}</span>
-          </Link>
-        )}
+        <AccountModeSwitch
+          mode={mode}
+          professionalApproved={professional ? approved : professionalApproved}
+          hasProfessionalAccount={
+            professional ? registered : hasProfessionalAccount
+          }
+        />
         <Link
           href="/faq"
           className={styles.quietLink}

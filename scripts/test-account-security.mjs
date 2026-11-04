@@ -14,12 +14,12 @@ async function load(path, mocks = {}, env = {}) {
       esModuleInterop: true,
     },
   }).outputText;
-  const module = { exports: {} };
+  const harnessModule = { exports: {} };
   vm.runInNewContext(
     output,
     {
-      module,
-      exports: module.exports,
+      module: harnessModule,
+      exports: harnessModule.exports,
       require: (id) => (id in mocks ? mocks[id] : require(id)),
       process: { env },
       Buffer,
@@ -29,10 +29,11 @@ async function load(path, mocks = {}, env = {}) {
     },
     { filename: path },
   );
-  return module.exports;
+  return harnessModule.exports;
 }
 const policy = await load("lib/accountSecurityAlerts.ts");
 const mfa = await load("lib/staffMfa.ts");
+const staffPermissions = await load("lib/staffPermissions.ts");
 
 test("admin APIs enforce TOTP before creating the service-role client", async () => {
   for (const fixture of [
@@ -74,10 +75,12 @@ test("admin APIs enforce TOTP before creating the service-role client", async ()
           }),
         }),
       }),
+      rpc: async () => ({ data: "manager" }),
     };
     const api = await load("lib/adminApi.ts", {
       "server-only": {},
       "@/lib/staffMfa": mfa,
+      "@/lib/staffPermissions": staffPermissions,
       "@/lib/accountApi": { isSameOriginMutation: () => true },
       "@/lib/supabase/server": { createClient: async () => client },
       "@supabase/supabase-js": {
@@ -109,6 +112,10 @@ test("cron rejects missing/wrong credentials before using any privileged service
         "@/lib/partnerInterestDelivery": {
           deliverPartnerInterestEmails: () =>
             assert.fail("Partner delivery must not run"),
+        },
+        "@/lib/documentChangeDelivery": {
+          deliverDocumentChangeEmails: () =>
+            assert.fail("document notices must not run"),
         },
         "@supabase/supabase-js": {
           createClient: () => assert.fail("client must not be created"),

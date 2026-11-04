@@ -3,6 +3,11 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { hasStaffTotpSession } from "@/lib/staffMfa";
+import {
+  isStaffRole,
+  staffRoleAllows,
+  type StaffPermission,
+} from "@/lib/staffPermissions";
 
 /** Identity only: used by the MFA setup page, never by an admin operation. */
 export async function requireStaffIdentity() {
@@ -24,14 +29,18 @@ export async function requireStaffIdentity() {
     redirect("/staff/login?error=access");
   }
 
-  return { supabase, user, profile };
+  const scope = await supabase.rpc("current_staff_role");
+  if (scope.error || !isStaffRole(scope.data))
+    redirect("/staff/login?error=access");
+  return { supabase, user, profile, staffRole: scope.data };
 }
 
-export async function requireAdminPage() {
+export async function requireAdminPage(permission: StaffPermission = "manage") {
   const context = await requireStaffIdentity();
   const { data, error } = await context.supabase.auth.getClaims();
   if (error || !hasStaffTotpSession(data?.claims, context.user.factors)) {
     redirect("/staff/mfa");
   }
+  if (!staffRoleAllows(context.staffRole, permission)) redirect("/admin");
   return context;
 }

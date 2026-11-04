@@ -7,7 +7,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const ctx = await adminApi(request);
+  const ctx = await adminApi(request, "staff");
   if (ctx instanceof NextResponse) return ctx;
   const { id } = await params;
   const headers = { "Cache-Control": "private, no-store, max-age=0" };
@@ -15,16 +15,16 @@ export async function POST(
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
   )
     return NextResponse.json({ error: "Not found" }, { status: 404, headers });
-  const { data, error } = await ctx.client.rpc("staff_view_dbs_record", {
+  const { data, error } = await ctx.client.rpc("staff_open_dbs_record", {
     p_provider: id,
     p_action: "record_view",
   });
-  if (error)
+  if (error || data?.allowed !== true)
     return NextResponse.json(
       { error: "Named onboarding staff access required" },
       { status: 403, headers },
     );
-  const row = data?.[0];
+  const row = data?.record;
   return NextResponse.json(
     {
       record: row

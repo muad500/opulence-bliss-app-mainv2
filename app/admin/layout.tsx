@@ -10,12 +10,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = await requireAdminPage();
+  const { user, staffRole } = await requireAdminPage("staff");
 
   return (
     <div className={styles.shell}>
       <PortalLiveSync userId={user.id} />
-      <AdminNav email={user.email ?? ""} />
+      <AdminNav email={user.email ?? ""} staffRole={staffRole} />
       {children}
     </div>
   );

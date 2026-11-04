@@ -41,6 +41,7 @@ async function load(path, mocks = {}) {
       if (id === "@/lib/accountChangeVerification")
         return { verifyAccountChangeRequest: async () => null };
       if (id === "@/lib/professionalServices") return services;
+      if (id === "@/lib/accountRoles") return accountRoles;
       if (id === "./sessionOptions") return sessionOptions;
       if (id === "./finalCheckoutCopy") return finalCopy;
       if (id === "@/lib/professionalLegalCopy") return professionalLegalCopy;
@@ -72,6 +73,7 @@ const professionalLegalCopy = await load("lib/professionalLegalCopy.ts");
 const sessionOptions = await load("lib/supabase/sessionOptions.ts");
 const services = await load("lib/professionalServices.ts");
 const access = await load("lib/professionalAccess.ts");
+const accountRoles = await load("lib/accountRoles.ts");
 const onboarding = await load("lib/providerOnboarding.ts");
 const request = (path, body) =>
   new NextRequest(
@@ -252,10 +254,13 @@ test("pending menu shows application access with no jobs mode or unlocked workin
       usePathname: () => "/worker/application",
     },
   };
-  const { default: Switch } = await load(
-    "components/AccountModeSwitch.tsx",
-    mocks,
-  );
+  const { default: Switch } = await load("components/AccountModeSwitch.tsx", {
+    ...mocks,
+    "./AccountRoleSwitch": await load(
+      "components/AccountRoleSwitch.tsx",
+      mocks,
+    ),
+  });
   const pending = renderToStaticMarkup(
     React.createElement(Switch, {
       mode: "client",

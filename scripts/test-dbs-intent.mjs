@@ -162,20 +162,22 @@ function route({ denied = false, missing = false, guard = null } = {}) {
       rpc: async (...args) => {
         calls.push(args);
         return {
-          data: missing
-            ? []
-            : [
-                {
-                  certificate_number: "000000000000",
-                  issue_date: "2026-10-24",
-                  certificate_original_name: "TEST.pdf",
-                  status: "pending",
-                  uploaded_at: "2026-10-24T12:00:00Z",
-                  certificate_storage_path: "PRIVATE-PATH",
-                  secret_field: "DO NOT EXPOSE",
-                },
-              ],
-          error: denied ? { message: "internal" } : null,
+          data: {
+            allowed: !denied,
+            record:
+              missing || denied
+                ? null
+                : {
+                    certificate_number: "000000000000",
+                    issue_date: "2026-10-24",
+                    certificate_original_name: "TEST.pdf",
+                    status: "pending",
+                    uploaded_at: "2026-10-24T12:00:00Z",
+                    certificate_storage_path: "PRIVATE-PATH",
+                    secret_field: "DO NOT EXPOSE",
+                  },
+          },
+          error: null,
         };
       },
     },
@@ -270,13 +272,14 @@ function certificateRoute({
       rpc: async (...args) => {
         calls.push(["audit", ...args]);
         return {
-          data: [
-            {
+          data: {
+            allowed: !denied,
+            record: {
               certificate_storage_path: "PRIVATE-PATH",
               certificate_mime_type: mime,
             },
-          ],
-          error: denied ? { message: "Not named" } : null,
+          },
+          error: null,
         };
       },
     },
