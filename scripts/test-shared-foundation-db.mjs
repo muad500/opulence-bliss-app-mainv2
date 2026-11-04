@@ -96,7 +96,8 @@ try {
     create table dbs_access_events(id bigint generated always as identity primary key,actor_id uuid,provider_id uuid,action text,details jsonb,created_at timestamptz default now());
     create function can_view_dbs() returns boolean language sql stable security definer as $$select public.is_admin() and exists(select 1 from dbs_onboarding_staff where profile_id=auth.uid())$$;
     create function staff_view_dbs_record(p_provider uuid,p_action text default 'record_view') returns setof provider_dbs_checks language sql security definer as $$select * from provider_dbs_checks where provider_id=p_provider and can_view_dbs()$$;
-    create table legal_documents(slug text primary key,title text,version text,content_html text,published boolean default true,pdf_path text,pdf_sha256 text,audience text default 'professionals');
+    create table legal_documents(slug text primary key,title text,version text,content_html text,published boolean default true,pdf_path text,pdf_sha256 text,audience text default 'professionals',effective_date date,updated_at timestamptz default now());
+    create table site_social_links(platform text primary key,url text,updated_at timestamptz default now());
     create table account_legal_acceptances(id bigint generated always as identity primary key,user_id uuid,document_slug text,version text,document_title text,content_hash text,accepted_at timestamptz default now(),acceptance_evidence jsonb,booking_id uuid,unique nulls not distinct(user_id,document_slug,version,booking_id));
     create table bookings(id uuid primary key default gen_random_uuid(),provider_id uuid,status text default 'offered');
     create table booking_offer_queue(booking_id uuid,provider_id uuid);
@@ -650,6 +651,60 @@ try {
     "select count(*)::int from legal_documents where version='1.1'",
     2,
     "Only disposable fictional documents used for version tests",
+  );
+  await sql(migration("publish_cleaner_terms_and_social_links"));
+  const cleanerTerms = JSON.parse(
+    readFileSync("lib/finalLegalPack.json", "utf8"),
+  )["cleaner-terms"];
+  await eq(
+    "select content_html from legal_documents where slug='cleaner-terms' and published",
+    cleanerTerms.contentHtml,
+    "Cleaner Terms publication uses the exact bundled wording",
+  );
+  await eq(
+    "select pdf_sha256 from document_change_plans where document_slug='cleaner-terms'",
+    cleanerTerms.pdfSha256,
+    "Cleaner Terms plan uses the original PDF fingerprint",
+  );
+  await eq(
+    "select published from legal_documents where slug='professional-partner-agreement'",
+    false,
+    "Cleaner Terms retire the previous agreement",
+  );
+  const cleanerTermsPlan = await scalar(
+    "select id from document_change_plans where document_slug='cleaner-terms'",
+  );
+  await actor(user.cleaner);
+  await eq(
+    "select document_slug from my_role_document_updates('cleaner')",
+    "cleaner-terms",
+    "Existing cleaners are prompted for the new terms",
+  );
+  await eq(
+    `select provider_service_approved('${provider.cleaner}','cleaning')`,
+    false,
+    "Pending Cleaner Terms block new cleaning work",
+  );
+  await eq(
+    `select pdf_sha256 from document_change_for_me('${cleanerTermsPlan}')`,
+    cleanerTerms.pdfSha256,
+    "Eligible cleaner can load the protected versioned PDF metadata",
+  );
+  await actor(user.customer);
+  await eq(
+    `select count(*)::int from document_change_for_me('${cleanerTermsPlan}')`,
+    0,
+    "Customer-only account cannot load the protected Cleaner Terms snapshot",
+  );
+  await actor(user.cleaner, "aal1", "service_role");
+  await sql(
+    `select accept_role_document_update('${user.cleaner}','cleaner','${cleanerTermsPlan}',true,'192.0.2.10','TEST ONLY fictional browser')`,
+  );
+  await actor(user.cleaner);
+  await eq(
+    `select provider_service_approved('${provider.cleaner}','cleaning')`,
+    true,
+    "Accepting the Cleaner Terms restores eligibility",
   );
   console.log(
     `PASS ${checks} isolated shared-foundation database checks; no external database or payment API used.`,

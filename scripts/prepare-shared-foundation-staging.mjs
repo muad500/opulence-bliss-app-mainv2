@@ -20,6 +20,7 @@ const files = [
   "20261104004744_shared_account_role_foundation.sql",
   "20261104004746_scoped_staff_roles.sql",
   "20261104004748_document_change_acceptance_workflow.sql",
+  "20261104140533_publish_cleaner_terms_and_social_links.sql",
 ];
 const readMigration = (file) => {
   const source = readFileSync(`supabase/migrations/${file}`, "utf8").replaceAll(
@@ -100,5 +101,5 @@ writeFileSync(
   ) + "\n",
 );
 console.log(
-  "Prepared three staging migrations and ledger checks. Nothing executed or deployed.",
+  `Prepared ${migrations.length} staging migrations and ledger checks. Nothing executed or deployed.`,
 );

@@ -150,13 +150,6 @@ export default async function RoleDocuments({
           );
         })}
       </ul>
-      {role.role === "cleaner" &&
-        !documents.data?.some((d) => d.slug === "cleaner-terms") && (
-          <p>
-            Cleaner Terms v1.0 have not been supplied. Your current cleaner
-            agreement remains in use.
-          </p>
-        )}
       {!!evidence.data?.length && (
         <>
           <h2>Verification for this role</h2>
