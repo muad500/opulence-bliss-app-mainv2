@@ -50,12 +50,6 @@ export default async function RolePage({
       {role.role === "partner" && (
         <p>Partner referral and reward tools are not available yet.</p>
       )}
-      {role.reward_route === "decision_required" && (
-        <p>
-          Your combined cleaner and Partner reward route is awaiting
-          confirmation.
-        </p>
-      )}
       <p>
         <Link href="/account/profile">
           Shared personal details and account settings
