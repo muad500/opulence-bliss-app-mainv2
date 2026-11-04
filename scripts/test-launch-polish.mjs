@@ -42,6 +42,20 @@ function load(file) {
 const scope = load("lib/cleaningScope.ts");
 const copy = load("lib/launchOperationsCopy.ts");
 const mail = load("lib/launchOperationsMail.ts");
+test("closing a review case keeps unresolved payout controls visible", () => {
+  const source = readFileSync("app/admin/review/page.tsx", "utf8");
+  assert.ok(
+    source.includes(
+      '"status.neq.resolved,refund_remaining.gt.0,payout_status.in.(held,pending,failed)"',
+    ),
+  );
+  const controls = readFileSync("app/admin/review/DeskControls.tsx", "utf8");
+  assert.match(
+    controls,
+    /canRelease\s*=\s*!!payoutId\s*&&\s*payoutStatus\s*===\s*"held"/,
+  );
+  assert.match(controls, /\["pending", "failed"\]\.includes\(payoutStatus/);
+});
 function loadOutcomeRoute(context) {
   const compiledModule = { exports: {} };
   const output = ts.transpileModule(
