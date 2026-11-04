@@ -1,8 +1,9 @@
 "use client";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createIncident } from "./actions";
 import styles from "../deletion-requests/page.module.css";
 export default function CreateForm() {
+  const [kind, setKind] = useState("complaint");
   const [state, action, pending] = useActionState(createIncident, {
     ok: false,
     message: "",
@@ -12,10 +13,43 @@ export default function CreateForm() {
       <h2>Record a complaint or breach</h2>
       <label className={styles.noteLabel}>
         Type
-        <select name="kind" required>
+        <select
+          name="kind"
+          value={kind}
+          onChange={(e) => setKind(e.target.value)}
+          required
+        >
           <option value="complaint">Complaint</option>
           <option value="breach">Breach</option>
           <option value="incident">Incident</option>
+        </select>
+      </label>
+      <label className={styles.noteLabel}>
+        Complainant email (for a complaint logged on their behalf)
+        <input
+          name="email"
+          type="email"
+          maxLength={254}
+          required={kind === "complaint"}
+        />
+      </label>
+      <label className={styles.noteLabel}>
+        Who is looking into it?
+        <input
+          name="handler"
+          maxLength={160}
+          defaultValue="The Opulence Bliss support team"
+          required
+        />
+      </label>
+      <label className={styles.noteLabel}>
+        Complaint response times
+        <select name="complaintKind">
+          <option value="standard">Standard — 14 days</option>
+          <option value="complex">
+            Complex — update by day 14; reply by day 28
+          </option>
+          <option value="data">Personal information — 30 days</option>
         </select>
       </label>
       <label className={styles.noteLabel}>
