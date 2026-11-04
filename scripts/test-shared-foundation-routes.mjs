@@ -446,6 +446,7 @@ test("C10/H34: accepted role documents link to their current approved version in
   };
   const client = {
     from(table) {
+      assert.notEqual(table, "account_legal_acceptances");
       const query = {
         select: () => query,
         eq: () => query,
@@ -480,7 +481,30 @@ test("C10/H34: accepted role documents link to their current approved version in
     "@/lib/legalDocuments": { sanitizeLegalHtml: (value) => value },
     "@/lib/professionalPortal": {
       privatePortalClient: () => ({
-        from: () => {
+        from: (table) => {
+          if (table === "account_legal_acceptances") {
+            return {
+              select: () => ({
+                eq: (column, id) => {
+                  assert.equal(column, "user_id");
+                  assert.equal(id, person);
+                  return {
+                    in: (column, slugs) => {
+                      assert.equal(column, "document_slug");
+                      assert.deepEqual(Array.from(slugs), [
+                        "professional-partner-agreement",
+                      ]);
+                      return {
+                        data: tables.account_legal_acceptances,
+                        error: null,
+                      };
+                    },
+                  };
+                },
+              }),
+            };
+          }
+          assert.equal(table, "provider_verification_items");
           const query = {
             select: () => query,
             eq: () => query,
