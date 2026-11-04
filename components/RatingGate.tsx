@@ -55,7 +55,7 @@ export default function RatingGate() {
     const { data: done } = await supabase
       .from("bookings")
       .select(
-        "id, customer_id, provider_id, packages(name), providers!bookings_provider_id_fkey(display_name)",
+        "id, customer_id, provider_id, packages(name), providers!bookings_provider_id_fkey(customer_first_name)",
       )
       .eq("status", "completed")
       .order("scheduled_at", { ascending: false })
@@ -89,14 +89,15 @@ export default function RatingGate() {
       | { name: string }[]
       | null;
     const prv = next.booking.providers as
-      | { display_name: string | null }
-      | { display_name: string | null }[]
+      | { customer_first_name: string | null }
+      | { customer_first_name: string | null }[]
       | null;
     const pkgName =
       (Array.isArray(pkg) ? pkg[0]?.name : pkg?.name) ?? "your visit";
     const provName =
-      (Array.isArray(prv) ? prv[0]?.display_name : prv?.display_name) ??
-      "your provider";
+      (Array.isArray(prv)
+        ? prv[0]?.customer_first_name
+        : prv?.customer_first_name) ?? "your provider";
 
     setJob({
       bookingId: next.booking.id,

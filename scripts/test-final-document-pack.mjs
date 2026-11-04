@@ -29,12 +29,12 @@ const adjustments = load("lib/visitAdjustments.ts");
 const pack = JSON.parse(readFileSync("lib/finalLegalPack.json", "utf8"));
 const sha = (value) => createHash("sha256").update(value).digest("hex");
 
-test("all twelve published documents preserve their original PDF fingerprints, version and effective date", () => {
-  assert.equal(Object.keys(pack).length, 12);
+test("published documents preserve their original PDF fingerprints, version and effective date", () => {
+  assert.equal(Object.keys(pack).length, 13);
   assert.equal(
     Object.values(pack).filter((doc) => doc.audience === "professionals")
       .length,
-    4,
+    5,
   );
   for (const document of Object.values(pack)) {
     assert.equal(document.version, "1.0");
@@ -107,6 +107,12 @@ test("professional registration needs each relevant box, without recording an un
   }
   assert.match(copy.FINAL_PROFESSIONAL_COPY.cleanerInsurance, /£1,000,000/);
   assert.match(copy.FINAL_PROFESSIONAL_COPY.handymanInsurance, /£2,000,000/);
+  assert.equal(
+    consent
+      .professionalConsentBoxes(true, false)
+      .find((box) => box.key === "cleaner_terms_v1").text,
+    "I have read and accept the Cleaner Terms and Conditions (v1.0), including the Cleaner Cancellation Policy, and the Privacy Notice.",
+  );
 });
 
 const terms = {

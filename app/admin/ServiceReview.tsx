@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { staffRoleAllows, type StaffRole } from "@/lib/staffPermissions";
 import {
   getProviderApprovalRequirements,
   getProfessionalApprovalReviewState,
@@ -18,11 +19,13 @@ export default function ServiceReview({
   approvals,
   handymanEnabled,
   revision = "",
+  staffRole = "manager",
 }: {
   id: string;
   approvals: ServiceApprovals;
   handymanEnabled: boolean;
   revision?: string;
+  staffRole?: StaffRole;
 }) {
   return (
     <div style={{ display: "grid", gap: 12 }}>
@@ -34,6 +37,7 @@ export default function ServiceReview({
             service={service as ProfessionalService}
             status={approvals[service as ProfessionalService]!}
             revision={revision}
+            staffRole={staffRole}
           />
         ),
       )}
@@ -46,11 +50,13 @@ function ServiceDecision({
   service,
   status,
   revision,
+  staffRole,
 }: {
   id: string;
   service: ProfessionalService;
   status: string;
   revision: string;
+  staffRole: StaffRole;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -169,16 +175,18 @@ function ServiceDecision({
                 ? "Second sign-off and activate"
                 : "Record first review"}
             </button>
-            <button
-              style={button}
-              disabled={busy || !reason.trim()}
-              onClick={() => decide("rejected")}
-            >
-              Reject
-            </button>
+            {staffRoleAllows(staffRole, "manage") && (
+              <button
+                style={button}
+                disabled={busy || !reason.trim()}
+                onClick={() => decide("rejected")}
+              >
+                Reject
+              </button>
+            )}
           </>
         )}
-        {status === "approved" && (
+        {status === "approved" && staffRoleAllows(staffRole, "suspend") && (
           <button
             style={button}
             disabled={busy || !reason.trim()}
@@ -187,15 +195,16 @@ function ServiceDecision({
             Suspend service
           </button>
         )}
-        {(status === "suspended" || status === "rejected") && (
-          <button
-            style={button}
-            disabled={busy}
-            onClick={() => decide("pending")}
-          >
-            Reopen for review
-          </button>
-        )}
+        {(status === "suspended" || status === "rejected") &&
+          staffRoleAllows(staffRole, "manage") && (
+            <button
+              style={button}
+              disabled={busy}
+              onClick={() => decide("pending")}
+            >
+              Reopen for review
+            </button>
+          )}
       </div>
       {error && (
         <p role="alert" style={{ color: "#a52e47", fontSize: 12 }}>

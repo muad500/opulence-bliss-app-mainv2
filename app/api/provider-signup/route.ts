@@ -455,10 +455,7 @@ export async function POST(req: NextRequest) {
         "dbs-data",
         "safeguarding",
         ...(cleaningSelected
-          ? [
-              "professional-partner-agreement" as const,
-              "cleaner-cancellation" as const,
-            ]
+          ? ["cleaner-terms" as const, "cleaner-cancellation" as const]
           : []),
         ...(handymanSelected ? ["handyman-professional-terms" as const] : []),
       ],
@@ -470,9 +467,7 @@ export async function POST(req: NextRequest) {
     const professionalAgreementVersion = acceptance.documents.find(
       (d) =>
         d.slug ===
-        (cleaningSelected
-          ? "professional-partner-agreement"
-          : "handyman-professional-terms"),
+        (cleaningSelected ? "cleaner-terms" : "handyman-professional-terms"),
     )!.version;
     const privacyVersion = acceptance.documents.find(
       (d) => d.slug === "privacy",

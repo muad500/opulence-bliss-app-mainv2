@@ -159,8 +159,8 @@ function runtime(db, { path = "/admin", guard, overview } = {}) {
   function load(file) {
     file = resolve(root, file);
     if (cache.has(file)) return cache.get(file).exports;
-    const module = { exports: {} };
-    cache.set(file, module);
+    const harnessModule = { exports: {} };
+    cache.set(file, harnessModule);
     const mocks = {
       "server-only": {},
       "next/link": {
@@ -180,6 +180,7 @@ function runtime(db, { path = "/admin", guard, overview } = {}) {
           (async () => ({
             supabase: db,
             user: { id: "sample-staff", email: "admin@example.invalid" },
+            staffRole: "manager",
           })),
       },
       "@/lib/supabase/client": {
@@ -201,8 +202,8 @@ function runtime(db, { path = "/admin", guard, overview } = {}) {
     vm.runInNewContext(
       output,
       {
-        module,
-        exports: module.exports,
+        module: harnessModule,
+        exports: harnessModule.exports,
         URLSearchParams,
         process: {
           env: {
@@ -260,7 +261,7 @@ function runtime(db, { path = "/admin", guard, overview } = {}) {
       },
       { filename: file },
     );
-    return module.exports;
+    return harnessModule.exports;
   }
   return { load };
 }
