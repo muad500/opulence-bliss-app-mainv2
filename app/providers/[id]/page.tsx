@@ -32,7 +32,7 @@ export default async function PublicProviderPage({
     throw new Error("Professional verification could not be checked.");
   if (!eligible) notFound();
   const { data: provider, error } = await supabase
-    .from("providers")
+    .from("customer_provider_cards")
     .select(
       "id,customer_first_name,bio,photo_url,years_experience,services,public_rating_avg,public_rating_count",
     )

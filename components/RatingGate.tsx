@@ -55,7 +55,7 @@ export default function RatingGate() {
     const { data: done } = await supabase
       .from("bookings")
       .select(
-        "id, customer_id, provider_id, packages(name), providers!bookings_provider_id_fkey(customer_first_name)",
+        "id, customer_id, provider_id, packages(name), providers:customer_provider_card(customer_first_name)",
       )
       .eq("status", "completed")
       .order("scheduled_at", { ascending: false })
