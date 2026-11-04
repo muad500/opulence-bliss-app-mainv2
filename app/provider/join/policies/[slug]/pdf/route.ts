@@ -15,6 +15,7 @@ export async function GET(
       "Content-Disposition": `attachment; filename="opulence-bliss-${slug}-v1.0.pdf"`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
+      "X-Robots-Tag": "noindex, nofollow",
     },
   });
 }

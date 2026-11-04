@@ -1,6 +1,10 @@
 import { FINAL_PROFESSIONAL_COPY as copy } from "./finalCheckoutCopy";
+
+const CLEANER_TERMS_CONSENT_TEXT =
+  "I have read and accept the Cleaner Terms and Conditions (v1.0), including the Cleaner Cancellation Policy, and the Privacy Notice.";
+
 export type ProfessionalConsentKey =
-  | "cleaner_terms"
+  | "cleaner_terms_v1"
   | "handyman_terms"
   | "self_employed"
   | "safeguarding"
@@ -10,7 +14,8 @@ export type ProfessionalConsentKey =
   | "regulated_work";
 export function professionalConsentBoxes(cleaning: boolean, handyman: boolean) {
   const boxes: Array<{ key: ProfessionalConsentKey; text: string }> = [];
-  if (cleaning) boxes.push({ key: "cleaner_terms", text: copy.cleanerTerms });
+  if (cleaning)
+    boxes.push({ key: "cleaner_terms_v1", text: CLEANER_TERMS_CONSENT_TEXT });
   if (handyman) boxes.push({ key: "handyman_terms", text: copy.handymanTerms });
   boxes.push(
     { key: "self_employed", text: copy.selfEmployed },

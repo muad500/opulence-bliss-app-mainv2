@@ -29,13 +29,24 @@ export async function prepareAccountAcceptance(
     throw Error("Account acceptance recording is being updated. Please retry.");
   const { data, error } = await client
     .from("legal_documents")
-    .select("slug,title,version,updated_at,content_html")
+    .select("slug,title,version,updated_at,content_html,pdf_sha256")
     .in("slug", slugs)
     .eq("published", true);
   if (error) throw Error("Account policies are unavailable. Please retry.");
   const documents = slugs.map((slug) => {
     const fallback = defaultLegalDocument(slug),
       row = data?.find((item) => item.slug === slug);
+    const approved = finalLegalDocument(slug);
+    if (
+      slug === "cleaner-terms" &&
+      (!approved ||
+        !row ||
+        row.version !== approved.version ||
+        row.content_html !== approved.contentHtml ||
+        row.pdf_sha256 !== approved.pdfSha256)
+    ) {
+      throw Error("The Cleaner Terms are unavailable. Please retry.");
+    }
     const source = row?.content_html || fallback.contentHtml;
     const display = row?.content_html
       ? publicLegalPresentation(row.title || fallback.title, source)
@@ -47,10 +58,10 @@ export async function prepareAccountAcceptance(
       sourceContentHtml: source,
       contentHash: legalContentHash(source),
       displayContentHash: legalContentHash(display.contentHtml),
-      ...(source === finalLegalDocument(slug)?.contentHtml
+      ...(approved && source === approved.contentHtml
         ? {
-            pdfSha256: finalLegalDocument(slug)!.pdfSha256,
-            effectiveDate: finalLegalDocument(slug)!.effectiveDate,
+            pdfSha256: approved.pdfSha256,
+            effectiveDate: approved.effectiveDate,
           }
         : {}),
     };

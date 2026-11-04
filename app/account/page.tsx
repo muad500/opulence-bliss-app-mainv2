@@ -34,7 +34,7 @@ type Row = {
     | null;
   providers:
     | {
-        display_name: string | null;
+        customer_first_name: string | null;
         photo_url: string | null;
         years_experience: number | null;
         vetting_status: string | null;
@@ -43,7 +43,7 @@ type Row = {
         public_rating_count: number | null;
       }
     | {
-        display_name: string | null;
+        customer_first_name: string | null;
         photo_url: string | null;
         years_experience: number | null;
         vetting_status: string | null;
@@ -139,7 +139,7 @@ export default async function AccountPage() {
     supabase
       .from("bookings")
       .select(
-        "id, scheduled_at, status, address, package_id, subscription_id, household_notes, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers!bookings_provider_id_fkey(display_name, photo_url, years_experience, vetting_status, dbs_verified, public_rating_avg, public_rating_count), check_ins(arrived_at, left_at)",
+        "id, scheduled_at, status, address, package_id, subscription_id, household_notes, provider_delay_minutes, provider_delay_reported_at, duration_minutes, property_size_sqm, packages(name, duration_minutes, price), providers!bookings_provider_id_fkey(customer_first_name, photo_url, years_experience, vetting_status, dbs_verified, public_rating_avg, public_rating_count), check_ins(arrived_at, left_at)",
       )
       .order("scheduled_at", { ascending: false }),
     supabase
@@ -268,7 +268,7 @@ export default async function AccountPage() {
       address: r.address,
       service: pkg?.name ?? "Service",
       durationMinutes: r.duration_minutes ?? pkg?.duration_minutes ?? null,
-      providerName: prv?.display_name ?? null,
+      providerName: prv?.customer_first_name ?? null,
       providerPhoto: prv?.photo_url ?? null,
       providerYearsExperience: prv?.years_experience ?? null,
       providerVerified: prv?.dbs_verified === true,
@@ -381,7 +381,8 @@ export default async function AccountPage() {
                           ? "Paid"
                           : "Payment recorded",
                       customerName: me?.full_name ?? user.email ?? "Customer",
-                      professionalName: prv?.display_name ?? "Professional",
+                      professionalName:
+                        prv?.customer_first_name ?? "Professional",
                       serviceName: pkg?.name ?? "Service",
                       address: b.address,
                       propertySizeSqm:
@@ -434,7 +435,7 @@ export default async function AccountPage() {
                   facts={[
                     {
                       label: "Provider",
-                      value: prv?.display_name ?? "Not assigned",
+                      value: prv?.customer_first_name ?? "Not assigned",
                     },
                     { label: "Address", value: b.address ?? "—" },
                     {

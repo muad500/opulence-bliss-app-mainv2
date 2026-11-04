@@ -4,8 +4,19 @@ import { useRouter } from "next/navigation";
 import { CalendarDays, BriefcaseBusiness } from "lucide-react";
 import { useAppAudience } from "./MobileExperience";
 import Link from "next/link";
+import AccountRoleSwitch from "./AccountRoleSwitch";
 
-export default function AccountModeSwitch({
+export default function AccountModeSwitch(props: {
+  mode: "client" | "professional";
+  professionalApproved?: boolean;
+  hasProfessionalAccount?: boolean;
+}) {
+  return (
+    <AccountRoleSwitch fallback={<LegacyAccountModeSwitch {...props} />} />
+  );
+}
+
+function LegacyAccountModeSwitch({
   mode,
   professionalApproved = false,
   hasProfessionalAccount = false,

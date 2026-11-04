@@ -2,10 +2,7 @@
 import { professionalConsentBoxes } from "@/lib/professionalLegalCopy";
 
 const links = [
-  [
-    "Professional Partner Agreement",
-    "/provider/join/policies/professional-partner-agreement",
-  ],
+  ["Cleaner Terms and Conditions", "/provider/join/policies/cleaner-terms"],
   [
     "Cleaner Cancellation Policy",
     "/provider/join/policies/cleaner-cancellation",
@@ -51,15 +48,7 @@ export default function ProfessionalLegalConsent({
       <legend>Professional agreements</legend>
       <p>
         New policy declarations: Version 1.0 · Effective from: 1 October 2026.
-        The current cleaner agreement keeps the version shown on its page.
       </p>
-      {cleaning && (
-        <p role="status">
-          The current cleaner agreement applies to this application. When the
-          new Cleaner Terms are published, we will ask you to accept them when
-          you next sign in. The declarations below also apply.
-        </p>
-      )}
       {professionalConsentBoxes(cleaning, handyman).map((box) => (
         <label
           key={box.key}
