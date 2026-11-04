@@ -159,6 +159,31 @@ export async function reviewProfessionalService(
   revalidatePath("/worker", "layout");
 }
 
+export async function getProfessionalApprovalReviewState(
+  id: string,
+  service: ProfessionalService,
+) {
+  const client = await requireAdmin();
+  if (
+    !isProfessionalService(service) ||
+    (service === "handyman" && !handymanEnabled())
+  )
+    throw new Error("This service is not available.");
+  const { data, error } = await client.rpc(
+    "professional_approval_review_state",
+    {
+      p_provider: id,
+      p_service: service,
+    },
+  );
+  if (error) throw new Error(error.message);
+  return data as {
+    phase: "first" | "second" | "complete" | "blocked";
+    canReview: boolean;
+    message: string;
+  };
+}
+
 export async function approveProvider(id: string) {
   await reviewProfessionalService(id, "cleaning", "approved");
 }
