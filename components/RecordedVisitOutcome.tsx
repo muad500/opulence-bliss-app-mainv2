@@ -10,6 +10,8 @@ export default function RecordedVisitOutcome({
       amount_pence: number;
     } | null>(null),
     [outcome, setOutcome] = useState<Record<string, string> | null>(null),
+    [supported, setSupported] = useState(false),
+    [fullPriceAllowed, setFullPriceAllowed] = useState(false),
     [mode, setMode] = useState("customer_stopped"),
     [reason, setReason] = useState(""),
     [minutes, setMinutes] = useState(0),
@@ -23,6 +25,8 @@ export default function RecordedVisitOutcome({
         if (active) {
           setBill(r.bill ?? null);
           setOutcome(r.outcome ?? null);
+          setSupported(r.supported === true);
+          setFullPriceAllowed(r.fullPriceAllowed === true);
           setMessage(r.error ?? "");
         }
       });
@@ -80,8 +84,16 @@ export default function RecordedVisitOutcome({
         <p>
           Recorded: {outcome.mode.replaceAll("_", " ")} · {outcome.reason}
         </p>
+      ) : bill && !supported ? (
+        <p>
+          This older booking needs manual review of its agreed payment and
+          cleaner pay. Use the resolution desk; do not apply the new
+          stopped-visit decision or full-price exception to it. Its existing
+          payment and cancellation terms remain unchanged.
+        </p>
       ) : (
-        bill && (
+        bill &&
+        supported && (
           <form onSubmit={save} style={{ display: "grid", gap: 12 }}>
             <p>
               Original visit total: £{(bill.amount_pence / 100).toFixed(2)}. No
@@ -93,15 +105,22 @@ export default function RecordedVisitOutcome({
                 <option value="customer_stopped">
                   Customer asked to stop — time worked only
                 </option>
-                <option value="unsafe_home">
+                <option value="unsafe_home" disabled={!fullPriceAllowed}>
                   Cleaner left an unsafe home — full price exception
                 </option>
-                <option value="disrespect">
+                <option value="disrespect" disabled={!fullPriceAllowed}>
                   Cleaner left after disrespect or threats — full price
                   exception
                 </option>
               </select>
             </label>
+            {!fullPriceAllowed && (
+              <p>
+                The full-price exception is unavailable under this
+                booking&apos;s older agreed terms. Only a verified time-worked
+                adjustment is offered here.
+              </p>
+            )}
             {mode === "customer_stopped" && (
               <label>
                 Verified minutes actually worked

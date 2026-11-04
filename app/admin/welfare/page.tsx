@@ -57,6 +57,9 @@ export default async function WelfarePage() {
       </p>
       <p>No calls are made automatically. Only log steps actually taken.</p>
       {result.error && <p>Alerts could not be loaded.</p>}
+      {!result.error && !alerts.length && (
+        <p>No missed check-in alerts to follow up at the moment.</p>
+      )}
       {alerts.map((alert) => (
         <article
           key={alert.booking_id + alert.scheduled_at}

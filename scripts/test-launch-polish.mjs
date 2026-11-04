@@ -42,6 +42,114 @@ function load(file) {
 const scope = load("lib/cleaningScope.ts");
 const copy = load("lib/launchOperationsCopy.ts");
 const mail = load("lib/launchOperationsMail.ts");
+function loadOutcomeRoute(context) {
+  const compiledModule = { exports: {} };
+  const output = ts.transpileModule(
+    readFileSync("app/api/admin/visit-outcomes/route.ts", "utf8"),
+    {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+      },
+    },
+  ).outputText;
+  vm.runInNewContext(output, {
+    module: compiledModule,
+    exports: compiledModule.exports,
+    require(id) {
+      if (id === "next/server") return { NextResponse: Response };
+      if (id === "stripe") return {};
+      if (id === "@/lib/visitBillingServer") return {};
+      if (id === "@/lib/adminApi") return { adminApi: async () => context };
+      throw Error(`Unexpected module ${id}`);
+    },
+  });
+  return compiledModule.exports;
+}
+test("staff decisions respect the booking's own older or final agreed terms", async () => {
+  for (const [terms, supported, fullPriceAllowed] of [
+    [null, false, false],
+    [{ cleanerHourlyPence: 1500 }, false, false],
+    [
+      { productsCleanerPayPence: 400, cancellationBasis: "cleaning_hours" },
+      true,
+      false,
+    ],
+    [
+      { productsCleanerPayPence: 400, cancellationBasis: "booking_total" },
+      true,
+      true,
+    ],
+  ]) {
+    const client = {
+      from(table) {
+        return {
+          select() {
+            return this;
+          },
+          eq() {
+            return this;
+          },
+          maybeSingle: async () => ({
+            data:
+              table === "booking_visit_billing"
+                ? { revision: 1, amount_pence: 4598 }
+                : table === "booking_cleaning_billing_terms" && terms
+                  ? { terms }
+                  : null,
+            error: null,
+          }),
+        };
+      },
+    };
+    const route = loadOutcomeRoute({ admin: client, client });
+    const response = await route.GET({
+      nextUrl: new URL(
+        "https://staging.example.invalid/api/admin/visit-outcomes?booking=00000000-0000-4000-8000-000000000001",
+      ),
+    });
+    assert.equal(response.status, 200);
+    const data = await response.json();
+    assert.equal(data.supported, supported);
+    assert.equal(data.fullPriceAllowed, fullPriceAllowed);
+  }
+});
+test("staff outcome page does not offer actions if authentication or terms lookup fails", async () => {
+  const request = {
+    nextUrl: new URL(
+      "https://staging.example.invalid/api/admin/visit-outcomes?booking=00000000-0000-4000-8000-000000000001",
+    ),
+  };
+  const signedOut = loadOutcomeRoute(
+    Response.json({ error: "Sign in" }, { status: 401 }),
+  );
+  assert.equal((await signedOut.GET(request)).status, 401);
+  const client = {
+    from(table) {
+      return {
+        select() {
+          return this;
+        },
+        eq() {
+          return this;
+        },
+        maybeSingle: async () =>
+          table === "booking_cleaning_billing_terms"
+            ? { error: { message: "unavailable" } }
+            : {
+                data:
+                  table === "booking_visit_billing" ? { revision: 1 } : null,
+                error: null,
+              },
+      };
+    },
+  };
+  const response = await loadOutcomeRoute({ admin: client, client }).GET(
+    request,
+  );
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).supported, undefined);
+});
 test("a customer cannot read another unassigned visit's checklist through null provider IDs", async () => {
   const compiledModule = { exports: {} };
   const output = ts.transpileModule(
