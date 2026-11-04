@@ -28,10 +28,11 @@ export default async function RoleDocuments({
       .select("slug,title,version,effective_date")
       .in("slug", slugs)
       .eq("published", true),
-    client
+    privatePortalClient()
       .from("account_legal_acceptances")
       .select("document_slug,version,accepted_at")
-      .eq("user_id", user.id),
+      .eq("user_id", user.id)
+      .in("document_slug", slugs),
     client.rpc("my_role_document_updates", { p_role: role.role }),
     client.rpc("my_role_document_versions", { p_role: role.role }),
   ]);
