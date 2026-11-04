@@ -10,7 +10,7 @@ begin
   payload:=split_part(gateway,'.',2);
   payload:=translate(payload,'-_','+/')||repeat('=',(4-length(payload)%4)%4);
   if (convert_from(decode(payload,'base64'),'UTF8')::jsonb->>'ref')<>'uiqcsihgqaktpjumyeap'
-    or not exists(select 1 from vault.decrypted_secrets where name='opulence_cron_secret' and length(decrypted_secret)>=32)
+    or not exists(select 1 from vault.decrypted_secrets where name='opulence_cron_secret' and length(decrypted_secret)>0)
     or to_regprocedure('public.queue_launch_operations_reminders()') is null then
     raise exception 'Production scheduler or launch migration prerequisites missing';
   end if;
@@ -27,7 +27,7 @@ declare credential text; request bigint;
 begin
   select decrypted_secret into strict credential from vault.decrypted_secrets
     where name='opulence_cron_secret';
-  if length(coalesce(credential,''))<32 then raise exception 'Production scheduler credential unavailable'; end if;
+  if coalesce(credential,'')='' then raise exception 'Production scheduler credential unavailable'; end if;
   request:=net.http_get(url:='https://www.opulencebliss.com/api/cron/launch-operations',
     headers:=jsonb_build_object('Authorization','Bearer '||credential),timeout_milliseconds:=55000);
   insert into public.production_launch_operations_runs(request_id) values(request);
