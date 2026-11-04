@@ -1,8 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
 export default async function CleaningJobEvidenceSummary({
   bookingId,
+  staff = false,
 }: {
   bookingId: string;
+  staff?: boolean;
 }) {
   const client = await createClient();
   const result = await client
@@ -56,7 +58,7 @@ export default async function CleaningJobEvidenceSummary({
           <a
             target="_blank"
             rel="noreferrer"
-            href={`/api/account/work-evidence/${bookingId}/photos/${photo.id}`}
+            href={`${staff ? "/api/admin/work-evidence" : "/api/account/work-evidence"}/${bookingId}/photos/${photo.id}`}
           >
             {photo.stage === "before" ? "Before-work" : "Finished-work"} photo{" "}
             {index + 1}

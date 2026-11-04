@@ -16,7 +16,7 @@ export default async function WorkEvidencePage({
         Private evidence for booking {id}. Only the booking participants and
         authenticator-signed-in staff can open its photos.
       </p>
-      <CleaningJobEvidenceSummary bookingId={id} />
+      <CleaningJobEvidenceSummary bookingId={id} staff />
       <Link href={`/admin/cleaning-cancellations?booking=${id}`}>
         Recorded cancellation or stopped-visit decision →
       </Link>
