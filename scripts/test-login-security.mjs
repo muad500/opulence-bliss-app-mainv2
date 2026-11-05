@@ -48,6 +48,7 @@ async function load(relativePath, mocks, env = process.env) {
         if (id === "@/lib/authReturn") return authReturn;
         if (id === "@/lib/staffMfa") return staffMfa;
         if (id === "@/lib/staffPermissions") return staffPermissions;
+        if (id === "@/lib/cleanerApplication") return cleanerApplication;
         if (id === "@/lib/handymanMarketplace")
           return {
             handymanEnabled: () => env.HANDYMAN_MARKETPLACE_ENABLED === "true",
@@ -69,6 +70,10 @@ const authReturn = await load("lib/authReturn.ts", {});
 const staffMfa = await load("lib/staffMfa.ts", {});
 const staffPermissions = await load("lib/staffPermissions.ts", {});
 const adminDashboard = await load("lib/adminDashboard.ts", {});
+const ukPhone = await load("lib/ukPhone.ts", {});
+const cleanerApplication = await load("lib/cleanerApplication.ts", {
+  "./ukPhone": ukPhone,
+});
 
 const redirect = (location) => {
   throw new Error("redirect:" + location);

@@ -35,6 +35,14 @@ function fixture(options = {}) {
         Buffer,
         Response,
         require: (name) => {
+          if (name === "@/lib/cleanerAssessmentDelivery")
+            return {
+              deliverCleanerAssessmentDecisions: async () => ({
+                sent: 0,
+                failed: 0,
+                configured: false,
+              }),
+            };
           if (name === "next/server") return { NextRequest, NextResponse };
           if (name === "@/lib/cleanerApplication")
             return load("lib/cleanerApplication.ts");
@@ -248,6 +256,7 @@ test("authorised staging recovery returns only a processed count", async () => {
   assert.deepEqual(await response.json(), {
     processed: 1,
     retention: { assessments: 0, applications: 0 },
+    decisions: { sent: 0, failed: 0, configured: false },
   });
   assert.deepEqual(f.calls, [
     ["sweep_cleaner_assessments"],

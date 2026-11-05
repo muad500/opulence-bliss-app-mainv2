@@ -31,9 +31,11 @@ const tools = [
 export default function AdminNav({
   email,
   staffRole = "manager",
+  cleanerStage2 = false,
 }: {
   email: string;
   staffRole?: StaffRole;
+  cleanerStage2?: boolean;
 }) {
   const path = usePathname();
   const menu = useRef<HTMLDetailsElement>(null);
@@ -89,7 +91,15 @@ export default function AdminNav({
           More tools <span aria-hidden="true">⌄</span>
         </summary>
         <div className={styles.menu}>
-          {(staffRole === "manager" ? tools : []).map(([href, label]) => (
+          {[
+            ...(staffRole === "manager" ? tools : []),
+            ...(cleanerStage2 && staffRole !== "developer"
+              ? [
+                  ["/admin/cleaner-applications", "Cleaner applications"],
+                  ["/admin/cleaner-assessment", "Cleaner assessments"],
+                ]
+              : []),
+          ].map(([href, label]) => (
             <Link
               key={href}
               href={href}

@@ -49,18 +49,18 @@ Unpublished/placeholder wording cannot be sent as final applicant email.
 
 ### Outstanding source references
 
-| Reference | Missing source detail | Work that can proceed |
-| --- | --- | --- |
-| Process 9.1 | Exact application-received email | No-login application record and queued/held delivery |
-| Process 9.3 | Exact rejection email | Stage/reason audit and six-month retention |
-| Process invitation wording (section unspecified) | Exact induction invitation text | Limited-login and host-session mechanics |
-| Process 3.1A | Exact application privacy/checks declaration | Required unticked consent and versioned evidence machinery |
-| Onboarding Checklist | Full desk-screening checklist | Status sequence and known hard gates in build spec 5.3 |
-| Process 3.3 | Interview checklist and scoring criteria | Audited interview record, without invented pass criteria |
-| Process 3.7 | Detailed live identity/right-to-work checklist | Date/checker/type/outcome/expiry fields expressly specified |
-| Process 3.9/3.14 | Detailed escalation and Manager decision procedure | Manager-only case locking and immutable decision audit |
-| Process 4.1 | First-job follow-up checklist | 24-hour reminder after the first completed booking |
-| Process 4.2 | Fifth-job review checklist | Fifth-booking reminder |
+| Reference                                        | Missing source detail                              | Work that can proceed                                       |
+| ------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------- |
+| Process 9.1                                      | Exact application-received email                   | No-login application record and queued/held delivery        |
+| Process 9.3                                      | Exact rejection email                              | Stage/reason audit and six-month retention                  |
+| Process invitation wording (section unspecified) | Exact induction invitation text                    | Limited-login and host-session mechanics                    |
+| Process 3.1A                                     | Exact application privacy/checks declaration       | Required unticked consent and versioned evidence machinery  |
+| Onboarding Checklist                             | Full desk-screening checklist                      | Status sequence and known hard gates in build spec 5.3      |
+| Process 3.3                                      | Interview checklist and scoring criteria           | Audited interview record, without invented pass criteria    |
+| Process 3.7                                      | Detailed live identity/right-to-work checklist     | Date/checker/type/outcome/expiry fields expressly specified |
+| Process 3.9/3.14                                 | Detailed escalation and Manager decision procedure | Manager-only case locking and immutable decision audit      |
+| Process 4.1                                      | First-job follow-up checklist                      | 24-hour reminder after the first completed booking          |
+| Process 4.2                                      | Fifth-job review checklist                         | Fifth-booking reminder                                      |
 
 Process 3.21/3.21A/3.21B/3.21C and 9.6 are not missing wording dependencies:
 the build spec and Content Pack already supply the assessment rules, timers,
@@ -82,32 +82,33 @@ remains untouched and will need the same ordered rollout and a separate go.
 These are implementation checkpoints, NOT a signed acceptance sheet. A pure
 policy test does not prove browser behaviour, persistent permissions or delivery.
 
-| Test | Requirement | Current evidence and remaining work |
-| --- | --- | --- |
-| 38 | Host opens assessment before access | Offline DB host-open and manual-attendance gates pass; console built, browser acceptance pending |
-| 39 | Second device revokes first | Offline DB session replacement/old-device denial pass; browser pending |
-| 40 | Server question deadline | Offline DB checks server deadline and marks expired question wrong |
-| 41 | No backwards navigation | Offline DB rejects previous/future question; one-question UI built, browser acceptance pending |
-| 42 | Twelve passes; eleven fails | Offline DB checks both thresholds and persisted grading; email/browser pending |
-| 43 | Five core and ten random, no repeats | Offline DB checks 15 unique questions/core inclusion; frozen choices shuffled; real pack pending |
-| 44 | Page leave ends attempt | Server failure tested; UI sends leave on hidden/pagehide/back and refuses reload resume; browser acceptance pending |
-| 45 | Non-hiding notification continues | Pending browser/device test |
-| 46 | Short network grace | Offline DB missing-heartbeat failure passes; browser reconnection pending |
-| 47 | No answer key on device | Offline DB prevents browser/staff/service bulk bank reads; bounded payload test passes; real bank/bundle inspection pending |
-| 48 | Staff cannot alter score | API-role direct writes denied; route ignores submitted marks; full role-matrix browser checks pending |
-| 49 | Random writing prompt, no paste | Server prompt selection and client paste/drop prevention built; browser/device acceptance pending |
-| 50 | Five-minute auto-submit | Offline DB and recovery tests submit last saved writing and reject late replacement; scheduler installation/browser pending |
-| 51 | Writing fail needs Manager | Offline DB holds human fail for Manager; scoped review console/API built; browser/email pending |
-| 52 | Writing pass reaches acceptances | Offline DB sets Assessment passed, never Active; full account upgrade/acceptances pending |
-| 53 | Double/triple individual adjustment | Offline policy/DB timing passes; scoped adjustment UI and minimised audit built; browser acceptance pending |
-| 54 | Host failure flag | Console shows failure and progress via manual refresh; live/browser acceptance pending |
-| 55 | Manager reopens once | Offline DB rejects non-Manager, second reopening and stale attempt; creates fresh attempt without changing old marks |
-| 56 | Three-month reapplication rule | Offline DB blocks one month, allows three calendar months, and matches normalised email or phone; public form pending |
-| 57 | Assessment retention six months | Offline DB deletes expired answers/writing and rejected applications; Manager legal-hold controls protect them; scheduler installation pending |
+| Test | Requirement                          | Current evidence and remaining work                                                                                                            |
+| ---- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 38   | Host opens assessment before access  | Offline DB host-open and manual-attendance gates pass; console built, browser acceptance pending                                               |
+| 39   | Second device revokes first          | Offline DB session replacement/old-device denial pass; browser pending                                                                         |
+| 40   | Server question deadline             | Offline DB checks server deadline and marks expired question wrong                                                                             |
+| 41   | No backwards navigation              | Offline DB rejects previous/future question; one-question UI built, browser acceptance pending                                                 |
+| 42   | Twelve passes; eleven fails          | Offline DB checks both thresholds and persisted grading; email/browser pending                                                                 |
+| 43   | Five core and ten random, no repeats | Offline DB checks 15 unique questions/core inclusion; frozen choices shuffled; real pack pending                                               |
+| 44   | Page leave ends attempt              | Server failure tested; UI sends leave on hidden/pagehide/back and refuses reload resume; browser acceptance pending                            |
+| 45   | Non-hiding notification continues    | Pending browser/device test                                                                                                                    |
+| 46   | Short network grace                  | Offline DB missing-heartbeat failure passes; browser reconnection pending                                                                      |
+| 47   | No answer key on device              | Offline DB prevents browser/staff/service bulk bank reads; bounded payload test passes; real bank/bundle inspection pending                    |
+| 48   | Staff cannot alter score             | API-role direct writes denied; route ignores submitted marks; full role-matrix browser checks pending                                          |
+| 49   | Random writing prompt, no paste      | Server prompt selection and client paste/drop prevention built; browser/device acceptance pending                                              |
+| 50   | Five-minute auto-submit              | Offline DB and recovery tests submit last saved writing and reject late replacement; scheduler installation/browser pending                    |
+| 51   | Writing fail needs Manager           | Offline DB holds human fail for Manager; scoped review console/API built; browser/email pending                                                |
+| 52   | Writing pass reaches acceptances     | Offline DB sets Assessment passed, never Active; full account upgrade/acceptances pending                                                      |
+| 53   | Double/triple individual adjustment  | Offline policy/DB timing passes; scoped adjustment UI and minimised audit built; browser acceptance pending                                    |
+| 54   | Host failure flag                    | Console shows failure and progress via manual refresh; live/browser acceptance pending                                                         |
+| 55   | Manager reopens once                 | Offline DB rejects non-Manager, second reopening and stale attempt; creates fresh attempt without changing old marks                           |
+| 56   | Three-month reapplication rule       | Offline DB blocks one month, allows three calendar months, and matches normalised email or phone; public form pending                          |
+| 57   | Assessment retention six months      | Offline DB deletes expired answers/writing and rejected applications; Manager legal-hold controls protect them; scheduler installation pending |
 
 Related onboarding tests 1–15, 28–36 must be rerun against the completed Stage 2
 flow. Application-without-login storage and validation have 13 offline DB checks;
-the public application form/endpoint are not built yet. Limited invitation login
+the staging-only public form/endpoint and staff intake console are now built
+(see the 5 November checkpoint below). Limited invitation login
 has an HttpOnly, Secure, same-site session, hashes stored in the private schema,
 and no Supabase account or job access. Invitation issuance/UI, activation gates,
 expiry suspension/reminders, no-substitute action,
@@ -154,11 +155,83 @@ its repeated sweep is idempotent. It is not enabled or scheduled remotely yet.
 An isolated CI workflow runs the fictional application/assessment database tests
 without any remote database credential.
 
-The engine still needs invitation issue flow, public application form/endpoint,
-secure real-pack import, scheduler installation, case-linked retention holds,
+The engine still needs invitation issue flow,
+secure real-pack import, scheduler installation, complaint/incident-linked retention holds,
 and the rest of the onboarding workflow before end-to-end acceptance.
 These checkpoint tests are not a claim that Stage 2 is ready for applicants.
 
 Real Android/iPhone visibility and wake-lock tests remain required. No claim is
 made that a browser can reliably report an event after it has been killed; the
 server-side grace/heartbeat must cover missing final client events.
+
+## 5 November: missing-source handling and intake workflow
+
+The owner's missing-document instruction is implemented centrally in
+`lib/cleanerOnboardingPlaceholders.ts`. All ten unresolved source entries are
+listed in the table above and rendered from that module in the staff console.
+The provided build specification supplies the field names and hard gates; it
+does not supply the missing exact declarations, emails or checklist criteria.
+No final copy or checklist criterion has been invented.
+
+Added the following, behind the existing staging-project-only feature gate:
+
+- `/cleaner-apply` and `/api/cleaner-applications`: no-login application, UK
+  phone/postcode validation, unticked placeholder acknowledgement, honeypot,
+  shared database rate limit, platform-trusted IP/time/wording evidence, and
+  generic duplicate/reapplication responses. There is no auth account, provider,
+  job eligibility, email or invitation side effect. The screen is labelled for
+  fictional staging test data; it does not replace the live signup.
+- `/admin/cleaner-applications`: MFA/scoped list and deliberate record opening,
+  ordered stage records, staff/time/reason audit, draft known-evidence fields,
+  Manager escalation/locking/resolution, rejection and six-month retention.
+  Private ID/DBS evidence additionally requires the existing named DBS list.
+  General records omit private evidence and private-stage notes. The console
+  shows every missing-source placeholder and the held communication status.
+- Exact desk-screening, interview and live-check checklist completion remains
+  blocked until approved source versions are supplied. There is no exposed
+  switch to pretend those sources have arrived. Recording a draft never changes
+  eligibility. Known RTW, DBS and experience gates also run in the database.
+- Raw application-table reads are removed; bounded staff RPCs enforce locks.
+  The older assessment overview, adjustment, host and writing-marking RPCs obey
+  the same Manager lock. Rejection revokes an existing assessment capability
+  without changing its automatic score or creating any account/activation.
+- An unresolved Manager escalation protects the application and assessment
+  from retention deletion, alongside the existing legal hold. A Manager can
+  resolve a case after rejection without changing the rejected decision.
+
+New migrations: `20261105102000_cleaner_onboarding_workflow.sql` and
+`20261105104243_cleaner_assessment_decision_mail.sql`. They follow
+the three unapplied Stage 2 migrations above, in that order. No remote migration, production
+deployment, access change or actual applicant email was performed for this
+checkpoint. The provider-read restriction still requires the separate rollout
+confirmation already described above; it has not been applied.
+
+The supplied assessment not-passed subject/body (Content Pack / Process 9.6)
+now have a final-decision outbox and delivery through the protected recovery
+worker. It uses only the approved staging sender and explicit test recipients.
+Waiting for Manager confirmation, reopening an attempt, ordinary application
+rejection, unapproved recipients and duplicate recovery runs cannot send an
+incorrect decision. A failed/uncertain delivery reuses its provider idempotency
+identity; retries stop before that identity's 24-hour provider window expires.
+Missing application/rejection/invitation wording stays in its separate held
+outbox. No actual email was sent for this checkpoint.
+
+Verification added: 48 isolated PostgreSQL checks, 7 intake-route failure
+checks and 4 decision-mail checks, plus two pure workflow checks. They cover missing consent, cross-site
+requests, forged status/wording, rate limiting, duplicate intake, MFA/named
+access, ordered completion, missing source gates, case-lock bypasses, rejected
+session reuse and held/protected/idempotent retention. All data is fictional.
+The existing 13 intake, 59 assessment and 20 privacy database checks also pass.
+The complete application suite, typecheck, scoped new-code lint and production
+build pass. The build used inert build-only placeholder credentials; no
+Production settings were pulled. The generated billing worker still matches
+its existing source hash. No real-device, delivery or end-to-end staging pass
+is claimed here.
+
+Remaining independent implementation/integration work stays visible: private
+real-pack import, invitation/account-upgrade/acceptance handoff, expiry and
+follow-up integration, linking future
+complaints/incidents to holds, and the protected recovery schedule. These must
+be completed and exercised on the isolated staging deployment before this
+draft is ready to merge. Missing client wording is an additional dependency;
+it is not used to label these unfinished items as completed.

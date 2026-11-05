@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { cleanerStage2Enabled } from "@/lib/cleanerApplication";
+import { deliverCleanerAssessmentDecisions } from "@/lib/cleanerAssessmentDelivery";
 
 export const runtime = "nodejs";
 export async function GET(request: Request) {
@@ -26,8 +27,9 @@ export async function GET(request: Request) {
     if (error) throw Error("Recovery unavailable");
     const cleanup = await admin.rpc("purge_expired_cleaner_applications");
     if (cleanup.error) throw Error("Retention unavailable");
+    const decisions = await deliverCleanerAssessmentDecisions(admin);
     return Response.json(
-      { processed: data, retention: cleanup.data },
+      { processed: data, retention: cleanup.data, decisions },
       { headers },
     );
   } catch {

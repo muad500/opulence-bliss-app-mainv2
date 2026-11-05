@@ -9,6 +9,7 @@ import { execFileSync } from "node:child_process";
 const directory = await mkdtemp(join(tmpdir(), "opulence-tests-"));
 const modules = [
   "cleanerApplication",
+  "cleanerOnboardingWorkflow",
   "cleanerOnboardingPlaceholders",
   "cleanerAssessmentPolicy",
   "accountRoles",
@@ -75,6 +76,8 @@ try {
   for (const script of [
     "test-cleaner-assessment-session.mjs",
     "test-cleaner-assessment-console.mjs",
+    "test-cleaner-intake-routes.mjs",
+    "test-cleaner-assessment-mail.mjs",
     "test-shared-foundation-routes.mjs",
     "test-checkout-cleaner-cards.mjs",
     "test-launch-polish.mjs",

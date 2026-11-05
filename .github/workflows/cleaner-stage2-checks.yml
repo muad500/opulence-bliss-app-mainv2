@@ -8,11 +8,17 @@ on:
       - "app/api/cleaner-assessment/**"
       - "app/api/admin/cleaner-assessment/**"
       - "app/api/cron/cleaner-assessments/**"
+      - "app/cleaner-apply/**"
+      - "app/admin/cleaner-applications/**"
+      - "app/api/cleaner-applications/**"
+      - "app/api/admin/cleaner-applications/**"
       - "lib/cleanerApplication*"
       - "lib/cleanerAssessment*"
       - "lib/cleanerOnboarding*"
       - "scripts/test-cleaner-*"
       - "supabase/migrations/2026110502*"
+      - "supabase/migrations/*cleaner_onboarding*"
+      - "supabase/migrations/*cleaner_assessment*"
       - ".github/workflows/cleaner-stage2-checks.yml"
 permissions: { contents: read }
 jobs:
@@ -29,5 +35,6 @@ jobs:
           npm install --prefix "$task_test_dir" --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.3.14
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-applications-db.mjs
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-assessment-db.mjs
-      - run: node --test scripts/test-cleaner-assessment-session.mjs scripts/test-cleaner-assessment-console.mjs
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-onboarding-db.mjs
+      - run: node --test scripts/test-cleaner-assessment-session.mjs scripts/test-cleaner-assessment-console.mjs scripts/test-cleaner-intake-routes.mjs scripts/test-cleaner-assessment-mail.mjs
       - run: npx tsc --noEmit
