@@ -36,5 +36,6 @@ jobs:
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-applications-db.mjs
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-assessment-db.mjs
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-onboarding-db.mjs
-      - run: node --test scripts/test-cleaner-assessment-session.mjs scripts/test-cleaner-assessment-console.mjs scripts/test-cleaner-intake-routes.mjs scripts/test-cleaner-assessment-mail.mjs
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-assessment-pack-db.mjs
+      - run: node --test scripts/test-cleaner-assessment-session.mjs scripts/test-cleaner-assessment-console.mjs scripts/test-cleaner-intake-routes.mjs scripts/test-cleaner-assessment-mail.mjs scripts/test-cleaner-assessment-pack.mjs
       - run: npx tsc --noEmit

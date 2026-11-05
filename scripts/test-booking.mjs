@@ -78,6 +78,7 @@ try {
     "test-cleaner-assessment-console.mjs",
     "test-cleaner-intake-routes.mjs",
     "test-cleaner-assessment-mail.mjs",
+    "test-cleaner-assessment-pack.mjs",
     "test-shared-foundation-routes.mjs",
     "test-checkout-cleaner-cards.mjs",
     "test-launch-polish.mjs",

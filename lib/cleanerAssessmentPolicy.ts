@@ -158,4 +158,6 @@ export const CLEANER_ASSESSMENT_COPY = Object.freeze({
     "Well done. You have passed the assessment. Please continue to accept our terms and policies and set up your account.",
   writingInstruction:
     "Write 4 to 6 sentences in your own words. You have 5 minutes.",
+  questionTimer: "You have {n} seconds.",
+  writingTimer: "You have {n} minutes left.",
 });

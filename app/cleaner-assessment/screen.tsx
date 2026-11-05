@@ -271,9 +271,14 @@ export default function CleanerAssessment() {
             </button>
           </>
         )}
-        {active(snapshot) && (
+        {active(snapshot) && remaining !== null && (
           <p className={styles.timer} aria-live="off">
-            {remaining}s remaining{" "}
+            {snapshot?.phase === "writing"
+              ? copy.writingTimer.replace(
+                  "{n}",
+                  String(Math.ceil(remaining / 60)),
+                )
+              : copy.questionTimer.replace("{n}", String(remaining))}{" "}
             {snapshot?.phase === "questions" &&
               `· Question ${snapshot.position} of 15`}
           </p>
