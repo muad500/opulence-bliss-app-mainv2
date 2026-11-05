@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { accountContext, accountError, isAccountError } from "@/lib/accountApi";
+import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
   const ctx = await accountContext(request);
@@ -7,17 +8,13 @@ export async function GET(request: NextRequest) {
   const [customerBookings, providerBookings] = await Promise.all([
     ctx.admin
       .from("bookings")
-      .select(
-        "id,customer_id,provider_id,packages(name),providers!bookings_provider_id_fkey(display_name)",
-      )
+      .select("id,customer_id,provider_id,packages(name)")
       .eq("customer_id", ctx.user.id)
       .limit(500),
     ctx.providerId
       ? ctx.admin
           .from("bookings")
-          .select(
-            "id,customer_id,provider_id,packages(name),providers!bookings_provider_id_fkey(display_name)",
-          )
+          .select("id,customer_id,provider_id,packages(name)")
           .eq("provider_id", ctx.providerId)
           .limit(500)
       : Promise.resolve({ data: [], error: null }),
@@ -31,6 +28,24 @@ export async function GET(request: NextRequest) {
   const byId = new Map(bookings.map((booking) => [booking.id, booking]));
   if (bookings.length === 0)
     return NextResponse.json({ left: [], received: [] });
+  const providerIds = [
+    ...new Set(
+      bookings
+        .map((booking) => booking.provider_id)
+        .filter((id): id is string => typeof id === "string"),
+    ),
+  ];
+  const customer = await createClient();
+  const cards = providerIds.length
+    ? await customer
+        .from("customer_provider_cards")
+        .select("id,customer_first_name")
+        .in("id", providerIds)
+    : { data: [], error: null };
+  if (cards.error) return accountError("Reviews could not be loaded.", 503);
+  const providerNames = new Map(
+    (cards.data ?? []).map((card) => [card.id, card.customer_first_name] as const),
+  );
   const { data: reviews, error } = await ctx.admin
     .from("reviews")
     .select("id,booking_id,reviewer,rating,comment,visibility,created_at")
@@ -46,9 +61,6 @@ export async function GET(request: NextRequest) {
     const service = Array.isArray(booking.packages)
       ? booking.packages[0]
       : booking.packages;
-    const provider = Array.isArray(booking.providers)
-      ? booking.providers[0]
-      : booking.providers;
     const customerSide = booking.customer_id === ctx.user.id;
     const workerSide = booking.provider_id === ctx.providerId;
     const row = {
@@ -59,7 +71,7 @@ export async function GET(request: NextRequest) {
       visibility: review.visibility,
       createdAt: review.created_at,
       serviceName: service?.name ?? "Visit",
-      recipientName: provider?.display_name ?? "Professional",
+      recipientName: providerNames.get(booking.provider_id) || "Professional",
     };
     if (review.reviewer === "client" && customerSide)
       left.push({ ...row, roleSide: "client" });
