@@ -38,7 +38,8 @@ try {
     create table customer_favourite_providers(provider_id uuid,user_id uuid);
     alter table providers enable row level security;
     create policy legacy_read on providers for select using(true);
-    grant select on providers,bookings,customer_favourite_providers to anon,authenticated,service_role;
+    grant select on providers,bookings to anon,authenticated,service_role;
+    grant select on customer_favourite_providers to service_role;
     create function public_eligible_provider_ids() returns table(id uuid) language sql stable security definer set search_path=public
       as $$select p.id from providers p where show_on_our_pros and dbs_verified and not is_suspended$$;
     insert into providers values('${id(11)}','${id(1)}','TEST Public Surname','TEST',null,4.5,2,'TEST stored biography',3,array['cleaning'],'approved',true,false,true,'acct_TEST_PRIVATE');
@@ -73,6 +74,11 @@ try {
   );
   checks++;
   await actor(id(4));
+  await assert.rejects(db.exec("select * from customer_favourite_providers"));
+  checks++;
+  console.log(
+    "PASS private favourite table stays server-only while customer projection works",
+  );
   await check(
     "select count(*)::int from customer_provider_cards",
     2,
