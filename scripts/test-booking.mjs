@@ -12,6 +12,8 @@ const modules = [
   "accountRoles",
   "staffPermissions",
   "documentChangePolicy",
+  "publicCleaningReviews",
+  "customerCleanerCards",
   "workerOperations",
   "dataRetention",
   "notificationSettings",
@@ -70,6 +72,7 @@ const modules = [
 try {
   for (const script of [
     "test-shared-foundation-routes.mjs",
+    "test-checkout-cleaner-cards.mjs",
     "test-launch-polish.mjs",
     "test-final-document-pack.mjs",
     "test-partner-programme-page.mjs",
