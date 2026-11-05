@@ -1,5 +1,6 @@
 "use client";
 import { DEFAULT_CLEANING_BILLING_TERMS } from "@/lib/cleaningBillingTerms";
+import { loadPreviousCustomerCleaners } from "@/lib/customerCleanerCards";
 import { REFERRAL_SOURCES } from "@/lib/bookingPreferences";
 
 // SETUP: mkdir -p "app/book" && code "app/book/page.tsx"
@@ -368,7 +369,7 @@ export default function BookPage() {
           .maybeSingle();
         setRole(p?.role ?? null);
         setSavedPhone(p?.phone ?? "");
-        const { data: cleaners } = await supabase.rpc("my_previous_cleaners");
+        const cleaners = await loadPreviousCustomerCleaners(supabase, user.id).catch(() => []);
         setPreviousCleaners(cleaners ?? []);
         const response = await fetch("/api/account/profile", {
           cache: "no-store",
@@ -399,7 +400,7 @@ export default function BookPage() {
               (cleaner: { provider_id: string; display_name: string }) => [
                 cleaner.provider_id,
                 cleaner,
-              ],
+              ] as const,
             ),
           );
           for (const favourite of account.favourites ?? [])
