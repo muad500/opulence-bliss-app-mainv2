@@ -1,0 +1,22 @@
+name: Public catalogue policy checks
+on:
+  pull_request:
+    branches: [main, codex/staging]
+    paths:
+      - "supabase/migrations/20261105134601_public_catalogue_read_scope.sql"
+      - "scripts/test-public-catalogue-read-db.mjs"
+      - ".github/workflows/public-catalogue-read.yml"
+permissions: { contents: read }
+jobs:
+  offline-policies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Check public rows and unchanged staff protections
+        run: |
+          task_test_dir="$(mktemp -d)"
+          npm install --prefix "$task_test_dir" --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.3.14
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-public-catalogue-read-db.mjs
