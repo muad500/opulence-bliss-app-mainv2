@@ -10,6 +10,7 @@ import {
   privateBankHash,
   ASSESSMENT_APPROVED_SHA256,
   ASSESSMENT_CORE_IDS,
+  assessmentBankFingerprintSql,
 } from "./cleaner-assessment-pack.mjs";
 const require = createRequire(import.meta.url);
 if (!process.env.PGLITE_MODULE) throw Error("Local PGLITE_MODULE required.");
@@ -64,6 +65,7 @@ try {
     : assessmentImportSql(pack, ASSESSMENT_APPROVED_SHA256);
   await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;
     create schema auth;create schema vault;create table vault.secrets(name text);
+    create table auth.users(id uuid primary key);create table public.providers(id uuid primary key);
     insert into vault.secrets values('opulence_staging_recovery_secret');
     grant usage on schema public,auth to anon,authenticated,service_role;
     create function auth.uid() returns uuid language sql stable as $$select '${staff}'::uuid$$;
@@ -107,6 +109,10 @@ try {
       };
       // Compare fingerprints, not objects: assertion failures must not dump a key.
       assert.equal(privateBankHash(saved), privateBankHash(pack));
+      assert.equal(
+        await value(assessmentBankFingerprintSql),
+        privateBankHash(pack),
+      );
       assert.equal(
         saved.questions.some((q) =>
           q.options.some((o) => /\(correct\)/i.test(o)),
@@ -216,6 +222,23 @@ try {
     },
   );
   await db.exec("reset role");
+  await check(
+    "the reusable staging smoke rolls back every fictional record",
+    async () => {
+      await db.exec(
+        readFileSync(
+          "supabase/tests/cleaner_assessment_pack_smoke.sql",
+          "utf8",
+        ),
+      );
+      const result = await value(
+        "select current_setting('opulence.stage2_pack_smoke')::jsonb",
+      );
+      assert.equal(result.pass, true);
+      assert.equal(result.fixtureRecordsLeft, 0);
+      assert.equal(result.cases, 2);
+    },
+  );
   await db.exec(
     "insert into vault.secrets values('opulence_production_visit_payments_secret')",
   );

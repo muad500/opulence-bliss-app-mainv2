@@ -3,6 +3,12 @@
 Staging only. Production requires the owner's explicit go. Checkout, loyalty,
 Booking Credit and tips belong to the other bot and are not modified here.
 
+**Latest status, 5 November:** the approved Content Pack is now imported into
+the isolated STAGING database, and all six Stage 2 migrations match the ledger.
+The real-bank server smoke passed; no test records remain. The applicant flow
+is still a draft. The missing Onboarding Process/Checklist references below
+remain placeholders, and invitation/setup/browser work is not signed off.
+
 ## Dependencies and rollout
 
 Created `codex/cleaner-stage2` from staging `36aace6`, then brought the Stage 1
@@ -37,7 +43,7 @@ Sources are the supplied Cleaner Account Build Specification and Test Checklist
 v1.0 and Cleaner Assessment Content Pack v1.0. The bank's correct options are
 not copied into this document, browser code, fixtures or test output. The initial
 policy module contains only rules and non-secret screen/email copy. The actual
-question bank is not imported yet. A private-schema transactional marking engine
+question bank is now imported on staging (see the final checkpoint below). A private-schema transactional marking engine
 and bounded session endpoint now exist, tested using an invented bank only.
 
 The separate Cleaner Onboarding Process and Cleaner Onboarding Checklist are
@@ -88,12 +94,12 @@ policy test does not prove browser behaviour, persistent permissions or delivery
 | 39   | Second device revokes first          | Offline DB session replacement/old-device denial pass; browser pending                                                                         |
 | 40   | Server question deadline             | Offline DB checks server deadline and marks expired question wrong                                                                             |
 | 41   | No backwards navigation              | Offline DB rejects previous/future question; one-question UI built, browser acceptance pending                                                 |
-| 42   | Twelve passes; eleven fails          | Offline DB checks both thresholds and persisted grading; email/browser pending                                                                 |
-| 43   | Five core and ten random, no repeats | Offline DB checks 15 unique questions/core inclusion; frozen choices shuffled; real pack pending                                               |
+| 42   | Twelve passes; eleven fails          | Actual staging bank verifies both thresholds and persisted grading; email/browser pending                                                      |
+| 43   | Five core and ten random, no repeats | Actual staging bank verifies 15 unique questions and all five core questions; frozen choices shuffled; browser pending                         |
 | 44   | Page leave ends attempt              | Server failure tested; UI sends leave on hidden/pagehide/back and refuses reload resume; browser acceptance pending                            |
 | 45   | Non-hiding notification continues    | Pending browser/device test                                                                                                                    |
 | 46   | Short network grace                  | Offline DB missing-heartbeat failure passes; browser reconnection pending                                                                      |
-| 47   | No answer key on device              | Offline DB prevents browser/staff/service bulk bank reads; bounded payload test passes; real bank/bundle inspection pending                    |
+| 47   | No answer key on device              | Actual bank access and bounded payload checks pass; client asset scan clean; live browser network check pending                                |
 | 48   | Staff cannot alter score             | API-role direct writes denied; route ignores submitted marks; full role-matrix browser checks pending                                          |
 | 49   | Random writing prompt, no paste      | Server prompt selection and client paste/drop prevention built; browser/device acceptance pending                                              |
 | 50   | Five-minute auto-submit              | Offline DB and recovery tests submit last saved writing and reject late replacement; scheduler installation/browser pending                    |
@@ -121,7 +127,7 @@ policy defaults OFF. Its persisted setting and Manager/MFA/reason controls are
 tested offline. Admin setting and review controls are now built; manual browser
 tests and dispatch of the final decision email remain outstanding.
 
-## Current checkpoint and verification
+## Earlier checkpoint and verification (before the pack link arrived)
 
 Unapplied migrations `20261105020000`, `20261105021000` and `20261105022000` hold no-login
 applications and the private assessment engine. Neither was run on shared staging
@@ -164,7 +170,7 @@ Real Android/iPhone visibility and wake-lock tests remain required. No claim is
 made that a browser can reliably report an event after it has been killed; the
 server-side grace/heartbeat must cover missing final client events.
 
-## 5 November: missing-source handling and intake workflow
+## 5 November: missing-source handling and intake workflow, before pack import
 
 The owner's missing-document instruction is implemented centrally in
 `lib/cleanerOnboardingPlaceholders.ts`. All ten unresolved source entries are
@@ -235,3 +241,59 @@ complaints/incidents to holds, and the protected recovery schedule. These must
 be completed and exercised on the isolated staging deployment before this
 draft is ready to merge. Missing client wording is an additional dependency;
 it is not used to label these unfinished items as completed.
+
+## 5 November: approved private pack imported on staging
+
+Source: the owner's supplied Drive document ID
+`1rqjzRHK8qiz8kmSOQ-2Xk6_VdFsOQI4c`, Cleaner Assessment Content Pack v1.0,
+effective 1 October 2026. Downloaded DOCX fingerprint:
+`d9354835cf191d3ce88f41ee334bd275453cef3c2bf57f524f86ab38859868cb`.
+The raw source, parsed bank and generated import SQL are held only in the ignored
+local private source directory. They are not in Git, an app asset, a browser
+bundle, a migration ledger or a test fixture. The import went to the staging
+server through a private database operation. No answer key is in this report.
+
+`scripts/prepare-cleaner-assessment-import.mjs` checks the original file hash,
+source headers, 25 ordered unique questions, the exact five core identifiers,
+one private marking annotation per question and five writing prompts. Wording
+is preserved; marking annotations are separated before a device can see choices.
+Only an approved imported source permits assessment start. Imports are refused
+on a Production-marked database or during unfinished assessment/review work.
+An independent server fingerprint matched the parsed source after import.
+
+All non-secret screen and email copy matched the supplied document. The timer
+was corrected to its exact section 4.6 seconds/minutes wording. The source check
+scanned 745 app/client asset files and found no private question-bank text.
+
+The following migrations were applied to **comwdjprdedmsnxtvuuk only**, in order:
+
+| Version        | Source MD5 matched in ledger     |
+| -------------- | -------------------------------- |
+| 20261105020000 | 1a1f8e417149644d8f3265aef0898eb0 |
+| 20261105021000 | 341aaf0ba0bfab5fcc22e6b223d78eda |
+| 20261105022000 | 13dbac85f202248588fc48d888c8ef17 |
+| 20261105102000 | 35f89e1cd63d5f4f5f1544579a610a67 |
+| 20261105104243 | b4c46bdcb984f30cb7dd29a588582b2d |
+| 20261105111015 | e506161c8a086c8870f41e632217d6d7 |
+
+The official migration tool supplied execution-time IDs. After confirming each
+recorded source fingerprint, only those ledger IDs were aligned to their
+checked-in migration versions; source statements were not rewritten.
+The separate provider restriction 20261104210001 remains absent.
+There were no security-advisor notices for the new application/onboarding/
+assessment schema or objects after installation.
+
+The reusable `supabase/tests/cleaner_assessment_pack_smoke.sql` ran against the
+actual staging bank. It verified two attempts and 30 server-marked answers:
+12 correct opens writing; 11 fails; each attempt has 15 unique questions and
+all five core questions. No marking key or whole bank appears in device payloads.
+Its fictional applications, sessions, answers, audits and outbox entries are
+rolled back. Follow-up counts: zero applications, invitations, attempts and
+decision emails. No auth accounts, professional approvals, mail or payments.
+
+Private-source and invented-bank offline runs also pass. The test suite now
+includes the import/provenance guard and the rollback smoke, without shipping
+the real bank to CI. Application suite, typecheck and build pass. No Production
+deployment, Production migration, credential change or public enablement was
+performed. Main remains 3a3d487. Browser/device/invitation/account-upgrade work
+and the ten missing-source references remain outstanding in this draft.

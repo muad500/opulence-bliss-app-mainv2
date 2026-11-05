@@ -97,6 +97,21 @@ export function privateBankHash(pack) {
     .digest("hex");
 }
 
+// Returns a fingerprint only, never marking data. Its serialization matches
+// privateBankHash so the imported server rows can be checked against the file.
+export const assessmentBankFingerprintSql = `
+with questions as (
+  select string_agg('{"id":' || id::text || ',"prompt":' || to_json(prompt)::text ||
+    ',"options":' || to_json(options)::text || ',"correct_option":' || correct_option::text || '}', ',' order by id) as body
+  from cleaner_assessment_private.questions
+), writing as (
+  select string_agg('{"id":' || id::text || ',"prompt":' || to_json(prompt)::text || '}', ',' order by id) as body
+  from cleaner_assessment_private.writing_prompts
+)
+select encode(sha256(convert_to('{"questions":[' || questions.body || '],"writing":[' || writing.body || ']}', 'UTF8')), 'hex') as bank_sha256
+from questions cross join writing;
+`;
+
 const literal = (value) =>
   "E'" + value.replaceAll("\\", "\\\\").replaceAll("'", "''") + "'";
 export function assessmentImportSql(pack, sourceSha256) {
