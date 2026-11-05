@@ -70,6 +70,7 @@ const modules = [
 ];
 try {
   for (const script of [
+    "test-checkout-cleaner-cards.mjs",
     "test-shared-foundation-routes.mjs",
     "test-launch-polish.mjs",
     "test-final-document-pack.mjs",
