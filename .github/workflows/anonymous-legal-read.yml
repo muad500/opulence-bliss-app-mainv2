@@ -1,0 +1,22 @@
+name: Anonymous published policy checks
+on:
+  pull_request:
+    branches: [codex/staging]
+    paths:
+      - "supabase/migrations/20261105010000_anonymous_published_legal_read.sql"
+      - "scripts/test-anonymous-legal-read-db.mjs"
+      - ".github/workflows/anonymous-legal-read.yml"
+permissions: { contents: read }
+jobs:
+  offline-policies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Test anonymous legal reads without remote credentials
+        run: |
+          task_test_dir="$(mktemp -d)"
+          npm install --prefix "$task_test_dir" --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.3.14
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-anonymous-legal-read-db.mjs
