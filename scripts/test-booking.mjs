@@ -8,6 +8,8 @@ import { execFileSync } from "node:child_process";
 // project's locked TypeScript compiler; no extra runtime dependency is needed.
 const directory = await mkdtemp(join(tmpdir(), "opulence-tests-"));
 const modules = [
+  "cleanerApplication",
+  "cleanerOnboardingPlaceholders",
   "cleanerAssessmentPolicy",
   "accountRoles",
   "staffPermissions",
@@ -71,6 +73,7 @@ const modules = [
 ];
 try {
   for (const script of [
+    "test-cleaner-assessment-session.mjs",
     "test-shared-foundation-routes.mjs",
     "test-checkout-cleaner-cards.mjs",
     "test-launch-polish.mjs",
