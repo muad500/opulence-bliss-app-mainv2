@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { loadCustomerFavouriteCards } from "@/lib/customerCleanerCards";
 import {
   accountContext,
   accountError,
@@ -13,6 +15,7 @@ import {
 } from "@/lib/accountApi";
 
 async function loadProfile({ user, admin }: AccountContext) {
+  const customer = await createClient();
   const [
     profileResult,
     detailResult,
@@ -47,18 +50,14 @@ async function loadProfile({ user, admin }: AccountContext) {
       .select("legal_version,accepted_at")
       .eq("user_id", user.id)
       .maybeSingle(),
-    admin
-      .from("customer_favourite_providers")
-      .select("provider_id,providers(display_name,photo_url,rating_avg)")
-      .eq("user_id", user.id),
+    loadCustomerFavouriteCards(customer, user.id, admin),
   ]);
   if (
     profileResult.error ||
     detailResult.error ||
     addressesResult.error ||
     legalResult.error ||
-    consentResult.error ||
-    favouritesResult.error
+    consentResult.error
   ) {
     throw new Error(
       "Account details could not be loaded. The profile update may still be pending.",
@@ -130,18 +129,7 @@ async function loadProfile({ user, admin }: AccountContext) {
       marketingEmails: d?.marketing_emails === true,
       marketingConsentAt: d?.marketing_consent_at ?? null,
     },
-    favourites: (favouritesResult.data ?? []).map((row) => {
-      const provider = Array.isArray(row.providers)
-        ? row.providers[0]
-        : row.providers;
-      return {
-        providerId: row.provider_id,
-        displayName: provider?.display_name ?? "Professional",
-        photoUrl: provider?.photo_url ?? null,
-        ratingAvg:
-          provider?.rating_avg == null ? null : Number(provider.rating_avg),
-      };
-    }),
+    favourites: favouritesResult,
     legalAcceptances: acceptances,
   };
 }
