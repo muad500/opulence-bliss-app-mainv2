@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { compareCleaningSessions } from "@/lib/cleaningBooking";
+import { loadPublicCleaningBookingReviews } from "@/lib/publicCleaningReviews";
 import CleaningPackageScope from "@/components/CleaningPackageScope";
 import CleaningComparison from "@/components/CleaningComparison";
 import {
@@ -224,18 +225,12 @@ export default function ServicePage() {
       setItems(matching.sort(compareCleaningSessions));
 
       const [
-        { data: revs },
+        revs,
         { data: curated },
         { data: faqRows },
         { data: summaryRows },
       ] = await Promise.all([
-        supabase
-          .from("reviews")
-          .select("id, rating, comment, created_at")
-          .eq("reviewer", "client")
-          .eq("visibility", "public")
-          .order("created_at", { ascending: false })
-          .limit(6),
+        loadPublicCleaningBookingReviews(supabase),
         supabase
           .from("marketing_reviews")
           .select(
