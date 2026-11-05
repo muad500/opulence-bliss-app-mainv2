@@ -1,0 +1,33 @@
+name: Cleaner Stage 2 offline checks
+on:
+  pull_request:
+    branches: [codex/staging]
+    paths:
+      - "app/cleaner-assessment/**"
+      - "app/admin/cleaner-assessment/**"
+      - "app/api/cleaner-assessment/**"
+      - "app/api/admin/cleaner-assessment/**"
+      - "app/api/cron/cleaner-assessments/**"
+      - "lib/cleanerApplication*"
+      - "lib/cleanerAssessment*"
+      - "lib/cleanerOnboarding*"
+      - "scripts/test-cleaner-*"
+      - "supabase/migrations/2026110502*"
+      - ".github/workflows/cleaner-stage2-checks.yml"
+permissions: { contents: read }
+jobs:
+  isolated-assessment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Verify fictional applications and private assessment engine offline
+        run: |
+          task_test_dir="$(mktemp -d)"
+          npm install --prefix "$task_test_dir" --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.3.14
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-applications-db.mjs
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-assessment-db.mjs
+      - run: node --test scripts/test-cleaner-assessment-session.mjs scripts/test-cleaner-assessment-console.mjs
+      - run: npx tsc --noEmit

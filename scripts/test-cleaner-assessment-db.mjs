@@ -50,9 +50,9 @@ async function command(
     ])
   ).rows[0].cleaner_assessment_command;
 }
-async function resetAttempt() {
+async function resetAttempt(multiplier = 1) {
   await db.exec(`reset role;delete from cleaner_assessment_private.attempts;
-    update cleaner_assessment_private.invitations set session_hash=null,reopens_used=0;
+    update cleaner_assessment_private.invitations set session_hash=null,reopens_used=0,adjustment=${multiplier};
     update cleaner_applications set status='invited';
     update cleaner_assessment_private.settings set confirm_automatic_fail=false;
     update cleaner_assessment_private.host_sessions set opened=true;`);
@@ -84,6 +84,7 @@ try {
   for (const migration of [
     "20261105020000_cleaner_application_records.sql",
     "20261105021000_private_cleaner_assessment.sql",
+    "20261105022000_cleaner_application_intake_retention.sql",
   ])
     await db.exec(readFileSync(`supabase/migrations/${migration}`, "utf8"));
   await db.exec(`insert into cleaner_applications(full_name,email,phone,postcode,areas,experience,availability,right_to_work_type,checks_acknowledged,declaration_text,declaration_source,privacy_version,status)
@@ -413,8 +414,8 @@ try {
     `select staff_mark_cleaner_writing('${attempt}',false,'TEST changed marking reason')`,
     "a completed writing decision cannot be silently overwritten",
   );
-  await resetAttempt();
-  await db.exec(`reset role;update cleaner_assessment_private.invitations set adjustment=3;
+  await resetAttempt(3);
+  await db.exec(`reset role;
     update cleaner_assessment_private.attempt_questions set opened_at=clock_timestamp()-interval '11 seconds' where attempt_id='${attempt}' and position=1`);
   await actor();
   await pass(
@@ -442,6 +443,259 @@ try {
   await denied(
     `select cleaner_assessment_start('${token}','${device}',true)`,
     "manual absent status denies the assessment without a Meet integration",
+  );
+  await actor("authenticated");
+  await denied(
+    "select staff_cleaner_assessment_overview()",
+    "host progress and writing are not readable without MFA",
+  );
+  await actor("authenticated", "aal2");
+  await pass(
+    "host overview has no question bank, option mappings or correct answers",
+    async () => {
+      const rows = await value("select staff_cleaner_assessment_overview()");
+      assert.equal(rows.length, 1);
+      assert.deepEqual(
+        Object.keys(rows[0]).sort(),
+        [
+          "application_id",
+          "full_name",
+          "status",
+          "host_session_id",
+          "host_open",
+          "attendance_confirmed",
+          "adjustment",
+          "reopens_used",
+          "attempt_id",
+          "phase",
+          "position",
+          "score",
+          "failure_reason",
+          "writing_text",
+          "last_seen_at",
+          "legal_hold",
+          "decided_at",
+        ].sort(),
+      );
+    },
+  );
+  await denied(
+    `select staff_adjust_cleaner_assessment('${host}',2)`,
+    "timing adjustment cannot change after an assessment has started",
+  );
+  await db.exec("reset role;delete from cleaner_assessment_private.attempts;");
+  await actor("authenticated", "aal2");
+  await db.exec(`select staff_adjust_cleaner_assessment('${host}',2)`);
+  await pass(
+    "adjustments record only the grant, with no free-text medical detail",
+    async () => {
+      await db.exec("reset role");
+      assert.equal(
+        await value(
+          "select adjustment from cleaner_assessment_private.invitations limit 1",
+        ),
+        2,
+      );
+      assert.equal(
+        await value(
+          "select reason is null from cleaner_assessment_private.audit where event='adjustment_granted' order by id desc limit 1",
+        ),
+        true,
+      );
+    },
+  );
+  await actor("authenticated", "aal2");
+  await denied(
+    `select staff_adjust_cleaner_assessment('${host}',4)`,
+    "unsupported timing multipliers are rejected",
+  );
+  await db.exec(
+    `reset role;update cleaner_assessment_private.invitations set attendance_confirmed=true;`,
+  );
+  await resetAttempt();
+  await db.exec(
+    `reset role;update cleaner_assessment_private.attempts set last_seen_at=clock_timestamp()-interval '6 seconds' where id='${attempt}'`,
+  );
+  await actor("authenticated", "aal2");
+  await denied(
+    "select sweep_cleaner_assessments()",
+    "browser/staff cannot invoke the scheduler's service-only recovery entry point",
+  );
+  await actor();
+  await pass(
+    "test 44/46: killed browser fails from scheduler without any further device request",
+    async () => {
+      assert.equal(await value("select sweep_cleaner_assessments()"), 1);
+      await db.exec("reset role");
+      assert.equal(
+        await value(
+          `select phase from cleaner_assessment_private.attempts where id='${attempt}'`,
+        ),
+        "failed",
+      );
+    },
+  );
+  await actor();
+  await pass("repeated recovery is idempotent", async () =>
+    assert.equal(await value("select sweep_cleaner_assessments()"), 0),
+  );
+  await answerAll(15);
+  await command(
+    "writing_save",
+    null,
+    null,
+    "TEST saved writing before deadline.",
+  );
+  await db.exec(
+    `reset role;update cleaner_assessment_private.attempts set writing_started_at=clock_timestamp()-interval '301 seconds',last_seen_at=clock_timestamp()-interval '3 seconds' where id='${attempt}'`,
+  );
+  await actor();
+  await pass(
+    "test 50: scheduler submits writing saved by a device connected at its deadline",
+    async () => {
+      assert.equal(await value("select sweep_cleaner_assessments()"), 1);
+      await db.exec("reset role");
+      assert.equal(
+        await value(
+          `select phase from cleaner_assessment_private.attempts where id='${attempt}'`,
+        ),
+        "writing_review",
+      );
+    },
+  );
+  const applicationDetails = {
+    fullName: "TEST Reapplication Only",
+    email: "TEST-REAPPLICATION@EXAMPLE.INVALID",
+    phone: "+442079460002",
+    postcode: "SW1A1AA",
+    areas: ["TEST area"],
+    experience: "TEST experience",
+    availability: "TEST weekdays",
+    rightToWorkType: "TEST declaration",
+    checksAcknowledged: true,
+  };
+  const submit = async (details = applicationDetails) =>
+    (
+      await db.query(
+        "select submit_cleaner_application($1,'[TEST declaration placeholder]','TEST source','TEST-1')",
+        [JSON.stringify(details)],
+      )
+    ).rows[0].submit_cleaner_application;
+  await actor("anon");
+  await pass(
+    "anonymous clients cannot bypass application validation using the intake RPC",
+    () => assert.rejects(submit()),
+  );
+  await actor();
+  const reapplication = await submit();
+  await pass("duplicate active applications are rejected atomically", () =>
+    assert.rejects(submit()),
+  );
+  await db.exec(
+    `reset role;update cleaner_applications set status='not_progressed',decision_at=clock_timestamp()-interval '1 month',retention_due_at=clock_timestamp()+interval '5 months' where id='${reapplication}'`,
+  );
+  await actor();
+  await pass("test 56: reapplication at one month is blocked", () =>
+    assert.rejects(submit()),
+  );
+  await pass(
+    "changing email cannot evade the same-phone reapplication restriction",
+    () =>
+      assert.rejects(
+        submit({
+          ...applicationDetails,
+          email: "TEST-CHANGED@EXAMPLE.INVALID",
+        }),
+      ),
+  );
+  await db.exec(
+    `reset role;update cleaner_applications set decision_at=clock_timestamp()-interval '3 months' where id='${reapplication}'`,
+  );
+  await actor();
+  await pass(
+    "test 56: reapplication at three calendar months is allowed",
+    async () => assert.notEqual(await submit(), reapplication),
+  );
+  await db.exec(`reset role;update cleaner_assessment_private.attempts set phase='passed',decided_at=clock_timestamp()-interval '7 months',writing_text='TEST expired writing' where id='${attempt}';
+    update cleaner_applications set status='active' where id='${host}'`);
+  await actor("authenticated", "aal2", "onboarding");
+  await denied(
+    `select staff_hold_cleaner_application('${host}',true,'TEST legal hold reason')`,
+    "only a Manager can set or release a legal hold",
+  );
+  await actor("authenticated", "aal2");
+  await denied(
+    `select staff_hold_cleaner_application('${host}',true,'')`,
+    "legal hold changes require a logged reason",
+  );
+  await db.exec(
+    `select staff_hold_cleaner_application('${host}',true,'TEST unresolved complaint hold')`,
+  );
+  await actor();
+  await pass(
+    "test 57: legal hold retains expired assessment answers and writing",
+    async () =>
+      assert.equal(
+        (await value("select purge_expired_cleaner_applications()"))
+          .assessments,
+        0,
+      ),
+  );
+  await actor("authenticated", "aal2");
+  await db.exec(
+    `select staff_hold_cleaner_application('${host}',false,'TEST complaint resolved release')`,
+  );
+  await actor();
+  await pass(
+    "test 57: six-month cleanup removes assessment answers/writing but not an active application",
+    async () => {
+      assert.equal(
+        (await value("select purge_expired_cleaner_applications()"))
+          .assessments,
+        1,
+      );
+      await db.exec("reset role");
+      assert.equal(
+        await value(
+          `select count(*)::int from cleaner_assessment_private.attempt_questions where attempt_id='${attempt}'`,
+        ),
+        0,
+      );
+      assert.equal(
+        await value(
+          `select count(*)::int from cleaner_applications where id='${host}'`,
+        ),
+        1,
+      );
+    },
+  );
+  await db.exec(
+    `reset role;update cleaner_applications set status='not_progressed',retention_due_at=clock_timestamp()-interval '1 day',legal_hold=true where id='${reapplication}'`,
+  );
+  await actor();
+  await pass(
+    "legal hold also protects an expired rejected application",
+    async () =>
+      assert.equal(
+        (await value("select purge_expired_cleaner_applications()"))
+          .applications,
+        0,
+      ),
+  );
+  await db.exec(
+    `reset role;update cleaner_applications set legal_hold=false where id='${reapplication}'`,
+  );
+  await actor();
+  await pass("released hold permits rejected-application cleanup", async () =>
+    assert.equal(
+      (await value("select purge_expired_cleaner_applications()")).applications,
+      1,
+    ),
+  );
+  await actor("authenticated", "aal2");
+  await denied(
+    "select purge_expired_cleaner_applications()",
+    "staff/browser cannot bypass the retention scheduler",
   );
   console.log(
     `${checks} offline assessment database checks passed; fictional bank only.`,

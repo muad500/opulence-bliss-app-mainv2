@@ -41,6 +41,7 @@ create table cleaner_assessment_private.attempts (
   id uuid primary key default gen_random_uuid(),
   invitation_id uuid not null references cleaner_assessment_private.invitations(id) on delete cascade,
   attempt_number smallint not null check(attempt_number in (1,2)),
+  adjustment smallint not null check(adjustment in (1,2,3)),
   phase text not null default 'questions' check(phase in (
     'questions','writing','writing_review','manager_review','failed','passed')),
   position smallint not null default 1 check(position between 1 and 15),
@@ -102,12 +103,12 @@ begin
       into choices from generate_series(1,3) n;
     return jsonb_build_object('attemptId',a.id,'phase',a.phase,'position',a.position,
       'questionCount',15,'prompt',q.prompt,'choices',choices,
-      'deadline',q.opened_at+make_interval(secs=>10*i.adjustment),'serverTime',clock_timestamp());
+      'deadline',q.opened_at+make_interval(secs=>10*a.adjustment),'serverTime',clock_timestamp());
   end if;
   return jsonb_build_object('attemptId',a.id,'phase',a.phase,'serverTime',clock_timestamp()) ||
     case when a.phase='writing' then jsonb_build_object('prompt',(
       select prompt from cleaner_assessment_private.writing_prompts where id=a.writing_prompt_id),
-      'deadline',a.writing_started_at+make_interval(secs=>300*i.adjustment),'writing',a.writing_text)
+      'deadline',a.writing_started_at+make_interval(secs=>300*a.adjustment),'writing',a.writing_text)
     else '{}'::jsonb end;
 end;
 $fn$;
@@ -174,7 +175,7 @@ begin
     if not exists(select 1 from public.cleaner_applications where id=i.application_id and status='invited') then
       raise exception 'An induction invitation is required.' using errcode='insufficient_privilege';
     end if;
-    insert into cleaner_assessment_private.attempts(invitation_id,attempt_number) values(i.id,1+i.reopens_used) returning * into a;
+    insert into cleaner_assessment_private.attempts(invitation_id,attempt_number,adjustment) values(i.id,1+i.reopens_used,i.adjustment) returning * into a;
     select array_agg(id order by gen_random_uuid()) into v_ids from (
       select id from cleaner_assessment_private.questions where id in (3,6,7,8,10)
       union all (select id from cleaner_assessment_private.questions where id not in (3,6,7,8,10)
@@ -242,8 +243,8 @@ begin
       raise exception 'Only the current question can be answered.' using errcode='check_violation';
     end if;
     if p_action in ('writing_save','writing_submit') then raise exception 'Complete Part A first.'; end if;
-    if p_action='answer' or v_now>=q.opened_at+make_interval(secs=>10*i.adjustment) then
-      if v_now<q.opened_at+make_interval(secs=>10*i.adjustment) then
+    if p_action='answer' or v_now>=q.opened_at+make_interval(secs=>10*a.adjustment) then
+      if v_now<q.opened_at+make_interval(secs=>10*a.adjustment) then
         v_selected:=q.option_order[array_position(q.option_tokens,p_choice)];
         if v_selected is null then raise exception 'Choose one of the current options.'; end if;
       end if;
@@ -267,7 +268,7 @@ begin
     if p_action='answer' then raise exception 'Part A is complete.'; end if;
     -- Expired writing submits only the last server-saved text, never a late
     -- replacement supplied by the device after the deadline.
-    if v_now>=a.writing_started_at+make_interval(secs=>300*i.adjustment) then
+    if v_now>=a.writing_started_at+make_interval(secs=>300*a.adjustment) then
       update cleaner_assessment_private.attempts set phase='writing_review' where id=a.id;
     elsif p_action in ('writing_save','writing_submit') then
       if p_writing is null or char_length(p_writing)>6000 then raise exception 'Writing is limited to 6000 characters.'; end if;
@@ -291,11 +292,77 @@ begin
 end;
 $fn$;
 
+-- The scheduler and host refresh can process a killed browser that never
+-- delivered its final page-leave event. No browser clock is accepted.
+create function public.sweep_cleaner_assessments()
+returns integer language plpgsql security definer set search_path='' as $fn$
+declare i record; a cleaner_assessment_private.attempts; v_now timestamptz; v_count integer:=0;
+begin
+  for i in select inv.id from cleaner_assessment_private.invitations inv
+    where exists(select 1 from cleaner_assessment_private.attempts t where t.invitation_id=inv.id
+      and t.phase in ('questions','writing')) order by inv.id limit 100 for update of inv skip locked
+  loop
+    select * into a from cleaner_assessment_private.attempts where invitation_id=i.id
+      order by attempt_number desc limit 1 for update;
+    v_now:=clock_timestamp();
+    if a.phase='writing' and v_now>=a.writing_started_at+make_interval(secs=>300*a.adjustment)
+      and a.last_seen_at>=a.writing_started_at+make_interval(secs=>300*a.adjustment)-interval '5 seconds' then
+      update cleaner_assessment_private.attempts set phase='writing_review' where id=a.id;
+      v_count:=v_count+1;
+    elsif a.phase in ('questions','writing') and (a.last_seen_at+interval '5 seconds'<v_now or not exists(
+      select 1 from cleaner_assessment_private.invitations inv join cleaner_assessment_private.host_sessions h
+        on h.id=inv.host_session_id where inv.id=i.id and inv.expires_at>v_now and h.opened)) then
+      perform cleaner_assessment_private.fail(a.id,'connection lost');
+      v_count:=v_count+1;
+    end if;
+  end loop;
+  return v_count;
+end;
+$fn$;
+
 create function public.staff_cleaner_assessment_settings()
 returns jsonb language plpgsql security definer set search_path='' as $fn$
 begin
   if not public.can_review_professional() then raise exception 'Staff authenticator sign-in required.' using errcode='insufficient_privilege'; end if;
   return (select jsonb_build_object('confirmAutomaticFail',confirm_automatic_fail) from cleaner_assessment_private.settings);
+end;
+$fn$;
+
+create function public.staff_cleaner_assessment_overview(p_application uuid default null)
+returns jsonb language plpgsql security definer set search_path='' as $fn$
+begin
+  if not public.can_review_professional() then raise exception 'Staff authenticator sign-in required.' using errcode='insufficient_privilege'; end if;
+  return coalesce((select jsonb_agg(row_to_json(x)) from (
+    select c.id as application_id,c.full_name,c.status,c.legal_hold,i.host_session_id,h.opened as host_open,
+      i.attendance_confirmed,i.adjustment,i.reopens_used,a.id as attempt_id,a.phase,
+      a.position,a.score,a.failure_reason,
+      case when a.phase in ('writing_review','manager_review','passed') then a.writing_text end as writing_text,
+      a.last_seen_at,a.decided_at
+    from public.cleaner_applications c
+    join cleaner_assessment_private.invitations i on i.application_id=c.id
+    join cleaner_assessment_private.host_sessions h on h.id=i.host_session_id
+    left join lateral (select * from cleaner_assessment_private.attempts
+      where invitation_id=i.id order by attempt_number desc limit 1) a on true
+    where p_application is null or c.id=p_application
+    order by c.created_at desc limit 50
+  ) x),'[]'::jsonb);
+end;
+$fn$;
+
+create function public.staff_adjust_cleaner_assessment(p_application uuid,p_multiplier integer)
+returns void language plpgsql security definer set search_path='' as $fn$
+declare i cleaner_assessment_private.invitations;
+begin
+  if not public.staff_has_permission('first_review') then raise exception 'Onboarding staff authenticator sign-in required.' using errcode='insufficient_privilege'; end if;
+  if p_multiplier not in (1,2,3) or p_multiplier is null then raise exception 'Choose standard, double or triple time.'; end if;
+  select * into strict i from cleaner_assessment_private.invitations where application_id=p_application for update;
+  if exists(select 1 from cleaner_assessment_private.attempts where invitation_id=i.id) then
+    raise exception 'Set the adjustment before the assessment starts.'; end if;
+  update cleaner_assessment_private.invitations set adjustment=p_multiplier where id=i.id;
+  -- Deliberately record NO disability, diagnosis, supporting evidence or
+  -- free-text explanation. Only the granted timing multiplier is stored.
+  insert into cleaner_assessment_private.audit(application_id,actor,event)
+    values(i.application_id,auth.uid(),'adjustment_granted');
 end;
 $fn$;
 
@@ -379,15 +446,19 @@ $fn$;
 
 revoke all on all functions in schema cleaner_assessment_private from public,anon,authenticated,service_role;
 revoke all on function public.cleaner_assessment_start(text,text,boolean),
+  public.sweep_cleaner_assessments(),
   public.cleaner_assessment_command(text,uuid,text,integer,uuid,text),
   public.staff_set_cleaner_automatic_fail_review(boolean,text), public.staff_cleaner_assessment_settings(),
+  public.staff_cleaner_assessment_overview(uuid),public.staff_adjust_cleaner_assessment(uuid,integer),
   public.staff_cleaner_assessment_host(uuid,boolean,uuid,boolean,text),
   public.staff_mark_cleaner_writing(uuid,boolean,text),public.staff_review_cleaner_assessment(uuid,text,text)
   from public,anon,authenticated,service_role;
 grant execute on function public.cleaner_assessment_start(text,text,boolean),
+  public.sweep_cleaner_assessments(),
   public.cleaner_assessment_command(text,uuid,text,integer,uuid,text) to service_role;
 grant execute on function public.staff_set_cleaner_automatic_fail_review(boolean,text),
   public.staff_cleaner_assessment_settings(),public.staff_cleaner_assessment_host(uuid,boolean,uuid,boolean,text),
+  public.staff_cleaner_assessment_overview(uuid),public.staff_adjust_cleaner_assessment(uuid,integer),
   public.staff_mark_cleaner_writing(uuid,boolean,text),public.staff_review_cleaner_assessment(uuid,text,text) to authenticated;
 notify pgrst, 'reload schema';
 commit;

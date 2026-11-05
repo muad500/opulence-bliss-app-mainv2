@@ -74,6 +74,7 @@ const modules = [
 try {
   for (const script of [
     "test-cleaner-assessment-session.mjs",
+    "test-cleaner-assessment-console.mjs",
     "test-shared-foundation-routes.mjs",
     "test-checkout-cleaner-cards.mjs",
     "test-launch-polish.mjs",

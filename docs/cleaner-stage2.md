@@ -84,7 +84,7 @@ policy test does not prove browser behaviour, persistent permissions or delivery
 
 | Test | Requirement | Current evidence and remaining work |
 | --- | --- | --- |
-| 38 | Host opens assessment before access | Offline DB host-open and manual-attendance gates pass; console/browser pending |
+| 38 | Host opens assessment before access | Offline DB host-open and manual-attendance gates pass; console built, browser acceptance pending |
 | 39 | Second device revokes first | Offline DB session replacement/old-device denial pass; browser pending |
 | 40 | Server question deadline | Offline DB checks server deadline and marks expired question wrong |
 | 41 | No backwards navigation | Offline DB rejects previous/future question; one-question UI built, browser acceptance pending |
@@ -96,40 +96,41 @@ policy test does not prove browser behaviour, persistent permissions or delivery
 | 47 | No answer key on device | Offline DB prevents browser/staff/service bulk bank reads; bounded payload test passes; real bank/bundle inspection pending |
 | 48 | Staff cannot alter score | API-role direct writes denied; route ignores submitted marks; full role-matrix browser checks pending |
 | 49 | Random writing prompt, no paste | Server prompt selection and client paste/drop prevention built; browser/device acceptance pending |
-| 50 | Five-minute auto-submit | Offline DB deadline submits last saved writing and rejects late replacement; UI autosaves/polls, background scheduler pending |
-| 51 | Writing fail needs Manager | Offline DB holds human fail for Manager and enforces staff MFA; review UI/email pending |
+| 50 | Five-minute auto-submit | Offline DB and recovery tests submit last saved writing and reject late replacement; scheduler installation/browser pending |
+| 51 | Writing fail needs Manager | Offline DB holds human fail for Manager; scoped review console/API built; browser/email pending |
 | 52 | Writing pass reaches acceptances | Offline DB sets Assessment passed, never Active; full account upgrade/acceptances pending |
-| 53 | Double/triple individual adjustment | Offline policy/DB timing passes; staff adjustment UI/minimised audit pending |
-| 54 | Host failure flag | Pending console and live progress |
+| 53 | Double/triple individual adjustment | Offline policy/DB timing passes; scoped adjustment UI and minimised audit built; browser acceptance pending |
+| 54 | Host failure flag | Console shows failure and progress via manual refresh; live/browser acceptance pending |
 | 55 | Manager reopens once | Offline DB rejects non-Manager, second reopening and stale attempt; creates fresh attempt without changing old marks |
-| 56 | Three-month reapplication rule | Pending normalised identity matching and deadline tests |
-| 57 | Assessment retention six months | Pending retention integration with legal holds |
+| 56 | Three-month reapplication rule | Offline DB blocks one month, allows three calendar months, and matches normalised email or phone; public form pending |
+| 57 | Assessment retention six months | Offline DB deletes expired answers/writing and rejected applications; Manager legal-hold controls protect them; scheduler installation pending |
 
 Related onboarding tests 1–15, 28–36 must be rerun against the completed Stage 2
 flow. Application-without-login storage and validation have 13 offline DB checks;
 the public application form/endpoint are not built yet. Limited invitation login
 has an HttpOnly, Secure, same-site session, hashes stored in the private schema,
 and no Supabase account or job access. Invitation issuance/UI, activation gates,
-manual induction attendance, expiry suspension/reminders, no-substitute action,
+expiry suspension/reminders, no-substitute action,
 DBS explanation/written decision/review and 14-day suspension review are pending.
 Existing Stage 1 staff roles and independent second sign-off must be reused, not
 weakened or replaced.
 
 The optional "Staff confirm each automatic fail before it is final" decision
 policy defaults OFF. Its persisted setting and Manager/MFA/reason controls are
-tested offline; the admin settings UI and pending-review UI remain to implement.
+tested offline. Admin setting and review controls are now built; manual browser
+tests and dispatch of the final decision email remain outstanding.
 
 ## Current checkpoint and verification
 
-Unapplied migrations `20261105020000` and `20261105021000` hold no-login
+Unapplied migrations `20261105020000`, `20261105021000` and `20261105022000` hold no-login
 applications and the private assessment engine. Neither was run on shared staging
 or production. The assessment endpoint is off by default and explicitly refuses
 Production and any database except the isolated staging project even if enabled.
 It uses no general account session, and ignores device-supplied scores/times.
 
-- Application tests: 619 passing, including ten real-route isolation tests.
+- Application tests: 631 passing, including 22 assessment/staff/recovery route tests.
 - Offline application DB: 13 checks passing; no auth/provider account created.
-- Offline assessment DB: 38 checks passing; all question/answer fixtures invented.
+- Offline assessment/intake/retention DB: 59 checks passing; all question/answer fixtures invented.
 - Offline provider privacy DB: 20 checks; additive rollout DB: 9 checks.
 - Typecheck and scoped new-code lint pass. Existing unrelated RatingGate lint
   issue remains documented in the PR; not changed here.
@@ -141,9 +142,21 @@ handling. It contains no bank or answer key. It is not enabled on staging yet.
 Manual browser/device acceptance remains outstanding: these controls must not
 be described as tested on real devices until the end-to-end flow is deployed.
 
-The engine still needs invitation issue flow, host/review console,
-secure real-pack import, background timeout/retention
-processing and the rest of the onboarding workflow before end-to-end acceptance.
+The separate staff console uses the existing staff/TOTP permissions, never
+service-role authority for a human decision. It shows at most 50 invited records,
+with manual attendance, session-open controls, progress/failure flag, human
+writing marks, Manager confirmation/reopening and the fail-confirmation setting.
+Adjustment audit records only "adjustment granted", never medical information.
+Managers can set/release a legal hold with a logged reason. Automatic linking of
+future application complaints/incidents to a hold is still an integration task.
+The protected recovery endpoint handles killed browsers and writing deadlines;
+its repeated sweep is idempotent. It is not enabled or scheduled remotely yet.
+An isolated CI workflow runs the fictional application/assessment database tests
+without any remote database credential.
+
+The engine still needs invitation issue flow, public application form/endpoint,
+secure real-pack import, scheduler installation, case-linked retention holds,
+and the rest of the onboarding workflow before end-to-end acceptance.
 These checkpoint tests are not a claim that Stage 2 is ready for applicants.
 
 Real Android/iPhone visibility and wake-lock tests remain required. No claim is
