@@ -143,7 +143,7 @@ test("favourite cards preserve order, photo and rating without private fields", 
     ],
   });
   assert.deepEqual(
-    await loadCustomerFavouriteCards(f.client, "TEST-customer"),
+    await loadCustomerFavouriteCards(f.client, "TEST-customer", f.client),
     [
       {
         providerId: "TEST-hidden",
@@ -169,7 +169,7 @@ test("unavailable favourites keep a neutral card, not a private-table fallback",
     customer_provider_cards: [],
   });
   assert.deepEqual(
-    await loadCustomerFavouriteCards(f.client, "TEST-customer"),
+    await loadCustomerFavouriteCards(f.client, "TEST-customer", f.client),
     [
       {
         providerId: "TEST-unavailable",
@@ -183,7 +183,7 @@ test("unavailable favourites keep a neutral card, not a private-table fallback",
 test("no favourites means no unnecessary card lookup", async () => {
   const f = fixture({ customer_favourite_providers: [] });
   assert.deepEqual(
-    await loadCustomerFavouriteCards(f.client, "TEST-customer"),
+    await loadCustomerFavouriteCards(f.client, "TEST-customer", f.client),
     [],
   );
   assert.equal(f.queries.length, 1);
@@ -197,7 +197,53 @@ test("safe-query errors fail closed instead of fetching private data", async () 
     await assert.rejects(
       table === "bookings"
         ? loadPreviousCustomerCleaners(f.client, "TEST-customer")
-        : loadCustomerFavouriteCards(f.client, "TEST-customer"),
+        : loadCustomerFavouriteCards(f.client, "TEST-customer", f.client),
     );
   }
+});
+test("private favourite ids are read by the server, never the browser session", async () => {
+  const account = fixture({
+    customer_favourite_providers: [{ provider_id: "TEST-provider" }],
+  });
+  const customer = fixture({
+    customer_provider_cards: [
+      {
+        id: "TEST-provider",
+        customer_first_name: "Alex",
+        photo_url: null,
+        public_rating_avg: 5,
+      },
+    ],
+  });
+  const authenticated = {
+    from(table: string) {
+      assert.equal(
+        table,
+        "customer_provider_cards",
+        "authenticated users must not query private account tables",
+      );
+      return customer.client.from(table);
+    },
+  } as unknown as SupabaseClient;
+  assert.deepEqual(
+    await loadCustomerFavouriteCards(
+      authenticated,
+      "TEST-customer",
+      account.client,
+    ),
+    [
+      {
+        providerId: "TEST-provider",
+        displayName: "Alex",
+        photoUrl: null,
+        ratingAvg: 5,
+      },
+    ],
+  );
+  assert.deepEqual(
+    account.queries.map((q) => q.table),
+    ["customer_favourite_providers"],
+  );
+  assert.equal(account.queries[0].select, "provider_id");
+  assert.deepEqual(account.queries[0].filters, [["user_id", "TEST-customer"]]);
 });

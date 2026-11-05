@@ -50,7 +50,7 @@ async function loadProfile({ user, admin }: AccountContext) {
       .select("legal_version,accepted_at")
       .eq("user_id", user.id)
       .maybeSingle(),
-    loadCustomerFavouriteCards(customer, user.id),
+    loadCustomerFavouriteCards(customer, user.id, admin),
   ]);
   if (
     profileResult.error ||

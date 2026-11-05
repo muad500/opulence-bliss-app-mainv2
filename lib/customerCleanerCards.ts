@@ -72,8 +72,11 @@ export async function loadPreviousCustomerCleaners(
 export async function loadCustomerFavouriteCards(
   client: SupabaseClient,
   userId: string,
+  accountStore: SupabaseClient,
 ): Promise<CustomerFavouriteCard[]> {
-  const favourites = await client
+  // Favourite ids are server-only account data; no browser table grant.
+  // The caller supplies the authenticated user's id, not request-body input.
+  const favourites = await accountStore
     .from("customer_favourite_providers")
     .select("provider_id")
     .eq("user_id", userId)

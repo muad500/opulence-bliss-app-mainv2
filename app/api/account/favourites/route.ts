@@ -7,16 +7,19 @@ import {
 } from "@/lib/accountApi";
 import { createClient } from "@/lib/supabase/server";
 import { loadCustomerFavouriteCards } from "@/lib/customerCleanerCards";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
-async function list(userId: string) {
-  return loadCustomerFavouriteCards(await createClient(), userId);
+async function list(userId: string, accountStore: SupabaseClient) {
+  return loadCustomerFavouriteCards(await createClient(), userId, accountStore);
 }
 
 export async function GET(request: NextRequest) {
   const ctx = await accountContext(request);
   if (isAccountError(ctx)) return ctx;
   try {
-    return NextResponse.json({ favourites: await list(ctx.user.id) });
+    return NextResponse.json({
+      favourites: await list(ctx.user.id, ctx.admin),
+    });
   } catch {
     return accountError("Favourite professionals could not be loaded.", 503);
   }
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
       { onConflict: "user_id,provider_id" },
     );
   if (error) return accountError("Could not save your favourite.", 503);
-  return NextResponse.json({ favourites: await list(ctx.user.id) });
+  return NextResponse.json({ favourites: await list(ctx.user.id, ctx.admin) });
 }
 
 export async function DELETE(request: NextRequest) {
@@ -63,5 +66,5 @@ export async function DELETE(request: NextRequest) {
     .eq("user_id", ctx.user.id)
     .eq("provider_id", body.providerId);
   if (error) return accountError("Could not remove your favourite.", 503);
-  return NextResponse.json({ favourites: await list(ctx.user.id) });
+  return NextResponse.json({ favourites: await list(ctx.user.id, ctx.admin) });
 }
