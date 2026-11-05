@@ -44,6 +44,26 @@ function fixture(options = {}) {
                 customer_addresses: [],
                 account_legal_acceptances: [],
                 signup_consents: null,
+                bookings: [
+                  {
+                    id: "TEST-booking",
+                    customer_id: "TEST-customer",
+                    provider_id: "TEST-provider",
+                    packages: { name: "TEST Cleaning" },
+                    providers: { display_name: "Alex TEST_PRIVATE_SURNAME" },
+                  },
+                ],
+                reviews: [
+                  {
+                    id: "TEST-review",
+                    booking_id: "TEST-booking",
+                    reviewer: "client",
+                    rating: 3,
+                    comment: "TEST ONLY private fixture",
+                    visibility: "private",
+                    created_at: "2026-11-05T08:00:00Z",
+                  },
+                ],
               };
         assert.ok(table in values, `Unexpected ${scope} table: ${table}`);
         const row = {
@@ -64,6 +84,9 @@ function fixture(options = {}) {
             return chain;
           },
           in() {
+            return chain;
+          },
+          limit() {
             return chain;
           },
           single: async () => row,
@@ -182,4 +205,22 @@ test("booking page no longer calls the legacy previous-cleaner RPC", () => {
   const source = readFileSync("app/book/page.tsx", "utf8");
   assert.doesNotMatch(source, /rpc\(["']my_previous_cleaners/);
   assert.match(source, /loadPreviousCustomerCleaners\(supabase, user.id\)/);
+});
+test("profile review recipients use first-name cards without a stored-name fallback", async () => {
+  const f = fixture();
+  const response = await f
+    .load("app/api/account/reviews/route.ts")
+    .GET(request());
+  assert.equal(response.status, 200);
+  const result = await response.json();
+  assert.equal(result.left[0].recipientName, "Alex");
+  assert.doesNotMatch(JSON.stringify(result), /TEST_PRIVATE_SURNAME/);
+});
+test("review card lookup failure cannot disclose a private stored name", async () => {
+  const f = fixture({ fail: true });
+  const response = await f
+    .load("app/api/account/reviews/route.ts")
+    .GET(request());
+  assert.equal(response.status, 503);
+  assert.doesNotMatch(await response.text(), /TEST_PRIVATE_SURNAME/);
 });
