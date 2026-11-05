@@ -21,9 +21,6 @@ function fixture(options = {}) {
         const values =
           scope === "customer"
             ? {
-                customer_favourite_providers: [
-                  { provider_id: "TEST-provider" },
-                ],
                 customer_provider_cards: [
                   {
                     id: "TEST-provider",
@@ -35,6 +32,9 @@ function fixture(options = {}) {
                 ],
               }
             : {
+                customer_favourite_providers: [
+                  { provider_id: "TEST-provider" },
+                ],
                 profiles: {
                   id: "TEST-customer",
                   full_name: "TEST Customer",
@@ -138,7 +138,7 @@ test("checkout profile response sources favourites through the customer's safe p
     ),
   );
   assert.ok(
-    !f.calls.some(
+    f.calls.some(
       (c) =>
         c.scope === "service" && c.table === "customer_favourite_providers",
     ),
@@ -151,7 +151,13 @@ test("favourites endpoint returns only the safe first-name card", async () => {
     .GET(request());
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { favourites: expected });
-  assert.ok(f.calls.every((c) => c.scope === "customer"));
+  assert.deepEqual(
+    f.calls.map((c) => [c.scope, c.table]),
+    [
+      ["service", "customer_favourite_providers"],
+      ["customer", "customer_provider_cards"],
+    ],
+  );
 });
 test("signed-out requests cannot load any customer or cleaner records", async () => {
   for (const path of ["profile", "favourites"]) {
