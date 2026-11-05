@@ -103,8 +103,8 @@ type Visit = {
   provider_id: string | null;
   scheduled_at: string;
   providers:
-    | { display_name: string | null }
-    | { display_name: string | null }[]
+    | { customer_first_name: string | null }
+    | { customer_first_name: string | null }[]
     | null;
 };
 type AddressDraft = Omit<Address, "id">;
@@ -209,7 +209,7 @@ export default function ClientProfilePage() {
     const { data: bookingRows, error: bookingError } = await supabase
       .from("bookings")
       .select(
-        "id, provider_id, scheduled_at, providers!bookings_provider_id_fkey(display_name)",
+        "id, provider_id, scheduled_at, providers:customer_provider_card(customer_first_name)",
       )
       .eq("customer_id", auth.user.id)
       .order("scheduled_at", { ascending: false });
@@ -348,7 +348,7 @@ export default function ClientProfilePage() {
         .filter((visit) => visit.provider_id)
         .map((visit) => [
           visit.provider_id!,
-          one(visit.providers)?.display_name || "Professional",
+          one(visit.providers)?.customer_first_name || "Professional",
         ]),
     ).entries(),
   )

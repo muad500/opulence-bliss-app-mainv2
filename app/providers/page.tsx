@@ -11,7 +11,7 @@ const supabase = createClient();
 
 type P = {
   id: string;
-  display_name: string | null;
+  customer_first_name: string | null;
   bio: string | null;
   photo_url: string | null;
   years_experience: number | null;
@@ -57,9 +57,9 @@ export default function ProvidersPage() {
         return;
       }
       const { data } = await supabase
-        .from("providers")
+        .from("customer_provider_cards")
         .select(
-          "id, display_name, bio, photo_url, years_experience, services, public_rating_avg, public_rating_count",
+          "id, customer_first_name, bio, photo_url, years_experience, services, public_rating_avg, public_rating_count",
         )
         .eq("vetting_status", "approved")
         .eq("dbs_verified", true)
@@ -117,14 +117,17 @@ export default function ProvidersPage() {
                 <div className="head">
                   {p.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.photo_url} alt={p.display_name ?? "Provider"} />
+                    <img
+                      src={p.photo_url}
+                      alt={p.customer_first_name ?? "Provider"}
+                    />
                   ) : (
                     <div className="initials">
-                      {(p.display_name ?? "?").charAt(0).toUpperCase()}
+                      {(p.customer_first_name ?? "?").charAt(0).toUpperCase()}
                     </div>
                   )}
                   <div>
-                    <h2>{p.display_name ?? "Opulence provider"}</h2>
+                    <h2>{p.customer_first_name ?? "Opulence provider"}</h2>
                     <p className="meta">
                       {(p.services ?? [])
                         .map((s) => SERVICE_LABEL[s] ?? s)

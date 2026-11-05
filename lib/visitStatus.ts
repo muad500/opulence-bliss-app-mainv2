@@ -635,7 +635,7 @@ export async function getVisitStatus(
       `id, status, scheduled_at, offer_expires_at, address, package_id,
        subscription_id, cleaning_extras,
        duration_minutes, property_size_sqm, packages(name, duration_minutes),
-       providers!bookings_provider_id_fkey(display_name),
+       providers:customer_provider_card(customer_first_name),
        check_ins(arrived_at)`,
     )
     .eq("id", bookingId)
@@ -652,7 +652,7 @@ export async function getVisitStatus(
     duration_minutes: number | null;
   } | null;
   const prv = one(b.providers as never) as {
-    display_name: string | null;
+    customer_first_name: string | null;
   } | null;
   const ci = one(b.check_ins as never) as { arrived_at: string | null } | null;
 
@@ -702,7 +702,7 @@ export async function getVisitStatus(
     offerExpiresAt: b.offer_expires_at ?? null,
     durationMinutes: b.duration_minutes ?? pkg?.duration_minutes ?? null,
     serviceName: pkg?.name ?? null,
-    providerName: prv?.display_name ?? null,
+    providerName: prv?.customer_first_name ?? null,
     arrivedAt: ci?.arrived_at ?? null,
     isMembershipVisit: !!b.subscription_id,
     packageId: b.package_id ?? null,
