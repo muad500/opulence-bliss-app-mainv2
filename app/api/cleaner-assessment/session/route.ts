@@ -124,11 +124,22 @@ export async function PATCH(request: NextRequest) {
       p_choice: input.choice ?? null,
       p_writing: input.writing ?? null,
     });
-    if (error || !data)
-      return NextResponse.json(
+    if (error || !data) {
+      const status = error?.code === "42501" ? 401 : 409;
+      const response = NextResponse.json(
         { error: "This session or question is no longer available." },
-        { status: 409, headers },
+        { status, headers },
       );
+      if (status === 401)
+        response.cookies.set(COOKIE, "", {
+          httpOnly: true,
+          secure: true,
+          sameSite: "strict",
+          path: "/",
+          maxAge: 0,
+        });
+      return response;
+    }
     return finish(data);
   } catch {
     return NextResponse.json(

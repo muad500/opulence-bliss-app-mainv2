@@ -128,7 +128,7 @@ or production. The assessment endpoint is off by default and explicitly refuses
 Production and any database except the isolated staging project even if enabled.
 It uses no general account session, and ignores device-supplied scores/times.
 
-- Application tests: 631 passing, including 22 assessment/staff/recovery route tests.
+- Application tests: 632 passing, including 23 assessment/staff/recovery route tests.
 - Offline application DB: 13 checks passing; no auth/provider account created.
 - Offline assessment/intake/retention DB: 59 checks passing; all question/answer fixtures invented.
 - Offline provider privacy DB: 20 checks; additive rollout DB: 9 checks.

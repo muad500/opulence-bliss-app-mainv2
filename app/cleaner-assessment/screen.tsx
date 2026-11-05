@@ -12,6 +12,7 @@ type Snapshot = {
     | "writing_review"
     | "manager_review"
     | "failed"
+    | "ended"
     | "passed";
   position?: number;
   prompt?: string;
@@ -77,6 +78,10 @@ export default function CleanerAssessment() {
             body: JSON.stringify({ attemptId, action, ...extra }),
           });
           const data = await result.json();
+          if (result.status === 401) {
+            terminating.current = true;
+            apply({ ...current.current!, phase: "ended" });
+          }
           if (!result.ok)
             throw Error(
               data.error ??
@@ -122,7 +127,8 @@ export default function CleanerAssessment() {
   }, [apply]);
 
   useEffect(() => {
-    if (!phase || phase === "failed" || phase === "passed") return;
+    if (!phase || phase === "failed" || phase === "passed" || phase === "ended")
+      return;
     const heartbeat = setInterval(() => {
       if (!terminating.current)
         void send(
@@ -354,6 +360,11 @@ export default function CleanerAssessment() {
               built.
             </p>
           </>
+        )}
+        {snapshot?.phase === "ended" && (
+          <p role="status">
+            This assessment session has ended. Please ask the host.
+          </p>
         )}
       </section>
     </main>

@@ -42,7 +42,12 @@ function fixture(options = {}) {
                 rpc: async (name, params) => {
                   calls.push({ name, params });
                   return options.fail
-                    ? { error: { message: "TEST PRIVATE DATABASE ERROR" } }
+                    ? {
+                        error: {
+                          message: "TEST PRIVATE DATABASE ERROR",
+                          code: options.errorCode,
+                        },
+                      }
                     : {
                         data: {
                           attemptId,
@@ -232,4 +237,18 @@ test("database errors never expose internal data or answer details", async () =>
   );
   assert.equal(response.status, 403);
   assert.doesNotMatch(await response.text(), /PRIVATE DATABASE/);
+});
+test("a revoked device is signed out without ending the other device's attempt", async () => {
+  const f = fixture({ fail: true, errorCode: "42501" });
+  const response = await f.route.PATCH(
+    request(
+      "PATCH",
+      { attemptId, action: "heartbeat" },
+      { cookie: `${cookie}=${session}` },
+    ),
+  );
+  assert.equal(response.status, 401);
+  assert.equal(response.cookies.get(cookie).maxAge, 0);
+  assert.equal(f.calls.length, 1);
+  assert.equal(f.calls[0].params.p_action, "heartbeat");
 });
