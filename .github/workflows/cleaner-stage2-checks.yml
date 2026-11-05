@@ -12,10 +12,14 @@ on:
       - "app/admin/cleaner-applications/**"
       - "app/api/cleaner-applications/**"
       - "app/api/admin/cleaner-applications/**"
+      - "app/admin/cleaner-onboarding-drafts/**"
+      - "app/api/admin/cleaner-onboarding-drafts/**"
+      - "content/cleaner-onboarding-drafts.json"
       - "lib/cleanerApplication*"
       - "lib/cleanerAssessment*"
       - "lib/cleanerOnboarding*"
       - "scripts/test-cleaner-*"
+      - "scripts/*cleaner-onboarding*"
       - "supabase/migrations/2026110502*"
       - "supabase/migrations/*cleaner_onboarding*"
       - "supabase/migrations/*cleaner_assessment*"
@@ -29,6 +33,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: npm }
       - run: npm ci
+      - run: node scripts/prepare-cleaner-onboarding-review.mjs --check
       - name: Verify fictional applications and private assessment engine offline
         run: |
           task_test_dir="$(mktemp -d)"
@@ -37,5 +42,5 @@ jobs:
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-assessment-db.mjs
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-onboarding-db.mjs
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-assessment-pack-db.mjs
-      - run: node --test scripts/test-cleaner-assessment-session.mjs scripts/test-cleaner-assessment-console.mjs scripts/test-cleaner-intake-routes.mjs scripts/test-cleaner-assessment-mail.mjs scripts/test-cleaner-assessment-pack.mjs
+      - run: node --test scripts/test-cleaner-assessment-session.mjs scripts/test-cleaner-assessment-console.mjs scripts/test-cleaner-intake-routes.mjs scripts/test-cleaner-assessment-mail.mjs scripts/test-cleaner-assessment-pack.mjs scripts/test-cleaner-onboarding-drafts.mjs
       - run: npx tsc --noEmit

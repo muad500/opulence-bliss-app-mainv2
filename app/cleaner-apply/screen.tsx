@@ -46,7 +46,7 @@ export default function ApplicationForm() {
           <h2>Test application received</h2>
           <p>{pendingOnboardingWording("applicationReceived")}</p>
           <p>
-            The confirmation email is held until the client supplies the
+            The confirmation email is held until the client approves the draft
             wording.
           </p>
         </div>
@@ -130,8 +130,8 @@ export default function ApplicationForm() {
             </span>
           </label>
           <p>
-            This declaration is a placeholder for testing, pending the client’s
-            approved text.
+            This declaration is a draft awaiting client approval. Use fictional
+            staging details only.
           </p>
           {error && <p role="alert">{error}</p>}
           <button

@@ -10,6 +10,7 @@ const directory = await mkdtemp(join(tmpdir(), "opulence-tests-"));
 const modules = [
   "cleanerApplication",
   "cleanerOnboardingWorkflow",
+  "cleanerOnboardingDraftReview",
   "cleanerOnboardingPlaceholders",
   "cleanerAssessmentPolicy",
   "accountRoles",
@@ -79,6 +80,7 @@ try {
     "test-cleaner-intake-routes.mjs",
     "test-cleaner-assessment-mail.mjs",
     "test-cleaner-assessment-pack.mjs",
+    "test-cleaner-onboarding-drafts.mjs",
     "test-shared-foundation-routes.mjs",
     "test-checkout-cleaner-cards.mjs",
     "test-launch-polish.mjs",
@@ -169,11 +171,13 @@ try {
   for (const moduleName of [
     "finalCheckoutCopy",
     "cleaningPolicyGuidance",
+    "cleanerOnboardingDraftMetadata",
     ...modules,
   ]) {
     for (const suffix of [
       "finalCheckoutCopy",
       "cleaningPolicyGuidance",
+      "cleanerOnboardingDraftMetadata",
     ].includes(moduleName)
       ? [""]
       : ["", ".test"]) {

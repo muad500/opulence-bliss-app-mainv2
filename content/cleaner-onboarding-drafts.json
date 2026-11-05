@@ -1,0 +1,815 @@
+{
+  "version": "draft-1",
+  "status": "draft",
+  "statusLabel": "Draft – awaiting client approval",
+  "preparedOn": "2026-11-05",
+  "title": "Cleaner onboarding: proposed emails and staff checklist",
+  "purpose": "Proposed operational wording drawn from the build specification and the published policies. This is not a copy of the client's internal HR process. Nothing in this pack is approved for sending, publication or use as a new activation requirement.",
+  "sources": [
+    {
+      "id": "cleaner-spec",
+      "title": "Cleaner Account Build Specification and Test Checklist",
+      "version": "1.0",
+      "effectiveDate": "2026-10-01"
+    },
+    {
+      "id": "cleaner-terms",
+      "title": "Cleaner Terms and Conditions",
+      "version": "1.0",
+      "effectiveDate": "2026-10-01",
+      "contentMd5": "6bc0bb80d840a9a4395cbddee79a1f1b"
+    },
+    {
+      "id": "dbs-data",
+      "title": "DBS and Criminal-Offence Data Policy",
+      "version": "1.0",
+      "effectiveDate": "2026-10-01",
+      "contentMd5": "c312a460e03ae52660f1145d535f7c3e"
+    },
+    {
+      "id": "safeguarding",
+      "title": "Safeguarding, Lone Working and Incident Policy",
+      "version": "1.0",
+      "effectiveDate": "2026-10-01",
+      "contentMd5": "c6b3b20a9fdd10174c2a4863b4c71514"
+    },
+    {
+      "id": "privacy",
+      "title": "Privacy Policy",
+      "version": "1.0",
+      "effectiveDate": "2026-10-01",
+      "contentMd5": "d439da402c830482ee90da4cdc9eb1b2"
+    }
+  ],
+  "reviewNotes": [
+    "Approve or amend the text and checklist before enabling delivery or treating the proposed checklist wording as final. The existing published hard gates remain in force.",
+    "No guaranteed work, minimum hours, application-response deadline, extra charge, automatic conviction exclusion or new interview pass score is proposed.",
+    "Every merge field must be filled from an authorised record before an approved template is used. Invitation links must be personal and time-limited; staff links must require staff sign-in and the authenticator.",
+    "Do not put DBS outcomes, offence details, certificate numbers, ID documents, medical details or personal contact/access details into ordinary email. Keep sensitive decisions and reasons in the restricted record and use a secure written-decision route.",
+    "Published Privacy Policy section 13 and DBS Policy section 7 allow records needed for an unresolved case or legal matter to be held. Do not promise unconditional deletion on a fixed day.",
+    "The build specification uses a three-year DBS renewal reminder. The existing renewal helper computes an annual anniversary. Before enabling the new reminder, verify and reconcile the verification/scheduler logic with the approved specification. This pack changes no runtime rule.",
+    "The existing welcome email asks for checks after account creation. The Stage 2 specification puts those checks before induction and full account creation. E10 proposes wording for that new sequence; it does not replace the current welcome email yet."
+  ],
+  "emails": [
+    {
+      "id": "applicationReceived",
+      "code": "E01",
+      "title": "Application received",
+      "kind": "email",
+      "audience": "Applicant",
+      "reference": "Onboarding Process 9.1",
+      "legacyKey": "applicationReceived",
+      "basis": [
+        "Cleaner spec 2.2 and 5.1",
+        "Cleaner Terms 2.2, 4.1–4.2 and 17",
+        "Privacy Policy 3 and 13"
+      ],
+      "trigger": "After a valid application record is saved. Send once for that application, after the wording is approved.",
+      "subject": "We have received your cleaner application",
+      "paragraphs": [
+        "Hello {{first_name}},",
+        "Thank you for applying to work through Opulence Bliss. We have received your application, reference {{application_reference}}.",
+        "Our team will review the information you provided and contact you about the next step. Before induction, we need to complete the application checks, including identity, the right to carry out self-employed work in the UK, a review of your basic DBS certificate and experience.",
+        "This application has not created a login or activated a cleaner account. You can receive booking offers only after the required checks, assessment, account setup and independent final sign-off are complete.",
+        "Please use the secure method our team gives you for identity or DBS documents. Do not send those documents or health information through WhatsApp or personal email.",
+        "You can read how we use your information in our Privacy Notice: {{privacy_url}}. To correct your application or ask a question, email hello@opulencebliss.com and quote your reference.",
+        "Opulence Bliss Ltd"
+      ],
+      "notes": [
+        "No response date or promise of work is made. Duplicate submissions must not generate a second email."
+      ]
+    },
+    {
+      "id": "inductionInvitation",
+      "code": "E02",
+      "title": "Induction and assessment invitation",
+      "kind": "email",
+      "audience": "Applicant invited to induction",
+      "reference": "Onboarding Process: induction invitation (section unspecified)",
+      "legacyKey": "inductionInvitation",
+      "basis": ["Cleaner spec 2.2, 5.3 and 5.5", "Safeguarding Policy 12.1"],
+      "trigger": "Only after the pre-induction checks and experience stage are recorded, and staff have arranged the session.",
+      "subject": "Your Opulence Bliss cleaner induction",
+      "paragraphs": [
+        "Hello {{first_name}},",
+        "We would like to invite you to your live cleaner induction and assessment.",
+        "Date: {{session_date}}\nTime: {{session_time}} ({{time_zone}})\nJoin the induction: {{meeting_url}}",
+        "After the induction, the host will open the assessment. Use your personal assessment link on your own device: {{assessment_invitation_url}}. The link expires at {{invitation_expires_at}}. Do not share it or use someone else's link.",
+        "The assessment rules and timers will be shown before you start. You must stay on that page until you finish. Please tell us before the session if you need an adjustment, so that the host can arrange it.",
+        "This access is for the assessment only. Passing it does not activate your account: you must then accept the required documents, complete account setup and receive independent final sign-off before taking bookings.",
+        "If you cannot attend, or need help accessing the session, email hello@opulencebliss.com and quote {{application_reference}}.",
+        "Opulence Bliss Ltd"
+      ],
+      "notes": [
+        "Meeting and personal assessment links are merge fields, not new third-party integrations. No invitation or credential is created by preparing this draft.",
+        "Do not ask applicants to email medical information when requesting an adjustment. Record only the granted assessment adjustment, as specified."
+      ]
+    },
+    {
+      "id": "applicationRejected",
+      "code": "E03",
+      "title": "General application rejection",
+      "kind": "email",
+      "audience": "Applicant",
+      "reference": "Onboarding Process 9.3",
+      "legacyKey": "applicationRejected",
+      "basis": [
+        "Cleaner spec 2, 5.2 and 7.3–7.4",
+        "Cleaner Terms 2.3",
+        "Privacy Policy 13"
+      ],
+      "trigger": "After the Manager records a general application rejection, its stage and a non-sensitive reason.",
+      "subject": "An update on your cleaner application",
+      "paragraphs": [
+        "Hello {{first_name}},",
+        "Thank you for your interest in working through Opulence Bliss. After reviewing your application, we will not be progressing it further at this stage.",
+        "Reason: {{non_sensitive_reason_summary}}",
+        "If you think we have used incorrect information, or would like us to consider relevant information, please email hello@opulencebliss.com and quote {{application_reference}}.",
+        "We normally keep unsuccessful application information for six months from our decision, subject to the retention exceptions explained in our Privacy Notice: {{privacy_url}}.",
+        "Opulence Bliss Ltd"
+      ],
+      "notes": [
+        "Not for assessment failure: use the unchanged Content Pack 4.2/4.3 message (Process 9.6).",
+        "Not for a DBS-related decision: use E04 and provide the decision and explanation securely. Do not put sensitive reasons in the non-sensitive reason field.",
+        "No general 14-day appeal deadline or three-month reapplication ban is added. The assessment-specific review/reapplication wording stays in its supplied template."
+      ]
+    },
+    {
+      "id": "dbsDecisionNotice",
+      "code": "E04",
+      "title": "Secure DBS-related decision notice",
+      "kind": "email",
+      "audience": "Applicant whose DBS-related decision has been made by the Manager",
+      "reference": "DBS Policy 6.2–6.3; cleaner spec 5.2",
+      "basis": ["DBS Policy 5.6, 6.1–6.4 and 8", "Privacy Policy 6.11 and 7.2"],
+      "trigger": "After the person has had the chance to explain, the Manager has decided, and a secure written decision with reasons is available to that person.",
+      "subject": "An update on your Opulence Bliss application",
+      "paragraphs": [
+        "Hello {{first_name}},",
+        "Our Manager has completed the review of your application. You can read the decision and its explanation securely here: {{secure_decision_url}}.",
+        "You can ask us to review the decision. Email hello@opulencebliss.com and quote {{application_reference}}. If you cannot open the secure link, contact us so that we can arrange a secure way for you to receive the written decision.",
+        "Please do not send your certificate, offence details or identity documents by ordinary email.",
+        "Our DBS and Criminal-Offence Data Policy explains how we use and protect this information: {{dbs_policy_url}}.",
+        "Opulence Bliss Ltd"
+      ],
+      "notes": [
+        "Requires a secure written-decision view or delivery route before use; that route is not claimed to be implemented by this draft.",
+        "The decision and explanation belong in the protected record, not this email. A conviction must not produce an automatic rejection.",
+        "No new deadline is imposed on a request for review."
+      ]
+    },
+    {
+      "id": "managerEscalationEmail",
+      "code": "E05",
+      "title": "Manager escalation alert",
+      "kind": "email",
+      "audience": "Authorised Manager only",
+      "reference": "Onboarding Process 3.9 and 3.14",
+      "basis": [
+        "Cleaner spec 3 and 5.2",
+        "DBS Policy 6 and 8",
+        "Privacy Policy 6.11"
+      ],
+      "trigger": "When a staff member refers an applicant case for a Manager decision and locks the file.",
+      "subject": "Cleaner application needs Manager review: {{application_reference}}",
+      "paragraphs": [
+        "Application {{application_reference}} has been referred for your review. The file is locked to other onboarding team members until the Manager review is resolved.",
+        "Open the restricted staff record: {{staff_record_url}}. Staff sign-in and the authenticator are required; private evidence also requires named access.",
+        "Review the recorded facts and any explanation from the applicant. Record your decision, its reason and any follow-up before resolving the escalation. A DBS-related decision must be explained to the person in writing through a secure route.",
+        "This email intentionally contains no DBS outcome, offence details, certificate number, identity document or medical information."
+      ],
+      "notes": [
+        "A reminder does not grant access. Keep the existing named DBS access list and role permissions."
+      ]
+    },
+    {
+      "id": "rightToWorkReminder",
+      "code": "E06",
+      "title": "Right-to-work expiry reminder",
+      "kind": "email",
+      "audience": "Authorised onboarding staff or Manager",
+      "reference": "Onboarding Process 3.8",
+      "basis": [
+        "Cleaner spec 5.3.2 and 7.2",
+        "Cleaner Terms 2.1–2.3 and 4.1",
+        "Privacy Policy 6.11"
+      ],
+      "trigger": "30 days and 7 days before the recorded right-to-work expiry, using the same template with the relevant reminder window.",
+      "subject": "Right-to-work check due: {{professional_reference}}",
+      "paragraphs": [
+        "The recorded right-to-work permission for professional {{professional_reference}} expires on {{expiry_date}}. This is the {{days_until_expiry}}-day reminder.",
+        "Open the protected staff record: {{staff_record_url}}. Arrange the appropriate current check and record the check date, checker, evidence type, outcome and any new expiry date or no-expiry result.",
+        "Confirm that the checked permission allows the self-employed work offered through the platform. Refer unclear evidence or restrictions to the Manager; do not treat an application declaration as verification.",
+        "If permission has expired, no new bookings may be offered. Flag already accepted work for the team to review and reassign as required."
+      ],
+      "notes": [
+        "No document number, share code or document image belongs in this email. Do not send it to customers.",
+        "Use only 30 or 7 for the scheduled reminder window. This draft does not change the expiry scheduler."
+      ]
+    },
+    {
+      "id": "dbsRenewalReminder",
+      "code": "E07",
+      "title": "Fresh basic DBS reminder",
+      "kind": "email",
+      "audience": "Named DBS onboarding staff or Manager",
+      "reference": "Onboarding Process 4.4",
+      "basis": [
+        "Cleaner spec 7.2",
+        "Cleaner Terms 2.2",
+        "DBS Policy 2, 5.4, 7 and 8"
+      ],
+      "trigger": "When the fresh-certificate review falls due under the build specification's three-year rule. Reconcile the existing annual helper before enabling this schedule.",
+      "subject": "Basic DBS review due: {{professional_reference}}",
+      "paragraphs": [
+        "A fresh basic DBS certificate review is due for professional {{professional_reference}} on {{review_due_date}}, under the renewal rule in the cleaner build specification.",
+        "Open the restricted record: {{staff_record_url}}. Arrange for the person to show their own fresh basic certificate through the secure checking process and record the required outcome and decision.",
+        "Do not request spent-conviction information or a higher level of check through this reminder. Any unspent-conviction decision needs a Manager review and an opportunity for the person to explain.",
+        "Do not attach a certificate or offence information to email. Record any certificate-copy deletion date and retain only what the published DBS Policy permits."
+      ],
+      "notes": [
+        "This is an internal review reminder, not a statement that DBS certificates have a statutory three-year expiry.",
+        "No change to the current renewal calculation or suspension behaviour is made by this draft."
+      ]
+    },
+    {
+      "id": "firstJobFollowUpReminder",
+      "code": "E08",
+      "title": "First completed booking follow-up reminder",
+      "kind": "email",
+      "audience": "Assigned onboarding staff or Manager",
+      "reference": "Onboarding Process 4.1",
+      "basis": [
+        "Cleaner spec 7.2",
+        "Safeguarding Policy 8–10",
+        "Privacy Policy 6.11"
+      ],
+      "trigger": "After the cleaner's first completed booking, so that the team can make the specified contact within 24 hours.",
+      "subject": "First-booking follow-up: {{professional_reference}}",
+      "paragraphs": [
+        "Professional {{professional_reference}} completed their first booking, reference {{booking_reference}}, at {{completed_at}}.",
+        "The first-booking follow-up is due by {{follow_up_due_at}} under the cleaner build specification. Open the staff record: {{staff_record_url}}.",
+        "Check whether the cleaner is safe, whether any incident or access problem needs action, and whether they need help using the platform or completing the job record. Record the contact and agreed follow-up.",
+        "Escalate any safeguarding or immediate safety concern through the published procedure. Do not put customer addresses, access codes or sensitive incident details in this email."
+      ],
+      "notes": [
+        "The 24-hour timing comes from the specification. It does not create a new customer-facing response promise."
+      ]
+    },
+    {
+      "id": "fifthJobReviewReminder",
+      "code": "E09",
+      "title": "Fifth completed booking review reminder",
+      "kind": "email",
+      "audience": "Assigned onboarding staff or Manager",
+      "reference": "Onboarding Process 4.2",
+      "basis": [
+        "Cleaner spec 7.2",
+        "Cleaner Terms 2.2, 6 and 19",
+        "Safeguarding Policy 10.5"
+      ],
+      "trigger": "After the fifth completed booking, once for that milestone.",
+      "subject": "Five-booking review: {{professional_reference}}",
+      "paragraphs": [
+        "Professional {{professional_reference}} has completed five bookings. The fifth-booking review is ready in the staff record: {{staff_record_url}}.",
+        "Review factual booking feedback, completed job records, any cancellations or no-shows, support requests and any open complaint or safety concern. Confirm that the professional's required checks and insurance are still current.",
+        "Record the review, any explanation from the cleaner and any agreed support or follow-up. Refer a possible suspension or disputed decision to the Manager under the applicable published policy.",
+        "There is no new numerical rating threshold or automatic penalty in this review."
+      ],
+      "notes": [
+        "Count completed bookings; do not count a cancelled or uncompleted booking for this milestone.",
+        "This review does not restart probation or replace the published cancellation/suspension rules."
+      ]
+    },
+    {
+      "id": "stage2Welcome",
+      "code": "E10",
+      "title": "Stage 2 account setup confirmation",
+      "kind": "email",
+      "audience": "Cleaner after the assessment and required acceptances/account setup",
+      "reference": "Cleaner spec 2.2, 5.4 and 8: welcome email",
+      "basis": [
+        "Cleaner spec 5.3–5.4",
+        "Cleaner Terms 4.2 and 17",
+        "Privacy Policy 3"
+      ],
+      "trigger": "After full account setup and required acceptances are saved. Attach the exact document versions accepted, using the existing accepted-version attachment mechanism.",
+      "subject": "Your Opulence Bliss cleaner account setup",
+      "paragraphs": [
+        "Hello {{first_name}},",
+        "Your cleaner account setup is complete. We have attached the document versions you accepted on {{accepted_at}}: {{accepted_documents}}.",
+        "You can review your details and accepted documents here: {{account_url}}.",
+        "Your account can receive booking offers only when all required checks and independent final sign-off are complete and its status is Active. Joining the platform does not guarantee a minimum amount of work.",
+        "If we need updated information, our team will contact you. For help, email hello@opulencebliss.com.",
+        "Opulence Bliss Ltd"
+      ],
+      "notes": [
+        "Proposed for the Stage 2 sequence only. Do not replace the current welcome email or detach its accepted-version PDFs before approval and integration.",
+        "Do not say the cleaner is Active or ask them to repeat checks already completed before induction."
+      ]
+    }
+  ],
+  "declarations": [
+    {
+      "id": "applicationNotice",
+      "code": "D01",
+      "title": "Application privacy and checks acknowledgement",
+      "kind": "declaration",
+      "audience": "Applicant",
+      "reference": "Onboarding Process 3.1A",
+      "legacyKey": "applicationNotice",
+      "basis": [
+        "Cleaner spec 5.1",
+        "Cleaner Terms 2.2 and 17",
+        "DBS Policy 4.3 and 5.1",
+        "Privacy Policy 3–5"
+      ],
+      "wording": "I have read the Privacy Notice (v1.0). I agree that Opulence Bliss Ltd may check my identity and right to carry out self-employed work in the UK, review my experience, and see my basic DBS certificate and record the check details and outcome as explained in the DBS and Criminal-Offence Data Policy (v1.0).",
+      "notes": [
+        "Required and unticked by default, with links to the published versions. Record the exact approved wording, time, IP and versions when this is later enabled.",
+        "This is not marketing consent or the sole legal basis for processing. The published policies continue to explain the applicable legal bases.",
+        "Keep the public test form's draft warning until the client approves the wording. Do not backdate or replace an earlier acknowledgement."
+      ]
+    }
+  ],
+  "checklists": [
+    {
+      "id": "deskScreening",
+      "code": "C01",
+      "title": "Application and desk screening",
+      "kind": "checklist",
+      "reference": "Cleaner Onboarding Checklist; Process 3.1",
+      "legacyKey": "deskScreening",
+      "stage": "screened",
+      "basis": ["Cleaner spec 2.2, 5.1 and 5.2", "Cleaner Terms 2 and 4.1"],
+      "items": [
+        {
+          "id": "application-record",
+          "text": "Confirm the application record has full name, email, UK phone, postcode/areas, experience, general availability and stated right-to-work type. Referral code stays optional."
+        },
+        {
+          "id": "acknowledgement-evidence",
+          "text": "Confirm the required unticked privacy/checks acknowledgement was actually given and its wording, version, time and IP are recorded. Draft acknowledgement is not treated as approved final wording."
+        },
+        {
+          "id": "existing-person",
+          "text": "Check for an existing account/application and any recorded assessment reapplication date. Resolve duplicates without creating a second professional identity."
+        },
+        {
+          "id": "self-employment-screen",
+          "text": "Flag unclear right-to-work or self-employment restrictions for the proper live check or Manager review. An applicant's declaration alone does not verify eligibility."
+        },
+        {
+          "id": "service-fit",
+          "text": "Review the stated areas, availability and relevant experience. Record any missing information that needs clarification; do not add a minimum-years or minimum-hours threshold."
+        },
+        {
+          "id": "screening-audit",
+          "text": "Record the screening outcome, factual note, staff member and time. Keep status Applied until the required screening items are completed."
+        }
+      ],
+      "notes": [
+        "No password, full account, job access or Active status is created by the application or desk screen."
+      ]
+    },
+    {
+      "id": "interviewCriteria",
+      "code": "C02",
+      "title": "Interview and proposed review criteria",
+      "kind": "checklist",
+      "reference": "Onboarding Process 3.3",
+      "legacyKey": "interviewCriteria",
+      "stage": "interviewed",
+      "basis": [
+        "Cleaner spec 5.2 and 5.5.4",
+        "Cleaner Terms 4 and 6",
+        "Safeguarding Policy 8 and 10"
+      ],
+      "items": [
+        {
+          "id": "experience-discussion",
+          "text": "Discuss the applicant's relevant cleaning experience or other evidence, and record factual examples or information still needed."
+        },
+        {
+          "id": "scope-and-records",
+          "text": "Ask how they would follow the booked scope, confirm instructions, record pre-existing damage and report a problem. Assess against the published service and safety requirements."
+        },
+        {
+          "id": "customer-communication",
+          "text": "Check that they can explain how they would communicate appropriately with a customer through the platform and protect customer information."
+        },
+        {
+          "id": "lone-working",
+          "text": "Confirm their understanding of check-in/check-out, leaving an unsafe situation, reporting incidents and contacting the team under the Safeguarding Policy."
+        },
+        {
+          "id": "assessment-adjustment",
+          "text": "Explain the induction/assessment and how to request an adjustment. Record only an adjustment granted; do not put medical information in the interview or timing record."
+        },
+        {
+          "id": "interview-outcome",
+          "text": "For each topic, propose one outcome: Meets requirement, Further information needed, or Refer to Manager. Record evidence and the overall staff decision; do not add an automatic numerical pass mark."
+        }
+      ],
+      "notes": [
+        "These are proposed operational review criteria, not a new legal eligibility test. Do not use protected characteristics, accent or unrelated private-life information as selection criteria.",
+        "The separate assessment keeps its supplied server-marked pass rule; this checklist cannot change its score."
+      ]
+    },
+    {
+      "id": "liveIdentityCheck",
+      "code": "C03",
+      "title": "Live identity and right-to-work check",
+      "kind": "checklist",
+      "reference": "Onboarding Process 3.7",
+      "legacyKey": "liveIdentityCheck",
+      "stage": "id_rtw_verified",
+      "basis": [
+        "Cleaner spec 5.2–5.3",
+        "Cleaner Terms 2.1–2.2",
+        "Privacy Policy 4 and 13"
+      ],
+      "items": [
+        {
+          "id": "named-checker",
+          "text": "Use an authorised staff account with authenticator sign-in. Open private evidence only when needed and retain the access audit."
+        },
+        {
+          "id": "identity-match",
+          "text": "Check the person live against the evidence using the appropriate checking process. Confirm identity, name/date-of-birth consistency and that the person is at least 18."
+        },
+        {
+          "id": "appropriate-check",
+          "text": "Carry out the appropriate current right-to-work check for the evidence type. Confirm that the permission covers the self-employed work offered through this platform; do not infer this from a share code or declaration alone."
+        },
+        {
+          "id": "record-check",
+          "text": "Record the date, checker, evidence/document type, outcome and any expiry date or a verified no-expiry result. Do not add an unrestricted field for the full identity-document number."
+        },
+        {
+          "id": "expiry-validity",
+          "text": "Confirm the permission remains valid before progressing. Refer uncertain restrictions, mismatches or unclear results to the Manager and keep the stage incomplete."
+        },
+        {
+          "id": "private-storage",
+          "text": "Keep any necessary evidence in the restricted storage and apply the published retention and open-case rules. Never send ID documents through WhatsApp or personal email."
+        }
+      ],
+      "notes": [
+        "This checklist is a record of the required process, not a replacement for the official checking procedure for each evidence type."
+      ]
+    },
+    {
+      "id": "dbsReview",
+      "code": "C04",
+      "title": "Basic DBS record and decision",
+      "kind": "checklist",
+      "reference": "DBS Policy 2, 4–8; cleaner spec 5.2–5.3",
+      "stage": "dbs_recorded",
+      "basis": [
+        "Cleaner Terms 2.2",
+        "DBS Policy 2.1–2.3, 4.3, 5.6, 6, 7 and 8"
+      ],
+      "items": [
+        {
+          "id": "dbs-agreement",
+          "text": "Check that the person was told why the basic DBS check is needed and agreed that the certificate may be seen and recorded."
+        },
+        {
+          "id": "dbs-access",
+          "text": "Only staff named on the written DBS access list may open the certificate or outcome. Log each deliberate opening; general staff/admin status alone is insufficient."
+        },
+        {
+          "id": "certificate-match",
+          "text": "See the person's own basic certificate, check that it belongs to them and record the name, certificate number, certificate date, outcome, decision/reason and review date."
+        },
+        {
+          "id": "minimise-offence-data",
+          "text": "Keep offence information off the general applicant screen. Do not request or take into account spent convictions where the published policy says they must not be used."
+        },
+        {
+          "id": "conviction-review",
+          "text": "If an unspent conviction is shown, refer it to the Manager. Give the person the opportunity to explain before a decision; consider relevance, seriousness, time elapsed and the facts. Do not reject automatically because of a conviction."
+        },
+        {
+          "id": "written-decision",
+          "text": "Record the Manager's decision and explanation, give the person the decision and reasons securely in writing, and explain that they can ask for a review."
+        },
+        {
+          "id": "dbs-retention",
+          "text": "Do not retain a certificate image by default. If a copy is kept, record when it was first seen and delete it within six months unless a permitted legal matter requires a hold. Apply the published outcome/rejection retention periods."
+        }
+      ],
+      "notes": [
+        "A generic application rejection email is not a substitute for the required DBS-related written decision and explanation."
+      ]
+    },
+    {
+      "id": "experienceCheck",
+      "code": "C05",
+      "title": "Experience or Manager waiver",
+      "kind": "checklist",
+      "reference": "Cleaner spec 5.3.1",
+      "stage": "experience_checked",
+      "basis": ["Cleaner spec 5.2–5.3", "Cleaner Terms 2.2"],
+      "items": [
+        {
+          "id": "experience-evidence",
+          "text": "Record the reference or proof of relevant experience reviewed and the factual outcome."
+        },
+        {
+          "id": "experience-waiver",
+          "text": "If evidence is waived, record the Manager's explicit decision and reason. An onboarding team member cannot grant the waiver."
+        },
+        {
+          "id": "experience-audit",
+          "text": "Record who checked or waived the evidence and when, before the induction invitation stage."
+        }
+      ],
+      "notes": [
+        "No new minimum length of experience or number of references is proposed."
+      ]
+    },
+    {
+      "id": "insuranceCheck",
+      "code": "C06",
+      "title": "Cleaner insurance",
+      "kind": "checklist",
+      "reference": "Cleaner Terms 16.1; Safeguarding Policy 4.1",
+      "basis": ["Cleaner Terms 16.1", "Safeguarding Policy 4.1"],
+      "items": [
+        {
+          "id": "insurance-certificate",
+          "text": "Review the cleaner's own public liability insurance certificate and confirm that it covers the person/business and the cleaning work offered."
+        },
+        {
+          "id": "insurance-limit",
+          "text": "Confirm cover of at least £1,000,000 for any one claim, as required by Cleaner Terms 16.1."
+        },
+        {
+          "id": "insurance-current",
+          "text": "Record the insurer/policy reference where needed, expiry date and reviewer. Check it is current before activation and require renewed proof when the policy renews."
+        },
+        {
+          "id": "insurance-lapse",
+          "text": "Flag cancellation, changed cover or a lapse for the existing service-approval/suspension process. The business's insurance does not replace the cleaner's own cover."
+        }
+      ],
+      "notes": [
+        "This approves no property maintenance service. Any additional role keeps its own insurance and approval requirements."
+      ]
+    },
+    {
+      "id": "inductionAssessment",
+      "code": "C07",
+      "title": "Induction and assessment",
+      "kind": "checklist",
+      "reference": "Cleaner spec 5.5; Process 3.19A and 3.21–3.21C",
+      "basis": [
+        "Cleaner spec 2.2 and 5.5",
+        "Cleaner Assessment Content Pack 1 and 4",
+        "Safeguarding Policy 12.1"
+      ],
+      "items": [
+        {
+          "id": "pre-induction-gates",
+          "text": "Confirm identity, right-to-work, DBS decision and experience checks are recorded before issuing the personal limited induction/assessment access."
+        },
+        {
+          "id": "host-attendance",
+          "text": "Record attendance at the live induction. The host opens assessment access only for the arranged session; it provides no job access."
+        },
+        {
+          "id": "adjustment",
+          "text": "Set any approved individual double/triple-time adjustment before the attempt and record only adjustment granted."
+        },
+        {
+          "id": "rules-and-marking",
+          "text": "Require the supplied unticked rules acknowledgement. Keep the server-marked 12-of-15 Part A rule, the supplied selection/timers and the private answer key. Staff cannot type or change a score."
+        },
+        {
+          "id": "writing-decision",
+          "text": "Record the human writing decision and one-line reason. A writing not-passed decision requires Manager confirmation before the applicant is told."
+        },
+        {
+          "id": "assessment-review",
+          "text": "Use the supplied failure and human-review wording. Show the host a failure flag so they can remove the person from Meet manually; no Meet-removal integration is assumed. Only the Manager may reopen once, with a reason."
+        }
+      ],
+      "notes": [
+        "The approved assessment content and failure email are not replaced by these checklist drafts. Do not put the marking key into a report, email, client bundle or staff checklist."
+      ]
+    },
+    {
+      "id": "acceptancesSetup",
+      "code": "C08",
+      "title": "Acceptances, emergency contact and payout setup",
+      "kind": "checklist",
+      "reference": "Cleaner spec 5.3–5.4",
+      "basis": [
+        "Cleaner spec 2.2, 4.1 and 5.3–5.4",
+        "Cleaner Terms 17",
+        "Safeguarding Policy 4.3",
+        "Privacy Policy 6.3 and 6.6",
+        "Existing owner instruction: optional UTR and business name must not block registration"
+      ],
+      "items": [
+        {
+          "id": "after-assessment",
+          "text": "Upgrade to full account setup only after the assessment has passed. Keep the same person's existing account/roles where applicable, rather than creating a duplicate identity."
+        },
+        {
+          "id": "required-acceptances",
+          "text": "Obtain the required Cleaner Terms, Cleaner Cancellation Policy, Privacy Notice, Safeguarding Policy and DBS-recording acknowledgements after assessment, using the approved wording and unticked boxes."
+        },
+        {
+          "id": "acceptance-evidence",
+          "text": "Save the exact wording and boxes ticked, document versions, UTC time and IP in uneditable acceptance evidence; retain the accepted PDFs and apply the contract-end retention rule."
+        },
+        {
+          "id": "emergency-contact",
+          "text": "Record the required emergency contact's name, relationship and phone number, and explain its safeguarding purpose. Keep it private and remind the cleaner to keep it current."
+        },
+        {
+          "id": "stripe-setup",
+          "text": "Confirm the cleaner's own Stripe payout account is set up and verified. Bank details remain with Stripe; do not ask for online banking passwords or PINs."
+        },
+        {
+          "id": "account-details",
+          "text": "Check the necessary contact/profile details and payout-schedule choice. Do not make optional UTR or business-name fields mandatory by inventing a new onboarding requirement."
+        },
+        {
+          "id": "accepted-attachments",
+          "text": "Send the account setup/welcome email only through its approved workflow, attaching the exact document versions accepted. Keep the account unavailable for new offers until independent activation."
+        }
+      ],
+      "notes": [
+        "This draft changes neither accepted legal documents nor payment calculations."
+      ]
+    },
+    {
+      "id": "independentActivation",
+      "code": "C09",
+      "title": "Independent final sign-off",
+      "kind": "checklist",
+      "reference": "Cleaner spec 5.3.1; existing independent-sign-off controls",
+      "basis": [
+        "Cleaner spec 2, 3 and 5.3",
+        "Cleaner Terms 2 and 16.1",
+        "Safeguarding Policy 4.1"
+      ],
+      "items": [
+        {
+          "id": "identity-rtw-current",
+          "text": "Recheck recorded identity and current right-to-work/self-employment permission, including expiry or verified no-expiry status."
+        },
+        {
+          "id": "checks-complete",
+          "text": "Confirm the basic DBS decision, any necessary Manager decision, experience evidence or permitted Manager waiver, and current cleaner insurance are complete."
+        },
+        {
+          "id": "induction-setup-complete",
+          "text": "Confirm induction attendance, automatic Part A pass, human writing pass, required post-assessment acceptances, emergency contact and verified Stripe payout setup."
+        },
+        {
+          "id": "independent-reviewer",
+          "text": "Use the existing independent second-reviewer rule. The person who invited, onboarded, checked evidence or performed the first review cannot activate their own case, including when they are a Manager."
+        },
+        {
+          "id": "activation-audit",
+          "text": "Record the independent decision, reviewer and time. Activate only when every required gate is satisfied; if a required check later becomes invalid, stop new offers and flag accepted work under the published rules."
+        }
+      ],
+      "notes": [
+        "No approval, waiver or Active status is created by viewing or copying this draft checklist."
+      ]
+    },
+    {
+      "id": "managerEscalation",
+      "code": "C10",
+      "title": "Escalation, decision and rejection record",
+      "kind": "checklist",
+      "reference": "Onboarding Process 3.9 and 3.14",
+      "legacyKey": "managerEscalation",
+      "basis": [
+        "Cleaner spec 5.2 and 7.3–7.4",
+        "DBS Policy 6–8",
+        "Privacy Policy 6.11 and 13"
+      ],
+      "items": [
+        {
+          "id": "escalate-lock",
+          "text": "Record the stage, a factual reason and the referring staff member/time; lock the file for Manager review using the existing restricted workflow."
+        },
+        {
+          "id": "minimum-access",
+          "text": "Limit evidence to staff authorised for that data. Keep DBS/offence information in the private record, not in the general note or escalation email."
+        },
+        {
+          "id": "human-decision",
+          "text": "Consider the relevant evidence and the applicant's explanation. A DBS-related decision is made by the Manager and never on a conviction alone. Assessment decisions retain their supplied automatic-marking and human-review safeguards."
+        },
+        {
+          "id": "decision-communication",
+          "text": "Record the Manager decision and reason. Use the approved message for its decision type: general rejection, secure DBS-related decision, or the unchanged assessment-failure message."
+        },
+        {
+          "id": "retention-and-resolution",
+          "text": "For an unsuccessful application, record the decision date and six-month retention timer. Preserve anything needed for an unresolved case. Resolve the escalation only after its decision/follow-up are recorded; do not clear an independent legal hold automatically."
+        }
+      ],
+      "notes": [
+        "Manager review cannot waive identity, right to work, required insurance, assessment, required acceptances or independence. Only the experience waiver specified in the build specification is proposed here."
+      ]
+    },
+    {
+      "id": "firstJobFollowUp",
+      "code": "C11",
+      "title": "First completed booking follow-up",
+      "kind": "checklist",
+      "reference": "Onboarding Process 4.1",
+      "legacyKey": "firstJobFollowUp",
+      "basis": [
+        "Cleaner spec 7.2",
+        "Cleaner Terms 6, 9 and 16.2",
+        "Safeguarding Policy 8–10"
+      ],
+      "items": [
+        {
+          "id": "first-contact",
+          "text": "Contact the cleaner within 24 hours of their first completed booking and record who contacted them and when."
+        },
+        {
+          "id": "welfare-follow-up",
+          "text": "Ask whether they are safe and whether any incident, access difficulty, damage or safeguarding concern needs action. Follow the published urgent reporting procedure where relevant."
+        },
+        {
+          "id": "job-record-review",
+          "text": "Review completion of the job checklist, required result photos and check-in/check-out record. Clarify a missing record without inventing a new penalty."
+        },
+        {
+          "id": "practical-support",
+          "text": "Record any platform-use, scope or pay-record question and any support or action agreed. If products were requested, record any issue about whether they were actually supplied; do not change pay from this checklist."
+        },
+        {
+          "id": "case-hold",
+          "text": "Link an incident/complaint to the proper restricted case and retention protection; record the next action and responsible staff member."
+        }
+      ],
+      "notes": [
+        "Do not copy customer addresses, contact details or access codes into the follow-up email."
+      ]
+    },
+    {
+      "id": "fifthJobReview",
+      "code": "C12",
+      "title": "Fifth completed booking review",
+      "kind": "checklist",
+      "reference": "Onboarding Process 4.2",
+      "legacyKey": "fifthJobReview",
+      "basis": [
+        "Cleaner spec 7.2",
+        "Cleaner Terms 6 and 19",
+        "Safeguarding Policy 10.5"
+      ],
+      "items": [
+        {
+          "id": "five-completed",
+          "text": "Confirm this is the fifth completed booking and record the review milestone once."
+        },
+        {
+          "id": "factual-review",
+          "text": "Review relevant feedback, job records, attendance, cancellations/no-shows, support requests and open concerns. Give the cleaner the opportunity to explain relevant issues."
+        },
+        {
+          "id": "checks-still-current",
+          "text": "Check that required identity/right-to-work/DBS decisions and cleaner insurance remain current and that any required follow-up is assigned."
+        },
+        {
+          "id": "review-record",
+          "text": "Record the reviewer, date, factual outcome and agreed support/follow-up. Use the existing Manager and published suspension process for a possible restriction; add no new automatic rating threshold or penalty."
+        }
+      ],
+      "notes": [
+        "No extra probation period, minimum score or new financial consequence is proposed."
+      ]
+    }
+  ],
+  "unchangedTemplates": [
+    {
+      "title": "Assessment not-passed email",
+      "reference": "Onboarding Process 9.6 / Content Pack 4.2–4.3",
+      "note": "The supplied subject, failure wording, 14-day human-review wording and three-month reapplication wording remain exact and unchanged. The private marking key is not part of this pack."
+    },
+    {
+      "title": "Password reset and current account/security messages",
+      "reference": "Cleaner spec 8",
+      "note": "No missing HR wording is identified for these existing flows. Their secure links and authenticator requirements are unchanged."
+    },
+    {
+      "title": "Current welcome and insurance reminders",
+      "reference": "Cleaner spec 7.2 and 8",
+      "note": "Current delivery is unchanged. E10 is a separate proposal for the new Stage 2 order; review the annual/three-year DBS timing note before changing reminder integration."
+    }
+  ]
+}

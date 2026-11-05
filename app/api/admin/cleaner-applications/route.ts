@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Action refused. Check the stage, required source checklist, evidence and your staff permissions.",
+            "Action refused. Check the stage, required checklist approval, evidence and your staff permissions.",
         },
         { status: 409, headers },
       );

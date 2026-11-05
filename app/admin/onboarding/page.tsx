@@ -4,6 +4,8 @@ import DbsRecordPanel from "../DbsRecordPanel";
 import { requireAdminPage } from "@/lib/adminSession";
 import { handymanEnabled } from "@/lib/handymanMarketplace";
 import { staffRoleAllows } from "@/lib/staffPermissions";
+import Link from "next/link";
+import { cleanerOnboardingDraftReviewEnabled } from "@/lib/cleanerOnboardingDraftReview";
 import {
   PROVIDER_DOCUMENT_TYPES,
   isPropertyMaintenanceDocument,
@@ -20,6 +22,13 @@ export default async function OnboardingPage() {
   return (
     <main style={{ padding: 24, maxWidth: 1000 }}>
       <h1>Professional onboarding</h1>
+      {cleanerOnboardingDraftReviewEnabled() && (
+        <p>
+          <Link href="/admin/cleaner-onboarding-drafts">
+            Review draft onboarding emails and checklist
+          </Link>
+        </p>
+      )}
       <p>
         Record reviews within your staff role. Activation needs an independent
         second sign-off. Open private records only when needed; every opening

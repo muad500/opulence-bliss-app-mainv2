@@ -6,8 +6,9 @@ Booking Credit and tips belong to the other bot and are not modified here.
 **Latest status, 5 November:** the approved Content Pack is now imported into
 the isolated STAGING database, and all six Stage 2 migrations match the ledger.
 The real-bank server smoke passed; no test records remain. The applicant flow
-is still a draft. The missing Onboarding Process/Checklist references below
-remain placeholders, and invitation/setup/browser work is not signed off.
+is still a draft. The client will not supply the internal HR process. Replacement
+emails and checklists are now drafted for client approval; invitation/setup/browser
+work is not signed off.
 
 ## Dependencies and rollout
 
@@ -46,14 +47,24 @@ policy module contains only rules and non-secret screen/email copy. The actual
 question bank is now imported on staging (see the final checkpoint below). A private-schema transactional marking engine
 and bounded session endpoint now exist, tested using an invented bank only.
 
-The separate Cleaner Onboarding Process and Cleaner Onboarding Checklist are
-referenced by the specification but were not found in the supplied folders.
-The owner has asked the client for them and authorised continuing all work that
-does not depend on those documents. Central placeholders are held in
-`lib/cleanerOnboardingPlaceholders.ts`, not scattered through UI or email code.
-Unpublished/placeholder wording cannot be sent as final applicant email.
+The client has confirmed that the Cleaner Onboarding Process is internal HR
+material and will not be supplied. The owner authorised proposed wording from
+the build specification and published Cleaner Terms, DBS, Safeguarding and
+Privacy policies. All proposals are marked **Draft – awaiting client approval**.
 
-### Outstanding source references
+The single editable source is `content/cleaner-onboarding-drafts.json`.
+`docs/cleaner-onboarding-client-review.md` is its generated complete inventory
+and review copy; edit the JSON and regenerate rather than editing exports.
+Generated client metadata contains labels/references only, not the staff drafts.
+The staff review page and download require the existing authenticator/role checks.
+There is no admin editing, sending or publishing action in this change.
+
+Drafts replace the earlier missing-wording labels but do not count as approved
+wording or checklist requirements. Existing delivery holds, source-readiness
+checks and published hard gates remain unchanged. No source document is still
+being requested from the client for these ten original references.
+
+### Original HR references covered by proposals; client approval pending
 
 | Reference                                        | Missing source detail                              | Work that can proceed                                       |
 | ------------------------------------------------ | -------------------------------------------------- | ----------------------------------------------------------- |
@@ -297,3 +308,49 @@ the real bank to CI. Application suite, typecheck and build pass. No Production
 deployment, Production migration, credential change or public enablement was
 performed. Main remains 3a3d487. Browser/device/invitation/account-upgrade work
 and the ten missing-source references remain outstanding in this draft.
+
+## Internal HR document unavailable: client review drafts
+
+The review pack contains all proposed text, source references, triggers, merge
+fields and notes, plus an approval record using stable item codes:
+
+- E01 application receipt; E02 induction invitation; E03 general rejection.
+- E04 secure DBS-related decision notice; E05 Manager escalation alert.
+- E06 right-to-work reminder; E07 fresh DBS reminder; E08 first-booking
+  follow-up reminder; E09 fifth-booking review reminder.
+- E10 Stage 2 account setup/welcome proposal, retaining exact accepted-version
+  attachments through the existing mechanism when it is later approved.
+- D01 application privacy/checks acknowledgement, unticked and required only
+  after its wording is approved and versioned.
+- C01 application/desk screening; C02 interview criteria; C03 live ID/right to
+  work; C04 DBS; C05 experience/Manager waiver; C06 insurance; C07 induction/
+  assessment; C08 acceptances/emergency contact/payout setup; C09 independent
+  final sign-off; C10 escalation/rejection; C11 first-job contact; C12 fifth-job
+  review. There are 64 proposed checklist items in these 12 groups.
+
+The four policy snapshots were checked read-only against Production's published
+v1.0 records; all HTML fingerprints match the draft catalog's sources. No legal
+pages or accepted documents were edited. The supplied assessment decision
+message (Process 9.6 / Content Pack 4.2–4.3) and password/security messages remain
+unchanged. General rejection does not borrow the assessment's review deadline
+or reapplication ban. DBS explanations use a secure written-decision route,
+which must exist before E04 is enabled; no offence details are merged into email.
+
+Review notes call out two integration issues without changing runtime behaviour:
+the annual renewal helper versus the specification's three-year DBS reminder,
+and the existing welcome helper's post-account checks versus Stage 2's earlier
+checks. No numerical interview pass mark, promised work, application-response
+SLA, new charge or new suspension penalty was invented.
+
+`/admin/cleaner-onboarding-drafts` and its read-only Markdown download are allowed
+only on Preview using the isolated staging project. They reuse staff MFA and
+onboarding permissions. They do not enable intake/assessment, expose data to a
+public client bundle, mark a checklist item, approve a professional or send mail.
+Public test-form labels now say draft awaiting approval, not wording to be sent
+by the client. Approval guards require explicit approved state and filled merge
+fields before any future delivery implementation can use wording.
+
+The generated PDF review export was rendered and visually checked across all
+pages; email bodies and all 64 checklist items match the source. All code checks
+are rerun before pushing. No migration, credential, scheduler, Production code,
+access grant, published policy, actual email or financial operation changed.

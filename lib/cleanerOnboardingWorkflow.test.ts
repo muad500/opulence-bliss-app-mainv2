@@ -25,7 +25,7 @@ test("onboarding stages preserve the source order and exact central placeholders
   );
   assert.equal(
     cleanerStagePlaceholder("screened"),
-    "[Cleaner Onboarding Checklist – desk screening items to be supplied]",
+    "[Cleaner Onboarding Checklist; Process 3.1 – Draft – awaiting client approval]",
   );
   assert.equal(cleanerStagePlaceholder("dbs_recorded"), null);
 });

@@ -281,9 +281,9 @@ export default function AssessmentConsole() {
         </section>
       ))}
       <details className={styles.card}>
-        <summary>Missing source documents — central register</summary>
+        <summary>Draft wording awaiting client approval</summary>
         <p>
-          These are placeholders for staff, not approved messages. Affected
+          Proposed wording is ready for review and is not approved. Affected
           emails remain held.
         </p>
         <ul>

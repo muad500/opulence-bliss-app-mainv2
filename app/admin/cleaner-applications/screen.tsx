@@ -197,15 +197,20 @@ export default function ApplicationConsole() {
         </Link>
       </p>
       <details className={styles.card}>
-        <summary>Client source documents still needed</summary>
+        <summary>Draft wording awaiting client approval</summary>
         <ul>
           {Object.entries(sources).map(([key, entry]) => (
             <li key={key}>{entry.wording}</li>
           ))}
         </ul>
         <p>
-          These are placeholders. No pending email is sent and missing checklist
-          items cannot be treated as completed.
+          Proposed emails and checklist wording are ready for client review. No
+          pending email is sent and the draft checklist is not approved.
+        </p>
+        <p>
+          <Link href="/admin/cleaner-onboarding-drafts">
+            Read or download the complete draft pack
+          </Link>
         </p>
       </details>
       <p role="status" aria-live="polite">
