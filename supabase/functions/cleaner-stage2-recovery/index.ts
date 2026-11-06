@@ -53,12 +53,9 @@ Deno.serve(async (request: Request) => {
       !input.protectionBypass
     )
       return response(400, { error: "Staging configuration unavailable" });
-    const service = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    if (!service)
-      return response(503, { error: "Worker credential unavailable" });
     const key = await crypto.subtle.importKey(
       "raw",
-      encoder.encode(service),
+      encoder.encode(expected),
       { name: "HMAC", hash: "SHA-256" },
       false,
       ["sign"],

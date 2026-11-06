@@ -1,4 +1,4 @@
-import { timingSafeEqual, createHmac } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { cleanerStage2Enabled } from "@/lib/cleanerApplication";
 import { deliverCleanerAssessmentDecisions } from "@/lib/cleanerAssessmentDelivery";
@@ -12,22 +12,17 @@ export async function GET(request: Request) {
   if (!cleanerStage2Enabled())
     return Response.json({ error: "Not found" }, { status: 404, headers });
   const sent = Buffer.from(request.headers.get("authorization") ?? "");
-  // The staging Edge worker derives this from the same project's existing
-  // server credential. No new persistent secret or Production key is needed.
-  const derived = process.env.SUPABASE_SERVICE_ROLE_KEY
-    ? createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY)
-        .update("opulence/staging/cleaner-stage2-scheduler/v1")
-        .digest("hex")
-    : null;
-  const allowed = [process.env.CRON_SECRET, derived].filter(
+  const allowed = [process.env.CRON_SECRET].filter(
     (value): value is string => !!value,
   );
-  if (
-    !allowed.some((secret) => {
-      const expected = Buffer.from(`Bearer ${secret}`);
-      return sent.length === expected.length && timingSafeEqual(sent, expected);
-    })
-  )
+  const configured = allowed.some((secret) => {
+    const expected = Buffer.from(`Bearer ${secret}`);
+    return sent.length === expected.length && timingSafeEqual(sent, expected);
+  });
+  const proof = (request.headers.get("authorization") ?? "").match(
+    /^Bearer ([a-f0-9]{64})$/,
+  )?.[1];
+  if (!configured && !proof)
     return Response.json({ error: "Unauthorized" }, { status: 401, headers });
   try {
     const admin = createClient(
@@ -35,6 +30,16 @@ export async function GET(request: Request) {
       process.env.SUPABASE_SERVICE_ROLE_KEY!,
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
+    if (!configured) {
+      const verified = await admin.rpc("cleaner_stage2_scheduler_authorized", {
+        p_token: proof,
+      });
+      if (verified.error || verified.data !== true)
+        return Response.json(
+          { error: "Unauthorized" },
+          { status: 401, headers },
+        );
+    }
     const { data, error } = await admin.rpc("sweep_cleaner_assessments");
     if (error) throw Error("Recovery unavailable");
     const checks = await admin.rpc("cleaner_stage2_payout_rechecks");
