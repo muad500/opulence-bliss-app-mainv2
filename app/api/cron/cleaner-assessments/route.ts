@@ -24,6 +24,7 @@ export async function GET(request: Request) {
   )?.[1];
   if (!configured && !proof)
     return Response.json({ error: "Unauthorized" }, { status: 401, headers });
+  let step = "authorization";
   try {
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,8 +41,10 @@ export async function GET(request: Request) {
           { status: 401, headers },
         );
     }
+    step = "assessment-recovery";
     const { data, error } = await admin.rpc("sweep_cleaner_assessments");
     if (error) throw Error("Recovery unavailable");
+    step = "payout-rechecks";
     const checks = await admin.rpc("cleaner_stage2_payout_rechecks");
     if (checks.error || !Array.isArray(checks.data))
       throw Error("Payout verification unavailable");
@@ -62,11 +65,15 @@ export async function GET(request: Request) {
         /* An upstream outage is not evidence that a check failed. Stale checks block new offers. */
       }
     }
+    step = "followups";
     const followups = await admin.rpc("process_cleaner_stage2_followups");
     if (followups.error) throw Error("Follow-ups unavailable");
+    step = "retention";
     const cleanup = await admin.rpc("purge_expired_cleaner_applications");
     if (cleanup.error) throw Error("Retention unavailable");
+    step = "assessment-mail";
     const decisions = await deliverCleanerAssessmentDecisions(admin);
+    step = "onboarding-mail";
     const onboarding = await deliverCleanerOnboardingEmails(admin);
     return Response.json(
       {
@@ -81,7 +88,7 @@ export async function GET(request: Request) {
     );
   } catch {
     return Response.json(
-      { error: "Assessment recovery unavailable" },
+      { error: "Assessment recovery unavailable", step },
       { status: 503, headers },
     );
   }
