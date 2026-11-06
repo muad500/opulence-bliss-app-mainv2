@@ -135,7 +135,7 @@ function fixture(options = {}) {
     },
   };
   function load(file) {
-    const module = { exports: {} };
+    const compiled = { exports: {} };
     vm.runInNewContext(
       ts.transpileModule(readFileSync(file, "utf8"), {
         compilerOptions: {
@@ -145,8 +145,8 @@ function fixture(options = {}) {
         },
       }).outputText,
       {
-        module,
-        exports: module.exports,
+        module: compiled,
+        exports: compiled.exports,
         process: { env },
         URL,
         Buffer,
@@ -240,7 +240,7 @@ function fixture(options = {}) {
       },
       { filename: file },
     );
-    return module.exports;
+    return compiled.exports;
   }
   return { load, calls, network, client, env };
 }

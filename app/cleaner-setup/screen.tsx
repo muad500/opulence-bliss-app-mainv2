@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import ProfessionalLegalConsent from "@/components/ProfessionalLegalConsent";
 import styles from "../cleaner-apply/screen.module.css";
 type SetupState = {
@@ -21,7 +22,26 @@ export default function CleanerSetup() {
     setMessage("");
   }
   useEffect(() => {
-    refresh().catch((error) => setMessage(error.message));
+    const controller = new AbortController();
+    fetch("/api/cleaner-setup", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) throw Error(data.error);
+        return data;
+      })
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          setState(data);
+          setMessage("");
+        }
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setMessage(error.message);
+      });
+    return () => controller.abort();
   }, []);
   async function send(input: Record<string, unknown>) {
     const response = await fetch("/api/cleaner-setup", {
@@ -83,7 +103,7 @@ export default function CleanerSetup() {
               Application status: {state.status}. New work stays locked until
               the team completes independent sign-off.
             </p>
-            <a href="/account/roles/cleaner">View your cleaner account</a>
+            <Link href="/account/roles/cleaner">View your cleaner account</Link>
           </section>
         ) : (
           <>

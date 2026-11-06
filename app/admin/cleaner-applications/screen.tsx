@@ -305,7 +305,7 @@ export default function ApplicationConsole({
           {record.application.provider_id && (
             <p>
               <Link href={`/admin/cleaners/${record.application.provider_id}`}>
-                Open this professional's evidence and independent sign-off
+                Open this professional&apos;s evidence and independent sign-off
               </Link>
             </p>
           )}
@@ -509,8 +509,8 @@ export default function ApplicationConsole({
             <form onSubmit={(event) => arrange(event, "publish_decision")}>
               <h3>Secure DBS-related written decision</h3>
               <p>
-                Named Manager only. Consider the applicant's explanation. No
-                offence details will be copied into the email.
+                Named Manager only. Consider the applicant&apos;s explanation.
+                No offence details will be copied into the email.
               </p>
               <label>
                 Explanation considered

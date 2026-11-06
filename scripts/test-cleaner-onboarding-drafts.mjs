@@ -11,7 +11,7 @@ const catalog = JSON.parse(
   readFileSync("content/cleaner-onboarding-drafts.json", "utf8"),
 );
 function compile(file, mocks = {}, env = {}) {
-  const module = { exports: {} };
+  const compiled = { exports: {} };
   vm.runInNewContext(
     ts.transpileModule(readFileSync(file, "utf8"), {
       compilerOptions: {
@@ -20,15 +20,15 @@ function compile(file, mocks = {}, env = {}) {
       },
     }).outputText,
     {
-      module,
-      exports: module.exports,
+      module: compiled,
+      exports: compiled.exports,
       process: { env },
       URL,
       require: (name) =>
         Object.hasOwn(mocks, name) ? mocks[name] : require(name),
     },
   );
-  return module.exports;
+  return compiled.exports;
 }
 test("single editable catalog records approval and preserves exact draft-1 wording", () => {
   assert.equal(catalog.status, "approved");
@@ -42,7 +42,13 @@ test("single editable catalog records approval and preserves exact draft-1 wordi
   assert.equal(catalog.approval.effectiveDate, "2026-10-01");
   for (const key of ["emails", "declarations", "checklists"])
     assert.deepEqual(
-      catalog[key].map(({ approval, statusLabel, ...item }) => item),
+      catalog[key].map((entry) =>
+        Object.fromEntries(
+          Object.entries(entry).filter(
+            ([key]) => !["approval", "statusLabel"].includes(key),
+          ),
+        ),
+      ),
       original[key],
     );
   assert.equal(catalog.emails.length, 10);

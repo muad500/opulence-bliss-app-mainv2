@@ -26,8 +26,12 @@ if (catalog.status === "approved") {
   )
     throw Error("Dated approval and exact draft-1 history are required.");
   for (const key of ["emails", "declarations", "checklists"]) {
-    const withoutApproval = catalog[key].map(
-      ({ approval, statusLabel, ...item }) => item,
+    const withoutApproval = catalog[key].map((entry) =>
+      Object.fromEntries(
+        Object.entries(entry).filter(
+          ([key]) => !["approval", "statusLabel"].includes(key),
+        ),
+      ),
     );
     if (JSON.stringify(withoutApproval) !== JSON.stringify(before[key]))
       throw Error("Approved wording differs from the as-written review.");
@@ -110,7 +114,7 @@ const source = await prettier.format(
     `export const CLEANER_ONBOARDING_PENDING_SOURCES = ${JSON.stringify(metadata, null, 2)} as const;\n`,
   { parser: "typescript" },
 );
-const module = { exports: {} };
+const compiled = { exports: {} };
 vm.runInNewContext(
   ts.transpileModule(
     readFileSync("lib/cleanerOnboardingDraftFormat.ts", "utf8"),
@@ -121,10 +125,10 @@ vm.runInNewContext(
       },
     },
   ).outputText,
-  { module, exports: module.exports },
+  { module: compiled, exports: compiled.exports },
 );
 const markdown = await prettier.format(
-  module.exports.renderCleanerOnboardingReview(catalog),
+  compiled.exports.renderCleanerOnboardingReview(catalog),
   { parser: "markdown", proseWrap: "preserve" },
 );
 for (const [file, content] of [

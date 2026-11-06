@@ -11,8 +11,12 @@ export function cleanerOnboardingDraftCatalog(): CleanerOnboardingDraftCatalog {
     throw Error("Unsupported onboarding review state.");
   if (catalog.status === "approved") {
     for (const key of ["emails", "declarations", "checklists"] as const) {
-      const content = catalog[key].map(
-        ({ approval, statusLabel, ...item }) => item,
+      const content = catalog[key].map((entry) =>
+        Object.fromEntries(
+          Object.entries(entry).filter(
+            ([key]) => !["approval", "statusLabel"].includes(key),
+          ),
+        ),
       );
       if (JSON.stringify(content) !== JSON.stringify(reviewed[key]))
         throw Error("Onboarding wording differs from the approved review.");

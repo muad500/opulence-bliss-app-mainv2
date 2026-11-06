@@ -48,13 +48,13 @@ function fixture(options = {}) {
     );
     return mod.exports;
   }
-  const module = load("lib/cleanerAssessmentDelivery.ts");
+  const delivery = load("lib/cleanerAssessmentDelivery.ts");
   return {
     calls,
     messages,
     copy: load("lib/cleanerAssessmentPolicy.ts").CLEANER_ASSESSMENT_COPY,
     send: () =>
-      module.deliverCleanerAssessmentDecisions({
+      delivery.deliverCleanerAssessmentDecisions({
         rpc: async (name, params) => {
           calls.push([name, params]);
           return name === "claim_cleaner_assessment_emails"

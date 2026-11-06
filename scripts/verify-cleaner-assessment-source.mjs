@@ -11,7 +11,7 @@ try {
       "utf8",
     ),
   );
-  const module = { exports: {} };
+  const compiled = { exports: {} };
   vm.runInNewContext(
     ts.transpileModule(
       await readFile("lib/cleanerAssessmentPolicy.ts", "utf8"),
@@ -22,9 +22,9 @@ try {
         },
       },
     ).outputText,
-    { module, exports: module.exports },
+    { module: compiled, exports: compiled.exports },
   );
-  const copy = module.exports.CLEANER_ASSESSMENT_COPY;
+  const copy = compiled.exports.CLEANER_ASSESSMENT_COPY;
   const source = pack.copyParagraphs.join("\n");
   const missing = Object.entries(copy)
     .filter(([, value]) =>
