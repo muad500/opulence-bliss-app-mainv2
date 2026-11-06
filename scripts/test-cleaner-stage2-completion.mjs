@@ -489,6 +489,52 @@ test("setup refuses missing consent before saving evidence or changing schedules
     !f.calls.some((c) => ["saveAcceptance", "stripeSchedule"].includes(c[0])),
   );
 });
+for (const [schedule, stripeSchedule] of [
+  ["weekly", { interval: "weekly", weekly_anchor: "monday" }],
+  ["fortnightly", { interval: "manual" }],
+  ["monthly", { interval: "monthly", monthly_anchor: 1 }],
+]) {
+  test(`passed setup saves the ${schedule} preference only on the cleaner's own account`, async () => {
+    const f = fixture();
+    const consents = Object.fromEntries(
+      f
+        .load("lib/professionalLegalCopy.ts")
+        .professionalConsentBoxes(true, false)
+        .map((box) => [box.key, true]),
+    );
+    const response = await f.load("app/api/cleaner-setup/route.ts").POST(
+      request("/api/cleaner-setup", {
+        action: "accept",
+        consents,
+        emergencyName: "TEST Emergency Contact",
+        emergencyRelationship: "TEST fictional colleague",
+        emergencyPhone: "+442079460001",
+        schedule,
+      }),
+    );
+    assert.equal(response.status, 200);
+    const sent = f.calls.find(([name]) => name === "stripeSchedule");
+    assert.equal(sent[1], "acct_TEST");
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(sent[2].settings.payouts.schedule)),
+      stripeSchedule,
+    );
+    const saved = f.calls.find(
+      ([name, table]) => name === "update" && table === "providers",
+    )[2];
+    assert.equal(saved.payout_schedule, schedule);
+    if (schedule === "fortnightly") {
+      const nextPayout = Date.parse(saved.next_payout_at);
+      assert.ok(nextPayout > Date.now() + 13 * 86400000);
+      assert.ok(nextPayout <= Date.now() + 14 * 86400000);
+    } else assert.equal(saved.next_payout_at, null);
+    assert.ok(f.calls.some(([name]) => name === "saveAcceptance"));
+    assert.ok(
+      f.calls.some(([name]) => name === "complete_cleaner_stage2_setup"),
+    );
+    assert.equal(f.network.length, 0);
+  });
+}
 test("checklist endpoint cannot accept device-supplied staff or timestamps", async () => {
   const f = fixture();
   const response = await f
@@ -778,14 +824,12 @@ test("Stage 2 approval check does not query other services or Production", async
 
 test("payout setup uses the authenticated email rather than form-supplied contact details", async () => {
   const f = fixture();
-  const response = await f
-    .load("app/api/cleaner-setup/route.ts")
-    .POST(
-      request("/api/cleaner-setup", {
-        action: "payout",
-        email: "other@example.invalid",
-      }),
-    );
+  const response = await f.load("app/api/cleaner-setup/route.ts").POST(
+    request("/api/cleaner-setup", {
+      action: "payout",
+      email: "other@example.invalid",
+    }),
+  );
   assert.equal(response.status, 200);
   assert.equal(
     f.calls.find(([name]) => name === "payoutCheck")[1].email,

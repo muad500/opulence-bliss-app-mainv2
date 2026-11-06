@@ -6,15 +6,16 @@ Booking Credit and tips belong to the other bot and are not modified here.
 **Latest status, 7 November 2026:** approved Version 1.0 wording is connected to
 the staging flow, including the private E04 decision view, checklist audit,
 post-pass account handoff and three-year DBS renewal. The minute recovery job
-is running. Fifteen Stage 2 migrations are present in the staging ledger.
+is running. Seventeen Stage 2 migrations are present in the staging ledger.
 Production has not been changed by this task.
 
 The full result and numbered acceptance-test mapping are in
 [the current walkthrough report](cleaner-stage2-walkthrough-2026-11-07.md).
-PR #63 stays draft: actual Stripe sandbox setup, the resulting welcome-email
-PDF delivery and physical Android/iPhone checks remain incomplete. Stripe's
-dashboard currently requires the owner's authenticator. The fictional account
-and its personal links have been disabled after testing.
+PR #63 stays draft pending physical Android/iPhone behaviour and the remaining
+manual matrix in the report. Actual Stripe sandbox setup, recorded acceptances,
+the welcome email with five byte-matched PDFs, rejection, failure decisions and
+renewal reminders now pass. All fictional access has been disabled after the
+walkthrough. No real professional was approved or payment created.
 
 **Everything below is historical checkpoint material.** Its old pending-approval,
 unapplied-migration and uninstalled-scheduler statements describe earlier work,
