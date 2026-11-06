@@ -26,6 +26,7 @@ export async function GET(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401, headers });
   let step = "authorization";
   let code: string | undefined;
+  let diagnostic: string | undefined;
   try {
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -46,6 +47,7 @@ export async function GET(request: Request) {
     const { data, error } = await admin.rpc("sweep_cleaner_assessments");
     if (error) {
       code = /^[A-Z0-9]{3,12}$/.test(error.code ?? "") ? error.code : undefined;
+      if (code === "21000") diagnostic = String(error.message).slice(0, 220);
       throw Error("Recovery unavailable");
     }
     step = "payout-rechecks";
@@ -92,7 +94,7 @@ export async function GET(request: Request) {
     );
   } catch {
     return Response.json(
-      { error: "Assessment recovery unavailable", step, code },
+      { error: "Assessment recovery unavailable", step, code, diagnostic },
       { status: 503, headers },
     );
   }
