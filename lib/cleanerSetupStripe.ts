@@ -13,6 +13,7 @@ export async function cleanerSetupPayoutAccount(
   provider: string,
   user: string,
   create = false,
+  contactEmail?: string,
 ) {
   const result = await admin
     .from("providers")
@@ -24,8 +25,13 @@ export async function cleanerSetupPayoutAccount(
   const stripe = cleanerSetupStripe();
   let id = result.data.stripe_account_id;
   if (!id && create) {
+    // Accounts v2 requires an email for recipient accounts. The caller supplies
+    // this from the authenticated Auth user, never from the submitted form.
+    if (!contactEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail))
+      throw Error("Your verified account email is required for Stripe setup.");
     const account = await stripe.v2.core.accounts.create(
       {
+        contact_email: contactEmail,
         dashboard: "express",
         identity: { country: "GB" },
         defaults: {

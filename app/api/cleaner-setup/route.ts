@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
         ctx.providerId!,
         ctx.user.id,
         true,
+        ctx.user.email,
       );
       const origin = onboardingPreviewOrigin();
       const link = await payout.stripe.v2.core.accountLinks.create({

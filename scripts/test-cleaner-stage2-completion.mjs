@@ -165,6 +165,7 @@ function fixture(options = {}) {
         },
         require(name) {
           if (name === "server-only") return {};
+          if (name === "stripe" && options.stripe) return options.stripe;
           if (name === "next/server") return { NextRequest, NextResponse };
           if (name === "@supabase/supabase-js")
             return {
@@ -179,7 +180,11 @@ function fixture(options = {}) {
               accountContext: async () =>
                 options.denied
                   ? NextResponse.json({ error: "Sign in" }, { status: 401 })
-                  : { user: { id: uuid }, admin: client, providerId: uuid },
+                  : {
+                      user: { id: uuid, email: "owner@example.invalid" },
+                      admin: client,
+                      providerId: uuid,
+                    },
               isAccountError: (v) => v instanceof NextResponse,
               normaliseGbPhone: (v) => (v ? "+442079460001" : null),
             };
@@ -202,8 +207,14 @@ function fixture(options = {}) {
             return { createClient: async () => client };
           if (name === "@/lib/cleanerSetupStripe")
             return {
-              cleanerSetupPayoutAccount: async () => {
-                calls.push(["payoutCheck"]);
+              cleanerSetupPayoutAccount: async (
+                _admin,
+                provider,
+                user,
+                create,
+                email,
+              ) => {
+                calls.push(["payoutCheck", { provider, user, create, email }]);
                 return payout;
               },
             };
@@ -763,4 +774,100 @@ test("Stage 2 approval check does not query other services or Production", async
       0,
     );
   }
+});
+
+test("payout setup uses the authenticated email rather than form-supplied contact details", async () => {
+  const f = fixture();
+  const response = await f
+    .load("app/api/cleaner-setup/route.ts")
+    .POST(
+      request("/api/cleaner-setup", {
+        action: "payout",
+        email: "other@example.invalid",
+      }),
+    );
+  assert.equal(response.status, 200);
+  assert.equal(
+    f.calls.find(([name]) => name === "payoutCheck")[1].email,
+    "owner@example.invalid",
+  );
+});
+
+test("recipient creation includes the account email and keeps its own idempotent mapping", async () => {
+  const requests = [];
+  let stored = null;
+  const account = {
+    id: "acct_TEST_OWN",
+    livemode: false,
+    metadata: { opulence_provider_id: uuid },
+    configuration: {
+      recipient: {
+        capabilities: {
+          stripe_balance: { stripe_transfers: { status: "active" } },
+        },
+      },
+    },
+  };
+  class StripeFixture {
+    v2 = {
+      core: {
+        accounts: {
+          create: async (input, options) => {
+            requests.push([input, options]);
+            return account;
+          },
+          retrieve: async () => account,
+        },
+      },
+    };
+  }
+  const chain = {
+    select() {
+      return this;
+    },
+    eq() {
+      return this;
+    },
+    is() {
+      return this;
+    },
+    update(input) {
+      stored = input.stripe_account_id;
+      return this;
+    },
+    async single() {
+      return { data: { stripe_account_id: stored } };
+    },
+    async maybeSingle() {
+      return { data: { stripe_account_id: stored } };
+    },
+  };
+  const f = fixture({ stripe: StripeFixture });
+  const helper = f.load("lib/cleanerSetupStripe.ts");
+  const admin = { from: () => chain };
+  await assert.rejects(
+    () => helper.cleanerSetupPayoutAccount(admin, uuid, uuid, true),
+    /verified account email/,
+  );
+  assert.equal(requests.length, 0);
+  const result = await helper.cleanerSetupPayoutAccount(
+    admin,
+    uuid,
+    uuid,
+    true,
+    "owner@example.invalid",
+  );
+  assert.equal(requests[0][0].contact_email, "owner@example.invalid");
+  assert.equal(requests[0][0].metadata.opulence_provider_id, uuid);
+  assert.equal(requests[0][1].idempotencyKey, `cleaner-stage2-connect:${uuid}`);
+  assert.equal(stored, account.id);
+  assert.equal(result.ready, true);
+  await helper.cleanerSetupPayoutAccount(
+    admin,
+    uuid,
+    uuid,
+    true,
+    "owner@example.invalid",
+  );
+  assert.equal(requests.length, 1);
 });
