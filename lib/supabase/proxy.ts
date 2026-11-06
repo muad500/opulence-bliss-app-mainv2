@@ -38,7 +38,9 @@ export async function updateSession(request: NextRequest) {
     "/notifications",
   ];
   const publicPath =
-    ["/delete-account", "/earn-with-us"].includes(request.nextUrl.pathname) ||
+    ["/delete-account", "/earn-with-us", "/cleaner-setup"].includes(
+      request.nextUrl.pathname,
+    ) ||
     [
       "/staff/login",
       "/staff/forgot-password",

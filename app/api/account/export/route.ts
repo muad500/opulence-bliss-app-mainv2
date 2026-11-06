@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { accountContext, isAccountError } from "@/lib/accountApi";
 import { webPushEnabled } from "@/lib/webPushPolicy";
+import { cleanerStage2Enabled } from "@/lib/cleanerApplication";
 
 type Row = Record<string, unknown>;
 
@@ -53,6 +54,14 @@ export async function GET(request: NextRequest) {
   if (isAccountError(ctx)) return ctx;
   try {
     const userId = ctx.user.id;
+    const stage2Legal = cleanerStage2Enabled()
+      ? await allFor(
+          ctx.admin,
+          "cleaner_stage2_policy_acceptances",
+          "user_id",
+          userId,
+        )
+      : [];
     const providerId = ctx.providerId;
     const notificationPreferences = webPushEnabled(process.env)
       ? await allFor(
@@ -283,6 +292,7 @@ export async function GET(request: NextRequest) {
         ),
         details,
         legal,
+        stage2Legal,
         checkoutLegal,
         consents,
         marketingConsents,

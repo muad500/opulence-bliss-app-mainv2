@@ -1,10 +1,17 @@
 import { redirect } from "next/navigation";
 import { cleanerStage2Enabled } from "@/lib/cleanerApplication";
 import { createClient } from "@/lib/supabase/server";
+import { handymanEnabled } from "@/lib/handymanMarketplace";
 import LegacyProviderSignup from "./LegacyProviderSignup";
 
-export default async function ProviderJoinPage() {
-  if (cleanerStage2Enabled()) {
+export default async function ProviderJoinPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ service?: string }>;
+}) {
+  const maintenanceOnly =
+    handymanEnabled() && (await searchParams).service === "handyman";
+  if (cleanerStage2Enabled() && !maintenanceOnly) {
     const client = await createClient();
     const {
       data: { user },

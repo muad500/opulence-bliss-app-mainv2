@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { createHash } from "node:crypto";
 const require = createRequire(import.meta.url);
 if (!process.env.PGLITE_MODULE)
   throw Error("Local PGLITE_MODULE required; no remote database accepted.");
@@ -330,9 +331,10 @@ try {
     create function professional_reviewed_documents(uuid,uuid) returns boolean language sql as $$select false$$;
     create function professional_approval_fingerprint(uuid) returns text language sql as $$select md5($1::text)$$;
     create table provider_profile_settings(provider_id uuid primary key,emergency_contact_name text,emergency_contact_phone text);
-    create table legal_documents(slug text,version text,published boolean,title text);
-    create table account_legal_acceptances(id uuid default gen_random_uuid(),user_id uuid,document_slug text,version text,
-      accepted_at timestamptz default clock_timestamp(),acceptance_evidence jsonb);
+    create table legal_documents(slug text,version text,published boolean,title text,content_html text);
+    create table account_legal_acceptances(id bigint generated always as identity primary key,user_id uuid,document_slug text,version text,
+      accepted_at timestamptz default clock_timestamp(),acceptance_evidence jsonb,booking_id uuid,
+      unique nulls not distinct(user_id,document_slug,version,booking_id));
     create table booking_offers(provider_id uuid);create table booking_offer_queue(provider_id uuid);
     create table bookings(id uuid default gen_random_uuid(),provider_id uuid,scheduled_at timestamptz,status text,completed_at timestamptz);
     create table provider_verification_items(provider_id uuid,document_type text,status text,expires_at date,next_check_at date,
@@ -343,12 +345,22 @@ try {
     create table notifications(user_id uuid,title text,body text,href text);
     create table account_incidents(subject_provider_id uuid,reporter_id uuid,complainant_email text,status text);
     create function professional_verification_block(uuid) returns text language sql as $$select null::text$$;
+    create function retention_delete_authorised() returns boolean language sql as $$select false$$;
   `);
+  await db.exec(
+    readFileSync(
+      "supabase/migrations/20261027000100_acceptance_evidence_retention_guards.sql",
+      "utf8",
+    ).match(
+      /create function public\.guard_acceptance_evidence_mutation\(\)[\s\S]*?\$function\$;/,
+    )[0],
+  );
   for (const file of [
     "20261106091246_cleaner_induction_account_handoff.sql",
     "20261106092348_cleaner_stage2_activation_followups.sql",
     "20261106101839_cleaner_stage2_evidence_handoff.sql",
     "20261106132822_cleaner_stage2_runtime_updates.sql",
+    "20261106134034_cleaner_stage2_policy_acceptances.sql",
   ])
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
   await actor("service_role");
@@ -607,6 +619,11 @@ try {
     value("select complete_cleaner_stage2_setup($1,'acct_TEST')", [user]),
   );
   await db.exec("reset role");
+  await db.query(
+    "insert into account_legal_acceptances(user_id,document_slug,version,accepted_at,acceptance_evidence) values($1,'privacy','1.0',now()-interval '1 day','{}')",
+    [user],
+  );
+  const acceptedDocuments = [];
   for (const slug of [
     "cleaner-terms",
     "cleaner-cancellation",
@@ -614,11 +631,12 @@ try {
     "safeguarding",
     "dbs-data",
   ]) {
-    await db.query("insert into legal_documents values($1,'1.0',true,$1)", [
-      slug,
-    ]);
     await db.query(
-      "insert into account_legal_acceptances(user_id,document_slug,version,acceptance_evidence) values($1,$2,'1.0',$3)",
+      "insert into legal_documents values($1,'1.0',true,$1,'TEST canonical '||$1)",
+      [slug],
+    );
+    await db.query(
+      "insert into account_legal_acceptances(user_id,document_slug,version,acceptance_evidence) values($1,$2,'1.0',$3) on conflict do nothing",
       [
         user,
         slug,
@@ -628,8 +646,58 @@ try {
         },
       ],
     );
+    acceptedDocuments.push({
+      slug,
+      version: "1.0",
+      title: slug,
+      sourceContentHtml: "TEST canonical " + slug,
+      contentHash: createHash("sha256")
+        .update("TEST canonical " + slug)
+        .digest("hex"),
+    });
   }
   await actor("service_role");
+  await check(
+    "existing customer can give fresh post-assessment acceptances without rewriting earlier evidence",
+    async () => {
+      await value("select record_cleaner_stage2_acceptances($1,$2)", [
+        user,
+        {
+          schemaVersion: 1,
+          acceptedAt: new Date().toISOString(),
+          request: { ip: "192.0.2.1" },
+          checkboxes: Array.from({ length: 5 }, (_, n) => ({
+            key: "TEST-" + n,
+            text: "TEST agreement",
+            checked: true,
+          })),
+          documents: acceptedDocuments,
+        },
+      ]);
+      await db.exec("reset role");
+      assert.equal(
+        await value(
+          "select count(*)::int from cleaner_stage2_policy_acceptances where user_id=$1",
+          [user],
+        ),
+        5,
+      );
+      assert.equal(
+        await value(
+          "select accepted_at<now()-interval '12 hours' from account_legal_acceptances where user_id=$1 and document_slug='privacy'",
+          [user],
+        ),
+        true,
+      );
+      await assert.rejects(() =>
+        db.query(
+          "update cleaner_stage2_policy_acceptances set accepted_at=now() where user_id=$1",
+          [user],
+        ),
+      );
+      await actor("service_role");
+    },
+  );
   await denied("missing emergency contact blocks setup", () =>
     value("select complete_cleaner_stage2_setup($1,'acct_TEST')", [user]),
   );

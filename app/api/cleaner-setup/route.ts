@@ -144,6 +144,11 @@ export async function POST(request: NextRequest) {
       })),
     );
     await saveAccountAcceptance(ctx.admin, ctx.user.id, evidence);
+    const accepted = await ctx.admin.rpc("record_cleaner_stage2_acceptances", {
+      p_user: ctx.user.id,
+      p_evidence: evidence,
+    });
+    if (accepted.error) throw Error();
     const settings = await ctx.admin.from("provider_profile_settings").upsert(
       {
         provider_id: ctx.providerId,

@@ -122,6 +122,11 @@ export default function ApplicationConsole({
   const [status, setStatus] = useState("Loading applications…");
   const [manager, setManager] = useState(false);
   const [tickNote, setTickNote] = useState("");
+  const [pendingTick, setPendingTick] = useState<{
+    group: string;
+    item: string;
+    checked: boolean;
+  } | null>(null);
   async function arrange(
     event: FormEvent<HTMLFormElement>,
     action: "invite" | "publish_decision",
@@ -152,6 +157,7 @@ export default function ApplicationConsole({
       return;
     }
     setBusy(true);
+    setPendingTick({ group, item, checked });
     try {
       await api({
         action: "checklist",
@@ -165,6 +171,7 @@ export default function ApplicationConsole({
     } catch (error) {
       setStatus((error as Error).message);
     } finally {
+      setPendingTick(null);
       setBusy(false);
     }
   }
@@ -359,7 +366,12 @@ export default function ApplicationConsole({
                         <label>
                           <input
                             type="checkbox"
-                            checked={saved?.checked ?? false}
+                            checked={
+                              pendingTick?.group === group.id &&
+                              pendingTick.item === item.id
+                                ? pendingTick.checked
+                                : (saved?.checked ?? false)
+                            }
                             onChange={(event) =>
                               tick(group.id, item.id, event.target.checked)
                             }

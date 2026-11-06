@@ -54,28 +54,6 @@ export async function POST(req: NextRequest) {
     const {
       data: { user: existingUser },
     } = await signedIn.auth.getUser();
-    if (cleanerStage2Enabled()) {
-      const existing = existingUser
-        ? await admin
-            .from("providers")
-            .select("id")
-            .eq("profile_id", existingUser.id)
-            .maybeSingle()
-        : { data: null, error: null };
-      const permitted = existing.data
-        ? await admin.rpc("cleaner_legacy_registration_allowed", {
-            p_provider: existing.data.id,
-          })
-        : { data: false, error: null };
-      if (existing.error || permitted.error || permitted.data !== true)
-        return NextResponse.json(
-          {
-            error: "Complete the cleaner application and assessment first.",
-            redirectTo: "/cleaner-apply",
-          },
-          { status: 409 },
-        );
-    }
     const {
       fullName,
       salutation,
@@ -127,6 +105,28 @@ export async function POST(req: NextRequest) {
       );
     const cleaningSelected = selectedServices.includes("cleaning");
     const handymanSelected = selectedServices.includes("handyman");
+    if (cleanerStage2Enabled() && cleaningSelected) {
+      const existing = existingUser
+        ? await admin
+            .from("providers")
+            .select("id")
+            .eq("profile_id", existingUser.id)
+            .maybeSingle()
+        : { data: null, error: null };
+      const permitted = existing.data
+        ? await admin.rpc("cleaner_legacy_registration_allowed", {
+            p_provider: existing.data.id,
+          })
+        : { data: false, error: null };
+      if (existing.error || permitted.error || permitted.data !== true)
+        return NextResponse.json(
+          {
+            error: "Complete the cleaner application and assessment first.",
+            redirectTo: "/cleaner-apply",
+          },
+          { status: 409 },
+        );
+    }
     if (
       handymanSelected &&
       (!Array.isArray(maintenanceTasks) ||
