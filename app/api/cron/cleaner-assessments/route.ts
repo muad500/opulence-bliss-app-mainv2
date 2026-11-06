@@ -25,6 +25,7 @@ export async function GET(request: Request) {
   if (!configured && !proof)
     return Response.json({ error: "Unauthorized" }, { status: 401, headers });
   let step = "authorization";
+  let code: string | undefined;
   try {
     const admin = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -43,7 +44,10 @@ export async function GET(request: Request) {
     }
     step = "assessment-recovery";
     const { data, error } = await admin.rpc("sweep_cleaner_assessments");
-    if (error) throw Error("Recovery unavailable");
+    if (error) {
+      code = /^[A-Z0-9]{3,12}$/.test(error.code ?? "") ? error.code : undefined;
+      throw Error("Recovery unavailable");
+    }
     step = "payout-rechecks";
     const checks = await admin.rpc("cleaner_stage2_payout_rechecks");
     if (checks.error || !Array.isArray(checks.data))
@@ -88,7 +92,7 @@ export async function GET(request: Request) {
     );
   } catch {
     return Response.json(
-      { error: "Assessment recovery unavailable", step },
+      { error: "Assessment recovery unavailable", step, code },
       { status: 503, headers },
     );
   }
