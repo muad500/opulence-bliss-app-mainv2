@@ -81,6 +81,7 @@ try {
     "test-cleaner-assessment-mail.mjs",
     "test-cleaner-assessment-pack.mjs",
     "test-cleaner-onboarding-drafts.mjs",
+    "test-cleaner-stage2-completion.mjs",
     "test-shared-foundation-routes.mjs",
     "test-checkout-cleaner-cards.mjs",
     "test-launch-polish.mjs",

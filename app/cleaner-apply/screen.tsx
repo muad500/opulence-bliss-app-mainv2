@@ -44,10 +44,9 @@ export default function ApplicationForm() {
       {state === "saved" ? (
         <div role="status" className={styles.notice}>
           <h2>Test application received</h2>
-          <p>{pendingOnboardingWording("applicationReceived")}</p>
+          <p>Thank you. Your test application has been recorded.</p>
           <p>
-            The confirmation email is held until the client approves the draft
-            wording.
+            Staging email delivery is restricted to the approved test inbox.
           </p>
         </div>
       ) : (
@@ -130,8 +129,8 @@ export default function ApplicationForm() {
             </span>
           </label>
           <p>
-            This declaration is a draft awaiting client approval. Use fictional
-            staging details only.
+            Version 1.0 – effective 1 October 2026. Use fictional staging
+            details only.
           </p>
           {error && <p role="alert">{error}</p>}
           <button

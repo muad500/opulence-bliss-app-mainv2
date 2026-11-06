@@ -1,20 +1,20 @@
 <!-- Generated from content/cleaner-onboarding-drafts.json. Edit that file, then regenerate. -->
 
-# Cleaner onboarding: proposed emails and staff checklist
+# Cleaner onboarding: approved emails and staff checklist
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
-Review version: draft-1 | Prepared: 2026-11-05
+Review version: 1.0 | Prepared: 2026-11-05
 
-Proposed operational wording drawn from the build specification and the published policies. This is not a copy of the client's internal HR process. Nothing in this pack is approved for sending, publication or use as a new activation requirement.
+Approved operational wording from review draft-1. Publication is separate from delivery and activation: guarded Stage 2 flows and their readiness checks still apply.
 
 ## Client approval record
 
-Decision: approve as written / approve with amendments / request changes
+Approved as written by Opulence Bliss. Confirmation received: 2026-11-06. Effective: 2026-10-01.
 
-Approved item codes and version: ********\_\_\_\_********
+Approved: E01–E10, D01 and C01–C12, Version 1.0. No amendments.
 
-Client name and date: ********\_\_\_\_********
+Original review: draft-1; exact source retained in content/history/. The effective date is not a backdated acceptance or approval date.
 
 Recording approval in this review copy does not enable a website feature or send a message. Approved wording must be versioned and connected to the guarded workflow separately.
 
@@ -64,11 +64,11 @@ Recording approval in this review copy does not enable a website feature or send
 - Safeguarding, Lone Working and Incident Policy, v1.0, effective 2026-10-01.
 - Privacy Policy, v1.0, effective 2026-10-01.
 
-## Proposed emails
+## Approved emails
 
 ### E01. Application received
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 9.1
 
@@ -102,7 +102,7 @@ Reviewer notes:
 
 ### E02. Induction and assessment invitation
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process: induction invitation (section unspecified)
 
@@ -141,7 +141,7 @@ Reviewer notes:
 
 ### E03. General application rejection
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 9.3
 
@@ -175,7 +175,7 @@ Reviewer notes:
 
 ### E04. Secure DBS-related decision notice
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: DBS Policy 6.2–6.3; cleaner spec 5.2
 
@@ -209,7 +209,7 @@ Reviewer notes:
 
 ### E05. Manager escalation alert
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 3.9 and 3.14
 
@@ -237,7 +237,7 @@ Reviewer notes:
 
 ### E06. Right-to-work expiry reminder
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 3.8
 
@@ -266,7 +266,7 @@ Reviewer notes:
 
 ### E07. Fresh basic DBS reminder
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 4.4
 
@@ -295,7 +295,7 @@ Reviewer notes:
 
 ### E08. First completed booking follow-up reminder
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 4.1
 
@@ -323,7 +323,7 @@ Reviewer notes:
 
 ### E09. Fifth completed booking review reminder
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 4.2
 
@@ -352,7 +352,7 @@ Reviewer notes:
 
 ### E10. Stage 2 account setup confirmation
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Cleaner spec 2.2, 5.4 and 8: welcome email
 
@@ -383,11 +383,11 @@ Reviewer notes:
 - Proposed for the Stage 2 sequence only. Do not replace the current welcome email or detach its accepted-version PDFs before approval and integration.
 - Do not say the cleaner is Active or ask them to repeat checks already completed before induction.
 
-## Proposed application acknowledgement
+## Approved application acknowledgement
 
 ### D01. Application privacy and checks acknowledgement
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 3.1A
 
@@ -401,13 +401,13 @@ Reviewer notes:
 - This is not marketing consent or the sole legal basis for processing. The published policies continue to explain the applicable legal bases.
 - Keep the public test form's draft warning until the client approves the wording. Do not backdate or replace an earlier acknowledgement.
 
-## Proposed staff checklist
+## Approved staff checklist
 
 Every completed item in the eventual approved workflow must record the staff member, UTC time and any necessary note. Sensitive evidence stays in the restricted record. These review checkboxes are not live application decisions.
 
 ### C01. Application and desk screening
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Cleaner Onboarding Checklist; Process 3.1
 
@@ -426,7 +426,7 @@ Reviewer notes:
 
 ### C02. Interview and proposed review criteria
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 3.3
 
@@ -446,7 +446,7 @@ Reviewer notes:
 
 ### C03. Live identity and right-to-work check
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 3.7
 
@@ -465,7 +465,7 @@ Reviewer notes:
 
 ### C04. Basic DBS record and decision
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: DBS Policy 2, 4–8; cleaner spec 5.2–5.3
 
@@ -485,7 +485,7 @@ Reviewer notes:
 
 ### C05. Experience or Manager waiver
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Cleaner spec 5.3.1
 
@@ -501,7 +501,7 @@ Reviewer notes:
 
 ### C06. Cleaner insurance
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Cleaner Terms 16.1; Safeguarding Policy 4.1
 
@@ -518,7 +518,7 @@ Reviewer notes:
 
 ### C07. Induction and assessment
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Cleaner spec 5.5; Process 3.19A and 3.21–3.21C
 
@@ -537,7 +537,7 @@ Reviewer notes:
 
 ### C08. Acceptances, emergency contact and payout setup
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Cleaner spec 5.3–5.4
 
@@ -557,7 +557,7 @@ Reviewer notes:
 
 ### C09. Independent final sign-off
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Cleaner spec 5.3.1; existing independent-sign-off controls
 
@@ -575,7 +575,7 @@ Reviewer notes:
 
 ### C10. Escalation, decision and rejection record
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 3.9 and 3.14
 
@@ -593,7 +593,7 @@ Reviewer notes:
 
 ### C11. First completed booking follow-up
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 4.1
 
@@ -611,7 +611,7 @@ Reviewer notes:
 
 ### C12. Fifth completed booking review
 
-**Draft – awaiting client approval**
+**Version 1.0 – effective 1 October 2026**
 
 Reference: Onboarding Process 4.2
 

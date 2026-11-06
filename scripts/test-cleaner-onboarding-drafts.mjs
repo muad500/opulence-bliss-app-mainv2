@@ -30,9 +30,21 @@ function compile(file, mocks = {}, env = {}) {
   );
   return module.exports;
 }
-test("single editable catalog accounts for all references and explicitly stays a draft", () => {
-  assert.equal(catalog.status, "draft");
-  assert.equal(catalog.statusLabel, "Draft – awaiting client approval");
+test("single editable catalog records approval and preserves exact draft-1 wording", () => {
+  assert.equal(catalog.status, "approved");
+  assert.equal(catalog.statusLabel, "Version 1.0 – effective 1 October 2026");
+  const original = JSON.parse(
+    readFileSync("content/history/cleaner-onboarding-draft-1.json", "utf8"),
+  );
+  assert.equal(original.status, "draft");
+  assert.equal(catalog.approval.reviewedVersion, "draft-1");
+  assert.equal(catalog.approval.recordedOn, "2026-11-06");
+  assert.equal(catalog.approval.effectiveDate, "2026-10-01");
+  for (const key of ["emails", "declarations", "checklists"])
+    assert.deepEqual(
+      catalog[key].map(({ approval, statusLabel, ...item }) => item),
+      original[key],
+    );
   assert.equal(catalog.emails.length, 10);
   assert.equal(catalog.checklists.length, 12);
   const entries = [

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Evidence from "./evidence";
 import { useEffect, useState, type FormEvent } from "react";
 import { CLEANER_ONBOARDING_MISSING_SOURCES as sources } from "@/lib/cleanerOnboardingPlaceholders";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/lib/cleanerOnboardingWorkflow";
 import styles from "../cleaner-assessment/screen.module.css";
 import localStyles from "./screen.module.css";
+import type { OnboardingChecklistDraft } from "@/lib/cleanerOnboardingDraftTypes";
 
 type Summary = {
   id: string;
@@ -19,6 +21,14 @@ type Summary = {
   created_at: string;
 };
 type Detail = {
+  checklist: {
+    group_id: string;
+    item_id: string;
+    checked: boolean;
+    actor: string;
+    recorded_at: string;
+    note: string;
+  }[];
   application: Record<string, string> & { id: string; full_name: string };
   managerReview: boolean;
   stages: {
@@ -45,7 +55,7 @@ const fields: Record<
     { key: "notes", label: "Interview notes" },
     {
       key: "score",
-      label: "Interview score (client criteria pending)",
+      label: "Interview score (optional, no automatic pass mark)",
       type: "number",
     },
   ],
@@ -97,7 +107,13 @@ async function api(body?: unknown) {
   return result;
 }
 
-export default function ApplicationConsole() {
+export default function ApplicationConsole({
+  checklists,
+  wordingLabel,
+}: {
+  checklists: OnboardingChecklistDraft[];
+  wordingLabel: string;
+}) {
   const [rows, setRows] = useState<Summary[]>([]);
   const [record, setRecord] = useState<Detail | null>(null);
   const [stage, setStage] = useState<CleanerApplicationStage>("screened");
@@ -105,6 +121,53 @@ export default function ApplicationConsole() {
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("Loading applications…");
   const [manager, setManager] = useState(false);
+  const [tickNote, setTickNote] = useState("");
+  async function arrange(
+    event: FormEvent<HTMLFormElement>,
+    action: "invite" | "publish_decision",
+  ) {
+    event.preventDefault();
+    if (!record || busy) return;
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    if (action === "invite")
+      values.startsAt = new Date(String(values.startsAt) + "Z").toISOString();
+    setBusy(true);
+    try {
+      await api({ ...values, action, applicationId: record.application.id });
+      await open(record.application.id, privateOpen);
+      setStatus(
+        "Recorded. The scheduled worker will send to the approved test inbox only.",
+      );
+    } catch (error) {
+      setStatus((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function tick(group: string, item: string, checked: boolean) {
+    if (!record || tickNote.trim().length < 10) {
+      setStatus(
+        "Record a factual note of at least 10 characters before changing a checklist item.",
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      await api({
+        action: "checklist",
+        applicationId: record.application.id,
+        group,
+        item,
+        checked,
+        note: tickNote,
+      });
+      await open(record.application.id, privateOpen);
+    } catch (error) {
+      setStatus((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function refresh() {
     const data = await api();
     setRows(data.applications ?? []);
@@ -197,19 +260,19 @@ export default function ApplicationConsole() {
         </Link>
       </p>
       <details className={styles.card}>
-        <summary>Draft wording awaiting client approval</summary>
+        <summary>Approved onboarding wording</summary>
         <ul>
           {Object.entries(sources).map(([key, entry]) => (
             <li key={key}>{entry.wording}</li>
           ))}
         </ul>
         <p>
-          Proposed emails and checklist wording are ready for client review. No
-          pending email is sent and the draft checklist is not approved.
+          {wordingLabel}. Stage 2 emails are restricted to the approved staging
+          test inbox.
         </p>
         <p>
           <Link href="/admin/cleaner-onboarding-drafts">
-            Read or download the complete draft pack
+            Read or download the approved pack
           </Link>
         </p>
       </details>
@@ -239,6 +302,18 @@ export default function ApplicationConsole() {
             {record.application.email} · {record.application.phone} ·{" "}
             {record.application.status}
           </p>
+          {record.application.provider_id && (
+            <p>
+              <Link href={`/admin/cleaners/${record.application.provider_id}`}>
+                Open this professional's evidence and independent sign-off
+              </Link>
+            </p>
+          )}
+          {privateOpen &&
+            record.application.provider_id &&
+            ["assessment_passed", "accepted_setup"].includes(
+              record.application.status,
+            ) && <Evidence applicationId={record.application.id} />}
           {record.managerReview && <p>Locked for Manager review.</p>}
           <button
             disabled={busy}
@@ -247,6 +322,65 @@ export default function ApplicationConsole() {
             Open private identity and DBS evidence (named staff only)
           </button>
           <h3>Stage records</h3>
+          <section aria-label="Approved onboarding checklist">
+            <h3>Onboarding checklist</h3>
+            <p>{wordingLabel} · Approved by Opulence Bliss</p>
+            <label>
+              Note for this checklist change
+              <textarea
+                value={tickNote}
+                onChange={(event) => setTickNote(event.target.value)}
+                minLength={10}
+                maxLength={2000}
+                rows={3}
+              />
+            </label>
+            {checklists
+              .filter(
+                (group) =>
+                  privateOpen ||
+                  ![
+                    "liveIdentityCheck",
+                    "dbsReview",
+                    "managerEscalation",
+                  ].includes(group.id),
+              )
+              .map((group) => (
+                <fieldset key={group.id} disabled={busy}>
+                  <legend>
+                    {group.code}: {group.title}
+                  </legend>
+                  {group.items.map((item) => {
+                    const saved = record.checklist?.find(
+                      (t) => t.group_id === group.id && t.item_id === item.id,
+                    );
+                    return (
+                      <div key={item.id}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={saved?.checked ?? false}
+                            onChange={(event) =>
+                              tick(group.id, item.id, event.target.checked)
+                            }
+                          />
+                          {item.text}
+                        </label>
+                        {saved && (
+                          <p>
+                            Recorded by {saved.actor} at{" "}
+                            {new Date(saved.recorded_at).toLocaleString(
+                              "en-GB",
+                            )}{" "}
+                            · {saved.note}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </fieldset>
+              ))}
+          </section>
           <ul>
             {record.stages.map((item) => (
               <li key={item.stage}>
@@ -346,12 +480,82 @@ export default function ApplicationConsole() {
                   Resolve Manager review
                 </button>
                 <button value="reject" disabled={busy}>
-                  Record rejection (email held)
+                  Record rejection
                 </button>
               </>
             )}
           </form>
           <h3>Communications</h3>
+          {record.application.status === "experience_checked" && (
+            <form onSubmit={(event) => arrange(event, "invite")}>
+              <h3>Arrange induction and send personal access</h3>
+              <label>
+                Session start (UTC)
+                <input type="datetime-local" name="startsAt" required />
+              </label>
+              <label>
+                Google Meet address
+                <input
+                  type="url"
+                  name="meetingUrl"
+                  placeholder="https://meet.google.com/abc-defg-hij"
+                  required
+                />
+              </label>
+              <button disabled={busy}>Send induction invitation</button>
+            </form>
+          )}
+          {manager && privateOpen && (
+            <form onSubmit={(event) => arrange(event, "publish_decision")}>
+              <h3>Secure DBS-related written decision</h3>
+              <p>
+                Named Manager only. Consider the applicant's explanation. No
+                offence details will be copied into the email.
+              </p>
+              <label>
+                Explanation considered
+                <textarea
+                  name="explanation"
+                  minLength={10}
+                  maxLength={4000}
+                  required
+                />
+              </label>
+              <label>
+                Considered suitability decision
+                <select name="suitability" required defaultValue="">
+                  <option value="" disabled>
+                    Choose a decision
+                  </option>
+                  <option value="suitable">
+                    Suitable following Manager review
+                  </option>
+                  <option value="not_suitable">
+                    Not suitable following Manager review
+                  </option>
+                </select>
+              </label>
+              <label>
+                Decision shown to the applicant
+                <textarea
+                  name="decision"
+                  minLength={10}
+                  maxLength={4000}
+                  required
+                />
+              </label>
+              <label>
+                Reasons shown privately to the applicant
+                <textarea
+                  name="reasons"
+                  minLength={10}
+                  maxLength={4000}
+                  required
+                />
+              </label>
+              <button disabled={busy}>Publish personal written decision</button>
+            </form>
+          )}
           <ul>
             {record.communications.map((item) => (
               <li key={item.template}>

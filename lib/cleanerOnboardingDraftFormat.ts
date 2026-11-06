@@ -27,11 +27,17 @@ export function renderCleanerOnboardingReview(
     "",
     "## Client approval record",
     "",
-    "Decision: approve as written / approve with amendments / request changes",
+    catalog.approval
+      ? `Approved as written by ${catalog.approval.approvedBy}. Confirmation received: ${catalog.approval.recordedOn}. Effective: ${catalog.approval.effectiveDate}.`
+      : "Decision: approve as written / approve with amendments / request changes",
     "",
-    "Approved item codes and version: ____________________",
+    catalog.approval
+      ? "Approved: E01–E10, D01 and C01–C12, Version 1.0. No amendments."
+      : "Approved item codes and version: ____________________",
     "",
-    "Client name and date: ____________________",
+    catalog.approval
+      ? `Original review: ${catalog.approval.reviewedVersion}; exact source retained in content/history/. The effective date is not a backdated acceptance or approval date.`
+      : "Client name and date: ____________________",
     "",
     "Recording approval in this review copy does not enable a website feature or send a message. Approved wording must be versioned and connected to the guarded workflow separately.",
     "",
@@ -54,7 +60,7 @@ export function renderCleanerOnboardingReview(
         `- ${source.title}, v${source.version}, effective ${source.effectiveDate}.`,
     ),
     "",
-    "## Proposed emails",
+    catalog.status === "approved" ? "## Approved emails" : "## Proposed emails",
     "",
   ];
   function heading(draft: OnboardingDraftBase) {
@@ -93,14 +99,21 @@ export function renderCleanerOnboardingReview(
     );
     notes(draft);
   }
-  lines.push("## Proposed application acknowledgement", "");
+  lines.push(
+    catalog.status === "approved"
+      ? "## Approved application acknowledgement"
+      : "## Proposed application acknowledgement",
+    "",
+  );
   for (const draft of catalog.declarations) {
     heading(draft);
     lines.push(draft.wording, "");
     notes(draft);
   }
   lines.push(
-    "## Proposed staff checklist",
+    catalog.status === "approved"
+      ? "## Approved staff checklist"
+      : "## Proposed staff checklist",
     "",
     "Every completed item in the eventual approved workflow must record the staff member, UTC time and any necessary note. Sensitive evidence stays in the restricted record. These review checkboxes are not live application decisions.",
     "",

@@ -1,0 +1,2 @@
+# Preserve the exact reviewed bytes used by the approval provenance hash.
+content/history/cleaner-onboarding-draft-1.json -text

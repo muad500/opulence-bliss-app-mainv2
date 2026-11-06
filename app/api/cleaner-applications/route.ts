@@ -62,6 +62,11 @@ export async function POST(request: NextRequest) {
       { status: 503, headers },
     );
   const declaration = CLEANER_ONBOARDING_MISSING_SOURCES.applicationNotice;
+  if (declaration.status !== "approved")
+    return NextResponse.json(
+      { error: "Application wording is unavailable." },
+      { status: 503, headers },
+    );
   const privacy = finalLegalDocument("privacy");
   if (!privacy)
     return NextResponse.json(
@@ -89,8 +94,8 @@ export async function POST(request: NextRequest) {
         { error: "Too many attempts. Please try again later." },
         { status: 429, headers: { ...headers, "Retry-After": "3600" } },
       );
-    // No account, provider or invitation. Missing approved client wording
-    // leaves the confirmation in awaiting_wording; no email can be dispatched.
+    // No account, provider or invitation. The approved, versioned confirmation
+    // is queued transactionally and sent only by the allowlisted worker.
     return success();
   } catch {
     return NextResponse.json(

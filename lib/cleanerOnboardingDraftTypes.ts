@@ -1,4 +1,6 @@
 export type OnboardingDraftBase = {
+  approval?: OnboardingApproval;
+  statusLabel?: string;
   id: string;
   code: string;
   title: string;
@@ -6,6 +8,15 @@ export type OnboardingDraftBase = {
   basis: string[];
   notes: string[];
   legacyKey?: string;
+};
+export type OnboardingApproval = {
+  version: string;
+  effectiveDate: string;
+  recordedOn: string;
+  approvedBy: string;
+  reviewedVersion: string;
+  amendments: string;
+  reviewedSourceSha256: string;
 };
 export type OnboardingEmailDraft = OnboardingDraftBase & {
   kind: string;
@@ -25,6 +36,7 @@ export type OnboardingChecklistDraft = OnboardingDraftBase & {
   items: { id: string; text: string }[];
 };
 export type CleanerOnboardingDraftCatalog = {
+  approval?: OnboardingApproval;
   version: string;
   status: string;
   statusLabel: string;

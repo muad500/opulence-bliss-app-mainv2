@@ -12,17 +12,26 @@ on:
       - "app/admin/cleaner-applications/**"
       - "app/api/cleaner-applications/**"
       - "app/api/admin/cleaner-applications/**"
+      - "app/cleaner-decision/**"
+      - "app/cleaner-setup/**"
+      - "app/api/cleaner-decision/**"
+      - "app/api/cleaner-setup/**"
       - "app/admin/cleaner-onboarding-drafts/**"
       - "app/api/admin/cleaner-onboarding-drafts/**"
       - "content/cleaner-onboarding-drafts.json"
       - "lib/cleanerApplication*"
       - "lib/cleanerAssessment*"
       - "lib/cleanerOnboarding*"
+      - "lib/cleanerSetup*"
+      - "lib/verificationRenewal*"
       - "scripts/test-cleaner-*"
       - "scripts/*cleaner-onboarding*"
       - "supabase/migrations/2026110502*"
       - "supabase/migrations/*cleaner_onboarding*"
       - "supabase/migrations/*cleaner_assessment*"
+      - "supabase/migrations/*cleaner_dbs*"
+      - "supabase/migrations/*cleaner_induction*"
+      - "supabase/migrations/*cleaner_stage2*"
       - ".github/workflows/cleaner-stage2-checks.yml"
 permissions: { contents: read }
 jobs:
@@ -42,5 +51,8 @@ jobs:
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-assessment-db.mjs
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-onboarding-db.mjs
           PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-assessment-pack-db.mjs
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-approved-onboarding-db.mjs
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-cleaner-dbs-three-year-db.mjs
       - run: node --test scripts/test-cleaner-assessment-session.mjs scripts/test-cleaner-assessment-console.mjs scripts/test-cleaner-intake-routes.mjs scripts/test-cleaner-assessment-mail.mjs scripts/test-cleaner-assessment-pack.mjs scripts/test-cleaner-onboarding-drafts.mjs
+      - run: node --test scripts/test-cleaner-stage2-completion.mjs
       - run: npx tsc --noEmit

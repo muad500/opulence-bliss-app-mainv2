@@ -44,7 +44,7 @@ async function approvalRequirements(
   const [dbsResult, checksResult, providerResult] = await Promise.all([
     admin
       .from("provider_dbs_checks")
-      .select("status, uploaded_at,issue_date")
+      .select("status, uploaded_at,issue_date,reviewed_at")
       .eq("provider_id", id)
       .maybeSingle(),
     admin
@@ -65,14 +65,17 @@ async function approvalRequirements(
   if (dbsResult.error || checksResult.error || providerResult.error)
     throw new Error("Private verification records could not be loaded.");
   const missing: string[] = [];
-  if (dbsResult.data?.status !== "verified" || !dbsResult.data.uploaded_at)
+  if (
+    dbsResult.data?.status !== "verified" ||
+    !(dbsResult.data.uploaded_at || dbsResult.data.reviewed_at)
+  )
     missing.push("DBS certificate");
   const today = new Date().toISOString().slice(0, 10);
   if (
     dbsResult.data &&
     (dbsRecheckDate(dbsResult.data.issue_date) ?? "") < today
   )
-    missing.push("annual DBS re-check");
+    missing.push("three-year DBS re-check");
   for (const [type, label] of [
     ["right_to_work", "right to work"],
     ["photo_id", "photo ID"],

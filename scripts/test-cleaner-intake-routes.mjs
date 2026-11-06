@@ -154,7 +154,10 @@ test("server owns consent wording and status; public response contains no record
   assert.deepEqual(await response.json(), { ok: true });
   const [name, params] = f.calls[0];
   assert.equal(name, "intake_cleaner_application");
-  assert.match(params.p_declaration, /^\[Onboarding Process 3.1A/);
+  assert.match(
+    params.p_declaration,
+    /^I have read the Privacy Notice \(v1.0\)/,
+  );
   assert.equal(params.p_privacy_version, "TEST-1");
   assert.equal(params.p_details.status, undefined);
   assert.equal(params.p_details.role, undefined);

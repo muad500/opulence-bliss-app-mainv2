@@ -12,7 +12,7 @@ const input = {
   note: "TEST fictional note",
   details: {},
 };
-test("onboarding stages preserve the source order and exact central placeholders", () => {
+test("onboarding stages preserve the source order and approved sources need no placeholder", () => {
   assert.deepEqual(
     CLEANER_APPLICATION_STAGES.map((s) => s.key),
     [
@@ -23,10 +23,7 @@ test("onboarding stages preserve the source order and exact central placeholders
       "experience_checked",
     ],
   );
-  assert.equal(
-    cleanerStagePlaceholder("screened"),
-    "[Cleaner Onboarding Checklist; Process 3.1 – Draft – awaiting client approval]",
-  );
+  assert.equal(cleanerStagePlaceholder("screened"), null);
   assert.equal(cleanerStagePlaceholder("dbs_recorded"), null);
 });
 test("only explicit stage actions and bounded evidence reach staff RPC", () => {

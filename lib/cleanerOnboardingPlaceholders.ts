@@ -25,6 +25,7 @@ export function requirePublishedOnboardingWording(input: {
     input.approvalStatus !== "approved" ||
     !input.version.trim() ||
     !input.wording.trim() ||
+    /^\[[\s\S]*\]$/.test(input.wording.trim()) ||
     /to be supplied|draft\s*[–-]\s*awaiting client approval|\{\{[^}]+\}\}/i.test(
       input.wording,
     )

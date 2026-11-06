@@ -41,6 +41,8 @@ async function load(path, mocks = {}) {
       if (id === "@/lib/accountChangeVerification")
         return { verifyAccountChangeRequest: async () => null };
       if (id === "@/lib/professionalServices") return services;
+      if (id === "@/lib/cleanerApplication") return cleanerApplication;
+      if (id === "./ukPhone") return ukPhone;
       if (id === "@/lib/accountRoles") return accountRoles;
       if (id === "./sessionOptions") return sessionOptions;
       if (id === "./finalCheckoutCopy") return finalCopy;
@@ -68,6 +70,8 @@ async function load(path, mocks = {}) {
   });
   return compiledModule.exports;
 }
+const ukPhone = await load("lib/ukPhone.ts");
+const cleanerApplication = await load("lib/cleanerApplication.ts");
 const finalCopy = await load("lib/finalCheckoutCopy.ts");
 const professionalLegalCopy = await load("lib/professionalLegalCopy.ts");
 const sessionOptions = await load("lib/supabase/sessionOptions.ts");

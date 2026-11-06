@@ -8,11 +8,39 @@ const check = process.argv.includes("--check");
 const catalog = JSON.parse(
   readFileSync("content/cleaner-onboarding-drafts.json", "utf8"),
 );
-if (
-  catalog.status !== "draft" ||
-  catalog.statusLabel !== "Draft – awaiting client approval"
-)
-  throw Error("Only an explicitly unapproved draft catalog is supported.");
+if (!["draft", "approved"].includes(catalog.status))
+  throw Error("Unsupported catalog state.");
+if (catalog.status === "approved") {
+  const archived = readFileSync(
+    "content/history/cleaner-onboarding-draft-1.json",
+    "utf8",
+  );
+  const before = JSON.parse(archived);
+  if (
+    catalog.approval?.reviewedVersion !== "draft-1" ||
+    catalog.approval?.approvedBy !== "Opulence Bliss" ||
+    catalog.approval?.effectiveDate !== "2026-10-01" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(catalog.approval?.recordedOn ?? "") ||
+    createHash("sha256").update(archived).digest("hex") !==
+      catalog.approval.reviewedSourceSha256
+  )
+    throw Error("Dated approval and exact draft-1 history are required.");
+  for (const key of ["emails", "declarations", "checklists"]) {
+    const withoutApproval = catalog[key].map(
+      ({ approval, statusLabel, ...item }) => item,
+    );
+    if (JSON.stringify(withoutApproval) !== JSON.stringify(before[key]))
+      throw Error("Approved wording differs from the as-written review.");
+    if (
+      catalog[key].some(
+        (item) =>
+          JSON.stringify(item.approval) !== JSON.stringify(catalog.approval) ||
+          item.statusLabel !== catalog.statusLabel,
+      )
+    )
+      throw Error("Every item needs its approval record.");
+  }
+}
 const entries = [
   ...catalog.emails,
   ...catalog.declarations,
@@ -49,8 +77,12 @@ const metadata = Object.fromEntries(
       {
         reference: entry.reference,
         kind: entry.kind,
-        wording: `[${entry.reference} – ${catalog.statusLabel}]`,
-        status: "draft",
+        wording:
+          catalog.status === "approved" && entry.wording
+            ? entry.wording
+            : `[${entry.reference} – ${catalog.statusLabel}]`,
+        status: catalog.status,
+        version: catalog.version,
       },
     ]),
 );

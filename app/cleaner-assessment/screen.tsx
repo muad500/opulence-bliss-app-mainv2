@@ -360,10 +360,31 @@ export default function CleanerAssessment() {
         {snapshot?.phase === "passed" && (
           <>
             <h2>{copy.passed}</h2>
-            <p>
-              STAGING: account setup and document acceptance are still being
-              built.
-            </p>
+            <button
+              disabled={busy}
+              onClick={async () => {
+                setBusy(true);
+                setError("");
+                try {
+                  const response = await fetch(
+                    "/api/cleaner-assessment/setup",
+                    {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: "{}",
+                    },
+                  );
+                  const result = await response.json();
+                  if (!response.ok) throw Error(result.error);
+                  window.location.assign(result.url);
+                } catch (error) {
+                  setError((error as Error).message);
+                  setBusy(false);
+                }
+              }}
+            >
+              Continue to your account setup
+            </button>
           </>
         )}
         {snapshot?.phase === "ended" && (

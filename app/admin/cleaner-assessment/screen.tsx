@@ -281,10 +281,10 @@ export default function AssessmentConsole() {
         </section>
       ))}
       <details className={styles.card}>
-        <summary>Draft wording awaiting client approval</summary>
+        <summary>Approved onboarding wording</summary>
         <p>
-          Proposed wording is ready for review and is not approved. Affected
-          emails remain held.
+          Version 1.0 – effective 1 October 2026, approved by Opulence Bliss.
+          Email delivery is restricted to the approved staging test inbox.
         </p>
         <ul>
           {Object.values(CLEANER_ONBOARDING_MISSING_SOURCES).map((item) => (

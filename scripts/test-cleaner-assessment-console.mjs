@@ -43,6 +43,16 @@ function fixture(options = {}) {
                 configured: false,
               }),
             };
+          if (name === "@/lib/cleanerOnboardingMail")
+            return {
+              deliverCleanerOnboardingEmails: async () => ({
+                sent: 0,
+                failed: 0,
+                configured: false,
+              }),
+            };
+          if (name === "@/lib/cleanerSetupStripe")
+            return { cleanerSetupPayoutAccount: async () => ({ ready: true }) };
           if (name === "next/server") return { NextRequest, NextResponse };
           if (name === "@/lib/cleanerApplication")
             return load("lib/cleanerApplication.ts");
@@ -58,7 +68,9 @@ function fixture(options = {}) {
                         data:
                           name === "purge_expired_cleaner_applications"
                             ? { assessments: 0, applications: 0 }
-                            : 1,
+                            : name === "cleaner_stage2_payout_rechecks"
+                              ? []
+                              : 1,
                       };
                 },
               }),
@@ -255,11 +267,16 @@ test("authorised staging recovery returns only a processed count", async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
     processed: 1,
+    payoutChecks: 0,
+    followups: 1,
     retention: { assessments: 0, applications: 0 },
     decisions: { sent: 0, failed: 0, configured: false },
+    onboarding: { sent: 0, failed: 0, configured: false },
   });
   assert.deepEqual(f.calls, [
     ["sweep_cleaner_assessments"],
+    ["cleaner_stage2_payout_rechecks"],
+    ["process_cleaner_stage2_followups"],
     ["purge_expired_cleaner_applications"],
   ]);
 });

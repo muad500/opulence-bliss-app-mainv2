@@ -19,7 +19,10 @@ export function cleanerStagePlaceholder(stage: CleanerApplicationStage) {
   const source = CLEANER_APPLICATION_STAGES.find(
     (item) => item.key === stage,
   )?.source;
-  return source ? CLEANER_ONBOARDING_MISSING_SOURCES[source].wording : null;
+  return source &&
+    CLEANER_ONBOARDING_MISSING_SOURCES[source].status !== "approved"
+    ? CLEANER_ONBOARDING_MISSING_SOURCES[source].wording
+    : null;
 }
 
 export function parseOnboardingAction(value: unknown) {

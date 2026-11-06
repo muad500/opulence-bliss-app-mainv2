@@ -52,7 +52,7 @@ export default async function CleanerOnboardingDraftReview() {
           ))}
         </ul>
       </section>
-      <h2>Proposed emails</h2>
+      <h2>Approved emails</h2>
       {catalog.emails.map((draft) => (
         <section key={draft.id} id={draft.code} className={styles.card}>
           <p className={styles.badge}>{catalog.statusLabel}</p>
@@ -92,7 +92,7 @@ export default async function CleanerOnboardingDraftReview() {
           </ul>
         </section>
       ))}
-      <h2>Proposed acknowledgement</h2>
+      <h2>Approved acknowledgement</h2>
       {catalog.declarations.map((draft) => (
         <section key={draft.id} id={draft.code} className={styles.card}>
           <p className={styles.badge}>{catalog.statusLabel}</p>
@@ -113,7 +113,7 @@ export default async function CleanerOnboardingDraftReview() {
           </ul>
         </section>
       ))}
-      <h2>Proposed staff checklist</h2>
+      <h2>Approved staff checklist</h2>
       <p>
         These review boxes are disabled. They do not change the existing
         activation requirements or record a completed check.

@@ -6,23 +6,26 @@ import {
   requirePublishedOnboardingWording,
 } from "./cleanerOnboardingPlaceholders";
 
-test("missing client wording is explicit and held centrally", () => {
+test("approved wording metadata records source and version centrally", () => {
   assert.equal(
     pendingOnboardingWording("applicationReceived"),
-    "[Onboarding Process 9.1 – Draft – awaiting client approval]",
+    "[Onboarding Process 9.1 – Version 1.0 – effective 1 October 2026]",
   );
   assert.equal(
     pendingOnboardingWording("applicationRejected"),
-    "[Onboarding Process 9.3 – Draft – awaiting client approval]",
+    "[Onboarding Process 9.3 – Version 1.0 – effective 1 October 2026]",
   );
   for (const entry of Object.values(sources)) {
     assert.ok(entry.reference.length);
-    assert.match(entry.wording, /^\[.+Draft – awaiting client approval\]$/);
-    assert.equal(entry.status, "draft");
+    assert.ok(entry.wording.length);
+    assert.equal(entry.status, "approved");
+    assert.equal(entry.version, "1.0");
   }
 });
 test("placeholder text cannot become applicant email even if accidentally marked published", () => {
-  for (const entry of Object.values(sources))
+  for (const entry of Object.values(sources).filter(
+    (entry) => entry.kind === "email",
+  ))
     assert.throws(
       () =>
         requirePublishedOnboardingWording({
