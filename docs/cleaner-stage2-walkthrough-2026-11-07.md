@@ -82,7 +82,7 @@ back all records: zero persisted fixtures, emails or financial operations.
   Production credentials. The destructive-admin test loader was updated for the
   new dependency and still asserts that those tools cannot inspect applicants.
 - Isolated database suites: application 13, assessment 59, onboarding 48, pack
-  12, approved workflow 31, three-year DBS 7: **170 checks** passing.
+  12, approved workflow 33, three-year DBS 7: **172 checks** passing.
 - Scoped lint and formatting pass. The approved catalog generated output is
   current. Private source scanner: 25 questions / five prompts, 774 client files
   checked, no private bank text. Billing worker source/hash is unchanged.
@@ -118,7 +118,7 @@ it does not substitute for an uncompleted device or real-email walkthrough.
 | 11    | **Incomplete:** own Stripe sandbox setup failed; dashboard requires authenticator. All three schedule choices exist; actual saved choices need walkthrough. |
 | 12    | DB pass: missing emergency contact blocks setup/activation.                                                                                                 |
 | 13    | DB pass in rollback; **actual setup/welcome delivery incomplete** behind Stripe.                                                                            |
-| 14    | New-work guards are built; full offer-matrix walkthrough still required.                                                                                    |
+| 14    | DB pass: pending/suspended/stale-payout accounts receive no offers; Active/fresh accounts do. Browser offer-matrix check pending.                           |
 | 15    | Existing no-substitute flow preserved; no new reassignment implementation.                                                                                  |
 | 16–27 | Existing working-life/payment features, outside this onboarding change; not newly signed off here.                                                          |
 | 28    | RTW expiry/reminder database rules retained; actual E06 delivery not exercised.                                                                             |

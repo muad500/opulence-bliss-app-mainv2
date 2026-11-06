@@ -537,6 +537,25 @@ try {
       );
     },
   );
+  await check(
+    "pending applicants cannot receive offers or assignments",
+    async () => {
+      await db.exec("reset role");
+      for (const table of ["booking_offers", "booking_offer_queue"]) {
+        const offered = await db.query(
+          `insert into ${table}(provider_id) values($1) returning *`,
+          [provider],
+        );
+        assert.equal(offered.rows.length, 0);
+      }
+      await assert.rejects(() =>
+        db.query(
+          "insert into bookings(provider_id,status) values($1,'confirmed')",
+          [provider],
+        ),
+      );
+    },
+  );
   await actor();
   await check(
     "private evidence requires named MFA staff, actual stored file and insurance cover",
@@ -848,6 +867,62 @@ try {
           application,
         ]),
         "active",
+      );
+    },
+  );
+  await check(
+    "only Active cleaners with fresh payout checks receive new offers",
+    async () => {
+      await db.exec("reset role");
+      assert.equal(
+        (
+          await db.query(
+            "insert into booking_offers(provider_id) values($1) returning *",
+            [provider],
+          )
+        ).rows.length,
+        1,
+      );
+      await db.query(
+        "update cleaner_onboarding_private.setup_records set payout_checked_at=now()-interval '16 minutes' where application_id=$1",
+        [application],
+      );
+      assert.equal(
+        (
+          await db.query(
+            "insert into booking_offers(provider_id) values($1) returning *",
+            [provider],
+          )
+        ).rows.length,
+        0,
+      );
+      await db.query(
+        "update cleaner_onboarding_private.setup_records set payout_checked_at=clock_timestamp() where application_id=$1",
+        [application],
+      );
+      await db.query("update providers set is_suspended=true where id=$1", [
+        provider,
+      ]);
+      assert.equal(
+        (
+          await db.query(
+            "insert into booking_offers(provider_id) values($1) returning *",
+            [provider],
+          )
+        ).rows.length,
+        0,
+      );
+      await db.query("update providers set is_suspended=false where id=$1", [
+        provider,
+      ]);
+      assert.equal(
+        (
+          await db.query(
+            "insert into booking_offer_queue(provider_id) values($1) returning *",
+            [provider],
+          )
+        ).rows.length,
+        1,
       );
     },
   );
