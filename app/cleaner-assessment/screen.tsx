@@ -38,6 +38,7 @@ export default function CleanerAssessment() {
   const writingRef = useRef("");
   const [clockOffset, setClockOffset] = useState(0);
   const queue = useRef<Promise<void>>(Promise.resolve());
+  const entryCleanup = useRef<Promise<void>>(Promise.resolve());
   const terminating = useRef(false);
   const phase = snapshot?.phase;
   const attemptId = snapshot?.attemptId;
@@ -107,7 +108,7 @@ export default function CleanerAssessment() {
     const previous = sessionStorage.getItem(marker);
     if (previous) {
       terminating.current = true;
-      void fetch(endpoint, {
+      entryCleanup.current = fetch(endpoint, {
         method: "PATCH",
         credentials: "same-origin",
         keepalive: true,
@@ -203,10 +204,13 @@ export default function CleanerAssessment() {
   }, [phase]);
 
   async function start() {
-    if (terminating.current) return;
+    if (active(current.current)) return;
     setBusy(true);
     setError("");
     try {
+      // Finish the old attempt's page-leave request before exchanging a fresh
+      // invitation. Only the server can authorise a Manager's single reopening.
+      await entryCleanup.current;
       const invitation = new URLSearchParams(window.location.hash.slice(1)).get(
         "invitation",
       );
@@ -214,6 +218,7 @@ export default function CleanerAssessment() {
         throw Error(
           "Open the private invitation supplied by your induction host.",
         );
+      terminating.current = false;
       const result = await fetch(endpoint, {
         method: "POST",
         credentials: "same-origin",

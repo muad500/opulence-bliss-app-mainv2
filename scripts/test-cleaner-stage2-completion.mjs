@@ -623,3 +623,95 @@ test("welcome reuses accepted-version PDF attachments without changing their sna
     "TEST-accepted-v1.0.pdf",
   );
 });
+
+test("a reopened invitation waits for the old page-leave request before starting", async () => {
+  const effects = [];
+  const calls = [];
+  const storage = new Map([
+    ["opulence-cleaner-active-assessment", "old-attempt"],
+  ]);
+  let finishOldRequest;
+  const oldRequest = new Promise((done) => (finishOldRequest = done));
+  const compiled = { exports: {} };
+  const element = (type, props) => ({ type, props });
+  vm.runInNewContext(
+    ts.transpileModule(
+      readFileSync("app/cleaner-assessment/screen.tsx", "utf8"),
+      {
+        compilerOptions: {
+          module: ts.ModuleKind.CommonJS,
+          target: ts.ScriptTarget.ES2022,
+          jsx: ts.JsxEmit.ReactJSX,
+        esModuleInterop: true,
+        },
+      },
+    ).outputText,
+    {
+      module: compiled,
+      exports: compiled.exports,
+      URLSearchParams,
+      Date,
+      sessionStorage: {
+        getItem: (key) => storage.get(key),
+        setItem: (key, value) => storage.set(key, value),
+        removeItem: (key) => storage.delete(key),
+      },
+      window: {
+        location: {
+          hash: "#invitation=TEST_fresh_invitation",
+          pathname: "/cleaner-assessment",
+        },
+        history: { replaceState: () => calls.push("fragment removed") },
+      },
+      fetch: async (_url, request) => {
+        calls.push(request.method);
+        return request.method === "PATCH"
+          ? oldRequest
+          : {
+              ok: true,
+              json: async () => ({
+                phase: "questions",
+                attemptId: "new-attempt",
+                serverTime: new Date().toISOString(),
+              }),
+            };
+      },
+      require(name) {
+        if (name === "react/jsx-runtime")
+          return { jsx: element, jsxs: element };
+        if (name === "react")
+          return {
+            useState: (value) => [value, () => {}],
+            useRef: (current) => ({ current }),
+            useCallback: (callback) => callback,
+            useEffect: (callback) => effects.push(callback),
+          };
+        if (name.endsWith(".css")) return {};
+        if (name === "@/lib/cleanerAssessmentPolicy")
+          return { CLEANER_ASSESSMENT_COPY: { rules: [] } };
+        throw Error(`Unexpected client dependency: ${name}`);
+      },
+    },
+  );
+  const tree = compiled.exports.default();
+  const findStart = (node) => {
+    if (!node || typeof node !== "object") return;
+    if (node.type === "button" && node.props.children === "Start assessment")
+      return node;
+    for (const child of [node.props?.children].flat(Infinity)) {
+      const found = findStart(child);
+      if (found) return found;
+    }
+  };
+  effects[0]();
+  findStart(tree).props.onClick();
+  await new Promise((done) => setImmediate(done));
+  assert.deepEqual(calls, ["PATCH"]);
+  finishOldRequest({ ok: false });
+  await new Promise((done) => setImmediate(done));
+  assert.deepEqual(calls, ["PATCH", "POST", "fragment removed"]);
+  assert.equal(
+    storage.get("opulence-cleaner-active-assessment"),
+    "new-attempt",
+  );
+});
