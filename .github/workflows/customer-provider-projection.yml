@@ -1,0 +1,22 @@
+name: Safe customer provider projection checks
+on:
+  pull_request:
+    branches: [main, codex/staging]
+    paths:
+      - "supabase/migrations/20261106010000_customer_provider_projection_prerequisite.sql"
+      - "scripts/test-provider-projection-expansion-db.mjs"
+      - ".github/workflows/customer-provider-projection.yml"
+permissions: { contents: read }
+jobs:
+  offline-projection:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - name: Check anonymous access and private-card isolation
+        run: |
+          task_test_dir="$(mktemp -d)"
+          npm install --prefix "$task_test_dir" --no-audit --no-fund --ignore-scripts --save-exact @electric-sql/pglite@0.3.14
+          PGLITE_MODULE="$task_test_dir/node_modules/@electric-sql/pglite" node scripts/test-provider-projection-expansion-db.mjs

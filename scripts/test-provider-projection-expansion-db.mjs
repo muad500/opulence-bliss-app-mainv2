@@ -52,14 +52,21 @@ try {
   const helpersBefore = (await db.query("select proname,prosrc,proacl::text from pg_proc where proname in('account_is_active','can_review_professional') order by proname")).rows;
   // Reproduce the original view under real Stage 1-style helper ACLs, not
   // permissive mock defaults. This is the regression that blocked anon reads.
-  await db.exec(`create view customer_provider_cards as select p.id from providers p where
+  await db.exec(`create view customer_provider_cards with(security_barrier=true) as
+    select p.id,p.customer_first_name,p.photo_url,p.public_rating_avg,p.public_rating_count,
+    p.public_rating_avg as rating_avg,p.public_rating_count as rating_count,
+    null::text as bio,null::integer as years_experience,array[]::text[] as services,
+    p.vetting_status,p.dbs_verified,p.is_suspended,p.show_on_our_pros from providers p where
     exists(select 1 from public_eligible_provider_ids() e where e.id=p.id)
     or (auth.uid() is not null and account_is_active() and (p.profile_id=auth.uid() or can_review_professional()));
-    grant select on customer_provider_cards to anon,authenticated;`);
+    grant select on customer_provider_cards to anon,authenticated;
+    create function customer_provider_card(bookings) returns setof customer_provider_cards rows 1
+      language sql stable as $$select * from customer_provider_cards where id=($1).provider_id$$;`);
+  const originalViewOid=(await db.query("select 'customer_provider_cards'::regclass::oid as oid")).rows[0].oid;
   await actor(null,"anon");
   await assert.rejects(db.query("select * from customer_provider_cards"),/permission denied for function/);
   checks++;
-  await db.exec("reset role;drop view customer_provider_cards");
+  await db.exec("reset role");
   await db.exec(
     readFileSync(
       "supabase/migrations/20261106010000_customer_provider_projection_prerequisite.sql",
@@ -129,12 +136,25 @@ try {
   await actor(id(9),'authenticated',{staff:'manager',aal:'aal2',totp:'verified'});
   await check("select count(*)::int from customer_provider_cards",2,"MFA reviewer retains the prior safe-card scope");
   await db.exec("reset role");
+  assert.equal((await db.query("select 'customer_provider_cards'::regclass::oid as oid")).rows[0].oid,originalViewOid);checks++;
   assert.deepEqual((await db.query("select proname,prosrc,proacl::text from pg_proc where proname in('account_is_active','can_review_professional') order by proname")).rows,helpersBefore);checks++;
   await check(
     "select count(*)::int from pg_policies where schemaname='public' and tablename='providers'",
     1,
     "expansion does not add or alter provider access policies",
   );
+  // Future restriction is simulated offline, then rolled back. Never execute
+  // this block on a connected staging or production database.
+  await db.exec("begin;alter policy legacy_read on providers to authenticated");
+  await actor(null,"anon");
+  await check("select count(*)::int from providers",0,"offline future restriction denies legacy anonymous rows");
+  await check("select count(*)::int from customer_provider_cards",1,"safe directory survives the future restriction");
+  await actor(id(4));
+  await check("select count(*)::int from customer_provider_cards",2,"assigned customer card survives future restriction");
+  await db.exec("reset role;rollback;drop function customer_provider_card(bookings);drop view customer_provider_cards;drop function customer_provider_card_visible(uuid)");
+  await db.exec(readFileSync("supabase/migrations/20261106010000_customer_provider_projection_prerequisite.sql","utf8"));
+  await actor(null,"anon");
+  await check("select count(*)::int from customer_provider_cards",1,"fresh production-style installation works without the old view");
   console.log(
     `${checks} additive projection checks passed; restriction NOT installed.`,
   );
