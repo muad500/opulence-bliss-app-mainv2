@@ -242,7 +242,7 @@ export default function ApplicationConsole({
         action,
         stage,
         details,
-        note: data.get("note"),
+        note: data.get("actionNote"),
       });
       setRecord(null);
       form.reset();
@@ -456,7 +456,7 @@ export default function ApplicationConsole({
             <label>
               Reason or note
               <textarea
-                name="note"
+                name="actionNote"
                 minLength={10}
                 maxLength={2000}
                 rows={3}

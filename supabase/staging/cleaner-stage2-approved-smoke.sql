@@ -8,6 +8,7 @@ declare
   account uuid:='f6000000-0000-4000-8000-000000000003';
   app uuid; host uuid; provider uuid; snap jsonb; stage text; evidence jsonb; part jsonb; item jsonb;
   catalog jsonb; token uuid; n integer; threshold integer; apps_before integer; blocked boolean;
+  accepted timestamptz; policy jsonb; documents jsonb; evidence_batch jsonb; evidence_path text; document_type text;
 begin
   select count(*) into apps_before from public.cleaner_applications;
   select w.catalog into strict catalog from cleaner_onboarding_private.wording_versions w where version='1.0';
@@ -93,6 +94,64 @@ begin
       begin perform public.complete_cleaner_stage2_setup(account,'acct_TEST_FICTIONAL');
       exception when others then blocked:=true;end;
       if not blocked then raise exception 'Incomplete setup passed';end if;
+      accepted:=clock_timestamp();
+      select jsonb_agg(jsonb_build_object('slug',d.slug,'version',d.version,'title',d.title,
+        'sourceContentHtml',d.content_html,'contentHtml',d.content_html,
+        'contentHash',encode(sha256(convert_to(d.content_html,'UTF8')),'hex'),
+        'pdfSha256',d.pdf_sha256)) into documents from public.legal_documents d where d.published
+        and d.slug in ('cleaner-terms','cleaner-cancellation','privacy','safeguarding','dbs-data');
+      evidence_batch:=jsonb_build_object('schemaVersion',1,'acceptedAt',accepted,'request',jsonb_build_object('ip','192.0.2.1'),
+        'documents',documents,'checkboxes',jsonb_build_array(
+          jsonb_build_object('key','cleaner_terms_v1','text','TEST fictional acceptance fixture','checked',true),
+          jsonb_build_object('key','self_employed','text','TEST fictional acceptance fixture','checked',true),
+          jsonb_build_object('key','safeguarding','text','TEST fictional acceptance fixture','checked',true),
+          jsonb_build_object('key','dbs','text','TEST fictional acceptance fixture','checked',true),
+          jsonb_build_object('key','cleaner_insurance','text','TEST fictional acceptance fixture','checked',true)));
+      for policy in select * from jsonb_array_elements(documents) loop
+        insert into public.account_legal_acceptances(user_id,document_slug,version,accepted_at,acceptance_evidence)
+          values(account,policy->>'slug',policy->>'version',accepted,
+            (evidence_batch-'documents')||jsonb_build_object('document',policy)) on conflict do nothing;
+      end loop;
+      perform public.record_cleaner_stage2_acceptances(account,evidence_batch);
+      insert into public.provider_profile_settings(provider_id,emergency_contact_name,emergency_contact_relationship,emergency_contact_phone)
+        values(provider,'TEST Emergency Contact','TEST relationship','+442079460041')
+        on conflict(provider_id) do update set emergency_contact_name=excluded.emergency_contact_name,
+          emergency_contact_relationship=excluded.emergency_contact_relationship,emergency_contact_phone=excluded.emergency_contact_phone;
+      -- A database fixture only: this does not create a Stripe account or prove
+      -- the separate hosted Stripe test onboarding. No money is processed.
+      update public.providers set stripe_account_id='acct_TEST_DATABASE_FIXTURE' where id=provider;
+      perform public.complete_cleaner_stage2_setup(account,'acct_TEST_DATABASE_FIXTURE');
+      foreach document_type in array array['photo_id','right_to_work','proof_of_address','public_liability_insurance'] loop
+        evidence_path:=provider::text||'/'||document_type||'/TEST-fixture.pdf';
+        insert into storage.objects(bucket_id,name) values('provider-verification',evidence_path);
+        perform public.staff_file_cleaner_evidence(app,document_type,evidence_path,'TEST fixture metadata only.pdf','application/pdf',
+          case when document_type='public_liability_insurance' then current_date+30 end,'TEST fictional document verification only',
+          case when document_type='public_liability_insurance' then 100000000 end);
+      end loop;
+      for part in select * from jsonb_array_elements(catalog->'checklists') g
+        where g->>'id' in ('insuranceCheck','inductionAssessment','acceptancesSetup') loop
+        for item in select * from jsonb_array_elements(part->'items') loop
+          perform public.staff_tick_cleaner_checklist(app,part->>'id',item->>'id',true,'TEST fictional setup evidence reviewed');
+        end loop;
+      end loop;
+      perform public.review_professional_service(provider,'cleaning','approved','TEST first review of fictional evidence');
+      blocked:=false;
+      begin perform public.review_professional_service(provider,'cleaning','approved','TEST same-person attempt must fail');
+      exception when others then blocked:=true;end;
+      if not blocked then raise exception 'Same-person second sign-off passed';end if;
+      perform set_config('request.jwt.claims',jsonb_build_object('sub',reviewer,'role','authenticated','aal','aal2',
+        'amr',jsonb_build_array(jsonb_build_object('method','totp')))::text,true);
+      select g into strict part from jsonb_array_elements(catalog->'checklists') g where g->>'id'='independentActivation';
+      for item in select * from jsonb_array_elements(part->'items') loop
+        perform public.staff_tick_cleaner_checklist(app,part->>'id',item->>'id',true,'TEST independent fictional review');
+      end loop;
+      perform public.review_professional_service(provider,'cleaning','approved','TEST independent second sign-off, rolled back');
+      if not exists(select 1 from public.cleaner_applications where id=app and status='active') then
+        raise exception 'Complete independent fixture did not become Active';end if;
+      blocked:=false;
+      begin update public.cleaner_stage2_policy_acceptances set accepted_at=clock_timestamp() where user_id=account;
+      exception when others then blocked:=true;end;
+      if not blocked then raise exception 'Acceptance evidence was editable';end if;
     end if;
   end loop;
   if (select count(*) from public.cleaner_applications)<>apps_before+2 then raise exception 'Unexpected application side effects';end if;
@@ -100,5 +159,5 @@ end;
 $smoke$;
 rollback;
 select jsonb_build_object('passed',true,'fictionalApplications',2,'serverThresholds',jsonb_build_array(11,12),
-  'orderedChecklists',true,'hostGate',true,'accountHandoff',true,'independentReview',true,
+  'orderedChecklists',true,'hostGate',true,'accountHandoff',true,'freshAcceptances',true,'independentReview',true,
   'persistedFixtures',0,'emailsSent',0,'payments',0) as staging_workflow_result;
