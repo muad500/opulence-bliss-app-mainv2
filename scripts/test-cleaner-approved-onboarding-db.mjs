@@ -336,7 +336,9 @@ try {
       accepted_at timestamptz default clock_timestamp(),acceptance_evidence jsonb,booking_id uuid,
       unique nulls not distinct(user_id,document_slug,version,booking_id));
     create table booking_offers(provider_id uuid);create table booking_offer_queue(provider_id uuid);
-    create table bookings(id uuid default gen_random_uuid(),provider_id uuid,scheduled_at timestamptz,status text,completed_at timestamptz);
+    create table bookings(id uuid default gen_random_uuid(),provider_id uuid,scheduled_at timestamptz,status text);
+    create table check_ins(booking_id uuid,left_at timestamptz);
+    create table provider_job_invoices(booking_id uuid,provider_id uuid,completed_at timestamptz);
     create table provider_verification_items(provider_id uuid,document_type text,status text,expires_at date,next_check_at date,
       label text,document_storage_path text,document_original_name text,document_mime_type text,uploaded_at timestamptz,
       checked_at timestamptz,reviewed_by uuid,review_note text,gov_uk_checked_on date,updated_at timestamptz,unique(provider_id,document_type));
@@ -361,6 +363,7 @@ try {
     "20261106101839_cleaner_stage2_evidence_handoff.sql",
     "20261106132822_cleaner_stage2_runtime_updates.sql",
     "20261106134034_cleaner_stage2_policy_acceptances.sql",
+    "20261106202602_cleaner_stage2_completed_visit_followups.sql",
   ])
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
   await actor("service_role");
@@ -848,22 +851,40 @@ try {
       );
     },
   );
-  await check("first/fifth completion reminders are queued once", async () => {
-    for (let n = 1; n <= 5; n++)
+  await check(
+    "first/fifth reminders use actual checkout or retained invoice time once per booking",
+    async () => {
       await db.query(
-        "insert into bookings(provider_id,status,completed_at) values($1,'completed',now()-($2||' minutes')::interval)",
-        [provider, n],
+        "insert into bookings(provider_id,status) values($1,'completed')",
+        [provider],
       );
-    await value("select process_cleaner_stage2_followups()");
-    await value("select process_cleaner_stage2_followups()");
-    assert.equal(
-      await value(
-        "select count(*)::int from cleaner_application_communications where application_id=$1 and template_key in('firstJobFollowUpReminder','fifthJobReviewReminder')",
-        [application],
-      ),
-      2,
-    );
-  });
+      for (let n = 1; n <= 5; n++) {
+        const booking = await value(
+          "insert into bookings(provider_id,status) values($1,'completed') returning id",
+          [provider],
+        );
+        if (n !== 1) {
+          await db.query(
+            "insert into check_ins values($1,now()-($2||' minutes')::interval),($1,now()-interval '1 day')",
+            [booking, n],
+          );
+        }
+        await db.query(
+          "insert into provider_job_invoices values($1,$2,now()-($3||' minutes')::interval)",
+          [booking, provider, n],
+        );
+      }
+      await value("select process_cleaner_stage2_followups()");
+      await value("select process_cleaner_stage2_followups()");
+      assert.equal(
+        await value(
+          "select count(*)::int from cleaner_application_communications where application_id=$1 and template_key in('firstJobFollowUpReminder','fifthJobReviewReminder')",
+          [application],
+        ),
+        2,
+      );
+    },
+  );
   await check(
     "open cases protect expired application records from retention",
     async () => {

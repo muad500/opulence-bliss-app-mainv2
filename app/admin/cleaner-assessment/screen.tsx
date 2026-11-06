@@ -128,12 +128,7 @@ export default function AssessmentConsole() {
         </p>
       </section>
       {!state && !error && <p>Loading assessments…</p>}
-      {state?.applicants.length === 0 && (
-        <p>
-          No invited applicants. Invitation issuance and application intake are
-          still being built.
-        </p>
-      )}
+      {state?.applicants.length === 0 && <p>No invited applicants.</p>}
       {state?.applicants.map((applicant) => (
         <section key={applicant.application_id} className={styles.card}>
           <h2>{applicant.full_name}</h2>

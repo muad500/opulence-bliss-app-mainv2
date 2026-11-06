@@ -14,6 +14,7 @@ import {
   type ProfessionalService,
 } from "@/lib/professionalServices";
 import { dbsRecheckDate } from "@/lib/verificationRenewal";
+import { cleanerStage2ApprovalRequirements } from "@/lib/cleanerStage2Approval";
 import { assertDevelopmentToolsEnabled } from "@/lib/developmentTools";
 
 const admin = createAdminClient(
@@ -118,6 +119,9 @@ async function approvalRequirements(
     )
       missing.push("current public liability insurance");
   }
+  missing.push(
+    ...(await cleanerStage2ApprovalRequirements(admin, id, service)),
+  );
   return missing;
 }
 

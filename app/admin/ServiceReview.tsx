@@ -131,7 +131,7 @@ function ServiceDecision({
             ? "Checking requirements…"
             : missing.length
               ? `Verify ${missing.join(", ")}.`
-              : "All approval requirements are complete."}
+              : "Document checks are complete. Account setup and independent sign-off must also pass."}
         </p>
       )}
       {status === "pending" && review && (

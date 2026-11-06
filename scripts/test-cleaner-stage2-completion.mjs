@@ -100,7 +100,11 @@ function fixture(options = {}) {
                 ? options.existing
                   ? { id: uuid, role: "customer" }
                   : null
-                : { stripe_account_id: options.accountId ?? "acct_TEST" },
+                : table === "cleaner_applications"
+                  ? options.applicationStatus
+                    ? { status: options.applicationStatus }
+                    : null
+                  : { stripe_account_id: options.accountId ?? "acct_TEST" },
           };
         },
         async single() {
@@ -642,7 +646,7 @@ test("a reopened invitation waits for the old page-leave request before starting
           module: ts.ModuleKind.CommonJS,
           target: ts.ScriptTarget.ES2022,
           jsx: ts.JsxEmit.ReactJSX,
-        esModuleInterop: true,
+          esModuleInterop: true,
         },
       },
     ).outputText,
@@ -714,4 +718,49 @@ test("a reopened invitation waits for the old page-leave request before starting
     storage.get("opulence-cleaner-active-assessment"),
     "new-attempt",
   );
+});
+
+test("staff approval stays blocked until the passed applicant finishes setup", async () => {
+  const f = fixture({ applicationStatus: "assessment_passed" });
+  assert.deepEqual(
+    Array.from(
+      await f
+        .load("lib/cleanerStage2Approval.ts")
+        .cleanerStage2ApprovalRequirements(f.client, uuid, "cleaning"),
+    ),
+    ["post-assessment account setup and policy acceptances"],
+  );
+  for (const applicationStatus of [undefined, "accepted_setup", "active"]) {
+    const ready = fixture({ applicationStatus });
+    assert.equal(
+      (
+        await ready
+          .load("lib/cleanerStage2Approval.ts")
+          .cleanerStage2ApprovalRequirements(ready.client, uuid, "cleaning")
+      ).length,
+      0,
+    );
+  }
+});
+
+test("Stage 2 approval check does not query other services or Production", async () => {
+  for (const [env, service] of [
+    [{}, "handyman"],
+    [{ VERCEL_ENV: "production" }, "cleaning"],
+  ]) {
+    const f = fixture({ env });
+    const refuseDatabase = {
+      from() {
+        throw Error("Must not read the application table");
+      },
+    };
+    assert.equal(
+      (
+        await f
+          .load("lib/cleanerStage2Approval.ts")
+          .cleanerStage2ApprovalRequirements(refuseDatabase, uuid, service)
+      ).length,
+      0,
+    );
+  }
 });
