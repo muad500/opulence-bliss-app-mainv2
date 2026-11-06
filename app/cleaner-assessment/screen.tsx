@@ -20,6 +20,7 @@ type Snapshot = {
   deadline?: string;
   serverTime: string;
   writing?: string;
+  reviewStage?: "writing" | "assessment";
 };
 const endpoint = "/api/cleaner-assessment/session";
 const marker = "opulence-cleaner-active-assessment";
@@ -352,8 +353,9 @@ export default function CleanerAssessment() {
         )}
         {snapshot?.phase === "manager_review" && (
           <p role="status">
-            Your assessment is awaiting a staff review. Please speak to the
-            host.
+            {snapshot.reviewStage === "writing"
+              ? copy.waiting
+              : "Your assessment is awaiting a staff review. Please speak to the host."}
           </p>
         )}
         {snapshot?.phase === "failed" && (

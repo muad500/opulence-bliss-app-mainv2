@@ -85,6 +85,7 @@ try {
     "20261105020000_cleaner_application_records.sql",
     "20261105021000_private_cleaner_assessment.sql",
     "20261105022000_cleaner_application_intake_retention.sql",
+    "20261106211204_cleaner_stage2_writing_review_status.sql",
   ])
     await db.exec(readFileSync(`supabase/migrations/${migration}`, "utf8"));
   await db.exec(`insert into cleaner_applications(full_name,email,phone,postcode,areas,experience,availability,right_to_work_type,checks_acknowledged,declaration_text,declaration_source,privacy_version,status)
@@ -381,6 +382,14 @@ try {
           `select phase from cleaner_assessment_private.attempts where id='${attempt}'`,
         ),
         "manager_review",
+      );
+      assert.equal(
+        (
+          await value(
+            `select cleaner_assessment_private.snapshot('${attempt}')`,
+          )
+        ).reviewStage,
+        "writing",
       );
       assert.equal(
         await value(`select status from cleaner_applications limit 1`),
