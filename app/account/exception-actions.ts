@@ -40,7 +40,7 @@ export async function reportProviderNoShow(
   const { data: booking, error: bookingError } = await supabase
     .from("bookings")
     .select(
-      "id, status, scheduled_at, customer_id, customer_email, provider_id, packages(name), providers!bookings_provider_id_fkey(profile_id)",
+      "id, status, scheduled_at, customer_id, customer_email, provider_id, packages(name)",
     )
     .eq("id", bookingId)
     .maybeSingle();
@@ -96,9 +96,15 @@ export async function reportProviderNoShow(
   if (error) return { ok: false, message: error.message };
 
   const pkg = one(booking.packages as never) as { name: string } | null;
-  const provider = one(booking.providers as never) as {
-    profile_id: string | null;
-  } | null;
+  // Resolve the notification recipient on the server only, after verifying the
+  // customer owns this booking. Customers no longer read private provider rows.
+  const { data: provider } = booking.provider_id
+    ? await admin
+        .from("providers")
+        .select("profile_id")
+        .eq("id", booking.provider_id)
+        .maybeSingle()
+    : { data: null };
 
   await Promise.allSettled([
     provider?.profile_id

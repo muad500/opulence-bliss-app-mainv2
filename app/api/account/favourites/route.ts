@@ -5,24 +5,12 @@ import {
   isAccountError,
   readAccountBody,
 } from "@/lib/accountApi";
+import { createClient } from "@/lib/supabase/server";
+import { loadCustomerFavouriteCards } from "@/lib/customerCleanerCards";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-async function list(userId: string, admin: SupabaseClient) {
-  const { data, error } = await admin
-    .from("customer_favourite_providers")
-    .select("provider_id,providers(customer_first_name,photo_url,rating_avg)")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false });
-  if (error) throw new Error("Favourite professionals could not be loaded.");
-  return (data ?? []).map((row) => {
-    const p = Array.isArray(row.providers) ? row.providers[0] : row.providers;
-    return {
-      providerId: row.provider_id,
-      displayName: p?.customer_first_name ?? "Professional",
-      photoUrl: p?.photo_url ?? null,
-      ratingAvg: p?.rating_avg == null ? null : Number(p.rating_avg),
-    };
-  });
+async function list(userId: string, accountStore: SupabaseClient) {
+  return loadCustomerFavouriteCards(await createClient(), userId, accountStore);
 }
 
 export async function GET(request: NextRequest) {

@@ -53,7 +53,7 @@ export default function RatingGate() {
     const { data: done } = await supabase
       .from("bookings")
       .select(
-        "id, customer_id, provider_id, packages(name), providers!bookings_provider_id_fkey(customer_first_name)",
+        "id, customer_id, provider_id, packages(name), providers:customer_provider_card(customer_first_name)",
       )
       .eq("status", "completed")
       .order("scheduled_at", { ascending: false })
@@ -100,9 +100,13 @@ export default function RatingGate() {
   }, []);
 
   useEffect(() => {
-    look();
+    // Start the async check after the effect commits; cancel it on unmount.
+    const firstCheck = setTimeout(() => void look(), 0);
     const t = setInterval(look, 20000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(firstCheck);
+      clearInterval(t);
+    };
   }, [look]);
 
   async function submit() {

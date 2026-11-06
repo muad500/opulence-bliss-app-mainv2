@@ -209,7 +209,7 @@ export default function ClientProfilePage() {
     const { data: bookingRows, error: bookingError } = await supabase
       .from("bookings")
       .select(
-        "id, provider_id, scheduled_at, providers!bookings_provider_id_fkey(customer_first_name)",
+        "id, provider_id, scheduled_at, providers:customer_provider_card(customer_first_name)",
       )
       .eq("customer_id", auth.user.id)
       .order("scheduled_at", { ascending: false });

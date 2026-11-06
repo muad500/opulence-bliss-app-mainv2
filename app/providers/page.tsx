@@ -57,7 +57,7 @@ export default function ProvidersPage() {
         return;
       }
       const { data } = await supabase
-        .from("providers")
+        .from("customer_provider_cards")
         .select(
           "id, customer_first_name, bio, photo_url, years_experience, services, public_rating_avg, public_rating_count",
         )
