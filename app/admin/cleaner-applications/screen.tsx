@@ -459,7 +459,7 @@ export default function ApplicationConsole({
               value="record"
               disabled={busy || (privateStage && !privateOpen)}
             >
-              Save draft evidence
+              Save evidence
             </button>
             <button
               value="complete"

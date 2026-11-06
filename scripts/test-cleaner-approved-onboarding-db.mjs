@@ -348,6 +348,7 @@ try {
     "20261106091246_cleaner_induction_account_handoff.sql",
     "20261106092348_cleaner_stage2_activation_followups.sql",
     "20261106101839_cleaner_stage2_evidence_handoff.sql",
+    "20261106132822_cleaner_stage2_runtime_updates.sql",
   ])
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
   await actor("service_role");
