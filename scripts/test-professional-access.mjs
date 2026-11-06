@@ -41,6 +41,9 @@ async function load(path, mocks = {}) {
       if (id === "@/lib/accountChangeVerification")
         return { verifyAccountChangeRequest: async () => null };
       if (id === "@/lib/professionalServices") return services;
+      if (id === "@/lib/cleanerApplication") return cleanerApplication;
+      if (id === "./ukPhone") return ukPhone;
+      if (id === "@/lib/accountRoles") return accountRoles;
       if (id === "./sessionOptions") return sessionOptions;
       if (id === "./finalCheckoutCopy") return finalCopy;
       if (id === "@/lib/professionalLegalCopy") return professionalLegalCopy;
@@ -67,11 +70,14 @@ async function load(path, mocks = {}) {
   });
   return compiledModule.exports;
 }
+const ukPhone = await load("lib/ukPhone.ts");
+const cleanerApplication = await load("lib/cleanerApplication.ts");
 const finalCopy = await load("lib/finalCheckoutCopy.ts");
 const professionalLegalCopy = await load("lib/professionalLegalCopy.ts");
 const sessionOptions = await load("lib/supabase/sessionOptions.ts");
 const services = await load("lib/professionalServices.ts");
 const access = await load("lib/professionalAccess.ts");
+const accountRoles = await load("lib/accountRoles.ts");
 const onboarding = await load("lib/providerOnboarding.ts");
 const request = (path, body) =>
   new NextRequest(
@@ -198,6 +204,26 @@ test("public deletion guide needs no sign-in while adjacent and admin routes sta
     "/staff/login",
   );
 });
+test("pre-account cleaner pages are stateless and never require a general login", async () => {
+  const { updateSession } = await load("lib/supabase/proxy.ts", {
+    "@supabase/ssr": {
+      createServerClient: () => {
+        throw Error("Pre-account pages must not refresh general auth cookies");
+      },
+    },
+    "../utils": { hasEnvVars: true },
+    "../professionalAccess": access,
+  });
+  for (const path of [
+    "/cleaner-apply",
+    "/cleaner-assessment",
+    "/cleaner-decision",
+  ]) {
+    const result = await updateSession(request(path));
+    assert.equal(result.headers.get("location"), null);
+    assert.equal(result.headers.get("set-cookie"), null);
+  }
+});
 
 test("direct professional URLs and RSC requests cannot bypass approval", async () => {
   for (const provider of [
@@ -252,10 +278,13 @@ test("pending menu shows application access with no jobs mode or unlocked workin
       usePathname: () => "/worker/application",
     },
   };
-  const { default: Switch } = await load(
-    "components/AccountModeSwitch.tsx",
-    mocks,
-  );
+  const { default: Switch } = await load("components/AccountModeSwitch.tsx", {
+    ...mocks,
+    "./AccountRoleSwitch": await load(
+      "components/AccountRoleSwitch.tsx",
+      mocks,
+    ),
+  });
   const pending = renderToStaticMarkup(
     React.createElement(Switch, {
       mode: "client",
@@ -341,11 +370,7 @@ const validSignup = {
   dbsCertificateFileName: "certificate.pdf",
   dbsCertificateMimeType: "application/pdf",
 };
-async function signup(
-  body,
-  safeguardingEnabled = true,
-  cleanerTermsAvailable = true,
-) {
+async function signup(body, safeguardingEnabled = true) {
   const writes = [];
   const db = {
     auth: {
@@ -361,16 +386,7 @@ async function signup(
         eq: () => q,
         in: () => q,
         maybeSingle: async () => ({
-          data:
-            table === "profiles"
-              ? { role: "customer" }
-              : table === "legal_documents" && cleanerTermsAvailable
-                ? {
-                    version: "1.0",
-                    content_html:
-                      "<p>Published fixture Cleaner Terms for this test only.</p>",
-                  }
-                : null,
+          data: table === "profiles" ? { role: "customer" } : null,
         }),
         single: async () => ({ data: { id: "professional" } }),
         insert: (value) => {
@@ -526,18 +542,36 @@ test("unpublished final safeguarding policy blocks new applications before writi
   assert.equal(response.status, 503);
   assert.equal(writes.length, 0);
 });
-test("missing Cleaner Terms uses the existing cleaner agreement and retains every required declaration", async () => {
-  const { response, writes } = await signup(validSignup, true, false);
+test("cleaner signup records the new terms and rejects an older agreement checkbox", async () => {
+  const staleConsent = {
+    ...validSignup.professionalConsents,
+    cleaner_terms_v1: undefined,
+    cleaner_terms: true,
+  };
+  const stale = await signup({
+    ...validSignup,
+    professionalConsents: staleConsent,
+  });
+  assert.equal(stale.response.status, 400);
+  assert.equal(stale.writes.length, 0);
+  const { response, writes } = await signup(validSignup);
   assert.equal(response.status, 200);
   const accepted = writes.find(
     (write) => write.table === "account_legal_acceptances",
   ).value;
   assert.ok(
     accepted.some(
+      (row) => row.document_slug === "cleaner-terms" && row.version === "1.0",
+    ),
+  );
+  assert.ok(
+    !accepted.some(
       (row) => row.document_slug === "professional-partner-agreement",
     ),
   );
-  assert.ok(!accepted.some((row) => row.document_slug === "cleaner-terms"));
+  assert.ok(
+    accepted.some((row) => row.document_slug === "cleaner-cancellation"),
+  );
   assert.ok(accepted.some((row) => row.document_slug === "safeguarding"));
 });
 

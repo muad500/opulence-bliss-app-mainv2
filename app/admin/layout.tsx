@@ -2,6 +2,7 @@ import PortalLiveSync from "@/components/PortalLiveSync";
 import { requireAdminPage } from "@/lib/adminSession";
 import AdminNav from "./AdminNav";
 import styles from "./AdminNav.module.css";
+import { cleanerStage2Enabled } from "@/lib/cleanerApplication";
 
 export const metadata = { robots: { index: false, follow: false } };
 
@@ -10,12 +11,16 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user } = await requireAdminPage();
+  const { user, staffRole } = await requireAdminPage("staff");
 
   return (
     <div className={styles.shell}>
       <PortalLiveSync userId={user.id} />
-      <AdminNav email={user.email ?? ""} />
+      <AdminNav
+        email={user.email ?? ""}
+        staffRole={staffRole}
+        cleanerStage2={cleanerStage2Enabled()}
+      />
       {children}
     </div>
   );

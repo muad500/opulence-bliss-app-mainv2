@@ -1,0 +1,37 @@
+.workspace form,
+.workspace form label {
+  display: grid;
+  gap: 10px;
+}
+.workspace form {
+  gap: 18px;
+  margin-top: 24px;
+}
+.workspace form input,
+.workspace form textarea,
+.workspace form select {
+  font: inherit;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid #c5bdd0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.workspace fieldset {
+  min-width: 0;
+  display: grid;
+  gap: 18px;
+}
+.workspace input[type="checkbox"] {
+  height: 24px;
+  width: 24px;
+}
+.workspace article {
+  border-bottom: 1px solid #e6dfef;
+  padding-bottom: 18px;
+}
+.workspace ol,
+.workspace li {
+  overflow-wrap: anywhere;
+}

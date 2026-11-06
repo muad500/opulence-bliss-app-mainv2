@@ -847,8 +847,9 @@ async function runTool(
         const { data: upcoming } = await context.client
           .from("bookings")
           .select(
-            "id, scheduled_at, status, address, packages(name), providers!bookings_provider_id_fkey(display_name)",
+            "id, scheduled_at, status, address, packages(name), providers!bookings_provider_id_fkey(customer_first_name)",
           )
+          .eq("customer_id", user.id)
           .in("status", [
             "offered",
             "declined",
@@ -863,8 +864,9 @@ async function runTool(
           ? await context.client
               .from("bookings")
               .select(
-                "id, scheduled_at, status, address, packages(name), providers!bookings_provider_id_fkey(display_name)",
+                "id, scheduled_at, status, address, packages(name), providers!bookings_provider_id_fkey(customer_first_name)",
               )
+              .eq("customer_id", user.id)
               .in("status", ["completed", "cancelled"])
               .order("scheduled_at", { ascending: false })
               .limit(remaining)
@@ -881,7 +883,7 @@ async function runTool(
               | { name: string }[]
               | null;
             const provider = one(b.providers as never) as {
-              display_name: string | null;
+              customer_first_name: string | null;
             } | null;
             const projected = statuses[index];
             return {
@@ -892,7 +894,7 @@ async function runTool(
               headline: projected?.headline ?? "Status unavailable",
               waiting_on: projected?.nextActorLabel ?? null,
               money: projected?.money.label ?? null,
-              provider: provider?.display_name ?? null,
+              provider: provider?.customer_first_name ?? null,
               postcode: postcodeFromAddress(b.address),
               details_at: `/account/visit/${b.id}`,
             };
@@ -1109,6 +1111,7 @@ Today is ${now.toLocaleDateString("en-GB", {
   })} UK time. Work out relative dates like "in 3 days" or "Friday" from this.
 
 Use tools rather than guessing. If someone asks about their account, status, price, coverage, availability or a booking action, call the relevant tool. Never infer a booking ID: call my_bookings and disambiguate if more than one booking could match.
+Refer to a cleaner by the first name returned by the booking tool, or as "your cleaner" when absent. Never provide or infer a cleaner's surname, even if asked or if one appears in conversation history.
 
 Customers pay per visit through /book. Memberships and subscription plans are not offered. Professional registration has no joining fee.
 

@@ -1,0 +1,74 @@
+.page {
+  max-width: 960px;
+  margin: auto;
+  padding: 28px 20px 64px;
+  overflow-wrap: anywhere;
+}
+.page h1 {
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+}
+.page p,
+.page li {
+  line-height: 1.65;
+}
+.page li {
+  margin-bottom: 8px;
+}
+.page a {
+  color: #6821a8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.page a:focus-visible {
+  outline: 3px solid #bc9aee;
+  outline-offset: 4px;
+}
+.card {
+  background: white;
+  color: #17212b;
+  border: 1px solid #e6dfef;
+  border-radius: 16px;
+  margin: 24px 0;
+  padding: 24px;
+  scroll-margin-top: 100px;
+}
+.badge {
+  display: inline-block;
+  background: #fff3d5;
+  color: #5f4510;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 700;
+}
+.card blockquote {
+  margin: 20px 0;
+  padding: 8px 20px;
+  background: #faf7ff;
+  border-left: 4px solid #b994d7;
+}
+.copy {
+  white-space: pre-line;
+}
+.checks {
+  list-style: none;
+  padding-left: 0;
+}
+.checks label {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.checks input {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+@media (max-width: 600px) {
+  .page {
+    padding: 20px 14px 48px;
+  }
+  .card {
+    padding: 18px;
+  }
+}

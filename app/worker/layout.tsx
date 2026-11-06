@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import PortalLiveSync from "@/components/PortalLiveSync";
 import PortalNav from "./PortalNav";
+import ProfessionalDocumentUpdates from "@/components/ProfessionalDocumentUpdates";
 import {
   canUseProfessionalTools,
   professionalStatusLabel,
@@ -147,6 +148,7 @@ export default async function WorkerLayout({
           />
         )}
 
+        {registered && <ProfessionalDocumentUpdates />}
         {children}
       </div>
     </div>

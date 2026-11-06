@@ -16,6 +16,7 @@ import { createClient as createServerClient } from "@/lib/supabase/server";
 import { handymanEnabled, validHandymanTask } from "@/lib/handymanMarketplace";
 import { selectedProfessionalServices } from "@/lib/professionalServices";
 import { isSameOriginMutation } from "@/lib/accountApi";
+import { cleanerStage2Enabled } from "@/lib/cleanerApplication";
 import { isValidUkPhone, normalizeUkPhone } from "@/lib/ukPhone";
 import {
   dbsCertificateExtension,
@@ -104,6 +105,28 @@ export async function POST(req: NextRequest) {
       );
     const cleaningSelected = selectedServices.includes("cleaning");
     const handymanSelected = selectedServices.includes("handyman");
+    if (cleanerStage2Enabled() && cleaningSelected) {
+      const existing = existingUser
+        ? await admin
+            .from("providers")
+            .select("id")
+            .eq("profile_id", existingUser.id)
+            .maybeSingle()
+        : { data: null, error: null };
+      const permitted = existing.data
+        ? await admin.rpc("cleaner_legacy_registration_allowed", {
+            p_provider: existing.data.id,
+          })
+        : { data: false, error: null };
+      if (existing.error || permitted.error || permitted.data !== true)
+        return NextResponse.json(
+          {
+            error: "Complete the cleaner application and assessment first.",
+            redirectTo: "/cleaner-apply",
+          },
+          { status: 409 },
+        );
+    }
     if (
       handymanSelected &&
       (!Array.isArray(maintenanceTasks) ||
@@ -455,10 +478,7 @@ export async function POST(req: NextRequest) {
         "dbs-data",
         "safeguarding",
         ...(cleaningSelected
-          ? [
-              "professional-partner-agreement" as const,
-              "cleaner-cancellation" as const,
-            ]
+          ? ["cleaner-terms" as const, "cleaner-cancellation" as const]
           : []),
         ...(handymanSelected ? ["handyman-professional-terms" as const] : []),
       ],
@@ -470,9 +490,7 @@ export async function POST(req: NextRequest) {
     const professionalAgreementVersion = acceptance.documents.find(
       (d) =>
         d.slug ===
-        (cleaningSelected
-          ? "professional-partner-agreement"
-          : "handyman-professional-terms"),
+        (cleaningSelected ? "cleaner-terms" : "handyman-professional-terms"),
     )!.version;
     const privacyVersion = acceptance.documents.find(
       (d) => d.slug === "privacy",

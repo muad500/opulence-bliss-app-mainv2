@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import styles from "./AdminNav.module.css";
+import { STAFF_ROLE_LABELS, type StaffRole } from "@/lib/staffPermissions";
 const primary = [
   ["/admin", "Overview"],
   ["/admin/bookings", "Bookings"],
@@ -24,8 +25,18 @@ const tools = [
   ["/admin/chat-flags", "Chat safety"],
   ["/admin/legal", "Legal content"],
   ["/admin/settings", "Settings"],
+  ["/admin/staff-roles", "Staff permissions"],
+  ["/admin/document-changes", "Document changes"],
 ];
-export default function AdminNav({ email }: { email: string }) {
+export default function AdminNav({
+  email,
+  staffRole = "manager",
+  cleanerStage2 = false,
+}: {
+  email: string;
+  staffRole?: StaffRole;
+  cleanerStage2?: boolean;
+}) {
   const path = usePathname();
   const menu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
@@ -44,9 +55,15 @@ export default function AdminNav({ email }: { email: string }) {
       <div className={styles.brand}>
         <Link href="/admin">Admin page</Link>
         <small title={email}>{email}</small>
+        <small>{STAFF_ROLE_LABELS[staffRole]}</small>
       </div>
       <div className={styles.links}>
-        {primary.map(([href, label]) => (
+        {(staffRole === "manager"
+          ? primary
+          : staffRole === "developer"
+            ? [["/admin", "Access information"]]
+            : [["/admin/onboarding", "Professional onboarding"]]
+        ).map(([href, label]) => (
           <Link
             key={href}
             href={href}
@@ -74,7 +91,15 @@ export default function AdminNav({ email }: { email: string }) {
           More tools <span aria-hidden="true">⌄</span>
         </summary>
         <div className={styles.menu}>
-          {tools.map(([href, label]) => (
+          {[
+            ...(staffRole === "manager" ? tools : []),
+            ...(cleanerStage2 && staffRole !== "developer"
+              ? [
+                  ["/admin/cleaner-applications", "Cleaner applications"],
+                  ["/admin/cleaner-assessment", "Cleaner assessments"],
+                ]
+              : []),
+          ].map(([href, label]) => (
             <Link
               key={href}
               href={href}

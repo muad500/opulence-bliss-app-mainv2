@@ -18,7 +18,16 @@ export async function reviewProviderDocument(
   decision: "verified" | "rejected",
   form: FormData,
 ) {
-  const { user } = await requireAdminPage();
+  const { user, supabase } = await requireAdminPage("private_evidence");
+  const access = await supabase.rpc("staff_open_verification_record", {
+    p_provider: providerId,
+    p_type: documentType,
+    p_action: "review",
+  });
+  if (access.error || access.data?.allowed !== true)
+    throw new Error(
+      "Named onboarding access is required to review private documents.",
+    );
   if (!isProviderDocumentType(documentType))
     throw new Error("Unsupported document type.");
   if (decision !== "verified" && decision !== "rejected")

@@ -14,6 +14,7 @@ import {
   type ProfessionalService,
 } from "@/lib/professionalServices";
 import { dbsRecheckDate } from "@/lib/verificationRenewal";
+import { cleanerStage2ApprovalRequirements } from "@/lib/cleanerStage2Approval";
 import { assertDevelopmentToolsEnabled } from "@/lib/developmentTools";
 
 const admin = createAdminClient(
@@ -44,7 +45,7 @@ async function approvalRequirements(
   const [dbsResult, checksResult, providerResult] = await Promise.all([
     admin
       .from("provider_dbs_checks")
-      .select("status, uploaded_at,issue_date")
+      .select("status, uploaded_at,issue_date,reviewed_at")
       .eq("provider_id", id)
       .maybeSingle(),
     admin
@@ -65,14 +66,17 @@ async function approvalRequirements(
   if (dbsResult.error || checksResult.error || providerResult.error)
     throw new Error("Private verification records could not be loaded.");
   const missing: string[] = [];
-  if (dbsResult.data?.status !== "verified" || !dbsResult.data.uploaded_at)
+  if (
+    dbsResult.data?.status !== "verified" ||
+    !(dbsResult.data.uploaded_at || dbsResult.data.reviewed_at)
+  )
     missing.push("DBS certificate");
   const today = new Date().toISOString().slice(0, 10);
   if (
     dbsResult.data &&
     (dbsRecheckDate(dbsResult.data.issue_date) ?? "") < today
   )
-    missing.push("annual DBS re-check");
+    missing.push("three-year DBS re-check");
   for (const [type, label] of [
     ["right_to_work", "right to work"],
     ["photo_id", "photo ID"],
@@ -115,6 +119,9 @@ async function approvalRequirements(
     )
       missing.push("current public liability insurance");
   }
+  missing.push(
+    ...(await cleanerStage2ApprovalRequirements(admin, id, service)),
+  );
   return missing;
 }
 
@@ -122,7 +129,7 @@ export async function getProviderApprovalRequirements(
   id: string,
   service: ProfessionalService = "cleaning",
 ): Promise<string[]> {
-  await requireAdmin();
+  await requireAdminPage("onboarding");
   if (service === "handyman" && !handymanEnabled())
     throw new Error("This service is not available.");
   return approvalRequirements(id, service);
@@ -134,7 +141,7 @@ export async function reviewProfessionalService(
   status: "approved" | "rejected" | "suspended" | "pending",
   reason?: string,
 ) {
-  const client = await requireAdmin();
+  const client = (await requireAdminPage("onboarding")).supabase;
   if (
     !isProfessionalService(service) ||
     (service === "handyman" && !handymanEnabled())
@@ -163,7 +170,7 @@ export async function getProfessionalApprovalReviewState(
   id: string,
   service: ProfessionalService,
 ) {
-  const client = await requireAdmin();
+  const client = (await requireAdminPage("onboarding")).supabase;
   if (
     !isProfessionalService(service) ||
     (service === "handyman" && !handymanEnabled())
@@ -193,17 +200,20 @@ export async function setProviderDbsStatus(
   status: "verified" | "failed",
   note?: string,
 ) {
-  const s = await requireAdmin();
+  const s = (await requireAdminPage("private_evidence")).supabase;
   const {
     data: { user },
   } = await s.auth.getUser();
   if (!user) throw new Error("Not signed in");
 
-  const { error: accessError } = await s.rpc("staff_view_dbs_record", {
-    p_provider: id,
-    p_action: "review",
-  });
-  if (accessError)
+  const { data: access, error: accessError } = await s.rpc(
+    "staff_open_dbs_record",
+    {
+      p_provider: id,
+      p_action: "review",
+    },
+  );
+  if (accessError || access?.allowed !== true)
     throw new Error("Only named onboarding staff can review DBS records.");
 
   const { data: check, error: checkError } = await admin

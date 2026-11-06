@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireAdminPage } from "@/lib/adminSession";
 import { loadAdminOverview } from "@/lib/adminOverview";
 import { ADMIN_PREVIEW_LIMIT, professionalStatus } from "@/lib/adminDashboard";
@@ -105,7 +106,18 @@ function ProfessionalRow({
   );
 }
 export default async function AdminPage() {
-  const { supabase, user } = await requireAdminPage();
+  const { supabase, staffRole } = await requireAdminPage("staff");
+  if (staffRole === "developer")
+    return (
+      <main style={{ padding: 24 }}>
+        <h1>Developer access</h1>
+        <p>
+          Live identity and DBS records are unavailable to this staff role.
+          Development uses fictional data only.
+        </p>
+      </main>
+    );
+  if (staffRole !== "manager") redirect("/admin/onboarding");
   const handyman = handymanEnabled();
   const { bookings, customers, professionals, approvals, reviews } =
     await loadAdminOverview(supabase, handyman);
