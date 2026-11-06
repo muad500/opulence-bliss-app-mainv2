@@ -9,7 +9,15 @@ export async function updateSession(request: NextRequest) {
     request,
   });
   // Public Partner interest is intentionally stateless: do not refresh or write auth cookies.
-  if (["/partners", "/api/partner-interest"].includes(request.nextUrl.pathname))
+  if (
+    [
+      "/partners",
+      "/api/partner-interest",
+      "/cleaner-apply",
+      "/cleaner-assessment",
+      "/cleaner-decision",
+    ].includes(request.nextUrl.pathname)
+  )
     return supabaseResponse;
   const PUBLIC = [
     "/api",

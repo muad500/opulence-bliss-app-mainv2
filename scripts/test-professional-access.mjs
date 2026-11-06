@@ -204,6 +204,26 @@ test("public deletion guide needs no sign-in while adjacent and admin routes sta
     "/staff/login",
   );
 });
+test("pre-account cleaner pages are stateless and never require a general login", async () => {
+  const { updateSession } = await load("lib/supabase/proxy.ts", {
+    "@supabase/ssr": {
+      createServerClient: () => {
+        throw Error("Pre-account pages must not refresh general auth cookies");
+      },
+    },
+    "../utils": { hasEnvVars: true },
+    "../professionalAccess": access,
+  });
+  for (const path of [
+    "/cleaner-apply",
+    "/cleaner-assessment",
+    "/cleaner-decision",
+  ]) {
+    const result = await updateSession(request(path));
+    assert.equal(result.headers.get("location"), null);
+    assert.equal(result.headers.get("set-cookie"), null);
+  }
+});
 
 test("direct professional URLs and RSC requests cannot bypass approval", async () => {
   for (const provider of [
