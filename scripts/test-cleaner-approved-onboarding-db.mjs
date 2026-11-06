@@ -1,8 +1,24 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { createHash } from "node:crypto";
+import vm from "node:vm";
+import ts from "typescript";
 const require = createRequire(import.meta.url);
+const evidenceModule = { exports: {} };
+vm.runInNewContext(
+  ts.transpileModule(readFileSync("lib/bookingLegalEvidence.ts", "utf8"), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText,
+  {
+    module: evidenceModule,
+    exports: evidenceModule.exports,
+    require: (name) => (name.startsWith("./") ? {} : require(name)),
+  },
+);
+const { legalContentHash } = evidenceModule.exports;
 if (!process.env.PGLITE_MODULE)
   throw Error("Local PGLITE_MODULE required; no remote database accepted.");
 const { PGlite } = require(process.env.PGLITE_MODULE);
@@ -364,6 +380,7 @@ try {
     "20261106132822_cleaner_stage2_runtime_updates.sql",
     "20261106134034_cleaner_stage2_policy_acceptances.sql",
     "20261106202602_cleaner_stage2_completed_visit_followups.sql",
+    "20261106205440_cleaner_stage2_acceptance_hash_contract.sql",
   ])
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
   await actor("service_role");
@@ -673,9 +690,7 @@ try {
       version: "1.0",
       title: slug,
       sourceContentHtml: "TEST canonical " + slug,
-      contentHash: createHash("sha256")
-        .update("TEST canonical " + slug)
-        .digest("hex"),
+      contentHash: legalContentHash("TEST canonical " + slug),
     });
   }
   await actor("service_role");

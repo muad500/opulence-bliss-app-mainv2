@@ -97,7 +97,7 @@ begin
       accepted:=clock_timestamp();
       select jsonb_agg(jsonb_build_object('slug',d.slug,'version',d.version,'title',d.title,
         'sourceContentHtml',d.content_html,'contentHtml',d.content_html,
-        'contentHash',encode(sha256(convert_to(d.content_html,'UTF8')),'hex'),
+        'contentHash',md5(d.content_html),
         'pdfSha256',d.pdf_sha256)) into documents from public.legal_documents d where d.published
         and d.slug in ('cleaner-terms','cleaner-cancellation','privacy','safeguarding','dbs-data');
       evidence_batch:=jsonb_build_object('schemaVersion',1,'acceptedAt',accepted,'request',jsonb_build_object('ip','192.0.2.1'),
