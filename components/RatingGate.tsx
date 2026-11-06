@@ -100,9 +100,13 @@ export default function RatingGate() {
   }, []);
 
   useEffect(() => {
-    look();
+    // Start the async check after the effect commits; cancel it on unmount.
+    const firstCheck = setTimeout(() => void look(), 0);
     const t = setInterval(look, 20000);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(firstCheck);
+      clearInterval(t);
+    };
   }, [look]);
 
   async function submit() {
