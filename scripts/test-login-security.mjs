@@ -285,6 +285,11 @@ const pureDependencies = {
   "@/lib/bookingState": {},
   "@/lib/offerRotation": {},
   "@/lib/verificationRenewal": {},
+  "@/lib/cleanerStage2Approval": {
+    cleanerStage2ApprovalRequirements: () => {
+      throw Error("Destructive tools must not inspect applicant approval");
+    },
+  },
   "@/lib/prepaidVisitPayout": {},
   "@/lib/visitBillingServer": {},
   "@/lib/tipPayout": {},

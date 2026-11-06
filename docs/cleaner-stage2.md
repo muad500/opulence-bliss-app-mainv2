@@ -3,12 +3,23 @@
 Staging only. Production requires the owner's explicit go. Checkout, loyalty,
 Booking Credit and tips belong to the other bot and are not modified here.
 
-**Latest status, 5 November:** the approved Content Pack is now imported into
-the isolated STAGING database, and all six Stage 2 migrations match the ledger.
-The real-bank server smoke passed; no test records remain. The applicant flow
-is still a draft. The client will not supply the internal HR process. Replacement
-emails and checklists are now drafted for client approval; invitation/setup/browser
-work is not signed off.
+**Latest status, 7 November 2026:** approved Version 1.0 wording is connected to
+the staging flow, including the private E04 decision view, checklist audit,
+post-pass account handoff and three-year DBS renewal. The minute recovery job
+is running. Fifteen Stage 2 migrations are present in the staging ledger.
+Production has not been changed by this task.
+
+The full result and numbered acceptance-test mapping are in
+[the current walkthrough report](cleaner-stage2-walkthrough-2026-11-07.md).
+PR #63 stays draft: actual Stripe sandbox setup, the resulting welcome-email
+PDF delivery and physical Android/iPhone checks remain incomplete. Stripe's
+dashboard currently requires the owner's authenticator. The fictional account
+and its personal links have been disabled after testing.
+
+**Everything below is historical checkpoint material.** Its old pending-approval,
+unapplied-migration and uninstalled-scheduler statements describe earlier work,
+not the current approved implementation. Keep it as development history; use
+the dated report above for current release gates.
 
 ## Dependencies and rollout
 
